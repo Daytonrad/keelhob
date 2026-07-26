@@ -60,6 +60,17 @@ final class Claudpress
             'image_api_key'     => '',
             'image_api_endpoint' => 'https://api.openai.com/v1/images/generations',
             'image_api_model'   => 'gpt-image-1',
+            // Autonomous agent runtime (Anthropic Messages API). Blank = autonomy off.
+            'agent_api_key'      => '',
+            'agent_api_endpoint' => 'https://api.anthropic.com/v1/messages',
+            'agent_model'        => 'claude-sonnet-5',
+            // Notifications.
+            'notify_email'          => '',
+            'notify_webhook_url'    => '',
+            'notify_telegram_token' => '',
+            'notify_telegram_chat'  => '',
+            // Policy / guardrails.
+            'policy' => ['enabled' => true, 'blocked_tools' => [], 'max_refund' => 0, 'require_optin' => true],
         ];
     }
 
@@ -110,11 +121,15 @@ final class Claudpress
         Claudpress_Tools_Snippets::register($this->registry);
         Claudpress_Tools_Elementor::register($this->registry);
         Claudpress_Tools_Ops::register($this->registry);
+        Claudpress_Tools_Automation::register($this->registry);
 
         do_action('claudpress_register_tools', $this->registry);
 
         // Code-snippets engine — active snippets run on every request.
         Claudpress_Snippets::init();
+
+        // Scheduled automations (WP-Cron tick).
+        Claudpress_Tasks::init();
 
         // Front-end SEO injection (schema, redirects, fallback meta, robots.txt).
         Claudpress_Tools_SEO::hooks();
@@ -145,6 +160,7 @@ final class Claudpress
         Claudpress_Memory::install_table();
         Claudpress_Skills::install_table();
         Claudpress_Snippets::install_table();
+        Claudpress_Tasks::install_table();
         Claudpress_Logger::install_table();
         Claudpress_Skills::seed_bundled_skills();
         self::seed_default_memory();
@@ -178,6 +194,7 @@ final class Claudpress
         Claudpress_Memory::install_table();
         Claudpress_Skills::install_table();
         Claudpress_Snippets::install_table();
+        Claudpress_Tasks::install_table();
         Claudpress_Logger::install_table();
         Claudpress_Skills::seed_bundled_skills();
         self::seed_default_memory();
@@ -199,6 +216,7 @@ final class Claudpress
             'content.images'          => 'Images: prefer image_search (Openverse, free, no key) to fetch a real licensed image and attach it; use image_generate only if an image API key is configured in Claudpress settings. Always set descriptive alt text.',
             'design.reference'        => 'For ANY visual/build work, follow the web-design-master skill (skill_get name=web-design-master): design tokens, mobile-first responsive, component patterns, WordPress "style with the theme not against it" rules, and the anti-slop quality audit. Prefer a CSS snippet or page_template over inline <style> (security plugins strip inline styles).',
             'safety.workflow'         => 'This should be a dev/staging site. Read before you write, confirm destructive/financial actions, verify after changing, and save durable decisions with memory_save. Snippets that fatal auto-deactivate.',
+            'autonomy.usage'          => 'The site can run itself: get_dashboard answers "what is going on / how is the store doing" on demand; task_save creates scheduled digest or autonomous tasks; run_agent executes a one-off instruction now. Autonomous runs need an agent API key (Claudpress > Automation) and obey policy guardrails — pass allow_risky on a task only when destructive/financial actions are intended.',
         ];
         foreach ($defaults as $key => $value) {
             if (!$memory->get($key)) {
@@ -215,6 +233,8 @@ final class Claudpress
             $s['abilities_enabled'] = false;
             update_option(self::OPTION_SETTINGS, $s);
         }
+        // Stop the automation cron so nothing runs while deactivated.
+        Claudpress_Tasks::unschedule();
     }
 
     public static function generate_token(): string

@@ -48,6 +48,7 @@ The Connect page also outputs a JSON `mcpServers` block for Claude Desktop, Curs
 | **Code snippets** | `snippet_save`, `snippet_list`, `snippet_get`, `snippet_toggle`, `snippet_delete` |
 | **Elementor** | `elementor_page`, `elementor_settings`, `elementor_kit` |
 | **Ops** | `manage_updates`, `send_email`, `image_search` (Openverse, free), `image_generate` (API) |
+| **Autonomy** | `get_dashboard`, `run_agent`, `task_save`, `task_list`, `task_run`, `task_delete`, `notify_owner` |
 | **Memory** | `memory_save`, `memory_get`, `memory_list`, `memory_delete` |
 | **Skills** | `skill_list`, `skill_get`, `skill_save`, `skill_delete` |
 
@@ -64,6 +65,14 @@ Two build modes, straight from the field-tested Claude-Code workflow: **(1) pixe
 
 ### Default memory
 On install, Claudpress seeds cross-session memory with the vital operating context (capabilities, build modes, Elementor setup, image strategy, safety) so **any** connected agent — Claude, Codex, Gemini — starts informed. Agents are told to call `memory_list` first.
+
+### Autonomy (v1.2) — the site runs itself
+Beyond the interactive MCP connection, Claudpress can operate unattended:
+- **`get_dashboard`** — an on-demand status snapshot (sales today/7d/30d, open orders, out-of-stock, pending comments, available updates) so you can ask *"how's the store doing?"* and get an answer without logging in.
+- **Autonomous agent runtime** — add an Anthropic API key in **Claudpress → Automation**, and `run_agent` / autonomous tasks run a plain-language instruction through a real on-site agentic loop over the internal tools (e.g. *"fulfil paid orders, restock flagged items, publish due drafts"*).
+- **Scheduled automations** (WP-Cron) — `task_save` creates **digest** tasks (emailed status snapshots, no key needed) or **autonomous** tasks on an hourly/daily/weekly schedule.
+- **Notifications** — email, Slack/generic webhook, or Telegram (`notify_owner`).
+- **Guardrails** — a policy layer caps refunds, requires per-task opt-in for destructive tools in unattended runs, and can hard-block tools. Enforced for both interactive and autonomous calls.
 
 ## Skills & memory (the "pro" features, free)
 

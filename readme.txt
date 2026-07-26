@@ -4,7 +4,7 @@ Tags: mcp, ai, claude, woocommerce, seo, automation
 Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -37,6 +37,14 @@ Features:
 4. Copy the "Connect Claude Code" command and run it in your terminal.
 
 == Changelog ==
+
+= 1.2.0 — Autonomy =
+* Autonomous agent runtime: runs a plain-language instruction through an on-site AI agentic loop (Anthropic Messages API) over the internal tools, with policy guardrails. Tools: run_agent, task_save (autonomous mode).
+* Scheduled automations via WP-Cron: digest tasks (email status snapshots, no API key) and autonomous tasks. Tools: task_save/list/run/delete.
+* get_dashboard: on-demand status snapshot (sales today/7d/30d, open orders, out-of-stock, updates, pending comments) — answer "what's going on" without logging in.
+* Multi-channel notifications: email, webhook/Slack, Telegram. Tool: notify_owner.
+* Policy/guardrails: financial caps (refunds), destructive-tool opt-in for unattended runs, always-block list; enforced for both interactive and autonomous calls.
+* New admin "Automation" tab: engine status, API key + notification + policy settings, live dashboard, task management.
 
 = 1.1.1 =
 * New bundled "web-design-master" skill: a full modern-responsive web-design reference (design tokens, mobile-first layout, component patterns, WordPress theme-safe CSS rules, anti-slop quality audit) synthesized from leading design skills + WPWriter-style patterns.

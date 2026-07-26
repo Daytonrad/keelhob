@@ -24,6 +24,7 @@ $tables = [
     $wpdb->prefix . 'claudpress_memory',
     $wpdb->prefix . 'claudpress_skills',
     $wpdb->prefix . 'claudpress_snippets',
+    $wpdb->prefix . 'claudpress_tasks',
     $wpdb->prefix . 'claudpress_log',
 ];
 foreach ($tables as $table) {
