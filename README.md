@@ -49,6 +49,8 @@ The Connect page also outputs a JSON `mcpServers` block for Claude Desktop, Curs
 | **Elementor** | `elementor_page`, `elementor_settings`, `elementor_kit` |
 | **Ops** | `manage_updates`, `send_email`, `image_search` (Openverse, free), `image_generate` (API) |
 | **Autonomy** | `get_dashboard`, `run_agent`, `task_save`, `task_list`, `task_run`, `task_delete`, `notify_owner` |
+| **Checkout** | `wc_payments`, `wc_shipping`, `wc_tax` |
+| **Deploy** | `export_bundle`, `import_bundle`, `deploy_push` |
 | **Memory** | `memory_save`, `memory_get`, `memory_list`, `memory_delete` |
 | **Skills** | `skill_list`, `skill_get`, `skill_save`, `skill_delete` |
 

@@ -72,6 +72,8 @@ final class Claudpress_Admin
                 'image_api_key'       => sanitize_text_field(wp_unslash($_POST['image_api_key'] ?? '')),
                 'image_api_endpoint'  => esc_url_raw(wp_unslash($_POST['image_api_endpoint'] ?? '')) ?: 'https://api.openai.com/v1/images/generations',
                 'image_api_model'     => sanitize_text_field(wp_unslash($_POST['image_api_model'] ?? 'gpt-image-1')),
+                'deploy_target_url'   => esc_url_raw(wp_unslash($_POST['deploy_target_url'] ?? '')),
+                'deploy_target_token' => sanitize_text_field(wp_unslash($_POST['deploy_target_token'] ?? '')),
             ]);
         } elseif ($action === 'clear_memory') {
             Claudpress::instance()->memory->clear();
@@ -200,6 +202,9 @@ final class Claudpress_Admin
                             <p><label>Image API key: <input type="password" name="image_api_key" value="<?php echo esc_attr($s['image_api_key'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off" placeholder="sk-... (OpenAI-compatible)"></label></p>
                             <p><label>Image API endpoint: <input type="text" name="image_api_endpoint" value="<?php echo esc_attr($s['image_api_endpoint'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;"></label></p>
                             <p><label>Image model: <input type="text" name="image_api_model" value="<?php echo esc_attr($s['image_api_model'] ?? 'gpt-image-1'); ?>" class="regular-text" style="max-width:240px;"></label></p>
+                            <p style="color:#666;margin-top:16px;"><strong>Staging → production deploy</strong> (optional — target for <code>deploy_push</code>: your live site's Claudpress endpoint)</p>
+                            <p><label>Production site URL: <input type="text" name="deploy_target_url" value="<?php echo esc_attr($s['deploy_target_url'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" placeholder="https://your-live-site.com"></label></p>
+                            <p><label>Production bearer token: <input type="password" name="deploy_target_token" value="<?php echo esc_attr($s['deploy_target_token'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off" placeholder="cp_... (the live site's Claudpress token)"></label></p>
                             <p><button class="button button-primary">Save settings</button></p>
                         </form>
                     </div>

@@ -71,6 +71,9 @@ final class Claudpress
             'notify_telegram_chat'  => '',
             // Policy / guardrails.
             'policy' => ['enabled' => true, 'blocked_tools' => [], 'max_refund' => 0, 'require_optin' => true],
+            // Staging → production deploy target.
+            'deploy_target_url'   => '',
+            'deploy_target_token' => '',
         ];
     }
 
@@ -122,6 +125,8 @@ final class Claudpress
         Claudpress_Tools_Elementor::register($this->registry);
         Claudpress_Tools_Ops::register($this->registry);
         Claudpress_Tools_Automation::register($this->registry);
+        Claudpress_Tools_Payments::register($this->registry);
+        Claudpress_Tools_Deploy::register($this->registry);
 
         do_action('claudpress_register_tools', $this->registry);
 

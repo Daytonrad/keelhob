@@ -4,7 +4,7 @@ Tags: mcp, ai, claude, woocommerce, seo, automation
 Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -37,6 +37,12 @@ Features:
 4. Copy the "Connect Claude Code" command and run it in your terminal.
 
 == Changelog ==
+
+= 1.3.0 — Commerce & Deploy =
+* Checkout setup tools: wc_payments (enable/configure gateways — Stripe, PayPal, COD, BACS, cheque; test mode), wc_shipping (zones, flat/free/local-pickup methods, shipping classes), wc_tax (enable + rates).
+* Staging→production deploy: export_bundle / import_bundle (portable, idempotent JSON of pages, posts, products, snippets, skills, memory, options incl. Elementor & SEO meta; secrets never exported), and deploy_push to send straight to a configured production site.
+* New authenticated /wp-json/claudpress/v1/import endpoint so a staging site can push a bundle to production in one call.
+* New bundled skill: store-launch-and-deploy. Deploy-target settings on the Connect page.
 
 = 1.2.0 — Autonomy =
 * Autonomous agent runtime: runs a plain-language instruction through an on-site AI agentic loop (Anthropic Messages API) over the internal tools, with policy guardrails. Tools: run_agent, task_save (autonomous mode).
