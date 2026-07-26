@@ -3,7 +3,7 @@
  * Plugin Name:       Claudpress
  * Plugin URI:        https://github.com/calflint/claudpress
  * Description:        Self-contained MCP server that gives an AI agent (Claude Code, Claude Desktop, Cursor, Codex…) full, programmatic control of WordPress & WooCommerce — PHP execution, filesystem, content, store, SEO, a code-snippets engine, Elementor building, updates/email, AI/stock images, cross-session memory and a skills engine. No external dependencies. For development & staging sites.
- * Version:           1.1.1
+ * Version:           1.2.0
  * Requires at least: 6.3
  * Requires PHP:      8.0
  * Author:            Built with Claude Code
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('CLAUDPRESS_VERSION', '1.1.1');
+define('CLAUDPRESS_VERSION', '1.2.0');
 define('CLAUDPRESS_FILE', __FILE__);
 define('CLAUDPRESS_DIR', plugin_dir_path(__FILE__));
 define('CLAUDPRESS_URL', plugin_dir_url(__FILE__));
@@ -51,6 +51,11 @@ require_once CLAUDPRESS_DIR . 'includes/class-skills.php';
 require_once CLAUDPRESS_DIR . 'includes/class-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/class-sandbox.php';
 require_once CLAUDPRESS_DIR . 'includes/class-logger.php';
+require_once CLAUDPRESS_DIR . 'includes/class-policy.php';
+require_once CLAUDPRESS_DIR . 'includes/class-digest.php';
+require_once CLAUDPRESS_DIR . 'includes/class-notifier.php';
+require_once CLAUDPRESS_DIR . 'includes/class-agent-runtime.php';
+require_once CLAUDPRESS_DIR . 'includes/class-tasks.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin.php';
 
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-core.php';
@@ -64,6 +69,7 @@ require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-skills.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-elementor.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-ops.php';
+require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-automation.php';
 
 /**
  * Boot the plugin once all plugins are loaded (so WooCommerce detection works).

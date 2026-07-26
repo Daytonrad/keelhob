@@ -113,7 +113,7 @@ final class Claudpress_MCP_Server
             : 'AI abilities are DISABLED. Ask the site owner to enable them in WP Admin > Claudpress before making changes. Read-only introspection may still work.';
         $lines[] = '';
         $lines[] = 'The universal escape hatch is execute_php: it runs arbitrary PHP in the full WordPress runtime ($wpdb, WP_Query, WooCommerce, every plugin API). Prefer the dedicated high-level tools for common work, and fall back to execute_php for anything not covered.';
-        $lines[] = 'Powers include: content & blogging (create_post, upload_media), the WooCommerce store (wc_product/order/coupon/report), SEO (seo_meta/analyze/schema), live code that changes the site (snippet_save — PHP/CSS/JS/HTML, incl. pixel-perfect custom page templates), Elementor page building (elementor_page + elementor_settings prepare_for_ai), plugin/theme updates (manage_updates), owner email (send_email), and images (image_search free / image_generate).';
+        $lines[] = 'Powers include: content & blogging (create_post, upload_media), the WooCommerce store (wc_product/order/coupon/report), SEO (seo_meta/analyze/schema), live code that changes the site (snippet_save — PHP/CSS/JS/HTML, incl. pixel-perfect custom page templates), Elementor page building (elementor_page + elementor_settings prepare_for_ai), plugin/theme updates (manage_updates), owner email (send_email), images (image_search free / image_generate), a full status snapshot (get_dashboard — use for "how is the store doing / what needs attention"), and scheduled/one-off autonomy (task_save, run_agent) so the site can run itself.';
         $lines[] = 'START HERE: call memory_list once at the beginning — it holds this site\'s operating context (build mode, builder, conventions). Persist new durable decisions with memory_save. Memory and skills are shared by every connected agent.';
         $builder = Claudpress::instance()->get('builder', 'auto');
         if ($builder && $builder !== 'auto') {
@@ -149,6 +149,12 @@ final class Claudpress_MCP_Server
             return $this->tool_error('AI abilities are disabled on this site. Enable them in WP Admin > Claudpress to use this tool.');
         }
 
+        // Policy guardrails (interactive context).
+        $blocked = Claudpress_Policy::check($name, $args, 'interactive');
+        if ($blocked !== null) {
+            return $this->tool_error($blocked);
+        }
+
         @set_time_limit(CLAUDPRESS_MAX_EXECUTION_TIME);
 
         try {
@@ -170,7 +176,7 @@ final class Claudpress_MCP_Server
     /** Tools that remain available even when abilities are disabled (read-only introspection). */
     private static function always_allowed(): array
     {
-        return ['get_site_info', 'memory_list', 'skill_list'];
+        return ['get_site_info', 'memory_list', 'skill_list', 'get_dashboard', 'task_list'];
     }
 
     private function tool_error(string $message): array

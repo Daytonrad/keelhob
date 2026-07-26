@@ -23,6 +23,7 @@ final class Claudpress_Admin
     {
         add_menu_page('Claudpress', 'Claudpress', 'manage_options', 'claudpress', [$this, 'render'], 'dashicons-superhero', 58);
         add_submenu_page('claudpress', 'Connect', 'Connect', 'manage_options', 'claudpress', [$this, 'render']);
+        add_submenu_page('claudpress', 'Automation', 'Automation', 'manage_options', 'claudpress-automation', [$this, 'render_automation']);
         add_submenu_page('claudpress', 'Activity', 'Activity', 'manage_options', 'claudpress-activity', [$this, 'render_activity']);
     }
 
@@ -74,6 +75,43 @@ final class Claudpress_Admin
             ]);
         } elseif ($action === 'clear_memory') {
             Claudpress::instance()->memory->clear();
+        } elseif ($action === 'automation_settings') {
+            Claudpress::instance()->update([
+                'agent_api_key'         => sanitize_text_field(wp_unslash($_POST['agent_api_key'] ?? '')),
+                'agent_api_endpoint'    => esc_url_raw(wp_unslash($_POST['agent_api_endpoint'] ?? '')) ?: 'https://api.anthropic.com/v1/messages',
+                'agent_model'           => sanitize_text_field(wp_unslash($_POST['agent_model'] ?? 'claude-sonnet-5')),
+                'notify_email'          => sanitize_text_field(wp_unslash($_POST['notify_email'] ?? '')),
+                'notify_webhook_url'    => esc_url_raw(wp_unslash($_POST['notify_webhook_url'] ?? '')),
+                'notify_telegram_token' => sanitize_text_field(wp_unslash($_POST['notify_telegram_token'] ?? '')),
+                'notify_telegram_chat'  => sanitize_text_field(wp_unslash($_POST['notify_telegram_chat'] ?? '')),
+                'policy' => [
+                    'enabled'       => !empty($_POST['policy_enabled']),
+                    'blocked_tools' => array_filter(array_map('trim', explode(',', (string) wp_unslash($_POST['policy_blocked_tools'] ?? '')))),
+                    'max_refund'    => (float) ($_POST['policy_max_refund'] ?? 0),
+                    'require_optin' => !empty($_POST['policy_require_optin']),
+                ],
+            ]);
+            wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation', 'saved' => 1], admin_url('admin.php')));
+            exit;
+        } elseif ($action === 'task_run') {
+            Claudpress_Tasks::run_task((int) ($_POST['task_id'] ?? 0));
+            wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation', 'ran' => 1], admin_url('admin.php')));
+            exit;
+        } elseif ($action === 'task_toggle') {
+            $t = Claudpress_Tasks::get((int) ($_POST['task_id'] ?? 0));
+            if ($t) {
+                Claudpress_Tasks::toggle((int) $t['id'], (int) $t['enabled'] !== 1);
+            }
+            wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation'], admin_url('admin.php')));
+            exit;
+        } elseif ($action === 'task_delete') {
+            Claudpress_Tasks::delete((int) ($_POST['task_id'] ?? 0));
+            wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation'], admin_url('admin.php')));
+            exit;
+        } elseif ($action === 'test_notify') {
+            Claudpress_Notifier::send('[' . get_bloginfo('name') . '] Claudpress test', 'This is a test notification from Claudpress. Channels are working.');
+            wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation', 'tested' => 1], admin_url('admin.php')));
+            exit;
         }
 
         wp_safe_redirect(add_query_arg(['page' => 'claudpress', 'saved' => 1], admin_url('admin.php')));
@@ -208,6 +246,108 @@ final class Claudpress_Admin
                                 <div><?php echo esc_html($name); ?></div>
                             <?php endforeach; ?>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    public function render_automation(): void
+    {
+        $s       = Claudpress::instance()->settings();
+        $policy  = is_array($s['policy'] ?? null) ? $s['policy'] : [];
+        $tasks   = Claudpress_Tasks::all();
+        $next    = wp_next_scheduled(Claudpress_Tasks::HOOK);
+        $has_key = !empty($s['agent_api_key']);
+        ?>
+        <div class="wrap">
+            <h1>Claudpress · Automation</h1>
+            <p style="max-width:760px;">Let the site run itself. <strong>Digest</strong> tasks email you a status snapshot on a schedule. <strong>Autonomous</strong> tasks hand a plain-language instruction to the on-site AI agent, which does the work and reports back — no client open. Add an Anthropic API key below to enable autonomy.</p>
+            <?php if (isset($_GET['saved'])) : ?><div class="notice notice-success is-dismissible"><p>Saved.</p></div><?php endif; ?>
+            <?php if (isset($_GET['ran'])) : ?><div class="notice notice-success is-dismissible"><p>Task ran. See its last summary below.</p></div><?php endif; ?>
+            <?php if (isset($_GET['tested'])) : ?><div class="notice notice-success is-dismissible"><p>Test notification sent.</p></div><?php endif; ?>
+
+            <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
+                <div style="flex:2;min-width:460px;">
+                    <div class="card" style="max-width:none;padding:16px 20px;">
+                        <h2 style="margin-top:0;">Autonomy engine <?php echo $has_key ? '<span style="color:#16a34a;">● ready</span>' : '<span style="color:#888;">○ needs API key</span>'; ?></h2>
+                        <p>Cron heartbeat: <strong><?php echo $next ? human_time_diff(time(), $next) . ' from now' : 'not scheduled'; ?></strong> (WP-Cron fires when your site gets traffic).</p>
+                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                            <?php wp_nonce_field('claudpress_save'); ?>
+                            <input type="hidden" name="action" value="claudpress_save">
+                            <input type="hidden" name="claudpress_action" value="automation_settings">
+                            <h3>Agent brain (Anthropic API)</h3>
+                            <p><label>API key: <input type="password" name="agent_api_key" value="<?php echo esc_attr($s['agent_api_key'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off" placeholder="sk-ant-..."></label></p>
+                            <p><label>Model: <input type="text" name="agent_model" value="<?php echo esc_attr($s['agent_model'] ?? 'claude-sonnet-5'); ?>" class="regular-text" style="max-width:260px;"></label> <span style="color:#888;">e.g. claude-sonnet-5, claude-opus-4-8</span></p>
+                            <p><label>Endpoint: <input type="text" name="agent_api_endpoint" value="<?php echo esc_attr($s['agent_api_endpoint'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;"></label></p>
+
+                            <h3>Notifications</h3>
+                            <p><label>Email(s), comma-separated (blank = admin email): <input type="text" name="notify_email" value="<?php echo esc_attr($s['notify_email'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;"></label></p>
+                            <p><label>Webhook URL (Slack/generic, optional): <input type="text" name="notify_webhook_url" value="<?php echo esc_attr($s['notify_webhook_url'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;"></label></p>
+                            <p><label>Telegram bot token: <input type="text" name="notify_telegram_token" value="<?php echo esc_attr($s['notify_telegram_token'] ?? ''); ?>" class="regular-text" style="max-width:340px;"></label>
+                               <label style="margin-left:8px;">chat id: <input type="text" name="notify_telegram_chat" value="<?php echo esc_attr($s['notify_telegram_chat'] ?? ''); ?>" style="max-width:160px;"></label></p>
+
+                            <h3>Guardrails (policy)</h3>
+                            <p><label><input type="checkbox" name="policy_enabled" value="1" <?php checked(!empty($policy['enabled'])); ?>> Enforce policy</label></p>
+                            <p><label><input type="checkbox" name="policy_require_optin" value="1" <?php checked(!empty($policy['require_optin'])); ?>> In autonomous runs, require a task to opt in (allow_risky) before destructive/financial tools</label></p>
+                            <p><label>Max autonomous refund (0 = block refunds): <input type="number" step="0.01" name="policy_max_refund" value="<?php echo esc_attr($policy['max_refund'] ?? 0); ?>" style="max-width:140px;"></label></p>
+                            <p><label>Always-blocked tools (comma-separated, optional): <input type="text" name="policy_blocked_tools" value="<?php echo esc_attr(implode(',', (array) ($policy['blocked_tools'] ?? []))); ?>" class="regular-text" style="width:100%;max-width:520px;"></label></p>
+
+                            <p><button class="button button-primary">Save automation settings</button></p>
+                        </form>
+                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                            <?php wp_nonce_field('claudpress_save'); ?>
+                            <input type="hidden" name="action" value="claudpress_save">
+                            <input type="hidden" name="claudpress_action" value="test_notify">
+                            <button class="button">Send test notification</button>
+                        </form>
+                    </div>
+
+                    <div class="card" style="max-width:none;padding:16px 20px;margin-top:16px;">
+                        <h2 style="margin-top:0;">Scheduled tasks</h2>
+                        <p style="color:#666;">Create tasks by asking your AI: <em>"Create a daily digest task"</em> or <em>"Create an autonomous task that fulfils paid orders and publishes due drafts every morning."</em> Then manage them here.</p>
+                        <table class="widefat striped">
+                            <thead><tr><th>Name</th><th>Mode</th><th>Schedule</th><th>On</th><th>Last run</th><th>Actions</th></tr></thead>
+                            <tbody>
+                            <?php foreach ($tasks as $t) : ?>
+                                <tr>
+                                    <td><strong><?php echo esc_html($t['name']); ?></strong><?php echo (int) $t['allow_risky'] === 1 ? ' <span title="allow_risky">⚠️</span>' : ''; ?></td>
+                                    <td><?php echo esc_html($t['mode']); ?></td>
+                                    <td><?php echo esc_html($t['schedule']); ?></td>
+                                    <td><?php echo (int) $t['enabled'] === 1 ? '✓' : '—'; ?></td>
+                                    <td><?php echo $t['last_run'] ? esc_html($t['last_run']) . ' (' . esc_html((string) $t['last_status']) . ')' : '<em>never</em>'; ?></td>
+                                    <td style="white-space:nowrap;">
+                                        <?php foreach (['task_run' => 'Run now', 'task_toggle' => ((int) $t['enabled'] === 1 ? 'Disable' : 'Enable'), 'task_delete' => 'Delete'] as $act => $label) : ?>
+                                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;" <?php echo $act === 'task_delete' ? 'onsubmit="return confirm(\'Delete this task?\');"' : ''; ?>>
+                                                <?php wp_nonce_field('claudpress_save'); ?>
+                                                <input type="hidden" name="action" value="claudpress_save">
+                                                <input type="hidden" name="claudpress_action" value="<?php echo esc_attr($act); ?>">
+                                                <input type="hidden" name="task_id" value="<?php echo (int) $t['id']; ?>">
+                                                <button class="button button-small"><?php echo esc_html($label); ?></button>
+                                            </form>
+                                        <?php endforeach; ?>
+                                    </td>
+                                </tr>
+                                <?php if (!empty($t['last_summary'])) : ?>
+                                    <tr><td colspan="6" style="background:#fafafa;"><small><strong>Last summary:</strong> <?php echo esc_html(wp_trim_words((string) $t['last_summary'], 60)); ?></small></td></tr>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                            <?php if (empty($tasks)) : ?><tr><td colspan="6"><em>No tasks yet.</em></td></tr><?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div style="flex:1;min-width:300px;">
+                    <div class="card" style="max-width:none;padding:16px 20px;">
+                        <h2 style="margin-top:0;">Live status</h2>
+                        <?php $d = Claudpress_Digest::snapshot(); ?>
+                        <ul style="line-height:1.7;">
+                            <?php foreach ($d['summary'] as $line) : ?><li><?php echo esc_html($line); ?></li><?php endforeach; ?>
+                        </ul>
+                        <details><summary style="cursor:pointer;">Full snapshot JSON</summary>
+                        <pre style="white-space:pre-wrap;font-size:11px;max-height:320px;overflow:auto;"><?php echo esc_html(wp_json_encode($d, JSON_PRETTY_PRINT)); ?></pre></details>
                     </div>
                 </div>
             </div>
