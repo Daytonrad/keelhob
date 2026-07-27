@@ -38,6 +38,27 @@ final class Claudpress_Rest
             'callback'            => [$this, 'status'],
             'permission_callback' => '__return_true',
         ]);
+
+        // Deploy receiver: a remote Claudpress (staging) pushes a bundle here.
+        register_rest_route(CLAUDPRESS_REST_NAMESPACE, '/import', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'handle_import'],
+            'permission_callback' => [$this, 'permission'],
+        ]);
+    }
+
+    public function handle_import(WP_REST_Request $request): WP_REST_Response
+    {
+        if (!Claudpress::instance()->abilities_enabled()) {
+            return new WP_REST_Response(['success' => false, 'error' => 'AI abilities are disabled on the target site; enable them to accept a deploy.'], 403);
+        }
+        $body   = json_decode($request->get_body(), true);
+        $bundle = is_array($body['bundle'] ?? null) ? $body['bundle'] : null;
+        if (!$bundle) {
+            return new WP_REST_Response(['success' => false, 'error' => 'Missing bundle.'], 400);
+        }
+        $report = Claudpress_Migration::import($bundle, (string) ($body['mode'] ?? 'upsert'));
+        return new WP_REST_Response($report, 200);
     }
 
     /** @return true|WP_Error */

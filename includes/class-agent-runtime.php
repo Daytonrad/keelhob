@@ -90,6 +90,13 @@ final class Claudpress_Agent_Runtime
                 $name = (string) ($block['name'] ?? '');
                 $args = is_array($block['input'] ?? null) ? $block['input'] : [];
 
+                if (!Claudpress_Capabilities::tool_allowed($name)) {
+                    $result = ['success' => false, 'error' => 'That capability is turned off by the site owner.', 'policy_blocked' => true];
+                    $tool_calls[] = ['tool' => $name, 'blocked' => true, 'ok' => false];
+                    $tool_results[] = ['type' => 'tool_result', 'tool_use_id' => $block['id'] ?? '', 'content' => wp_json_encode($result)];
+                    continue;
+                }
+
                 $blocked = Claudpress_Policy::check($name, $args, 'autonomous', $task_opts);
                 if ($blocked !== null) {
                     $result = ['success' => false, 'error' => $blocked, 'policy_blocked' => true];
@@ -139,6 +146,9 @@ final class Claudpress_Agent_Runtime
     {
         $tools = [];
         foreach ($registry->list() as $t) {
+            if (!Claudpress_Capabilities::tool_allowed($t['name'])) {
+                continue; // owner switched this capability off
+            }
             $schema = $t['inputSchema'];
             if (empty($schema['type'])) {
                 $schema = ['type' => 'object', 'properties' => (object) []];

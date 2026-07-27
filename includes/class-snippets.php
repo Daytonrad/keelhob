@@ -359,6 +359,21 @@ final class Claudpress_Snippets
         return $rows ?: [];
     }
 
+    /** Full rows including code — used by the migration/export engine. */
+    public static function all_full(): array
+    {
+        global $wpdb;
+        $rows = $wpdb->get_results("SELECT name, description, code, snippet_type, location, target_id, priority, active, conditions_json FROM " . self::table() . " ORDER BY id ASC", ARRAY_A);
+        // Decode conditions back to an array so save() re-encodes cleanly on import.
+        foreach ($rows as &$r) {
+            if (!empty($r['conditions_json'])) {
+                $r['conditions'] = json_decode($r['conditions_json'], true);
+            }
+            unset($r['conditions_json']);
+        }
+        return $rows ?: [];
+    }
+
     public static function toggle(int $id, bool $active): array
     {
         global $wpdb;
