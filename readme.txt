@@ -4,7 +4,7 @@ Tags: mcp, ai, claude, woocommerce, seo, automation
 Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.3.2
+Stable tag: 1.3.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -37,6 +37,9 @@ Features:
 4. Copy the "Connect Claude Code" command and run it in your terminal.
 
 == Changelog ==
+
+= 1.3.3 — Autonomy hotfix =
+* Fixed autonomous agent runs failing when the model called a tool with no arguments (tool_use.input serialized as [] instead of {}, rejected by the Anthropic API). Found via a full live feature test.
 
 = 1.3.2 — Newbie guidance =
 * New "Guide" admin page: an auto-generated, plain-English master guide — what the plugin is, 3-step start, the two safety controls, a recommended newbie on/off config, every capability with its tools and descriptions, autonomy, deploy, skills/memory, starter prompts, and an FAQ.
