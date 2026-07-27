@@ -79,6 +79,15 @@ final class Claudpress_Agent_Runtime
                 return ['success' => true, 'summary' => trim($final_text), 'steps' => $step + 1, 'tool_calls' => $tool_calls];
             }
 
+            // Anthropic requires tool_use.input to be a JSON object. A tool call
+            // with no arguments decodes to an empty PHP array [], which re-encodes
+            // as [] (an array) and gets rejected — coerce those back to an object.
+            foreach ($content as $i => $block) {
+                if (($block['type'] ?? '') === 'tool_use' && (!isset($block['input']) || $block['input'] === [] || $block['input'] === null)) {
+                    $content[$i]['input'] = new stdClass();
+                }
+            }
+
             // Record assistant turn, then execute each tool_use and feed results back.
             $messages[] = ['role' => 'assistant', 'content' => $content];
             $tool_results = [];

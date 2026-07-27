@@ -1,6 +1,9 @@
 # Build artifact (regenerated from source)
 claudpress.zip
 
+# Code index (local only)
+.codegraph/
+
 # OS / editor junk
 .DS_Store
 Thumbs.db
