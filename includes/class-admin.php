@@ -77,6 +77,13 @@ final class Claudpress_Admin
             ]);
         } elseif ($action === 'clear_memory') {
             Claudpress::instance()->memory->clear();
+        } elseif ($action === 'capabilities') {
+            $posted = isset($_POST['cap']) && is_array($_POST['cap']) ? array_map('sanitize_key', array_keys($_POST['cap'])) : [];
+            $caps = [];
+            foreach (array_keys(Claudpress_Capabilities::groups()) as $group) {
+                $caps[$group] = in_array($group, $posted, true);
+            }
+            Claudpress::instance()->update(['capabilities' => $caps]);
         } elseif ($action === 'automation_settings') {
             Claudpress::instance()->update([
                 'agent_api_key'         => sanitize_text_field(wp_unslash($_POST['agent_api_key'] ?? '')),
@@ -253,6 +260,31 @@ final class Claudpress_Admin
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div class="card" style="max-width:none;padding:16px 20px;margin-top:24px;">
+                <h2 style="margin-top:0;">Capabilities — what the agent may touch</h2>
+                <p style="max-width:820px;">Turn any area off to make it <strong>off-limits</strong>. Disabled tools are hidden from the agent, refused if called, and named as off-limits in every session — for both interactive and autonomous use. Sensitive areas (money, shipping, code, files, users, deploy) are marked <span style="color:#b91c1c;">●</span>.</p>
+                <p style="color:#b45309;"><strong>Note:</strong> to truly wall off a sensitive area, also disable <em>Code execution</em> — otherwise the agent could reach it via raw PHP/SQL.</p>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                    <?php wp_nonce_field('claudpress_save'); ?>
+                    <input type="hidden" name="action" value="claudpress_save">
+                    <input type="hidden" name="claudpress_action" value="capabilities">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px 24px;">
+                        <?php foreach (Claudpress_Capabilities::groups() as $key => $g) :
+                            $on = Claudpress_Capabilities::is_group_enabled($key); ?>
+                            <label style="display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border:1px solid #e2e2e2;border-radius:8px;background:<?php echo $on ? '#fff' : '#fbfbfb'; ?>;">
+                                <input type="checkbox" name="cap[<?php echo esc_attr($key); ?>]" value="1" <?php checked($on); ?> style="margin-top:3px;">
+                                <span>
+                                    <strong><?php echo esc_html($g['label']); ?></strong>
+                                    <?php echo !empty($g['sensitive']) ? ' <span style="color:#b91c1c;" title="sensitive">●</span>' : ''; ?>
+                                    <br><span style="color:#666;font-size:12px;"><?php echo esc_html($g['desc']); ?></span>
+                                </span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                    <p style="margin-top:14px;"><button class="button button-primary">Save capabilities</button></p>
+                </form>
             </div>
         </div>
         <?php

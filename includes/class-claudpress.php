@@ -74,6 +74,8 @@ final class Claudpress
             // Staging → production deploy target.
             'deploy_target_url'   => '',
             'deploy_target_token' => '',
+            // Per-capability toggles (empty = every capability enabled). See Claudpress_Capabilities.
+            'capabilities' => [],
         ];
     }
 

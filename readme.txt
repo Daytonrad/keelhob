@@ -4,7 +4,7 @@ Tags: mcp, ai, claude, woocommerce, seo, automation
 Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.3.0
+Stable tag: 1.3.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -37,6 +37,10 @@ Features:
 4. Copy the "Connect Claude Code" command and run it in your terminal.
 
 == Changelog ==
+
+= 1.3.1 — Capability toggles =
+* New Capabilities panel on the dashboard: switch any area (Payments/money, Store & orders, Shipping, Tax, Code execution, Filesystem, Users, Site admin, Updates, Comms, Autonomy, Deploy, Content, SEO, Design, Images, Memory, Skills) on or off.
+* Disabled capabilities are hidden from the agent's tool list, refused if called, and named as off-limits in the session instructions — enforced for both interactive and autonomous runs. Read-only status tools stay available.
 
 = 1.3.0 — Commerce & Deploy =
 * Checkout setup tools: wc_payments (enable/configure gateways — Stripe, PayPal, COD, BACS, cheque; test mode), wc_shipping (zones, flat/free/local-pickup methods, shipping classes), wc_tax (enable + rates).

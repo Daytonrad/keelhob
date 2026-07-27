@@ -48,7 +48,7 @@ final class Claudpress_MCP_Server
                     return $this->result($id, (object) []);
 
                 case 'tools/list':
-                    return $this->result($id, ['tools' => $this->registry->list()]);
+                    return $this->result($id, ['tools' => $this->visible_tools()]);
 
                 case 'tools/call':
                     return $this->result($id, $this->call_tool($params));
@@ -119,6 +119,11 @@ final class Claudpress_MCP_Server
         if ($builder && $builder !== 'auto') {
             $lines[] = 'Configured page builder: ' . $builder . '. Build with this unless told otherwise.';
         }
+        $off = Claudpress_Capabilities::disabled_labels();
+        if (!empty($off)) {
+            $lines[] = '';
+            $lines[] = 'OFF-LIMITS: the owner has DISABLED these capabilities — their tools are hidden and will be refused. Do not attempt, and do not use execute_php/execute_sql to work around them: ' . implode('; ', $off) . '.';
+        }
 
         // Agentic skill catalog: descriptions only (bodies load on demand via prompts/get or skill_get).
         $skills = Claudpress::instance()->skills->agentic_catalog();
@@ -130,6 +135,18 @@ final class Claudpress_MCP_Server
             }
         }
         return implode("\n", $lines);
+    }
+
+    /** tools/list filtered by the owner's capability toggles. */
+    private function visible_tools(): array
+    {
+        $out = [];
+        foreach ($this->registry->list() as $tool) {
+            if (Claudpress_Capabilities::tool_allowed($tool['name'])) {
+                $out[] = $tool;
+            }
+        }
+        return $out;
     }
 
     private function call_tool(array $params): array
@@ -147,6 +164,13 @@ final class Claudpress_MCP_Server
         // Master safety switch: only a small allowlist works while abilities are off.
         if (!Claudpress::instance()->abilities_enabled() && !in_array($name, self::always_allowed(), true)) {
             return $this->tool_error('AI abilities are disabled on this site. Enable them in WP Admin > Claudpress to use this tool.');
+        }
+
+        // Capability toggle: the owner has switched this area off-limits.
+        if (!Claudpress_Capabilities::tool_allowed($name)) {
+            $group = Claudpress_Capabilities::tool_group($name);
+            $label = $group ? (Claudpress_Capabilities::groups()[$group]['label'] ?? $group) : $name;
+            return $this->tool_error(sprintf('The "%s" capability is turned OFF by the site owner, so this tool is off-limits. Do not attempt tasks in this area.', $label));
         }
 
         // Policy guardrails (interactive context).
