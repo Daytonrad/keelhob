@@ -24,6 +24,7 @@ final class Claudpress_Admin
         add_menu_page('Claudpress', 'Claudpress', 'manage_options', 'claudpress', [$this, 'render'], 'dashicons-superhero', 58);
         add_submenu_page('claudpress', 'Connect', 'Connect', 'manage_options', 'claudpress', [$this, 'render']);
         add_submenu_page('claudpress', 'Automation', 'Automation', 'manage_options', 'claudpress-automation', [$this, 'render_automation']);
+        add_submenu_page('claudpress', 'Guide', 'Guide', 'manage_options', 'claudpress-guide', [$this, 'render_guide']);
         add_submenu_page('claudpress', 'Activity', 'Activity', 'manage_options', 'claudpress-activity', [$this, 'render_activity']);
     }
 
@@ -158,6 +159,15 @@ final class Claudpress_Admin
             <h1>Claudpress <span style="font-size:13px;color:#888;">v<?php echo esc_html(CLAUDPRESS_VERSION); ?></span></h1>
             <p style="max-width:760px;">Give an AI agent full, programmatic control of this WordPress &amp; WooCommerce site over MCP — content, store, SEO, files, PHP — with cross-session memory and a skills engine. Self-contained, no external dependencies.</p>
 
+            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:linear-gradient(90deg,#4f46e5,#7c3aed);color:#fff;padding:14px 20px;border-radius:10px;margin:6px 0 18px;max-width:980px;">
+                <span style="font-size:22px;">📖</span>
+                <div style="flex:1;min-width:240px;">
+                    <strong style="font-size:15px;">New to Claudpress? Start with the Guide.</strong><br>
+                    <span style="opacity:.9;font-size:13px;">A plain-English walkthrough of every feature, what the AI can do, which switches to leave off, and how to prompt it.</span>
+                </div>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=claudpress-guide')); ?>" class="button button-primary" style="background:#fff;color:#4f46e5;border-color:#fff;font-weight:600;">Open the master guide →</a>
+            </div>
+
             <?php if (isset($_GET['saved'])) : ?>
                 <div class="notice notice-success is-dismissible"><p>Saved.</p></div>
             <?php endif; ?>
@@ -272,12 +282,16 @@ final class Claudpress_Admin
                     <input type="hidden" name="claudpress_action" value="capabilities">
                     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px 24px;">
                         <?php foreach (Claudpress_Capabilities::groups() as $key => $g) :
-                            $on = Claudpress_Capabilities::is_group_enabled($key); ?>
+                            $on  = Claudpress_Capabilities::is_group_enabled($key);
+                            $tip = 'WHEN ON — the agent can: ' . $g['desc'] . ' Tools: ' . implode(', ', $g['tools']) . '.'
+                                 . ' WHEN OFF — these tools are hidden from the agent and refused if called.'
+                                 . (!empty($g['sensitive']) ? ' This is a SENSITIVE area (money/data/code) — leave it off until you trust the agent.' : ''); ?>
                             <label style="display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border:1px solid #e2e2e2;border-radius:8px;background:<?php echo $on ? '#fff' : '#fbfbfb'; ?>;">
                                 <input type="checkbox" name="cap[<?php echo esc_attr($key); ?>]" value="1" <?php checked($on); ?> style="margin-top:3px;">
                                 <span>
                                     <strong><?php echo esc_html($g['label']); ?></strong>
-                                    <?php echo !empty($g['sensitive']) ? ' <span style="color:#b91c1c;" title="sensitive">●</span>' : ''; ?>
+                                    <?php echo !empty($g['sensitive']) ? ' <span style="color:#b91c1c;" title="Sensitive area">●</span>' : ''; ?>
+                                    <span title="<?php echo esc_attr($tip); ?>" style="cursor:help;color:#4f46e5;font-weight:700;border:1px solid #c7d2fe;border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;">i</span>
                                     <br><span style="color:#666;font-size:12px;"><?php echo esc_html($g['desc']); ?></span>
                                 </span>
                             </label>
@@ -388,6 +402,110 @@ final class Claudpress_Admin
                     </div>
                 </div>
             </div>
+        </div>
+        <?php
+    }
+
+    public function render_guide(): void
+    {
+        // Map tool name → description straight from the live registry so this
+        // guide always documents exactly what's installed.
+        $desc = [];
+        foreach (Claudpress::instance()->registry->list() as $t) {
+            $desc[$t['name']] = $t['description'];
+        }
+        $short = static function (string $s): string {
+            $s = preg_replace('/\s+/', ' ', $s);
+            return mb_strlen($s) > 200 ? mb_substr($s, 0, 200) . '…' : $s;
+        };
+        $enabled = Claudpress::instance()->abilities_enabled();
+        $h = 'style="margin:28px 0 10px;"';
+        ?>
+        <div class="wrap" style="max-width:1000px;">
+            <h1>Claudpress — Master Guide</h1>
+            <p style="font-size:15px;max-width:800px;">Everything this plugin lets your AI do, in plain English. Read this once and you'll know what to turn on, what to leave off, and how to get the best out of it — no coding required.</p>
+
+            <div class="notice notice-warning" style="max-width:800px;"><p><strong>Golden rule:</strong> use this on a <strong>development or staging site</strong> with backups. When AI abilities are ON, a connected agent can change anything. Don't point it at a live store you can't afford to have edited without review.</p></div>
+
+            <h2 <?php echo $h; ?>>What is Claudpress?</h2>
+            <p>Claudpress turns your WordPress site into something an AI assistant (Claude, ChatGPT/Codex, Gemini, Cursor…) can operate directly. Instead of you clicking around the dashboard, you <em>chat</em> with your AI — "add this product", "write a blog post", "how are sales?" — and it does the work on your site through a set of <strong>tools</strong> this plugin provides. It speaks a standard called <strong>MCP</strong> (Model Context Protocol), so it works with most AI apps, not just one.</p>
+
+            <h2 <?php echo $h; ?>>Get started in 3 steps</h2>
+            <ol style="font-size:14px;line-height:1.9;max-width:800px;">
+                <li><strong>Turn on AI abilities</strong> on the <a href="<?php echo esc_url(admin_url('admin.php?page=claudpress')); ?>">Connect</a> page (master switch). Currently: <strong style="color:<?php echo $enabled ? '#16a34a' : '#b91c1c'; ?>;"><?php echo $enabled ? 'ON' : 'OFF'; ?></strong>.</li>
+                <li><strong>Connect your AI</strong> — copy the ready-made command on the Connect page into your AI app (e.g. Claude Code). It links your AI to this site securely with a token.</li>
+                <li><strong>Start chatting.</strong> Try: <em>"List the plugins on this site"</em> or <em>"Show me this month's sales."</em> If it answers, you're set.</li>
+            </ol>
+
+            <h2 <?php echo $h; ?>>Your two safety controls</h2>
+            <p style="max-width:800px;"><strong>1. The master switch</strong> (Connect page) turns <em>all</em> abilities on or off in one click. <strong>2. Capability toggles</strong> (Connect page, lower down) let you allow some areas and forbid others — so you can let the AI write blog posts but never touch payments, for example. A forbidden area is hidden from the AI entirely and refused if it tries.</p>
+
+            <h3 style="margin-top:18px;">Recommended starting point for newbies</h3>
+            <p>When you're still learning to trust it, keep the safe creative areas on and the sensitive ones off:</p>
+            <table class="widefat striped" style="max-width:800px;">
+                <thead><tr><th>Leave ON (low risk)</th><th>Turn OFF until you trust it (sensitive)</th></tr></thead>
+                <tbody><tr>
+                    <td style="vertical-align:top;">Content · SEO · Design/Elementor · Images · Memory · Skills</td>
+                    <td style="vertical-align:top;">Payments (money) · Store &amp; orders · Shipping · Tax · Code execution · Filesystem · Users · Site admin · Updates · Autonomy · Deploy · Email</td>
+                </tr></tbody>
+            </table>
+            <p style="color:#b45309;max-width:800px;"><strong>Important:</strong> "Code execution" is the master key — with raw PHP the AI can reach any area. To <em>truly</em> wall off something sensitive, turn Code execution OFF too.</p>
+
+            <h2 <?php echo $h; ?>>What the AI can do — every area &amp; tool</h2>
+            <p style="max-width:800px;">Each area below is one capability toggle. When it's ON, the AI can use the listed tools.</p>
+            <?php foreach (Claudpress_Capabilities::groups() as $key => $g) :
+                $on = Claudpress_Capabilities::is_group_enabled($key); ?>
+                <div class="card" style="max-width:none;padding:12px 18px;margin:10px 0;">
+                    <h3 style="margin:.2em 0;">
+                        <?php echo esc_html($g['label']); ?>
+                        <?php echo !empty($g['sensitive']) ? ' <span style="color:#b91c1c;font-size:12px;">● sensitive</span>' : ''; ?>
+                        <span style="float:right;font-size:12px;color:<?php echo $on ? '#16a34a' : '#888'; ?>;"><?php echo $on ? 'ENABLED' : 'OFF'; ?></span>
+                    </h3>
+                    <p style="color:#555;margin:.2em 0 .6em;"><?php echo esc_html($g['desc']); ?></p>
+                    <table class="widefat" style="font-size:12px;"><tbody>
+                        <?php foreach ($g['tools'] as $tool) : ?>
+                            <tr><td style="width:180px;"><code><?php echo esc_html($tool); ?></code></td><td><?php echo esc_html(isset($desc[$tool]) ? $short($desc[$tool]) : '—'); ?></td></tr>
+                        <?php endforeach; ?>
+                    </tbody></table>
+                </div>
+            <?php endforeach; ?>
+
+            <h3 style="margin-top:18px;">Always available (read-only)</h3>
+            <p style="max-width:800px;">These never turn off, so you can always ask what's going on: <code>get_site_info</code>, <code>get_dashboard</code>, <code>memory_list</code>, <code>skill_list</code>, <code>task_list</code>.</p>
+
+            <h2 <?php echo $h; ?>>Run the shop on autopilot (Autonomy)</h2>
+            <p style="max-width:800px;">On the <a href="<?php echo esc_url(admin_url('admin.php?page=claudpress-automation')); ?>">Automation</a> tab you can:</p>
+            <ul style="font-size:14px;line-height:1.8;max-width:800px;">
+                <li><strong>Ask "what's going on"</strong> anytime — sales, orders needing attention, low stock, updates — via the live dashboard (no login needed once your AI is connected).</li>
+                <li><strong>Schedule a daily digest</strong> emailed/Telegram'd to you — no API key required.</li>
+                <li><strong>Let it act on a schedule</strong> — e.g. "every morning, fulfil paid orders and publish due drafts." This needs an <strong>Anthropic API key</strong> (you add it there) because the site runs its own AI to do the work. Guardrails cap refunds and require you to opt in before it does anything destructive.</li>
+            </ul>
+
+            <h2 <?php echo $h; ?>>Build websites &amp; content</h2>
+            <p style="max-width:800px;">Ask for a page, homepage, or blog post and the AI follows a built-in <strong>designer's playbook</strong> (modern layout, responsive on phone/tablet/desktop, real images via free Openverse search). It can build <em>pixel-perfect custom pages</em> or <em>editable Gutenberg/Elementor pages</em> — just say which you prefer.</p>
+
+            <h2 <?php echo $h; ?>>Go live: staging → production</h2>
+            <p style="max-width:800px;">Build safely on a staging site, then ship to your live site in one step with <code>deploy_push</code> (set the production URL + token in Connect settings), or export a bundle and import it on the live site. Re-deploying updates instead of duplicating.</p>
+
+            <h2 <?php echo $h; ?>>Skills &amp; memory (why it gets smarter)</h2>
+            <p style="max-width:800px;"><strong>Memory</strong> = facts it remembers between chats ("our brand color is #f8ca50"). <strong>Skills</strong> = playbooks it follows automatically (this plugin ships expert skills for WooCommerce, SEO, blogging, design, and deploys). Both are shared by every AI you connect, so your whole team's AI stays consistent.</p>
+
+            <h2 <?php echo $h; ?>>Copy-paste starter prompts</h2>
+            <pre style="white-space:pre-wrap;background:#f6f7f7;padding:14px;border-radius:8px;max-width:800px;font-size:12px;">• "Give me a full status report on the store and site."
+• "Write and publish a 900-word blog post about &lt;topic&gt;, add a hero image, and optimize its SEO."
+• "Create a product called &lt;name&gt; at &lt;price&gt;, add an image, and put it in the &lt;category&gt; category."
+• "Set up Cash on Delivery and a flat-rate shipping zone for the UAE at 15 AED."
+• "Build a modern, responsive landing page for &lt;offer&gt; and show me the link."
+• "Set up a daily digest email of sales and low-stock items."</pre>
+
+            <h2 <?php echo $h; ?>>FAQ</h2>
+            <p style="max-width:800px;"><strong>Is it safe on my live store?</strong> Install it anywhere, but only turn abilities ON where you're comfortable with changes. Best practice: build on staging, deploy to production.<br>
+            <strong>What if the AI breaks something?</strong> Code snippets that error auto-disable themselves; you have an Activity log; and destructive actions can be toggled off entirely.<br>
+            <strong>Does it cost money?</strong> The plugin is free. Your AI app's usage and (optionally) the autonomy API key are billed by those providers.<br>
+            <strong>Does it work with ChatGPT/Codex/Gemini?</strong> Yes — any MCP-compatible AI app.<br>
+            <strong>Which switches should I leave off?</strong> See the recommended table above; when unsure, off is safer — you can always turn it on later.</p>
+
+            <p style="margin-top:24px;"><a href="<?php echo esc_url(admin_url('admin.php?page=claudpress')); ?>" class="button button-primary">← Back to Connect</a></p>
         </div>
         <?php
     }
