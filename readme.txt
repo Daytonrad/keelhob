@@ -4,7 +4,7 @@ Tags: mcp, ai, claude, woocommerce, seo, automation
 Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.3.3
+Stable tag: 1.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -37,6 +37,15 @@ Features:
 4. Copy the "Connect Claude Code" command and run it in your terminal.
 
 == Changelog ==
+
+= 1.4.0 — Reliability, budgets & migration depth =
+* Autonomy reliability: the agent loop now retries transient API failures (429/408/5xx and network errors) with exponential backoff and jitter, honouring the server's Retry-After. Permanent failures (bad key, bad request) still fail fast.
+* Budget caps: per-run and per-day spend/token/run limits stop a runaway autonomous loop from spending real money. A capped run halts cleanly and reports what it finished. Configurable under Claudpress > Automation; 0 means unlimited.
+* Agent run history: every autonomous run is recorded (source, status, steps, tool calls, retries, tokens, estimated USD) and shown on the Automation tab, plus a new read-only `agent_runs` tool so your AI can answer "what has the site been doing on its own, and what is it costing?".
+* Digest cadence UI: schedule a status digest straight from the Automation tab with a cadence and a time of day. Tasks gained a `run_hour` and a `monthly` schedule.
+* Migration: bundles now carry variable products with their attributes and every variation (matched on re-import by attribute combination, so re-deploying updates instead of duplicating), nav menus with their items and theme locations (relinked to the destination's pages by slug), and widgets/sidebars.
+* Shipping: `wc_shipping` gained `list_available_methods`, `get_method`, `configure_method` (enter a carrier's API credentials on an existing instance) and `quote` — which runs WooCommerce's real shipping engine for a destination and returns the live rates, including rates fetched from carrier APIs.
+* Tests & CI: a dependency-free PHP test suite (`php tests/run.php`, 200+ assertions covering policy, capabilities, budget caps, retry/backoff, scheduling and whole-plugin integrity), a live MCP smoke test (`node tests/live-smoke.mjs`), and GitHub Actions running lint on PHP 8.0–8.4 plus the suite on every push.
 
 = 1.3.3 — Autonomy hotfix =
 * Fixed autonomous agent runs failing when the model called a tool with no arguments (tool_use.input serialized as [] instead of {}, rejected by the Anthropic API). Found via a full live feature test.

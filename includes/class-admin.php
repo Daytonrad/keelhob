@@ -90,6 +90,10 @@ final class Claudpress_Admin
                 'agent_api_key'         => sanitize_text_field(wp_unslash($_POST['agent_api_key'] ?? '')),
                 'agent_api_endpoint'    => esc_url_raw(wp_unslash($_POST['agent_api_endpoint'] ?? '')) ?: 'https://api.anthropic.com/v1/messages',
                 'agent_model'           => sanitize_text_field(wp_unslash($_POST['agent_model'] ?? 'claude-sonnet-5')),
+                'agent_max_usd_per_run'    => max(0, (float) ($_POST['agent_max_usd_per_run'] ?? 0)),
+                'agent_max_tokens_per_run' => max(0, (int) ($_POST['agent_max_tokens_per_run'] ?? 0)),
+                'agent_max_usd_per_day'    => max(0, (float) ($_POST['agent_max_usd_per_day'] ?? 0)),
+                'agent_max_runs_per_day'   => max(0, (int) ($_POST['agent_max_runs_per_day'] ?? 0)),
                 'notify_email'          => sanitize_text_field(wp_unslash($_POST['notify_email'] ?? '')),
                 'notify_webhook_url'    => esc_url_raw(wp_unslash($_POST['notify_webhook_url'] ?? '')),
                 'notify_telegram_token' => sanitize_text_field(wp_unslash($_POST['notify_telegram_token'] ?? '')),
@@ -100,6 +104,17 @@ final class Claudpress_Admin
                     'max_refund'    => (float) ($_POST['policy_max_refund'] ?? 0),
                     'require_optin' => !empty($_POST['policy_require_optin']),
                 ],
+            ]);
+            wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation', 'saved' => 1], admin_url('admin.php')));
+            exit;
+        } elseif ($action === 'task_create') {
+            Claudpress_Tasks::save([
+                'name'     => sanitize_text_field(wp_unslash($_POST['task_name'] ?? 'Status digest')),
+                'mode'     => 'digest',
+                'schedule' => sanitize_key($_POST['task_schedule'] ?? 'daily'),
+                'run_hour' => ($_POST['task_run_hour'] ?? '') === '' ? null : (int) $_POST['task_run_hour'],
+                'notify'   => !empty($_POST['task_notify']),
+                'enabled'  => true,
             ]);
             wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation', 'saved' => 1], admin_url('admin.php')));
             exit;
@@ -333,6 +348,19 @@ final class Claudpress_Admin
                             <p><label>Model: <input type="text" name="agent_model" value="<?php echo esc_attr($s['agent_model'] ?? 'claude-sonnet-5'); ?>" class="regular-text" style="max-width:260px;"></label> <span style="color:#888;">e.g. claude-sonnet-5, claude-opus-4-8</span></p>
                             <p><label>Endpoint: <input type="text" name="agent_api_endpoint" value="<?php echo esc_attr($s['agent_api_endpoint'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;"></label></p>
 
+                            <h3>Budget caps</h3>
+                            <p style="color:#666;max-width:620px;">The agent bills your API key on every run. These caps stop a runaway loop from spending real money — a run halts cleanly and reports what it managed to finish. Cost is <em>estimated</em> from token usage at list prices. <strong>0 = unlimited.</strong></p>
+                            <p>
+                                <label>Max spend per run (USD): <input type="number" step="0.01" min="0" name="agent_max_usd_per_run" value="<?php echo esc_attr($s['agent_max_usd_per_run'] ?? 0.5); ?>" style="max-width:120px;"></label>
+                                <label style="margin-left:14px;">Max tokens per run: <input type="number" step="1000" min="0" name="agent_max_tokens_per_run" value="<?php echo esc_attr($s['agent_max_tokens_per_run'] ?? 300000); ?>" style="max-width:140px;"></label>
+                            </p>
+                            <p>
+                                <label>Max spend per day (USD): <input type="number" step="0.01" min="0" name="agent_max_usd_per_day" value="<?php echo esc_attr($s['agent_max_usd_per_day'] ?? 5); ?>" style="max-width:120px;"></label>
+                                <label style="margin-left:14px;">Max runs per day: <input type="number" step="1" min="0" name="agent_max_runs_per_day" value="<?php echo esc_attr($s['agent_max_runs_per_day'] ?? 48); ?>" style="max-width:120px;"></label>
+                            </p>
+                            <?php $u24 = Claudpress_Agent_Runs::usage_since(24); ?>
+                            <p style="color:#555;">Last 24h: <strong><?php echo (int) $u24['runs']; ?></strong> runs · <strong><?php echo number_format((int) $u24['tokens']); ?></strong> tokens · <strong>$<?php echo number_format((float) $u24['cost'], 4); ?></strong> estimated.</p>
+
                             <h3>Notifications</h3>
                             <p><label>Email(s), comma-separated (blank = admin email): <input type="text" name="notify_email" value="<?php echo esc_attr($s['notify_email'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;"></label></p>
                             <p><label>Webhook URL (Slack/generic, optional): <input type="text" name="notify_webhook_url" value="<?php echo esc_attr($s['notify_webhook_url'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;"></label></p>
@@ -357,7 +385,37 @@ final class Claudpress_Admin
 
                     <div class="card" style="max-width:none;padding:16px 20px;margin-top:16px;">
                         <h2 style="margin-top:0;">Scheduled tasks</h2>
-                        <p style="color:#666;">Create tasks by asking your AI: <em>"Create a daily digest task"</em> or <em>"Create an autonomous task that fulfils paid orders and publishes due drafts every morning."</em> Then manage them here.</p>
+
+                        <div style="background:#f6f7f7;border:1px solid #e2e4e7;border-radius:8px;padding:12px 16px;margin-bottom:16px;">
+                            <strong>Schedule a status digest</strong>
+                            <p style="color:#666;margin:.4em 0 .8em;">Get the store snapshot sent to you on a cadence — no API key needed. Times use the site timezone (<code><?php echo esc_html(wp_timezone_string()); ?></code>, currently <?php echo esc_html(current_time('H:i')); ?>).</p>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+                                <?php wp_nonce_field('claudpress_save'); ?>
+                                <input type="hidden" name="action" value="claudpress_save">
+                                <input type="hidden" name="claudpress_action" value="task_create">
+                                <label>Name<br><input type="text" name="task_name" value="Status digest" style="max-width:200px;"></label>
+                                <label>Cadence<br>
+                                    <select name="task_schedule" id="cp-digest-schedule">
+                                        <?php foreach (['hourly' => 'Every hour', 'twicedaily' => 'Twice a day', 'daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly'] as $val => $label) : ?>
+                                            <option value="<?php echo esc_attr($val); ?>" <?php selected($val, 'daily'); ?>><?php echo esc_html($label); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </label>
+                                <label>At hour<br>
+                                    <select name="task_run_hour" id="cp-digest-hour">
+                                        <option value="">any time</option>
+                                        <?php for ($hr = 0; $hr < 24; $hr++) : ?>
+                                            <option value="<?php echo (int) $hr; ?>" <?php selected($hr, 8); ?>><?php echo esc_html(sprintf('%02d:00', $hr)); ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </label>
+                                <label style="padding-bottom:6px;"><input type="checkbox" name="task_notify" value="1" checked> Notify me</label>
+                                <button class="button button-primary">Add digest</button>
+                            </form>
+                            <p style="color:#888;font-size:12px;margin:.8em 0 0;">Hour-of-day applies to daily, weekly and monthly cadences. WP-Cron fires on site traffic, so a digest lands on the first visit at or after the chosen hour.</p>
+                        </div>
+
+                        <p style="color:#666;">You can also create tasks by asking your AI: <em>"Create an autonomous task that fulfils paid orders and publishes due drafts every morning at 7."</em></p>
                         <table class="widefat striped">
                             <thead><tr><th>Name</th><th>Mode</th><th>Schedule</th><th>On</th><th>Last run</th><th>Actions</th></tr></thead>
                             <tbody>
@@ -365,7 +423,12 @@ final class Claudpress_Admin
                                 <tr>
                                     <td><strong><?php echo esc_html($t['name']); ?></strong><?php echo (int) $t['allow_risky'] === 1 ? ' <span title="allow_risky">⚠️</span>' : ''; ?></td>
                                     <td><?php echo esc_html($t['mode']); ?></td>
-                                    <td><?php echo esc_html($t['schedule']); ?></td>
+                                    <td><?php
+                                        echo esc_html($t['schedule']);
+                                        if (isset($t['run_hour']) && $t['run_hour'] !== null && $t['run_hour'] !== '') {
+                                            echo ' <span style="color:#666;">@ ' . esc_html(sprintf('%02d:00', (int) $t['run_hour'])) . '</span>';
+                                        }
+                                    ?></td>
                                     <td><?php echo (int) $t['enabled'] === 1 ? '✓' : '—'; ?></td>
                                     <td><?php echo $t['last_run'] ? esc_html($t['last_run']) . ' (' . esc_html((string) $t['last_status']) . ')' : '<em>never</em>'; ?></td>
                                     <td style="white-space:nowrap;">
@@ -385,6 +448,35 @@ final class Claudpress_Admin
                                 <?php endif; ?>
                             <?php endforeach; ?>
                             <?php if (empty($tasks)) : ?><tr><td colspan="6"><em>No tasks yet.</em></td></tr><?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <?php $runs = Claudpress_Agent_Runs::recent(25); ?>
+                    <div class="card" style="max-width:none;padding:16px 20px;margin-top:16px;">
+                        <h2 style="margin-top:0;">Agent run history</h2>
+                        <p style="color:#666;">Every autonomous run — scheduled or one-off — with what it cost. <em>capped</em> means a budget cap stopped it early; <em>truncated</em> means it hit the step limit.</p>
+                        <table class="widefat striped">
+                            <thead><tr><th>Started</th><th>Source</th><th>Status</th><th>Steps</th><th>Tools</th><th>Retries</th><th>Tokens</th><th>Est. cost</th></tr></thead>
+                            <tbody>
+                            <?php foreach ($runs as $r) :
+                                $colors = ['ok' => '#16a34a', 'error' => '#b91c1c', 'capped' => '#b45309', 'truncated' => '#b45309', 'running' => '#888'];
+                                $color  = $colors[$r['status']] ?? '#555'; ?>
+                                <tr>
+                                    <td><?php echo esc_html($r['started_at']); ?></td>
+                                    <td><?php echo esc_html($r['context']); ?><?php echo $r['task_id'] ? ' #' . (int) $r['task_id'] : ''; ?></td>
+                                    <td style="color:<?php echo esc_attr($color); ?>;font-weight:600;"><?php echo esc_html($r['status']); ?></td>
+                                    <td><?php echo (int) $r['steps']; ?></td>
+                                    <td><?php echo (int) $r['tool_calls']; ?></td>
+                                    <td><?php echo (int) $r['retries'] ?: '—'; ?></td>
+                                    <td><?php echo esc_html(number_format((int) $r['input_tokens'] + (int) $r['output_tokens'])); ?></td>
+                                    <td>$<?php echo esc_html(number_format((float) $r['cost_usd'], 4)); ?></td>
+                                </tr>
+                                <?php if (!empty($r['summary'])) : ?>
+                                    <tr><td colspan="8" style="background:#fafafa;"><small><strong><?php echo esc_html(wp_trim_words((string) $r['instruction'], 18)); ?></strong> → <?php echo esc_html(wp_trim_words((string) $r['summary'], 50)); ?></small></td></tr>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                            <?php if (empty($runs)) : ?><tr><td colspan="8"><em>No autonomous runs yet.</em></td></tr><?php endif; ?>
                             </tbody>
                         </table>
                     </div>

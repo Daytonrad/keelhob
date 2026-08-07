@@ -17,7 +17,10 @@ if (!defined('ABSPATH')) {
 
 final class Claudpress_Migration
 {
-    const BUNDLE_VERSION = 1;
+    const BUNDLE_VERSION = 2;
+
+    /** Every entity type a bundle can carry. */
+    const TYPES = ['pages', 'posts', 'products', 'snippets', 'skills', 'memory', 'options', 'menus', 'widgets'];
 
     /** Post meta keys that are safe/useful to carry between sites. */
     private static function meta_whitelist(): array
@@ -42,7 +45,7 @@ final class Claudpress_Migration
 
     public static function export(array $types, array $opts = []): array
     {
-        $types = $types ?: ['pages', 'posts', 'products', 'snippets', 'skills', 'memory', 'options'];
+        $types = $types ?: self::TYPES;
         $entities = [];
 
         if (in_array('pages', $types, true)) {
@@ -72,6 +75,12 @@ final class Claudpress_Migration
                 }
             }
             $entities['options'] = $opts_out;
+        }
+        if (in_array('menus', $types, true)) {
+            $entities['menus'] = self::export_menus();
+        }
+        if (in_array('widgets', $types, true)) {
+            $entities['widgets'] = self::export_widgets();
         }
 
         return [
@@ -128,12 +137,161 @@ final class Claudpress_Migration
                         'short_description' => $prod->get_short_description(),
                         'product_cats'  => wp_get_post_terms($p->ID, 'product_cat', ['fields' => 'names']),
                         'gallery'       => array_map('wp_get_attachment_url', $prod->get_gallery_image_ids()),
+                        'attributes'    => self::export_attributes($prod),
                     ];
+                    if ($prod->is_type('variable')) {
+                        $entry['product']['variations'] = self::export_variations($prod);
+                    }
                 }
             }
             $out[] = $entry;
         }
         return $out;
+    }
+
+    // ---- WooCommerce attributes & variations -------------------------------
+
+    /**
+     * Attributes in a portable shape. Taxonomy attributes (pa_size) are stored
+     * by slug plus their option *names*, because term IDs mean nothing on the
+     * destination site.
+     */
+    private static function export_attributes($product): array
+    {
+        $out = [];
+        foreach ($product->get_attributes() as $attr) {
+            if (!is_object($attr) || !method_exists($attr, 'get_name')) {
+                continue;
+            }
+            $taxonomy = $attr->is_taxonomy() ? $attr->get_name() : '';
+            $options  = [];
+            if ($taxonomy) {
+                foreach ($attr->get_options() as $term_id) {
+                    $term = get_term((int) $term_id, $taxonomy);
+                    if ($term && !is_wp_error($term)) {
+                        $options[] = $term->name;
+                    }
+                }
+            } else {
+                $options = $attr->get_options();
+            }
+            $out[] = [
+                'name'      => $attr->get_name(),
+                'label'     => $taxonomy ? wc_attribute_label($taxonomy) : $attr->get_name(),
+                'taxonomy'  => $taxonomy,
+                'options'   => $options,
+                'position'  => $attr->get_position(),
+                'visible'   => $attr->get_visible(),
+                'variation' => $attr->get_variation(),
+            ];
+        }
+        return $out;
+    }
+
+    /** Each variation with the attribute combination that selects it. */
+    private static function export_variations($product): array
+    {
+        $out = [];
+        foreach ($product->get_children() as $child_id) {
+            $v = wc_get_product($child_id);
+            if (!$v) {
+                continue;
+            }
+            $out[] = [
+                'sku'            => $v->get_sku(),
+                'attributes'     => $v->get_attributes(), // [attribute_pa_size => 'large']
+                'regular_price'  => $v->get_regular_price(),
+                'sale_price'     => $v->get_sale_price(),
+                'stock_status'   => $v->get_stock_status(),
+                'manage_stock'   => $v->get_manage_stock(),
+                'stock_quantity' => $v->get_stock_quantity(),
+                'weight'         => $v->get_weight(),
+                'description'    => $v->get_description(),
+                'image'          => $v->get_image_id() ? wp_get_attachment_url($v->get_image_id()) : null,
+            ];
+        }
+        return $out;
+    }
+
+    // ---- menus & widgets ---------------------------------------------------
+
+    /**
+     * Nav menus, their items, and their theme-location assignments. Items that
+     * point at a post/page are exported by slug so they can be relinked on the
+     * destination; custom links keep their URL.
+     */
+    private static function export_menus(): array
+    {
+        $locations = get_nav_menu_locations();
+        $by_menu   = [];
+        foreach ($locations as $loc => $menu_id) {
+            $by_menu[(int) $menu_id][] = $loc;
+        }
+
+        $out = [];
+        foreach (wp_get_nav_menus() as $menu) {
+            $items = [];
+            foreach (wp_get_nav_menu_items($menu->term_id) ?: [] as $item) {
+                $object_slug = '';
+                if ($item->type === 'post_type' && $item->object_id) {
+                    $obj = get_post((int) $item->object_id);
+                    $object_slug = $obj ? $obj->post_name : '';
+                } elseif ($item->type === 'taxonomy' && $item->object_id) {
+                    $term = get_term((int) $item->object_id);
+                    $object_slug = ($term && !is_wp_error($term)) ? $term->slug : '';
+                }
+                $items[] = [
+                    'db_id'       => (int) $item->ID,
+                    'parent_id'   => (int) $item->menu_item_parent,
+                    'order'       => (int) $item->menu_order,
+                    'title'       => $item->title,
+                    'type'        => $item->type,          // custom | post_type | taxonomy
+                    'object'      => $item->object,        // page | post | category …
+                    'object_slug' => $object_slug,
+                    'url'         => $item->url,
+                    'target'      => $item->target,
+                    'classes'     => is_array($item->classes) ? implode(' ', $item->classes) : '',
+                    'attr_title'  => $item->attr_title,
+                    'description' => $item->description,
+                ];
+            }
+            $out[] = [
+                'name'      => $menu->name,
+                'slug'      => $menu->slug,
+                'locations' => $by_menu[(int) $menu->term_id] ?? [],
+                'items'     => $items,
+            ];
+        }
+        return $out;
+    }
+
+    /** Sidebar assignments plus each widget instance's stored settings. */
+    private static function export_widgets(): array
+    {
+        $sidebars = get_option('sidebars_widgets', []);
+        if (!is_array($sidebars)) {
+            $sidebars = [];
+        }
+        unset($sidebars['array_version']);
+
+        // Collect the option blob for every widget base in use (widget_text, …).
+        $bases = [];
+        foreach ($sidebars as $widgets) {
+            foreach ((array) $widgets as $widget_id) {
+                if (preg_match('/^(.+)-(\d+)$/', (string) $widget_id, $m)) {
+                    $bases[$m[1]] = true;
+                }
+            }
+        }
+        $instances = [];
+        foreach (array_keys($bases) as $base) {
+            $opt = get_option('widget_' . $base, null);
+            if ($opt !== null) {
+                $instances['widget_' . $base] = $opt;
+            }
+        }
+
+        return ['sidebars_widgets' => $sidebars, 'instances' => $instances];
     }
 
     /**
@@ -172,6 +330,13 @@ final class Claudpress_Migration
                     $report['updated'][] = 'option:' . $k;
                 }
             }
+        }
+        // Menus after posts, so menu items can resolve the pages they point at.
+        foreach (($e['menus'] ?? []) as $menu) {
+            self::import_menu($menu, $report);
+        }
+        if (!empty($e['widgets']) && is_array($e['widgets'])) {
+            self::import_widgets($e['widgets'], $report);
         }
 
         $report['success'] = true;
@@ -232,14 +397,137 @@ final class Claudpress_Migration
         $report[$existing ? 'updated' : 'created'][] = $type . ':' . $slug;
     }
 
+    private static function import_menu(array $menu, array &$report): void
+    {
+        $name = (string) ($menu['name'] ?? '');
+        if ($name === '') {
+            return;
+        }
+        $existing = wp_get_nav_menu_object($menu['slug'] ?? $name) ?: wp_get_nav_menu_object($name);
+        if ($existing) {
+            $menu_id = (int) $existing->term_id;
+            // Clear existing items so a re-import mirrors the source exactly
+            // rather than appending a second copy of every link.
+            foreach (wp_get_nav_menu_items($menu_id) ?: [] as $old) {
+                wp_delete_post((int) $old->ID, true);
+            }
+        } else {
+            $menu_id = wp_create_nav_menu($name);
+            if (is_wp_error($menu_id)) {
+                $report['errors'][] = 'menu:' . $name . ': ' . $menu_id->get_error_message();
+                return;
+            }
+            $menu_id = (int) $menu_id;
+        }
+
+        // Parents must exist before children: source db_id → new item id.
+        $id_map = [];
+        $items  = (array) ($menu['items'] ?? []);
+        usort($items, static fn($a, $b) => ((int) ($a['order'] ?? 0)) <=> ((int) ($b['order'] ?? 0)));
+
+        foreach ($items as $item) {
+            $args = [
+                'menu-item-title'       => (string) ($item['title'] ?? ''),
+                'menu-item-url'         => (string) ($item['url'] ?? ''),
+                'menu-item-target'      => (string) ($item['target'] ?? ''),
+                'menu-item-classes'     => (string) ($item['classes'] ?? ''),
+                'menu-item-attr-title'  => (string) ($item['attr_title'] ?? ''),
+                'menu-item-description' => (string) ($item['description'] ?? ''),
+                'menu-item-position'    => (int) ($item['order'] ?? 0),
+                'menu-item-status'      => 'publish',
+                'menu-item-type'        => (string) ($item['type'] ?? 'custom'),
+            ];
+
+            // Relink by slug on this site; fall back to a custom link if the
+            // target does not exist here.
+            $resolved = 0;
+            if (($item['type'] ?? '') === 'post_type' && !empty($item['object_slug'])) {
+                $obj = get_page_by_path((string) $item['object_slug'], OBJECT, (string) ($item['object'] ?? 'page'));
+                $resolved = $obj ? (int) $obj->ID : 0;
+            } elseif (($item['type'] ?? '') === 'taxonomy' && !empty($item['object_slug'])) {
+                $term = get_term_by('slug', (string) $item['object_slug'], (string) ($item['object'] ?? 'category'));
+                $resolved = ($term && !is_wp_error($term)) ? (int) $term->term_id : 0;
+            }
+            if ($resolved) {
+                $args['menu-item-object']    = (string) ($item['object'] ?? '');
+                $args['menu-item-object-id'] = $resolved;
+            } elseif (($item['type'] ?? 'custom') !== 'custom') {
+                $args['menu-item-type'] = 'custom';
+                if ($args['menu-item-url'] === '') {
+                    continue; // nothing sensible to link to
+                }
+            }
+
+            $parent = (int) ($item['parent_id'] ?? 0);
+            if ($parent && isset($id_map[$parent])) {
+                $args['menu-item-parent-id'] = $id_map[$parent];
+            }
+
+            $new_id = wp_update_nav_menu_item($menu_id, 0, $args);
+            if (!is_wp_error($new_id) && !empty($item['db_id'])) {
+                $id_map[(int) $item['db_id']] = (int) $new_id;
+            }
+        }
+
+        // Theme locations that exist on this theme.
+        $locations = get_nav_menu_locations();
+        $registered = get_registered_nav_menus();
+        foreach ((array) ($menu['locations'] ?? []) as $loc) {
+            if (isset($registered[$loc])) {
+                $locations[$loc] = $menu_id;
+            }
+        }
+        set_theme_mod('nav_menu_locations', $locations);
+
+        $report[$existing ? 'updated' : 'created'][] = 'menu:' . $name;
+    }
+
+    /**
+     * Widgets are restored by writing each widget base's instance option and
+     * then the sidebar map. Sidebars this theme does not register are skipped —
+     * writing them would orphan the widgets in wp_inactive_widgets.
+     */
+    private static function import_widgets(array $widgets, array &$report): void
+    {
+        foreach ((array) ($widgets['instances'] ?? []) as $option_name => $value) {
+            if (strpos((string) $option_name, 'widget_') !== 0) {
+                continue;
+            }
+            update_option($option_name, $value);
+            $report['updated'][] = 'widgets:' . $option_name;
+        }
+
+        global $wp_registered_sidebars;
+        $incoming = (array) ($widgets['sidebars_widgets'] ?? []);
+        $current  = get_option('sidebars_widgets', []);
+        if (!is_array($current)) {
+            $current = [];
+        }
+        foreach ($incoming as $sidebar_id => $ids) {
+            if ($sidebar_id !== 'wp_inactive_widgets' && !isset($wp_registered_sidebars[$sidebar_id])) {
+                $report['skipped'][] = 'sidebar:' . $sidebar_id . ' (not registered by this theme)';
+                continue;
+            }
+            $current[$sidebar_id] = (array) $ids;
+            $report['updated'][]  = 'sidebar:' . $sidebar_id;
+        }
+        update_option('sidebars_widgets', $current);
+    }
+
     private static function apply_product(int $id, array $p): void
     {
         if (!function_exists('wc_get_product')) {
             return;
         }
-        $product = wc_get_product($id) ?: new WC_Product_Simple();
-        if (!$product->get_id()) {
-            $product = new WC_Product_Simple();
+        // A variable product needs the variable class, or its children have no
+        // parent that can hold them.
+        $is_variable = ($p['type'] ?? 'simple') === 'variable' && class_exists('WC_Product_Variable');
+        $product = wc_get_product($id);
+        if ($product && $is_variable && !$product->is_type('variable')) {
+            $product = new WC_Product_Variable($id);
+        }
+        if (!$product) {
+            $product = $is_variable ? new WC_Product_Variable() : new WC_Product_Simple();
             $product->set_id($id);
         }
         foreach (['sku' => 'set_sku', 'regular_price' => 'set_regular_price', 'sale_price' => 'set_sale_price', 'stock_status' => 'set_stock_status', 'short_description' => 'set_short_description'] as $k => $m) {
@@ -266,7 +554,150 @@ final class Claudpress_Migration
             }
             $product->set_category_ids($ids);
         }
+        if (!empty($p['attributes']) && is_array($p['attributes'])) {
+            $product->set_attributes(self::build_attributes($p['attributes']));
+        }
         $product->save();
+
+        if ($is_variable && !empty($p['variations']) && is_array($p['variations'])) {
+            self::apply_variations($product->get_id(), $p['variations']);
+            if (class_exists('WC_Product_Variable')) {
+                WC_Product_Variable::sync($product->get_id());
+            }
+        }
+    }
+
+    /**
+     * Rebuild WC_Product_Attribute objects from the portable shape, creating
+     * global attribute taxonomies and their terms on this site when needed.
+     *
+     * @return array<int, WC_Product_Attribute>
+     */
+    private static function build_attributes(array $attrs): array
+    {
+        if (!class_exists('WC_Product_Attribute')) {
+            return [];
+        }
+        $out = [];
+        foreach ($attrs as $a) {
+            $attribute = new WC_Product_Attribute();
+            $taxonomy  = (string) ($a['taxonomy'] ?? '');
+
+            if ($taxonomy !== '') {
+                $slug = str_replace('pa_', '', $taxonomy);
+                if (!taxonomy_exists($taxonomy) && function_exists('wc_create_attribute')) {
+                    $created = wc_create_attribute([
+                        'name' => (string) ($a['label'] ?? $slug),
+                        'slug' => $slug,
+                        'type' => 'select',
+                    ]);
+                    if (is_wp_error($created)) {
+                        continue;
+                    }
+                    // Register it for this request so term insertion works now.
+                    register_taxonomy($taxonomy, ['product'], ['hierarchical' => false]);
+                }
+                $term_ids = [];
+                foreach ((array) ($a['options'] ?? []) as $option_name) {
+                    $term = term_exists((string) $option_name, $taxonomy);
+                    if (!$term) {
+                        $term = wp_insert_term((string) $option_name, $taxonomy);
+                    }
+                    if (!is_wp_error($term) && isset($term['term_id'])) {
+                        $term_ids[] = (int) $term['term_id'];
+                    }
+                }
+                $attribute->set_id(function_exists('wc_attribute_taxonomy_id_by_name') ? wc_attribute_taxonomy_id_by_name($taxonomy) : 0);
+                $attribute->set_name($taxonomy);
+                $attribute->set_options($term_ids);
+            } else {
+                $attribute->set_id(0);
+                $attribute->set_name((string) ($a['name'] ?? ''));
+                $attribute->set_options((array) ($a['options'] ?? []));
+            }
+
+            $attribute->set_position((int) ($a['position'] ?? 0));
+            $attribute->set_visible(!empty($a['visible']));
+            $attribute->set_variation(!empty($a['variation']));
+            $out[] = $attribute;
+        }
+        return $out;
+    }
+
+    /** Upsert each variation of a variable product, matched by attribute combo (or SKU). */
+    private static function apply_variations(int $parent_id, array $variations): void
+    {
+        if (!class_exists('WC_Product_Variation')) {
+            return;
+        }
+        // Existing children indexed by their attribute signature, so re-import
+        // updates a variation instead of stacking duplicates.
+        $existing = [];
+        $parent   = wc_get_product($parent_id);
+        foreach ($parent ? $parent->get_children() : [] as $child_id) {
+            $child = wc_get_product($child_id);
+            if ($child) {
+                $existing[self::variation_key($child->get_attributes())] = (int) $child_id;
+            }
+        }
+
+        foreach ($variations as $v) {
+            $attrs = (array) ($v['attributes'] ?? []);
+            $key   = self::variation_key($attrs);
+            $id    = $existing[$key] ?? 0;
+
+            if (!$id && !empty($v['sku']) && function_exists('wc_get_product_id_by_sku')) {
+                $id = (int) wc_get_product_id_by_sku((string) $v['sku']);
+            }
+
+            $variation = $id ? new WC_Product_Variation($id) : new WC_Product_Variation();
+            $variation->set_parent_id($parent_id);
+            $variation->set_attributes($attrs);
+            $variation->set_status('publish');
+
+            foreach (['sku' => 'set_sku', 'regular_price' => 'set_regular_price', 'sale_price' => 'set_sale_price', 'stock_status' => 'set_stock_status', 'weight' => 'set_weight', 'description' => 'set_description'] as $k => $setter) {
+                if (isset($v[$k]) && $v[$k] !== '' && $v[$k] !== null) {
+                    try {
+                        $variation->{$setter}($v[$k]);
+                    } catch (Throwable $e) {
+                        // A duplicate SKU on the destination shouldn't abort the import.
+                    }
+                }
+            }
+            if (!empty($v['manage_stock'])) {
+                $variation->set_manage_stock(true);
+                if (isset($v['stock_quantity'])) {
+                    $variation->set_stock_quantity((int) $v['stock_quantity']);
+                }
+            }
+            $variation->save();
+
+            if (!empty($v['image'])) {
+                self::sideload_variation_image($variation->get_id(), (string) $v['image']);
+            }
+        }
+    }
+
+    /** Stable signature for an attribute combination, order-independent. */
+    private static function variation_key(array $attributes): string
+    {
+        $attributes = array_map('strval', $attributes);
+        ksort($attributes);
+        return wp_json_encode($attributes);
+    }
+
+    private static function sideload_variation_image(int $variation_id, string $url): void
+    {
+        if (get_post_thumbnail_id($variation_id)) {
+            return;
+        }
+        require_once ABSPATH . 'wp-admin/includes/media.php';
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/image.php';
+        $att = media_sideload_image($url, $variation_id, null, 'id');
+        if (!is_wp_error($att)) {
+            set_post_thumbnail($variation_id, $att);
+        }
     }
 
     private static function sideload_featured(int $post_id, string $url): void

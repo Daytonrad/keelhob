@@ -22,7 +22,7 @@ final class Claudpress_Capabilities
     /** Read-only introspection that is always available regardless of toggles. */
     public static function always_on(): array
     {
-        return ['get_site_info', 'get_dashboard', 'memory_list', 'memory_get', 'skill_list', 'skill_get', 'task_list'];
+        return ['get_site_info', 'get_dashboard', 'memory_list', 'memory_get', 'skill_list', 'skill_get', 'task_list', 'agent_runs'];
     }
 
     /**
@@ -105,7 +105,7 @@ final class Claudpress_Capabilities
             'automation' => [
                 'label' => 'Autonomy (agent & scheduled tasks)', 'sensitive' => true,
                 'desc' => 'Run the autonomous agent and create/run scheduled tasks.',
-                'tools' => ['run_agent', 'task_save', 'task_run', 'task_delete'],
+                'tools' => ['run_agent', 'task_save', 'task_run', 'task_delete', 'agent_runs'],
             ],
             'memory' => [
                 'label' => 'Memory (write)', 'sensitive' => false,

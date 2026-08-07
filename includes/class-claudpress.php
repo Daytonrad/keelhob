@@ -64,6 +64,11 @@ final class Claudpress
             'agent_api_key'      => '',
             'agent_api_endpoint' => 'https://api.anthropic.com/v1/messages',
             'agent_model'        => 'claude-sonnet-5',
+            // Autonomy budget caps (0 = unlimited). Estimated from token usage.
+            'agent_max_usd_per_run'    => 0.50,
+            'agent_max_tokens_per_run' => 300000,
+            'agent_max_usd_per_day'    => 5.00,
+            'agent_max_runs_per_day'   => 48,
             // Notifications.
             'notify_email'          => '',
             'notify_webhook_url'    => '',
@@ -168,6 +173,7 @@ final class Claudpress
         Claudpress_Skills::install_table();
         Claudpress_Snippets::install_table();
         Claudpress_Tasks::install_table();
+        Claudpress_Agent_Runs::install_table();
         Claudpress_Logger::install_table();
         Claudpress_Skills::seed_bundled_skills();
         self::seed_default_memory();
@@ -202,6 +208,7 @@ final class Claudpress
         Claudpress_Skills::install_table();
         Claudpress_Snippets::install_table();
         Claudpress_Tasks::install_table();
+        Claudpress_Agent_Runs::install_table();
         Claudpress_Logger::install_table();
         Claudpress_Skills::seed_bundled_skills();
         self::seed_default_memory();

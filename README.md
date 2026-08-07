@@ -48,7 +48,7 @@ The Connect page also outputs a JSON `mcpServers` block for Claude Desktop, Curs
 | **Code snippets** | `snippet_save`, `snippet_list`, `snippet_get`, `snippet_toggle`, `snippet_delete` |
 | **Elementor** | `elementor_page`, `elementor_settings`, `elementor_kit` |
 | **Ops** | `manage_updates`, `send_email`, `image_search` (Openverse, free), `image_generate` (API) |
-| **Autonomy** | `get_dashboard`, `run_agent`, `task_save`, `task_list`, `task_run`, `task_delete`, `notify_owner` |
+| **Autonomy** | `get_dashboard`, `run_agent`, `agent_runs`, `task_save`, `task_list`, `task_run`, `task_delete`, `notify_owner` |
 | **Checkout** | `wc_payments`, `wc_shipping`, `wc_tax` |
 | **Deploy** | `export_bundle`, `import_bundle`, `deploy_push` |
 | **Memory** | `memory_save`, `memory_get`, `memory_list`, `memory_delete` |
@@ -76,6 +76,50 @@ Beyond the interactive MCP connection, Claudpress can operate unattended:
 - **Notifications** — email, Slack/generic webhook, or Telegram (`notify_owner`).
 - **Guardrails** — a policy layer caps refunds, requires per-task opt-in for destructive tools in unattended runs, and can hard-block tools. Enforced for both interactive and autonomous calls.
 
+### Running unattended, reliably (v1.4)
+Nobody is watching a 3am cron run, so the loop defends itself:
+
+- **Retries with backoff** — transient API failures (429 rate limits, 408, 5xx, network errors) are retried with exponential backoff and jitter, honouring the server's `Retry-After`. Permanent failures (bad key, malformed request) fail fast instead of burning the window.
+- **Budget caps** — per-run and per-day limits on spend, tokens, and run count. A run that hits a cap stops cleanly between steps and reports what it managed to finish, rather than being killed mid-tool-call. Set them in **Claudpress → Automation**; `0` means unlimited. Cost is estimated from token usage at list prices (filter `claudpress_model_prices` to adjust).
+- **Run history** — every autonomous run is recorded with its source, status, steps, tool calls, retries, tokens, and estimated cost, shown on the Automation tab and queryable by your AI via `agent_runs`. So *"what has the site been doing on its own, and what is it costing me?"* has an answer.
+- **Digest cadence** — schedule a status digest from the Automation tab with a cadence (hourly → monthly) and a preferred hour of day.
+
+### Staging → production migration (v1.4)
+`export_bundle` / `import_bundle` / `deploy_push` carry more than posts and pages:
+
+- **Variable products** with their attributes and every variation. Global attribute taxonomies and terms are recreated on the destination; variations are matched by attribute combination, so re-deploying updates rather than duplicating.
+- **Nav menus** with items and theme-location assignments. Items are relinked to the destination's own pages by slug, falling back to a custom link when the target doesn't exist there.
+- **Widgets and sidebars**, skipping sidebars the destination theme doesn't register (writing them would orphan the widgets).
+
+Secrets are never exported — the Claudpress settings option holding API keys and tokens is excluded by design, and a test asserts the option whitelist stays clean.
+
+### Live carrier shipping rates (v1.4)
+`wc_shipping` can now set up and *verify* real carriers, not just flat rates:
+
+- `list_available_methods` — every shipping method type installed, so the agent can see which carrier plugins (DHL, UPS, FedEx, Aramex…) are available.
+- `configure_method` / `get_method` — set a method instance's own settings, which is how carrier API credentials and account numbers get entered. Credentials are redacted when read back.
+- `quote` — runs WooCommerce's **real** shipping engine for a destination and cart, returning the rates every applicable method produces. Carrier methods hit their API exactly as they would at checkout, so a rate coming back proves the carrier is genuinely configured and quoting.
+
+## Development
+
+No build step and no dependencies — the plugin runs from source.
+
+```bash
+php tests/run.php                 # unit suite: 200+ assertions, no composer, no WP install needed
+bash bin/build-zip.sh             # → build/claudpress.zip (single claudpress/ root, runtime files only)
+bash bin/build-zip.sh ~/Downloads # ...and drop a copy there
+
+# Live integration test against a real site (read-only by default)
+CLAUDPRESS_URL=https://your-site.com CLAUDPRESS_TOKEN=cp_xxx node tests/live-smoke.mjs
+node tests/live-smoke.mjs --url https://your-site.com --token cp_xxx --write   # + a create/read/delete round-trip
+```
+
+**`tests/run.php`** covers the decision logic where the costly bugs live — policy guardrails, capability gating, budget caps, retry classification and backoff, task scheduling, memory key normalization — against a small WordPress stub in `tests/bootstrap.php`. It deliberately isn't a WordPress test harness; anything that genuinely needs WordPress or WooCommerce is covered by the live smoke test instead.
+
+It also runs **whole-plugin integrity checks** that read the source: every registered tool must belong to a capability group or the always-on list (so a new tool can't silently escape the owner's off switch), every file in `includes/` must be loaded, the version must match across the plugin header, the constant and `readme.txt`, and the migration option whitelist must contain nothing credential-shaped.
+
+**CI** (`.github/workflows/ci.yml`) lints every PHP file on 8.0–8.4, runs the suite on 8.0/8.3/8.4, builds the zip and asserts its layout (one top-level `claudpress/`, no dev files). The live smoke test runs on manual dispatch when `CLAUDPRESS_URL` / `CLAUDPRESS_TOKEN` secrets are configured.
+
 ## Skills & memory (the "pro" features, free)
 
 - **Skills** are Markdown playbooks stored in WordPress that the agent loads automatically when a task matches their description. Claudpress ships with expert skills for WooCommerce operations, SEO, blog publishing, safety, and a `skill-creator`. Write your own from the agent ("create a skill that…") or edit them in the DB.
@@ -95,9 +139,20 @@ includes/
   class-skills.php          skills store + markdown parser + bundled seeding
   class-sandbox.php         persistent AI PHP with crash recovery
   class-logger.php          tool-call audit log
-  class-admin.php           settings/connect/activity UI
-  tools/                    core, filesystem, content, site, woocommerce, seo, memory, skills
+  class-policy.php          guardrails for unattended runs
+  class-capabilities.php    per-area on/off toggles
+  class-agent-runtime.php   on-site agentic loop (retries, budget caps)
+  class-agent-runs.php      autonomous run history + spend accounting
+  class-tasks.php           WP-Cron scheduler (cadence + hour of day)
+  class-digest.php          status snapshot
+  class-notifier.php        email / webhook / Telegram
+  class-migration.php       portable bundles (products, menus, widgets)
+  class-admin.php           connect / automation / guide / activity UI
+  tools/                    core, filesystem, content, site, woocommerce, seo, memory, skills,
+                            snippets, elementor, ops, automation, payments, deploy
 skills/                     bundled expert skill playbooks (markdown)
+tests/                      dependency-free unit suite + live MCP smoke test
+bin/build-zip.sh            reproducible plugin packaging
 ```
 
 The MCP transport answers a single `application/json` JSON-RPC response per request (the simplest valid Streamable-HTTP mode), which every MCP client accepts. No Node bridge required for HTTP-capable clients.
