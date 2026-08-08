@@ -2,6 +2,8 @@
 
 **A self-contained MCP server for WordPress.** Upload one plugin, flip a switch, and connect Claude Code (or Claude Desktop, Cursor, Codex, any MCP client) to run your whole site — content, WooCommerce store, SEO, files, and PHP — with cross-session memory and a skills engine.
 
+Don't want to run a client at all? Add your own API key and the site runs itself: on a schedule, or [from a Telegram chat on your phone](#chat-to-your-site-on-telegram-v16--no-mcp-client-needed).
+
 Inspired by [Novamira](https://novamira.ai), rebuilt from scratch with **no external dependencies**, **no WordPress 6.9 requirement**, and **every "pro" feature unlocked**: bundled expert skills, persistent memory, WooCommerce, and SEO all included and free.
 
 > ⚠️ **Development / staging only.** Claudpress gives a connected AI agent unrestricted control of this WordPress install (arbitrary PHP, database, filesystem). Only enable AI abilities on sites you can afford to break, with backups. Deactivating the plugin turns abilities off.
@@ -76,6 +78,37 @@ Beyond the interactive MCP connection, Claudpress can operate unattended:
 - **Notifications** — email, Slack/generic webhook, or Telegram (`notify_owner`).
 - **Guardrails** — a policy layer caps refunds, requires per-task opt-in for destructive tools in unattended runs, and can hard-block tools. Enforced for both interactive and autonomous calls.
 
+### Chat to your site on Telegram (v1.6) — no MCP client needed
+
+Everything above assumes an MCP client on the other end. This is the path that doesn't: **message a Telegram bot and the site's own agent does the work.** The plugin's API key is the brain, your phone is the interface — no Claude Code, no terminal, no laptop.
+
+Setup (about two minutes):
+
+1. Talk to [@BotFather](https://t.me/BotFather) on Telegram → `/newbot` → copy the token.
+2. Paste it into **Claudpress → Automation → Notifications → Telegram bot token**.
+3. In the **Chat** card below it: tick *Accept messages from Telegram*, save, then hit **Connect bot to this site**.
+4. Message the bot. Don't know your chat ID? Message it anyway — it replies with your ID so you can allowlist it.
+
+Then just talk to it: *"how did the store do this week?"*, *"publish the draft about winter tyres"*, *"the footer on the checkout page is broken, fix it."* It runs the same tools, the same policy guardrails and the same budget caps as a scheduled run, and every Telegram run shows up in the run history under the `telegram` source.
+
+**Commands** — answered by the plugin itself, so they cost nothing:
+
+| | |
+|---|---|
+| `/clear` | Forget this conversation and start fresh |
+| `/status` | Store & site snapshot |
+| `/usage` | Runs, tokens and estimated spend in the last 24h, against your caps |
+| `/tasks` | Scheduled automations and when they last ran |
+| `/model` | Which provider and model is answering |
+| `/risky on\|off` | Temporarily unlock destructive/financial tools |
+| `/whoami`, `/history`, `/help` | Chat ID, memory depth, the list above |
+
+**Conversation memory.** It replays the last N turns (default 12, configurable 0–60) so follow-ups like *"now do the same for the other three"* work. `/clear` wipes a conversation from your phone; **Clear all conversations** in admin wipes every one; anything older than 30 days is pruned on the cron tick.
+
+**Why this is safe enough to put on a public URL.** Only allowlisted chat IDs are answered, and an unconfigured allowlist refuses *everyone* rather than defaulting open. Every delivery must carry a generated secret, compared in constant time — rotate it from admin at any time. Destructive and financial tools stay locked for chat: the owner arms them in WP, the chat opts in with `/risky on`, and the opt-in lapses on its own after 30 minutes. Deliveries are deduplicated by `update_id` and acked before the run starts, so Telegram's retries can't run the same instruction twice.
+
+Telegram only delivers to a publicly reachable HTTPS URL with a valid certificate — a localhost or self-signed staging site can't receive messages.
+
 ### Running unattended, reliably (v1.4)
 Nobody is watching a 3am cron run, so the loop defends itself:
 
@@ -87,7 +120,7 @@ Nobody is watching a 3am cron run, so the loop defends itself:
 ### Staging → production migration (v1.4)
 `export_bundle` / `import_bundle` / `deploy_push` carry more than posts and pages:
 
-- **Variable products** with their attributes and every variation. Global attribute taxonomies and terms are recreated on the destination; variations are matched by attribute combination, so re-deploying updates rather than duplicating.
+- **Products**, matched by SKU. Simple products carry their prices, stock, categories and gallery. A **variable** product's own page still migrates — content, images, SEO meta, Elementor data — but its attributes and variations do not: they live in child posts and `pa_*` term IDs that mean nothing on the destination, so the import reports them as skipped and you rebuild them there with the WooCommerce tools (`wc_product`, or `execute_php` with `WC_Product_Variation`). That path goes through WooCommerce's own API on a site where the terms actually exist. See [docs/plans/variable-product-migration.md](docs/plans/variable-product-migration.md).
 - **Nav menus** with items and theme-location assignments. Items are relinked to the destination's own pages by slug, falling back to a custom link when the target doesn't exist there.
 - **Widgets and sidebars**, skipping sidebars the destination theme doesn't register (writing them would orphan the widgets).
 
@@ -105,7 +138,7 @@ Secrets are never exported — the Claudpress settings option holding API keys a
 No build step and no dependencies — the plugin runs from source.
 
 ```bash
-php tests/run.php                 # unit suite: 200+ assertions, no composer, no WP install needed
+php tests/run.php                 # unit suite: 460+ assertions, no composer, no WP install needed
 bash bin/build-zip.sh             # → build/claudpress.zip (single claudpress/ root, runtime files only)
 bash bin/build-zip.sh ~/Downloads # ...and drop a copy there
 
@@ -145,7 +178,9 @@ includes/
   class-agent-runs.php      autonomous run history + spend accounting
   class-tasks.php           WP-Cron scheduler (cadence + hour of day)
   class-digest.php          status snapshot
-  class-notifier.php        email / webhook / Telegram
+  class-notifier.php        email / webhook / Telegram (outbound)
+  class-telegram.php        Telegram chat front-end (inbound): webhook, commands,
+                            conversation history, per-chat access control
   class-migration.php       portable bundles (products, menus, widgets)
   class-admin.php           connect / automation / guide / activity UI
   tools/                    core, filesystem, content, site, woocommerce, seo, memory, skills,

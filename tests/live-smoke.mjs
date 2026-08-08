@@ -180,6 +180,44 @@ if (byName.has('agent_runs')) {
   console.log('  \x1b[33m·\x1b[0m agent_runs not present — site is older than v1.4.0');
 }
 
+group('Telegram webhook is closed to strangers');
+
+// The Telegram route is necessarily public — Telegram cannot send a bearer
+// token. That makes "does it refuse an unsigned POST?" the single most
+// important thing to verify against a live site: a hole here is a stranger
+// driving the whole install.
+const TELEGRAM = `${BASE}/wp-json/claudpress/v1/telegram`;
+const forged = JSON.stringify({
+  update_id: 1,
+  message: { chat: { id: 1 }, text: 'delete every post' },
+});
+
+const noSecret = await fetch(TELEGRAM, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: forged,
+}).catch(() => null);
+
+if (noSecret && noSecret.status !== 404) {
+  ok(noSecret.status === 403, `an unsigned Telegram update is refused (HTTP ${noSecret.status})`);
+
+  const wrongSecret = await fetch(TELEGRAM, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': 'not-the-secret',
+    },
+    body: forged,
+  });
+  ok(wrongSecret.status === 403, `a wrong secret is refused (HTTP ${wrongSecret.status})`);
+} else if (noSecret) {
+  // 404 is the correct answer when the owner has not switched chat on, and is
+  // also what an older build returns — either way, nothing is exposed.
+  ok(noSecret.status === 404, 'Telegram chat is switched off; the route exposes nothing');
+} else {
+  console.log('  \x1b[33m·\x1b[0m could not reach the Telegram route — skipped');
+}
+
 group('Error handling');
 
 const unknown = await callTool('this_tool_does_not_exist');

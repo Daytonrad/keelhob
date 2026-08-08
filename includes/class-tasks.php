@@ -134,8 +134,9 @@ final class Claudpress_Tasks
             }
         }
 
-        // Housekeeping: keep the agent run log bounded.
+        // Housekeeping: keep the agent run log and chat transcripts bounded.
         Claudpress_Agent_Runs::prune(90);
+        Claudpress_Telegram::prune(30);
     }
 
     // ---- execution --------------------------------------------------------

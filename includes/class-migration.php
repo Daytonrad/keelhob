@@ -137,78 +137,10 @@ final class Claudpress_Migration
                         'short_description' => $prod->get_short_description(),
                         'product_cats'  => wp_get_post_terms($p->ID, 'product_cat', ['fields' => 'names']),
                         'gallery'       => array_map('wp_get_attachment_url', $prod->get_gallery_image_ids()),
-                        'attributes'    => self::export_attributes($prod),
                     ];
-                    if ($prod->is_type('variable')) {
-                        $entry['product']['variations'] = self::export_variations($prod);
-                    }
                 }
             }
             $out[] = $entry;
-        }
-        return $out;
-    }
-
-    // ---- WooCommerce attributes & variations -------------------------------
-
-    /**
-     * Attributes in a portable shape. Taxonomy attributes (pa_size) are stored
-     * by slug plus their option *names*, because term IDs mean nothing on the
-     * destination site.
-     */
-    private static function export_attributes($product): array
-    {
-        $out = [];
-        foreach ($product->get_attributes() as $attr) {
-            if (!is_object($attr) || !method_exists($attr, 'get_name')) {
-                continue;
-            }
-            $taxonomy = $attr->is_taxonomy() ? $attr->get_name() : '';
-            $options  = [];
-            if ($taxonomy) {
-                foreach ($attr->get_options() as $term_id) {
-                    $term = get_term((int) $term_id, $taxonomy);
-                    if ($term && !is_wp_error($term)) {
-                        $options[] = $term->name;
-                    }
-                }
-            } else {
-                $options = $attr->get_options();
-            }
-            $out[] = [
-                'name'      => $attr->get_name(),
-                'label'     => $taxonomy ? wc_attribute_label($taxonomy) : $attr->get_name(),
-                'taxonomy'  => $taxonomy,
-                'options'   => $options,
-                'position'  => $attr->get_position(),
-                'visible'   => $attr->get_visible(),
-                'variation' => $attr->get_variation(),
-            ];
-        }
-        return $out;
-    }
-
-    /** Each variation with the attribute combination that selects it. */
-    private static function export_variations($product): array
-    {
-        $out = [];
-        foreach ($product->get_children() as $child_id) {
-            $v = wc_get_product($child_id);
-            if (!$v) {
-                continue;
-            }
-            $out[] = [
-                'sku'            => $v->get_sku(),
-                'attributes'     => $v->get_attributes(), // [attribute_pa_size => 'large']
-                'regular_price'  => $v->get_regular_price(),
-                'sale_price'     => $v->get_sale_price(),
-                'stock_status'   => $v->get_stock_status(),
-                'manage_stock'   => $v->get_manage_stock(),
-                'stock_quantity' => $v->get_stock_quantity(),
-                'weight'         => $v->get_weight(),
-                'description'    => $v->get_description(),
-                'image'          => $v->get_image_id() ? wp_get_attachment_url($v->get_image_id()) : null,
-            ];
         }
         return $out;
     }
@@ -388,7 +320,7 @@ final class Claudpress_Migration
             wp_set_object_terms($id, $item['tags'], 'post_tag');
         }
         if ($type === 'product' && !empty($item['product'])) {
-            self::apply_product($id, $item['product']);
+            self::apply_product($id, $item['product'], $report);
         }
         if (!empty($item['featured_image'])) {
             self::sideload_featured($id, $item['featured_image']);
@@ -514,20 +446,27 @@ final class Claudpress_Migration
         update_option('sidebars_widgets', $current);
     }
 
-    private static function apply_product(int $id, array $p): void
+    private static function apply_product(int $id, array $p, array &$report): void
     {
         if (!function_exists('wc_get_product')) {
             return;
         }
-        // A variable product needs the variable class, or its children have no
-        // parent that can hold them.
-        $is_variable = ($p['type'] ?? 'simple') === 'variable' && class_exists('WC_Product_Variable');
-        $product = wc_get_product($id);
-        if ($product && $is_variable && !$product->is_type('variable')) {
-            $product = new WC_Product_Variable($id);
+        // Only a simple product crosses a bundle intact. A variable product's
+        // identity lives in child posts and in attribute taxonomies whose term
+        // IDs and slugs mean nothing on the destination, so rebuilding it from
+        // JSON produces a product that looks right and cannot be bought. Its
+        // content is still imported; the store side is left to be rebuilt on the
+        // destination with the WooCommerce tools (wc_product / execute_php),
+        // which go through WooCommerce's own API instead of guessing at it.
+        $type = (string) ($p['type'] ?? 'simple');
+        if ($type !== 'simple') {
+            $label = ($p['sku'] ?? '') !== '' ? $p['sku'] : (string) $id;
+            $report['skipped'][] = 'product-data:' . $label . ' (' . $type . ' product — rebuild its attributes and variations on the destination with wc_product)';
+            return;
         }
+        $product = wc_get_product($id);
         if (!$product) {
-            $product = $is_variable ? new WC_Product_Variable() : new WC_Product_Simple();
+            $product = new WC_Product_Simple();
             $product->set_id($id);
         }
         foreach (['sku' => 'set_sku', 'regular_price' => 'set_regular_price', 'sale_price' => 'set_sale_price', 'stock_status' => 'set_stock_status', 'short_description' => 'set_short_description'] as $k => $m) {
@@ -554,150 +493,7 @@ final class Claudpress_Migration
             }
             $product->set_category_ids($ids);
         }
-        if (!empty($p['attributes']) && is_array($p['attributes'])) {
-            $product->set_attributes(self::build_attributes($p['attributes']));
-        }
         $product->save();
-
-        if ($is_variable && !empty($p['variations']) && is_array($p['variations'])) {
-            self::apply_variations($product->get_id(), $p['variations']);
-            if (class_exists('WC_Product_Variable')) {
-                WC_Product_Variable::sync($product->get_id());
-            }
-        }
-    }
-
-    /**
-     * Rebuild WC_Product_Attribute objects from the portable shape, creating
-     * global attribute taxonomies and their terms on this site when needed.
-     *
-     * @return array<int, WC_Product_Attribute>
-     */
-    private static function build_attributes(array $attrs): array
-    {
-        if (!class_exists('WC_Product_Attribute')) {
-            return [];
-        }
-        $out = [];
-        foreach ($attrs as $a) {
-            $attribute = new WC_Product_Attribute();
-            $taxonomy  = (string) ($a['taxonomy'] ?? '');
-
-            if ($taxonomy !== '') {
-                $slug = str_replace('pa_', '', $taxonomy);
-                if (!taxonomy_exists($taxonomy) && function_exists('wc_create_attribute')) {
-                    $created = wc_create_attribute([
-                        'name' => (string) ($a['label'] ?? $slug),
-                        'slug' => $slug,
-                        'type' => 'select',
-                    ]);
-                    if (is_wp_error($created)) {
-                        continue;
-                    }
-                    // Register it for this request so term insertion works now.
-                    register_taxonomy($taxonomy, ['product'], ['hierarchical' => false]);
-                }
-                $term_ids = [];
-                foreach ((array) ($a['options'] ?? []) as $option_name) {
-                    $term = term_exists((string) $option_name, $taxonomy);
-                    if (!$term) {
-                        $term = wp_insert_term((string) $option_name, $taxonomy);
-                    }
-                    if (!is_wp_error($term) && isset($term['term_id'])) {
-                        $term_ids[] = (int) $term['term_id'];
-                    }
-                }
-                $attribute->set_id(function_exists('wc_attribute_taxonomy_id_by_name') ? wc_attribute_taxonomy_id_by_name($taxonomy) : 0);
-                $attribute->set_name($taxonomy);
-                $attribute->set_options($term_ids);
-            } else {
-                $attribute->set_id(0);
-                $attribute->set_name((string) ($a['name'] ?? ''));
-                $attribute->set_options((array) ($a['options'] ?? []));
-            }
-
-            $attribute->set_position((int) ($a['position'] ?? 0));
-            $attribute->set_visible(!empty($a['visible']));
-            $attribute->set_variation(!empty($a['variation']));
-            $out[] = $attribute;
-        }
-        return $out;
-    }
-
-    /** Upsert each variation of a variable product, matched by attribute combo (or SKU). */
-    private static function apply_variations(int $parent_id, array $variations): void
-    {
-        if (!class_exists('WC_Product_Variation')) {
-            return;
-        }
-        // Existing children indexed by their attribute signature, so re-import
-        // updates a variation instead of stacking duplicates.
-        $existing = [];
-        $parent   = wc_get_product($parent_id);
-        foreach ($parent ? $parent->get_children() : [] as $child_id) {
-            $child = wc_get_product($child_id);
-            if ($child) {
-                $existing[self::variation_key($child->get_attributes())] = (int) $child_id;
-            }
-        }
-
-        foreach ($variations as $v) {
-            $attrs = (array) ($v['attributes'] ?? []);
-            $key   = self::variation_key($attrs);
-            $id    = $existing[$key] ?? 0;
-
-            if (!$id && !empty($v['sku']) && function_exists('wc_get_product_id_by_sku')) {
-                $id = (int) wc_get_product_id_by_sku((string) $v['sku']);
-            }
-
-            $variation = $id ? new WC_Product_Variation($id) : new WC_Product_Variation();
-            $variation->set_parent_id($parent_id);
-            $variation->set_attributes($attrs);
-            $variation->set_status('publish');
-
-            foreach (['sku' => 'set_sku', 'regular_price' => 'set_regular_price', 'sale_price' => 'set_sale_price', 'stock_status' => 'set_stock_status', 'weight' => 'set_weight', 'description' => 'set_description'] as $k => $setter) {
-                if (isset($v[$k]) && $v[$k] !== '' && $v[$k] !== null) {
-                    try {
-                        $variation->{$setter}($v[$k]);
-                    } catch (Throwable $e) {
-                        // A duplicate SKU on the destination shouldn't abort the import.
-                    }
-                }
-            }
-            if (!empty($v['manage_stock'])) {
-                $variation->set_manage_stock(true);
-                if (isset($v['stock_quantity'])) {
-                    $variation->set_stock_quantity((int) $v['stock_quantity']);
-                }
-            }
-            $variation->save();
-
-            if (!empty($v['image'])) {
-                self::sideload_variation_image($variation->get_id(), (string) $v['image']);
-            }
-        }
-    }
-
-    /** Stable signature for an attribute combination, order-independent. */
-    private static function variation_key(array $attributes): string
-    {
-        $attributes = array_map('strval', $attributes);
-        ksort($attributes);
-        return wp_json_encode($attributes);
-    }
-
-    private static function sideload_variation_image(int $variation_id, string $url): void
-    {
-        if (get_post_thumbnail_id($variation_id)) {
-            return;
-        }
-        require_once ABSPATH . 'wp-admin/includes/media.php';
-        require_once ABSPATH . 'wp-admin/includes/file.php';
-        require_once ABSPATH . 'wp-admin/includes/image.php';
-        $att = media_sideload_image($url, $variation_id, null, 'id');
-        if (!is_wp_error($att)) {
-            set_post_thumbnail($variation_id, $att);
-        }
     }
 
     private static function sideload_featured(int $post_id, string $url): void

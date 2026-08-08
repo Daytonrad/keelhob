@@ -68,6 +68,9 @@ CP_Test::same('', $defaults['deploy_target_token'], 'no deploy token ships in th
 
 cp_test_reset_options(['claudpress_settings' => ['abilities_enabled' => true]]);
 CP_Test::ok(Claudpress::instance()->abilities_enabled(), 'saved settings override defaults');
-CP_Test::same('claude-sonnet-5', Claudpress::instance()->get('agent_model'), 'unsaved keys still fall back to their default');
+CP_Test::same('anthropic', Claudpress::instance()->get('agent_provider'), 'unsaved keys still fall back to their default');
+// Model and endpoint intentionally default to '' — blank means "use whatever the
+// selected provider recommends", so switching provider cannot strand a stale value.
+CP_Test::same('', Claudpress::instance()->get('agent_model'), 'model defaults to blank so the provider default applies');
 
 cp_test_reset_options();

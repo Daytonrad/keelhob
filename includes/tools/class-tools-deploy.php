@@ -17,7 +17,7 @@ final class Claudpress_Tools_Deploy
     {
         $types = Claudpress_Migration::TYPES;
 
-        $r->add('export_bundle', 'Export a portable JSON bundle of this site\'s content and config: pages, posts, products (including variable products with their attributes and every variation), snippets, skills, memory, nav menus with their theme locations, widgets/sidebars, and selected options — incl. Elementor & SEO meta. Secrets (API keys/tokens) are never included. Use as the first half of a staging→production migration. Returns the bundle.', [
+        $r->add('export_bundle', 'Export a portable JSON bundle of this site\'s content and config: pages, posts, products (simple products in full; a variable product\'s content only — its attributes and variations are not portable), snippets, skills, memory, nav menus with their theme locations, widgets/sidebars, and selected options — incl. Elementor & SEO meta. Secrets (API keys/tokens) are never included. Use as the first half of a staging→production migration. Returns the bundle.', [
             'type' => 'object',
             'properties' => [
                 'types'  => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => $types], 'description' => 'Which entity types to include. Default: all.'],
@@ -26,7 +26,7 @@ final class Claudpress_Tools_Deploy
             ],
         ], [self::class, 'export_bundle'], ['readOnlyHint' => true]);
 
-        $r->add('import_bundle', 'Import a bundle produced by export_bundle into THIS site. Idempotent: matches by slug/SKU/name/key and updates rather than duplicating. Recreates product attributes and variations, relinks menu items to this site\'s pages by slug, and restores widgets into sidebars this theme registers. Sideloads featured and variation images. Use as the second half of a migration (run it on the destination site).', [
+        $r->add('import_bundle', 'Import a bundle produced by export_bundle into THIS site. Idempotent: matches by slug/SKU/name/key and updates rather than duplicating. Relinks menu items to this site\'s pages by slug, and restores widgets into sidebars this theme registers. Sideloads featured images. Variable products are reported in "skipped" — import the content, then rebuild their attributes and variations here with wc_product / execute_php. Use as the second half of a migration (run it on the destination site).', [
             'type' => 'object',
             'properties' => [
                 'bundle' => ['type' => 'object', 'description' => 'The bundle object from export_bundle.'],

@@ -79,3 +79,23 @@ CP_Test::same(2.5, $custom['max_usd_per_run'], 'saved cap settings are honoured'
 CP_Test::same(10, $custom['max_runs_per_day'], 'saved run cap is honoured');
 
 cp_test_reset_options();
+
+CP_Test::group('Operating protocol — guardrails reach the model');
+
+// The protocol is the only thing standing between a capable agent and an
+// unrecoverable site, so assert it is actually present and shared rather than
+// trusting that two call sites stayed in sync.
+$protocol = Claudpress_MCP_Server::operating_protocol();
+
+CP_Test::contains('Look before you touch', $protocol, 'read-before-write rule is present');
+CP_Test::contains('Smallest change', $protocol, 'minimal-change rule is present');
+CP_Test::contains('Verify what you changed', $protocol, 'verification rule is present');
+CP_Test::contains('Report honestly', $protocol, 'honest-reporting rule is present');
+CP_Test::contains('execute_sql', $protocol, 'the sharp tools are named explicitly');
+CP_Test::contains('capability the owner switched off', $protocol, 'working around disabled capabilities is forbidden');
+
+// A filter lets a site tighten the rules; it must not be able to vanish silently.
+add_filter('claudpress_operating_protocol', static fn($p) => $p . "\n9. House rule.");
+CP_Test::contains('House rule', Claudpress_MCP_Server::operating_protocol(), 'sites can extend the protocol via filter');
+
+cp_test_reset_filters();
