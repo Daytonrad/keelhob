@@ -201,13 +201,17 @@ if (ALLOW_WRITE) {
 
   const got = await callTool('memory_get', { key });
   ok(got.result?.success === true, 'memory_get reads it back');
-  ok(got.result?.memory?.value === value || got.result?.value === value, 'the value round-trips unchanged');
+  // memory_get returns the row under `entry` — assert that exact shape rather
+  // than accepting several, or a contract change would slip through silently.
+  ok(got.result?.entry?.key === key, 'memory_get returns the entry keyed as documented');
+  ok(got.result?.entry?.value === value, 'the value round-trips unchanged (em dash and slashes survive)');
+  ok(got.result?.entry?.category === 'test', 'the category round-trips');
 
   const deleted = await callTool('memory_delete', { key });
   ok(deleted.result?.success === true, 'memory_delete removes it');
 
   const gone = await callTool('memory_get', { key });
-  ok(gone.result?.success === false || !gone.result?.memory, 'the key is really gone (no test residue left behind)');
+  ok(gone.result?.success === false && !gone.result?.entry, 'the key is really gone (no test residue left behind)');
 }
 
 // ---------------------------------------------------------------------------
