@@ -4,7 +4,7 @@ Tags: mcp, ai, claude, woocommerce, seo, automation
 Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.6.0
+Stable tag: 1.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -30,6 +30,8 @@ Features:
 * Master safety switch + full activity log
 * Bring your own key: Anthropic, OpenAI or Google for the agent brain and image generation
 * Telegram chat: message a bot and the on-site agent runs your site — no MCP client needed
+* Voice notes, photos, one-tap approvals, /undo and per-chat roles for that chat
+* Event alerts: paid orders, low stock, a crashed snippet, available updates
 
 == External services ==
 
@@ -74,6 +76,17 @@ Your messages are also stored in this site's own database as conversation histor
 until you clear them, and each one is sent to your chosen AI provider as the
 instruction for that run. Only chat IDs you allowlist are answered.
 
+If you enable photos, an image you send is downloaded from Telegram, stored in
+this site's media library, and sent to your chosen AI provider as part of the
+message so the model can see it.
+
+**Voice transcription (optional, off by default).** If you enable voice notes, the
+audio you send the bot is downloaded from Telegram and sent to the transcription
+provider you select — OpenAI (https://api.openai.com) or Google
+(https://generativelanguage.googleapis.com), same terms and privacy links as
+above — using your own key. Only the audio is sent; the transcript comes back and
+is shown to you before anything acts on it.
+
 **Deploy (optional).** export_bundle/deploy_push send your content bundle only to
 the destination Claudpress site whose URL and token you configure.
 
@@ -89,6 +102,16 @@ Claudpress > Automation. Pick your provider there — the model guide next to th
 field lists the exact model IDs to type for each one.
 
 == Changelog ==
+
+= 1.7.0 — Voice, photos, approvals, undo and roles =
+* Voice notes: send the bot a voice message and it transcribes it, shows you the transcript, then acts on it. Transcription is its own provider choice (OpenAI Whisper / gpt-4o-transcribe, or Gemini audio) because Anthropic has no speech-to-text API; a blank key reuses any key you already entered for the same vendor.
+* Photos and screenshots: send an image (with a caption if you like) and the model actually sees it — proper vision input in each vendor's own format. The image is also filed in the media library and its attachment ID handed to the agent, so "use this as the product image" works without a re-upload.
+* One-tap approvals: when your guardrails block something, the reply carries Approve & run / Leave it buttons instead of making you learn /risky. Approving re-runs the instruction once with the guardrail lowered — a fresh run, so the model acts on current state rather than on what was true a minute ago. Tokens are single-use, chat-bound, expire in an hour, and the instruction is stored server-side because callback data comes back from the client.
+* Progress in place: one message is edited as the run works ("• list_posts", "• update_post") and then becomes the answer, instead of 40 seconds of silence. Throttled so Telegram's edit rate limit is never the thing slowing a run down.
+* /undo: puts back the content changed in the last turn — posts, pages and products, whether the agent changed them through update_post or through execute_php, because recording hooks WordPress core rather than the tool layer. Edits are reverted to how they were *before* the turn, created posts are trashed, trashed posts are restored. It says plainly what it could not undo, and that its scope is content only — not settings, plugins, files or live snippets.
+* Chat roles: allowlist entries can carry a role — 123456789:viewer or :editor. A viewer gets read-only tools only (and not read_file, list_directory or export_bundle: "read-only" and "can read your database password" are not the same claim). An editor can change the site but can never escalate to destructive or financial tools. A bare chat ID stays admin, so an existing allowlist is unaffected.
+* Event notifications — the site tells you first: a paid order (with a value floor), low stock or a sell-out, a live code snippet that crashed and auto-disabled itself, and new available updates. Every event is individually switchable, and nothing is announced twice — orders are keyed per status change, and the update alert only fires when the pending set actually changes, so holding an update back deliberately does not nag you forever.
+* Tests: 573 assertions, up from 468.
 
 = 1.6.0 — Chat to your site on Telegram =
 * Telegram chat front-end: message a Telegram bot and the on-site agent does the work — no MCP client, no terminal, no laptop. The plugin's own API key is the brain, your phone is the interface. Connect it in Claudpress > Automation > Chat with one button.

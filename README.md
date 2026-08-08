@@ -2,7 +2,7 @@
 
 **A self-contained MCP server for WordPress.** Upload one plugin, flip a switch, and connect Claude Code (or Claude Desktop, Cursor, Codex, any MCP client) to run your whole site — content, WooCommerce store, SEO, files, and PHP — with cross-session memory and a skills engine.
 
-Don't want to run a client at all? Add your own API key and the site runs itself: on a schedule, or [from a Telegram chat on your phone](#chat-to-your-site-on-telegram-v16--no-mcp-client-needed).
+Don't want to run a client at all? Add your own API key and the site runs itself: on a schedule, or [from a Telegram chat on your phone](#chat-to-your-site-on-telegram--no-mcp-client-needed) — voice notes, screenshots, approve-by-button and `/undo` included.
 
 Inspired by [Novamira](https://novamira.ai), rebuilt from scratch with **no external dependencies**, **no WordPress 6.9 requirement**, and **every "pro" feature unlocked**: bundled expert skills, persistent memory, WooCommerce, and SEO all included and free.
 
@@ -78,7 +78,7 @@ Beyond the interactive MCP connection, Claudpress can operate unattended:
 - **Notifications** — email, Slack/generic webhook, or Telegram (`notify_owner`).
 - **Guardrails** — a policy layer caps refunds, requires per-task opt-in for destructive tools in unattended runs, and can hard-block tools. Enforced for both interactive and autonomous calls.
 
-### Chat to your site on Telegram (v1.6) — no MCP client needed
+### Chat to your site on Telegram — no MCP client needed
 
 Everything above assumes an MCP client on the other end. This is the path that doesn't: **message a Telegram bot and the site's own agent does the work.** The plugin's API key is the brain, your phone is the interface — no Claude Code, no terminal, no laptop.
 
@@ -96,18 +96,50 @@ Then just talk to it: *"how did the store do this week?"*, *"publish the draft a
 | | |
 |---|---|
 | `/clear` | Forget this conversation and start fresh |
+| `/undo` | Put back the content changed last turn |
 | `/status` | Store & site snapshot |
 | `/usage` | Runs, tokens and estimated spend in the last 24h, against your caps |
 | `/tasks` | Scheduled automations and when they last ran |
 | `/model` | Which provider and model is answering |
 | `/risky on\|off` | Temporarily unlock destructive/financial tools |
-| `/whoami`, `/history`, `/help` | Chat ID, memory depth, the list above |
+| `/whoami`, `/history`, `/help` | Chat ID and role, memory depth, the list above |
 
 **Conversation memory.** It replays the last N turns (default 12, configurable 0–60) so follow-ups like *"now do the same for the other three"* work. `/clear` wipes a conversation from your phone; **Clear all conversations** in admin wipes every one; anything older than 30 days is pruned on the cron tick.
 
-**Why this is safe enough to put on a public URL.** Only allowlisted chat IDs are answered, and an unconfigured allowlist refuses *everyone* rather than defaulting open. Every delivery must carry a generated secret, compared in constant time — rotate it from admin at any time. Destructive and financial tools stay locked for chat: the owner arms them in WP, the chat opts in with `/risky on`, and the opt-in lapses on its own after 30 minutes. Deliveries are deduplicated by `update_id` and acked before the run starts, so Telegram's retries can't run the same instruction twice.
+**Voice notes.** Send audio and it transcribes, **shows you the transcript**, then acts — so a mis-hearing is something you can see and correct, not something that quietly edits your site. Transcription is a separate provider choice (OpenAI Whisper / `gpt-4o-transcribe`, or Gemini audio) because Anthropic has no speech-to-text API; leave the key blank to reuse one you already entered for the same vendor.
+
+**Photos and screenshots.** The model actually sees the image — real vision input in each vendor's own format — and the image is filed in the media library with its attachment ID handed to the agent, so *"use this as the product image"* works with no re-upload. Send it with a caption to say what you want done.
+
+**Progress in place.** One message is edited as the run works (`• list_posts`, `• update_post`) and then becomes the answer, instead of forty seconds of silence. Throttled, so Telegram's edit rate limit is never what slows a run down.
+
+**One-tap approvals.** When your guardrails block something, the reply carries **Approve & run** / **Leave it** buttons — no need to learn `/risky`. Approving re-runs the instruction once with the guardrail lowered. It's a fresh run rather than a resumption, so the model acts on current state instead of on what was true a minute ago. Tokens are single-use, bound to the chat they were offered to, and expire in an hour; the instruction is stored server-side because callback data arrives from the client and must never be something we execute.
+
+**`/undo`.** Puts back the content changed in the last turn: edits reverted to how they were *before* the turn, created posts trashed, trashed posts restored. Recording hooks WordPress core rather than the tool layer, so a change made through `execute_php` is captured just like one through `update_post`. Its scope is content — posts, pages, products — and it says so: **not** settings, plugins, files or live snippets. It also reports anything it couldn't put back rather than claiming a clean sweep.
+
+**Roles.** Allowlist entries can carry one:
+
+| Written as | That chat can |
+|---|---|
+| `123456789` | **admin** (the default) — everything, may Approve and use `/risky` |
+| `123456789:editor` | change the site, but never escalate to destructive/financial tools |
+| `123456789:viewer` | **read-only** tools only — ask questions, read reports, touch nothing |
+
+A bare ID stays admin, so an allowlist written before roles existed is unaffected. `viewer` is derived from each tool's own `readOnlyHint`, minus `read_file`, `list_directory` and `export_bundle` — *"read-only"* and *"can read your database password"* are not the same claim.
+
+**Why this is safe enough to put on a public URL.** Only allowlisted chat IDs are answered, and an unconfigured allowlist refuses *everyone* rather than defaulting open. Every delivery must carry a generated secret, compared in constant time — rotate it from admin at any time. Destructive and financial tools stay locked for chat unless the owner arms escalation in WP, and even then it's either a self-expiring `/risky` window or a per-action Approve press. Deliveries are deduplicated by `update_id` and acked before the run starts, so Telegram's retries can't run the same instruction twice.
 
 Telegram only delivers to a publicly reachable HTTPS URL with a valid certificate — a localhost or self-signed staging site can't receive messages.
+
+### Let the site tell you first (v1.7)
+
+Everything else here is pull — you ask, the site answers. This is push. Switch it on in **Automation → Let the site tell you first** and Claudpress messages you (on whichever channels you configured: email, webhook, Telegram) when:
+
+- **a paid order lands** — with a value floor, so a busy shop doesn't ping you 400 times a day
+- **stock runs low or sells out**
+- **a live code snippet crashed and auto-disabled itself** — the site stayed up *because* it switched off, but whatever it was doing has stopped and only you can judge whether that matters
+- **new plugin/theme/core updates appear**
+
+Every event is individually switchable, and **nothing is announced twice**: orders are keyed per status transition, and the update alert only fires when the pending set actually changes — so an update you're deliberately holding back doesn't nag you every hour forever.
 
 ### Running unattended, reliably (v1.4)
 Nobody is watching a 3am cron run, so the loop defends itself:
@@ -138,7 +170,7 @@ Secrets are never exported — the Claudpress settings option holding API keys a
 No build step and no dependencies — the plugin runs from source.
 
 ```bash
-php tests/run.php                 # unit suite: 460+ assertions, no composer, no WP install needed
+php tests/run.php                 # unit suite: 573 assertions, no composer, no WP install needed
 bash bin/build-zip.sh             # → build/claudpress.zip (single claudpress/ root, runtime files only)
 bash bin/build-zip.sh ~/Downloads # ...and drop a copy there
 
@@ -180,7 +212,9 @@ includes/
   class-digest.php          status snapshot
   class-notifier.php        email / webhook / Telegram (outbound)
   class-telegram.php        Telegram chat front-end (inbound): webhook, commands,
-                            conversation history, per-chat access control
+                            conversation history, roles, voice, photos, approvals
+  class-events.php          push alerts (orders, stock, crashed snippet, updates)
+  class-undo.php            one-step undo of a turn's content changes
   class-migration.php       portable bundles (products, menus, widgets)
   class-admin.php           connect / automation / guide / activity UI
   tools/                    core, filesystem, content, site, woocommerce, seo, memory, skills,

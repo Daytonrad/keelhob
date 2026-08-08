@@ -162,6 +162,38 @@ final class Claudpress_Capabilities
         return self::is_group_enabled($group);
     }
 
+    /**
+     * Tools a strictly read-only actor may use — the `viewer` Telegram role.
+     *
+     * Derived from each tool's own readOnlyHint annotation rather than a second
+     * hand-maintained list that would drift, minus an explicit exclusion list.
+     * Those exclusions are not oversights:
+     *   - read_file / list_directory read *anything* under the filesystem base,
+     *     and wp-config.php is under it. "Read-only" and "can read your database
+     *     password" are not the same claim.
+     *   - export_bundle copies the site's content out wholesale. It mutates
+     *     nothing and is still not something to hand a viewer.
+     *
+     * @param array<int, array{name: string, annotations?: array}> $tools registry->list()
+     * @return array<int, string>
+     */
+    public static function viewer_tools(array $tools): array
+    {
+        $never = ['read_file', 'list_directory', 'export_bundle'];
+        $out   = [];
+
+        foreach ($tools as $t) {
+            $name = (string) ($t['name'] ?? '');
+            if ($name === '' || in_array($name, $never, true)) {
+                continue;
+            }
+            if (($t['annotations']['readOnlyHint'] ?? null) === true && self::tool_allowed($name)) {
+                $out[] = $name;
+            }
+        }
+        return $out;
+    }
+
     /** Human-readable labels of disabled groups, for the session instructions. */
     public static function disabled_labels(): array
     {

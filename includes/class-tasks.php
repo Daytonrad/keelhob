@@ -134,6 +134,10 @@ final class Claudpress_Tasks
             }
         }
 
+        // Update alerts are checked on the tick rather than on page loads, so a
+        // visitor never pays for a plugin-update lookup.
+        Claudpress_Events::cron_check();
+
         // Housekeeping: keep the agent run log and chat transcripts bounded.
         Claudpress_Agent_Runs::prune(90);
         Claudpress_Telegram::prune(30);

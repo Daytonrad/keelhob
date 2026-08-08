@@ -194,7 +194,8 @@ final class Claudpress_Agent_Runtime
 
     /**
      * @param array $opts allow_risky(bool), max_steps(int), model(string), context(string label), task_id(int),
-     *                    history(array of ['role','text']), interactive(bool), channel(string)
+     *                    history(array of ['role','text']), interactive(bool), channel(string),
+     *                    image(['mime','b64']), allow_tools(string[] whitelist), on_step(callable)
      * @return array {success, summary, steps, tool_calls, usage, error?}
      */
     public static function run(string $instruction, array $opts = []): array
@@ -228,10 +229,26 @@ final class Claudpress_Agent_Runtime
 
         $run_id   = Claudpress_Agent_Runs::start($instruction, $context, $model, (int) ($opts['task_id'] ?? 0) ?: null);
         $registry = Claudpress::instance()->registry;
-        $tools    = self::tools_for_api($registry);
 
-        $messages   = self::history_messages($provider, (array) ($opts['history'] ?? []));
-        $messages[] = $provider::user_message($instruction);
+        // A whitelist (the read-only chat role) is applied to what the model is
+        // even told about, as well as to dispatch below. Offering a tool and
+        // then refusing it wastes a step and reads as a malfunction.
+        $allow_tools = isset($opts['allow_tools']) && is_array($opts['allow_tools']) ? $opts['allow_tools'] : null;
+        if ($allow_tools === []) {
+            // An empty whitelist is not "no restrictions" and must never be read
+            // as one. Some vendors also reject an empty tools array outright, so
+            // say what happened rather than surfacing a confusing API error.
+            Claudpress_Agent_Runs::finish($run_id, ['status' => 'error', 'summary' => 'No tools available to this actor.']);
+            return ['success' => false, 'error' => 'There are no tools available to this conversation, so there is nothing I can do here.'];
+        }
+        $tools = self::tools_for_api($registry, $allow_tools);
+        $on_step     = isset($opts['on_step']) && is_callable($opts['on_step']) ? $opts['on_step'] : null;
+
+        $messages = self::history_messages($provider, (array) ($opts['history'] ?? []));
+        $image    = is_array($opts['image'] ?? null) ? $opts['image'] : null;
+        $messages[] = ($image && !empty($image['b64']))
+            ? $provider::user_image_message($instruction, (string) ($image['mime'] ?? 'image/jpeg'), (string) $image['b64'])
+            : $provider::user_message($instruction);
         $tool_calls = [];
         $final_text = '';
         $usage      = ['input_tokens' => 0, 'output_tokens' => 0, 'cost' => 0.0, 'tokens' => 0, 'retries' => 0];
@@ -273,7 +290,10 @@ final class Claudpress_Agent_Runtime
                 $name = (string) $call['name'];
                 $args = is_array($call['args']) ? $call['args'] : [];
 
-                if (!Claudpress_Capabilities::tool_allowed($name)) {
+                if ($allow_tools !== null && !in_array($name, $allow_tools, true)) {
+                    $result  = ['success' => false, 'error' => 'This conversation is read-only; that tool is not available here.', 'policy_blocked' => true];
+                    $blocked = 'read-only conversation';
+                } elseif (!Claudpress_Capabilities::tool_allowed($name)) {
                     $result  = ['success' => false, 'error' => 'That capability is turned off by the site owner.', 'policy_blocked' => true];
                     $blocked = 'capability off';
                 } else {
@@ -291,12 +311,32 @@ final class Claudpress_Agent_Runtime
                     }
                 }
 
-                $tool_calls[]   = ['tool' => $name, 'blocked' => $blocked !== null, 'ok' => !(isset($result['success']) && $result['success'] === false)];
+                $tool_calls[]   = [
+                    'tool'    => $name,
+                    'blocked' => $blocked !== null,
+                    'ok'      => !(isset($result['success']) && $result['success'] === false),
+                ] + ($blocked !== null ? ['reason' => $blocked] : []);
                 $tool_results[] = ['id' => (string) $call['id'], 'name' => $name, 'result' => $result];
             }
 
             foreach ($provider::tool_result_message($tool_results) as $m) {
                 $messages[] = $m;
+            }
+
+            // Progress callback, for a caller that shows the work as it happens
+            // (the Telegram front-end edits one message in place). A throwing
+            // callback must not take the run down with it — the work is already
+            // done and the summary still matters.
+            if ($on_step !== null) {
+                try {
+                    $on_step([
+                        'step'  => $step + 1,
+                        'tools' => array_map(static fn($r) => $r['name'], $tool_results),
+                        'text'  => trim((string) $parsed['text']),
+                    ]);
+                } catch (Throwable $e) {
+                    // Deliberately swallowed; progress reporting is cosmetic.
+                }
             }
 
             // Budget check between steps: stop cleanly rather than mid-tool-call.
@@ -419,12 +459,15 @@ final class Claudpress_Agent_Runtime
      * Registry tools in the neutral shape the provider adapters consume.
      * Each adapter maps 'schema' onto its vendor's parameter field.
      */
-    private static function tools_for_api(Claudpress_Tool_Registry $registry): array
+    private static function tools_for_api(Claudpress_Tool_Registry $registry, ?array $allow_tools = null): array
     {
         $tools = [];
         foreach ($registry->list() as $t) {
             if (!Claudpress_Capabilities::tool_allowed($t['name'])) {
                 continue; // owner switched this capability off
+            }
+            if ($allow_tools !== null && !in_array($t['name'], $allow_tools, true)) {
+                continue; // restricted actor (e.g. a read-only chat role)
             }
             $schema = $t['inputSchema'];
             if (empty($schema['type'])) {

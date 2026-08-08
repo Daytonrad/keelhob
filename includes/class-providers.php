@@ -99,6 +99,23 @@ abstract class Claudpress_Provider
     abstract public static function tool_result_message(array $results): array;
 
     /**
+     * A user turn that carries an image alongside its text.
+     *
+     * Every vendor accepts inline base64, and every vendor spells it
+     * differently. The default here is Anthropic's shape; the others override.
+     *
+     * @param string $mime e.g. image/jpeg — vendors reject an unknown type
+     * @param string $b64  raw base64, no data: prefix
+     */
+    public static function user_image_message(string $text, string $mime, string $b64): array
+    {
+        return ['role' => 'user', 'content' => [
+            ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => $mime, 'data' => $b64]],
+            ['type' => 'text', 'text' => $text],
+        ]];
+    }
+
+    /**
      * A prior assistant turn replayed from stored chat history.
      *
      * Distinct from assistant_message(), which echoes a live response including
@@ -386,6 +403,14 @@ final class Claudpress_Provider_OpenAI extends Claudpress_Provider
         return $parsed['raw']['message'];
     }
 
+    public static function user_image_message(string $text, string $mime, string $b64): array
+    {
+        return ['role' => 'user', 'content' => [
+            ['type' => 'text', 'text' => $text],
+            ['type' => 'image_url', 'image_url' => ['url' => 'data:' . $mime . ';base64,' . $b64]],
+        ]];
+    }
+
     public static function tool_result_message(array $results): array
     {
         // One message per result, each keyed back to its call id.
@@ -509,6 +534,14 @@ final class Claudpress_Provider_Google extends Claudpress_Provider
     public static function assistant_text_message(string $text): array
     {
         return ['role' => 'model', 'parts' => [['text' => $text]]];
+    }
+
+    public static function user_image_message(string $text, string $mime, string $b64): array
+    {
+        return ['role' => 'user', 'parts' => [
+            ['inlineData' => ['mimeType' => $mime, 'data' => $b64]],
+            ['text' => $text],
+        ]];
     }
 
     public static function tool_result_message(array $results): array
@@ -700,5 +733,184 @@ final class Claudpress_Image_Provider_Google extends Claudpress_Image_Provider
             }
         }
         return null;
+    }
+}
+
+/**
+ * Speech-to-text providers, for voice notes sent to the Telegram bot.
+ *
+ * Separate from the chat adapters for the same reason the image ones are: one
+ * request in, a transcript out, no tool loop. Note that Anthropic has no audio
+ * endpoint — an owner running Claude as their brain still needs an OpenAI or
+ * Google key for voice, which the settings UI says out loud.
+ */
+abstract class Claudpress_Transcribe_Provider
+{
+    abstract public static function id(): string;
+    abstract public static function label(): string;
+    abstract public static function default_endpoint(): string;
+    abstract public static function default_model(): string;
+    abstract public static function key_url(): string;
+
+    /**
+     * Perform the transcription.
+     *
+     * @param string $bytes    raw audio
+     * @param string $mime     e.g. audio/ogg — Telegram voice notes are OGG/Opus
+     * @param string $filename a name with the right extension; some APIs sniff it
+     * @return array{success: bool, text?: string, error?: string}
+     */
+    abstract public static function transcribe(string $key, string $model, string $endpoint, string $bytes, string $mime, string $filename): array;
+
+    /** @return array<string, class-string<Claudpress_Transcribe_Provider>> */
+    public static function providers(): array
+    {
+        return (array) apply_filters('claudpress_transcribe_providers', [
+            'openai' => Claudpress_Transcribe_Provider_OpenAI::class,
+            'google' => Claudpress_Transcribe_Provider_Google::class,
+        ]);
+    }
+
+    public static function get(string $id): string
+    {
+        $all = self::providers();
+        return $all[$id] ?? Claudpress_Transcribe_Provider_OpenAI::class;
+    }
+
+    public static function current(): string
+    {
+        $s = Claudpress::instance()->settings();
+        return self::get((string) ($s['voice_provider'] ?? 'openai'));
+    }
+
+    /**
+     * Which key to transcribe with.
+     *
+     * An owner who already pasted an OpenAI key for the brain, or for image
+     * generation, should not have to paste the same key a third time — so a
+     * blank voice key falls back to any other key belonging to the same vendor.
+     * It only asks for a new one when there genuinely isn't one.
+     */
+    public static function key(): string
+    {
+        $s   = Claudpress::instance()->settings();
+        $own = trim((string) ($s['voice_api_key'] ?? ''));
+        if ($own !== '') {
+            return $own;
+        }
+        $want = (string) ($s['voice_provider'] ?? 'openai');
+        if ((string) ($s['agent_provider'] ?? '') === $want && trim((string) ($s['agent_api_key'] ?? '')) !== '') {
+            return trim((string) $s['agent_api_key']);
+        }
+        if ((string) ($s['image_provider'] ?? '') === $want && trim((string) ($s['image_api_key'] ?? '')) !== '') {
+            return trim((string) $s['image_api_key']);
+        }
+        return '';
+    }
+
+    /** Build a multipart/form-data body by hand — no curl file handles needed. */
+    protected static function multipart(array $fields, string $file_field, string $filename, string $mime, string $bytes): array
+    {
+        $boundary = '----claudpress' . bin2hex(random_bytes(8));
+        $body     = '';
+
+        foreach ($fields as $name => $value) {
+            $body .= "--{$boundary}\r\n";
+            $body .= 'Content-Disposition: form-data; name="' . $name . "\"\r\n\r\n";
+            $body .= $value . "\r\n";
+        }
+        $body .= "--{$boundary}\r\n";
+        $body .= 'Content-Disposition: form-data; name="' . $file_field . '"; filename="' . $filename . "\"\r\n";
+        $body .= 'Content-Type: ' . $mime . "\r\n\r\n";
+        $body .= $bytes . "\r\n";
+        $body .= "--{$boundary}--\r\n";
+
+        return ['content_type' => 'multipart/form-data; boundary=' . $boundary, 'body' => $body];
+    }
+}
+
+/** OpenAI's audio/transcriptions endpoint, and any gateway that mirrors it. */
+final class Claudpress_Transcribe_Provider_OpenAI extends Claudpress_Transcribe_Provider
+{
+    public static function id(): string { return 'openai'; }
+    public static function label(): string { return 'OpenAI (Whisper / gpt-4o-transcribe)'; }
+    public static function default_endpoint(): string { return 'https://api.openai.com/v1/audio/transcriptions'; }
+    public static function default_model(): string { return 'gpt-4o-mini-transcribe'; }
+    public static function key_url(): string { return 'https://platform.openai.com/api-keys'; }
+
+    public static function transcribe(string $key, string $model, string $endpoint, string $bytes, string $mime, string $filename): array
+    {
+        $part = self::multipart(['model' => $model ?: self::default_model()], 'file', $filename, $mime, $bytes);
+
+        $resp = wp_remote_post($endpoint ?: self::default_endpoint(), [
+            'timeout' => 60,
+            'headers' => [
+                'Authorization' => 'Bearer ' . $key,
+                'Content-Type'  => $part['content_type'],
+            ],
+            'body'    => $part['body'],
+        ]);
+
+        if (is_wp_error($resp)) {
+            return ['success' => false, 'error' => $resp->get_error_message()];
+        }
+        $data = json_decode(wp_remote_retrieve_body($resp), true);
+        $text = is_array($data) ? trim((string) ($data['text'] ?? '')) : '';
+        if ($text === '') {
+            $err = is_array($data) ? (string) ($data['error']['message'] ?? '') : '';
+            return ['success' => false, 'error' => $err ?: 'HTTP ' . wp_remote_retrieve_response_code($resp) . ' with no transcript.'];
+        }
+        return ['success' => true, 'text' => $text];
+    }
+}
+
+/**
+ * Gemini transcribes as a side effect of generateContent: the audio goes in as
+ * an inline part with an instruction to write down what it hears.
+ */
+final class Claudpress_Transcribe_Provider_Google extends Claudpress_Transcribe_Provider
+{
+    public static function id(): string { return 'google'; }
+    public static function label(): string { return 'Google (Gemini audio)'; }
+    public static function default_endpoint(): string { return 'https://generativelanguage.googleapis.com/v1beta/models'; }
+    public static function default_model(): string { return 'gemini-3-flash'; }
+    public static function key_url(): string { return 'https://aistudio.google.com/apikey'; }
+
+    public static function transcribe(string $key, string $model, string $endpoint, string $bytes, string $mime, string $filename): array
+    {
+        $model = $model ?: self::default_model();
+        $base  = $endpoint ?: self::default_endpoint();
+        $url   = strpos($base, ':generateContent') !== false
+            ? $base
+            : rtrim($base, '/') . '/' . rawurlencode($model) . ':generateContent';
+
+        $resp = wp_remote_post($url, [
+            'timeout' => 60,
+            'headers' => ['x-goog-api-key' => $key, 'Content-Type' => 'application/json'],
+            'body'    => wp_json_encode([
+                'contents' => [[
+                    'role'  => 'user',
+                    'parts' => [
+                        ['inlineData' => ['mimeType' => $mime, 'data' => base64_encode($bytes)]],
+                        ['text' => 'Transcribe this audio verbatim. Reply with the transcript only — no preamble, no commentary, no quotation marks.'],
+                    ],
+                ]],
+            ]),
+        ]);
+
+        if (is_wp_error($resp)) {
+            return ['success' => false, 'error' => $resp->get_error_message()];
+        }
+        $data = json_decode(wp_remote_retrieve_body($resp), true);
+        $text = '';
+        foreach ((array) ($data['candidates'][0]['content']['parts'] ?? []) as $p) {
+            $text .= (string) ($p['text'] ?? '');
+        }
+        $text = trim($text);
+        if ($text === '') {
+            $err = is_array($data) ? (string) ($data['error']['message'] ?? '') : '';
+            return ['success' => false, 'error' => $err ?: 'HTTP ' . wp_remote_retrieve_response_code($resp) . ' with no transcript.'];
+        }
+        return ['success' => true, 'text' => $text];
     }
 }

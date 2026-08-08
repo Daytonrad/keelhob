@@ -217,6 +217,16 @@ final class Claudpress_Admin
                 'telegram_allowed_chats' => sanitize_text_field(wp_unslash($_POST['telegram_allowed_chats'] ?? '')),
                 'telegram_history_turns' => max(0, min(60, (int) ($_POST['telegram_history_turns'] ?? 12))),
                 'telegram_allow_risky'   => !empty($_POST['telegram_allow_risky']),
+                'telegram_voice'         => !empty($_POST['telegram_voice']),
+                'telegram_photos'        => !empty($_POST['telegram_photos']),
+                'telegram_progress'      => !empty($_POST['telegram_progress']),
+                'voice_provider'         => sanitize_key($_POST['voice_provider'] ?? 'openai'),
+                'voice_api_key'          => sanitize_text_field(wp_unslash($_POST['voice_api_key'] ?? '')),
+                'voice_model'            => sanitize_text_field(wp_unslash($_POST['voice_model'] ?? '')),
+                'voice_api_endpoint'     => self::endpoint_override(
+                    esc_url_raw(wp_unslash($_POST['voice_api_endpoint'] ?? '')),
+                    Claudpress_Transcribe_Provider::get(sanitize_key($_POST['voice_provider'] ?? 'openai'))::default_endpoint()
+                ),
             ]);
             wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation', 'saved' => 1], admin_url('admin.php')) . '#chat');
             exit;
@@ -241,6 +251,17 @@ final class Claudpress_Admin
                 'page' => 'claudpress-automation',
                 'tg'   => !empty($res['ok']) ? 'rotated' : 'failed',
             ], admin_url('admin.php')) . '#chat');
+            exit;
+        } elseif ($action === 'events_settings') {
+            Claudpress::instance()->update([
+                'events_enabled'   => !empty($_POST['events_enabled']),
+                'events_order'     => !empty($_POST['events_order']),
+                'events_order_min' => max(0, (float) ($_POST['events_order_min'] ?? 0)),
+                'events_stock'     => !empty($_POST['events_stock']),
+                'events_snippet'   => !empty($_POST['events_snippet']),
+                'events_updates'   => !empty($_POST['events_updates']),
+            ]);
+            wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation', 'saved' => 1], admin_url('admin.php')) . '#events');
             exit;
         } elseif ($action === 'telegram_clear_chats') {
             $n = Claudpress_Telegram::clear_all();
@@ -592,6 +613,7 @@ final class Claudpress_Admin
                     </div>
 
                     <?php $this->render_telegram_card($s); ?>
+                    <?php $this->render_events_card($s); ?>
 
                     <div class="card" style="max-width:none;padding:16px 20px;margin-top:16px;">
                         <h2 style="margin-top:0;"><?php esc_html_e('Scheduled tasks', 'claudpress'); ?></h2>
@@ -768,9 +790,10 @@ final class Claudpress_Admin
      */
     private function render_telegram_card(array $s): void
     {
-        $tg_on   = Claudpress_Telegram::enabled();
-        $tg_tok  = Claudpress_Telegram::token() !== '';
-        $allowed = Claudpress_Telegram::allowed_chats();
+        $tg_on      = Claudpress_Telegram::enabled();
+        $tg_tok     = Claudpress_Telegram::token() !== '';
+        $chat_roles = Claudpress_Telegram::chat_roles();
+        $allowed    = array_keys($chat_roles);
 
         // Only ask Telegram about the webhook when there is something to ask
         // about — otherwise every page load would pay for a pointless request.
@@ -834,8 +857,8 @@ final class Claudpress_Admin
                 </p>
 
                 <p>
-                    <label><?php esc_html_e('Allowed chat IDs (comma-separated):', 'claudpress'); ?><br>
-                    <input type="text" name="telegram_allowed_chats" value="<?php echo esc_attr($s['telegram_allowed_chats'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" placeholder="<?php echo esc_attr($s['notify_telegram_chat'] ?? '123456789'); ?>"></label>
+                    <label><?php esc_html_e('Allowed chat IDs (comma-separated, optionally with a role):', 'claudpress'); ?><br>
+                    <input type="text" name="telegram_allowed_chats" value="<?php echo esc_attr($s['telegram_allowed_chats'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" placeholder="<?php echo esc_attr(($s['notify_telegram_chat'] ?? '123456789') . ', 987654321:viewer'); ?>"></label>
                     <br><span style="color:#888;">
                         <?php esc_html_e('Only these chats get answered; everyone else is refused. Blank falls back to the notification chat ID above. Don\'t know yours? Message the bot and it replies with your ID.', 'claudpress'); ?>
                     </span>
@@ -843,6 +866,31 @@ final class Claudpress_Admin
                         <br><span style="color:#a00;"><?php esc_html_e('No chat is allowlisted yet, so the bot will refuse everyone — including you.', 'claudpress'); ?></span>
                     <?php endif; ?>
                 </p>
+
+                <table class="widefat striped" style="max-width:720px;margin:0 0 14px;">
+                    <thead><tr>
+                        <th style="width:150px;"><?php esc_html_e('Write it as', 'claudpress'); ?></th>
+                        <th><?php esc_html_e('What that chat can do', 'claudpress'); ?></th>
+                    </tr></thead>
+                    <tbody>
+                        <tr><td><code>123456789</code></td><td><?php esc_html_e('admin (the default) — everything, may press Approve and use /risky', 'claudpress'); ?></td></tr>
+                        <tr><td><code>123456789:editor</code></td><td><?php esc_html_e('may change the site, but never destructive or financial tools, and cannot approve', 'claudpress'); ?></td></tr>
+                        <tr><td><code>123456789:viewer</code></td><td><?php esc_html_e('read-only — can ask questions and read reports, cannot change anything', 'claudpress'); ?></td></tr>
+                    </tbody>
+                </table>
+
+                <?php if (!empty($chat_roles)) : ?>
+                    <p style="color:#555;">
+                        <strong><?php esc_html_e('Currently allowlisted:', 'claudpress'); ?></strong>
+                        <?php
+                        $bits = [];
+                        foreach ($chat_roles as $cid => $crole) {
+                            $bits[] = '<code>' . esc_html((string) $cid) . '</code> → ' . esc_html($crole);
+                        }
+                        echo wp_kses_post(implode(' · ', $bits));
+                        ?>
+                    </p>
+                <?php endif; ?>
 
                 <p>
                     <label><?php esc_html_e('Remember this many turns per conversation:', 'claudpress'); ?>
@@ -853,9 +901,81 @@ final class Claudpress_Admin
                 <p>
                     <label>
                         <input type="checkbox" name="telegram_allow_risky" value="1" <?php checked(!empty($s['telegram_allow_risky'])); ?>>
-                        <?php esc_html_e('Let a chat unlock destructive/financial tools with /risky on', 'claudpress'); ?>
+                        <?php esc_html_e('Let an admin chat escalate to destructive/financial tools', 'claudpress'); ?>
                     </label>
-                    <br><span style="color:#888;"><?php esc_html_e('Off by default. Even when allowed, the unlock lapses by itself after 30 minutes.', 'claudpress'); ?></span>
+                    <br><span style="color:#888;"><?php esc_html_e('Off by default. When allowed, escalation is either a per-action "Approve & run" button on the reply, or a /risky on window that lapses by itself after 30 minutes. Editor and viewer chats can never escalate, whatever this says.', 'claudpress'); ?></span>
+                </p>
+
+                <hr>
+                <h3><?php esc_html_e('Voice notes, photos and progress', 'claudpress'); ?></h3>
+
+                <p>
+                    <label>
+                        <input type="checkbox" name="telegram_progress" value="1" <?php checked(!empty($s['telegram_progress'])); ?>>
+                        <?php esc_html_e('Show the work in progress', 'claudpress'); ?>
+                    </label>
+                    <br><span style="color:#888;"><?php esc_html_e('One message is edited in place as the agent works, then becomes the answer — instead of silence for 40 seconds.', 'claudpress'); ?></span>
+                </p>
+
+                <p>
+                    <label>
+                        <input type="checkbox" name="telegram_photos" value="1" <?php checked(!empty($s['telegram_photos'])); ?>>
+                        <?php esc_html_e('Accept photos and screenshots', 'claudpress'); ?>
+                    </label>
+                    <br><span style="color:#888;"><?php esc_html_e('The image is shown to the model and filed in the media library, so it can go straight into a post or product. Needs a model that can see images — all current Claude, GPT and Gemini models can.', 'claudpress'); ?></span>
+                </p>
+
+                <?php
+                $voice_id = (string) ($s['voice_provider'] ?? 'openai');
+                /** @var class-string<Claudpress_Transcribe_Provider> $voice_p */
+                $voice_p   = Claudpress_Transcribe_Provider::get($voice_id);
+                $voice_key = Claudpress_Transcribe_Provider::key();
+                ?>
+                <p>
+                    <label>
+                        <input type="checkbox" name="telegram_voice" value="1" <?php checked(!empty($s['telegram_voice'])); ?>>
+                        <?php esc_html_e('Accept voice notes', 'claudpress'); ?>
+                    </label>
+                    <br><span style="color:#888;"><?php esc_html_e('Transcribed first, and the transcript is shown to you before the agent acts — so a mis-hearing is visible, not silently acted on.', 'claudpress'); ?></span>
+                    <?php if (!empty($s['telegram_voice']) && $voice_key === '') : ?>
+                        <br><span style="color:#a00;"><?php esc_html_e('Voice is on but there is no transcription key, so voice notes will be refused.', 'claudpress'); ?></span>
+                    <?php endif; ?>
+                </p>
+
+                <p style="color:#666;max-width:620px;">
+                    <?php esc_html_e('Transcription is a separate service from the agent brain: Anthropic has no speech-to-text API, so voice needs an OpenAI or Google key even if Claude is doing the thinking. Leave the key blank to reuse a key you already entered for the same vendor.', 'claudpress'); ?>
+                </p>
+                <p>
+                    <label><?php esc_html_e('Transcription provider:', 'claudpress'); ?>
+                        <select name="voice_provider" style="max-width:320px;">
+                            <?php foreach (Claudpress_Transcribe_Provider::providers() as $vid => $vcls) : ?>
+                                <option value="<?php echo esc_attr($vid); ?>" <?php selected($voice_id, $vid); ?>><?php echo esc_html($vcls::label()); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+                </p>
+                <p>
+                    <label><?php esc_html_e('Transcription API key:', 'claudpress'); ?>
+                    <input type="password" name="voice_api_key" value="<?php echo esc_attr($s['voice_api_key'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off"></label>
+                    <br><span style="color:#888;">
+                        <?php
+                        if ($voice_key !== '' && trim((string) ($s['voice_api_key'] ?? '')) === '') {
+                            esc_html_e('Blank — currently reusing another key you configured for this vendor.', 'claudpress');
+                        } else {
+                            esc_html_e('Get a key:', 'claudpress');
+                            echo ' <a href="' . esc_url($voice_p::key_url()) . '" target="_blank" rel="noopener noreferrer">' . esc_html($voice_p::key_url()) . '</a>';
+                        }
+                        ?>
+                    </span>
+                </p>
+                <p>
+                    <label><?php esc_html_e('Transcription model:', 'claudpress'); ?>
+                    <input type="text" name="voice_model" value="<?php echo esc_attr($s['voice_model'] ?? ''); ?>" class="regular-text" style="max-width:280px;" placeholder="<?php echo esc_attr($voice_p::default_model()); ?>"></label>
+                    <span style="color:#888;margin-left:8px;"><?php esc_html_e('Blank = ', 'claudpress'); ?><code><?php echo esc_html($voice_p::default_model()); ?></code></span>
+                </p>
+                <p>
+                    <label><?php esc_html_e('Transcription endpoint override (optional):', 'claudpress'); ?>
+                    <input type="text" name="voice_api_endpoint" value="<?php echo esc_attr($s['voice_api_endpoint'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" placeholder="<?php echo esc_attr($voice_p::default_endpoint()); ?>"></label>
                 </p>
 
                 <p><button class="button button-primary"><?php esc_html_e('Save chat settings', 'claudpress'); ?></button></p>
@@ -910,6 +1030,86 @@ final class Claudpress_Admin
                     <?php esc_html_e('Anything that is not a command goes to the agent as plain instruction. /status and /usage are answered by the plugin itself, so they cost nothing.', 'claudpress'); ?>
                 </p>
             </details>
+        </div>
+        <?php
+    }
+
+    /**
+     * The event-notification card: the site messaging the owner unprompted.
+     *
+     * Every event is individually switchable and orders have a value floor,
+     * because a notifier that cries wolf gets muted — and then the one message
+     * that mattered is missed with the rest.
+     */
+    private function render_events_card(array $s): void
+    {
+        $has_wc = class_exists('WooCommerce');
+        ?>
+        <div class="card" style="max-width:none;padding:16px 20px;margin-top:16px;" id="events">
+            <h2 style="margin-top:0;">
+                <?php esc_html_e('Let the site tell you first', 'claudpress'); ?>
+                <?php if (!empty($s['events_enabled'])) : ?>
+                    <span style="color:#16a34a;"><?php esc_html_e('● on', 'claudpress'); ?></span>
+                <?php else : ?>
+                    <span style="color:#888;"><?php esc_html_e('○ off', 'claudpress'); ?></span>
+                <?php endif; ?>
+            </h2>
+            <p style="max-width:720px;">
+                <?php esc_html_e('Everything else here is you asking and the site answering. This is the other way round: an order lands, stock runs out, a live snippet crashes — and you hear about it on whichever notification channels you configured above (email, webhook, Telegram).', 'claudpress'); ?>
+            </p>
+
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field('claudpress_save'); ?>
+                <input type="hidden" name="action" value="claudpress_save">
+                <input type="hidden" name="claudpress_action" value="events_settings">
+
+                <p>
+                    <label style="font-size:15px;">
+                        <input type="checkbox" name="events_enabled" value="1" <?php checked(!empty($s['events_enabled'])); ?>>
+                        <strong><?php esc_html_e('Send me event notifications', 'claudpress'); ?></strong>
+                    </label>
+                </p>
+
+                <p>
+                    <label>
+                        <input type="checkbox" name="events_order" value="1" <?php checked(!empty($s['events_order'])); ?> <?php disabled(!$has_wc); ?>>
+                        <?php esc_html_e('Paid orders', 'claudpress'); ?>
+                    </label>
+                    <label style="margin-left:14px;"><?php esc_html_e('only at or above:', 'claudpress'); ?>
+                        <input type="number" step="0.01" min="0" name="events_order_min" value="<?php echo esc_attr($s['events_order_min'] ?? 0); ?>" style="max-width:110px;">
+                    </label>
+                    <span style="color:#888;margin-left:8px;"><?php esc_html_e('0 = every order. Each order is announced once per status change, never twice.', 'claudpress'); ?></span>
+                </p>
+
+                <p>
+                    <label>
+                        <input type="checkbox" name="events_stock" value="1" <?php checked(!empty($s['events_stock'])); ?> <?php disabled(!$has_wc); ?>>
+                        <?php esc_html_e('Low stock and sold out', 'claudpress'); ?>
+                    </label>
+                </p>
+
+                <p>
+                    <label>
+                        <input type="checkbox" name="events_snippet" value="1" <?php checked(!empty($s['events_snippet'])); ?>>
+                        <?php esc_html_e('A live code snippet crashed and was auto-disabled', 'claudpress'); ?>
+                    </label>
+                    <br><span style="color:#888;"><?php esc_html_e('Strongly recommended. The site stays up because the snippet switched itself off — but whatever it was doing has stopped, and only you can judge whether that matters.', 'claudpress'); ?></span>
+                </p>
+
+                <p>
+                    <label>
+                        <input type="checkbox" name="events_updates" value="1" <?php checked(!empty($s['events_updates'])); ?>>
+                        <?php esc_html_e('New plugin, theme or core updates are available', 'claudpress'); ?>
+                    </label>
+                    <br><span style="color:#888;"><?php esc_html_e('Checked on the hourly cron tick, and only when the set of pending updates actually changes — so holding one back deliberately does not nag you forever.', 'claudpress'); ?></span>
+                </p>
+
+                <?php if (!$has_wc) : ?>
+                    <p style="color:#888;"><?php esc_html_e('Order and stock alerts need WooCommerce, which is not active on this site.', 'claudpress'); ?></p>
+                <?php endif; ?>
+
+                <p><button class="button button-primary"><?php esc_html_e('Save notification events', 'claudpress'); ?></button></p>
+            </form>
         </div>
         <?php
     }
@@ -1020,9 +1220,17 @@ final class Claudpress_Admin
             <ul style="font-size:14px;line-height:1.8;max-width:800px;">
                 <li><strong><?php esc_html_e('Set it up in two minutes', 'claudpress'); ?></strong> — <?php esc_html_e('message @BotFather on Telegram, send /newbot, paste the token into Automation → Notifications, then tick "Accept messages from Telegram" and press Connect.', 'claudpress'); ?></li>
                 <li><strong><?php esc_html_e('It remembers the conversation', 'claudpress'); ?></strong> <?php esc_html_e('so follow-ups work. Send /clear to make it forget and start fresh.', 'claudpress'); ?></li>
+                <li><strong><?php esc_html_e('Talk or show, not just type', 'claudpress'); ?></strong> — <?php esc_html_e('send a voice note and it transcribes what you said (showing you the transcript first), or send a screenshot of something broken and it looks at it.', 'claudpress'); ?></li>
+                <li><strong><?php esc_html_e('It shows its work', 'claudpress'); ?></strong> — <?php esc_html_e('one message updates as it goes, so you can see which tools it is using instead of waiting in silence.', 'claudpress'); ?></li>
+                <li><strong><?php esc_html_e('Changed its mind? /undo', 'claudpress'); ?></strong> — <?php esc_html_e('puts back the posts, pages and products it changed on its last turn. It does not cover settings, plugins, files or code snippets, and it tells you so.', 'claudpress'); ?></li>
                 <li><strong><?php esc_html_e('Free commands', 'claudpress'); ?></strong> — <?php esc_html_e('/status, /usage, /tasks and /model are answered by the plugin itself and cost nothing.', 'claudpress'); ?></li>
-                <li><strong><?php esc_html_e('Only you can drive it', 'claudpress'); ?></strong> — <?php esc_html_e('only chat IDs you allowlist get answered, and destructive or financial actions stay locked until you unlock them.', 'claudpress'); ?></li>
+                <li><strong><?php esc_html_e('Only you can drive it', 'claudpress'); ?></strong> — <?php esc_html_e('only chat IDs you allowlist get answered, each with a role (admin, editor or read-only viewer), and destructive or financial actions stay locked until you approve them with a button.', 'claudpress'); ?></li>
             </ul>
+
+            <h2 style="<?php echo esc_attr($h); ?>"><?php esc_html_e('Let the site tell you first', 'claudpress'); ?></h2>
+            <p style="max-width:800px;">
+                <?php esc_html_e('Turn on event notifications and the site messages you when something happens: a paid order (above a value you choose), stock running low or selling out, a piece of live code that crashed and switched itself off, or new updates waiting. Every event is individually switchable, and nothing is announced twice.', 'claudpress'); ?>
+            </p>
 
             <h2 style="<?php echo esc_attr($h); ?>"><?php esc_html_e('Build websites & content', 'claudpress'); ?></h2>
             <p style="max-width:800px;"><?php esc_html_e('Ask for a page, homepage, or blog post and the AI follows a built-in designer\'s playbook (modern layout, responsive on phone/tablet/desktop, real images via free Openverse search). It can build pixel-perfect custom pages or editable Gutenberg/Elementor pages — just say which you prefer.', 'claudpress'); ?></p>

@@ -184,6 +184,17 @@ function checked($a, $b = true, $echo = true)
     return $out;
 }
 
+function disabled($a, $b = true, $echo = true)
+{
+    $out = ((string) $a === (string) $b) ? " disabled='disabled'" : '';
+    if ($echo) {
+        echo $out;
+    }
+    return $out;
+}
+
+function wp_kses_post($content) { return (string) $content; }
+
 function is_wp_error($thing): bool
 {
     return $thing instanceof WP_Error;
@@ -295,6 +306,8 @@ require_once CLAUDPRESS_DIR . 'includes/class-agent-runs.php';
 require_once CLAUDPRESS_DIR . 'includes/class-mcp-server.php';
 require_once CLAUDPRESS_DIR . 'includes/class-providers.php';
 require_once CLAUDPRESS_DIR . 'includes/class-agent-runtime.php';
+require_once CLAUDPRESS_DIR . 'includes/class-undo.php';
+require_once CLAUDPRESS_DIR . 'includes/class-events.php';
 require_once CLAUDPRESS_DIR . 'includes/class-telegram.php';
 require_once CLAUDPRESS_DIR . 'includes/class-rest.php';
 require_once CLAUDPRESS_DIR . 'includes/class-tasks.php';

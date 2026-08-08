@@ -85,6 +85,23 @@ final class Claudpress
             'telegram_allowed_chats' => '',  // blank = fall back to notify_telegram_chat
             'telegram_history_turns' => 12,
             'telegram_allow_risky'   => false,
+            'telegram_voice'         => false, // transcribe voice notes
+            'telegram_photos'        => false, // accept photos as vision input
+            'telegram_progress'      => true,  // edit one message as the run works
+            // Speech-to-text for voice notes. Anthropic has no audio endpoint,
+            // so this is its own provider choice; a blank key falls back to any
+            // other key already configured for the same vendor.
+            'voice_provider'     => 'openai',
+            'voice_api_key'      => '',
+            'voice_api_endpoint' => '',
+            'voice_model'        => '',
+            // Event notifications — the site messaging the owner first.
+            'events_enabled'   => false,
+            'events_order'     => true,
+            'events_order_min' => 0,      // only orders at/above this total
+            'events_stock'     => true,
+            'events_snippet'   => true,
+            'events_updates'   => false,
             // Policy / guardrails.
             'policy' => ['enabled' => true, 'blocked_tools' => [], 'max_refund' => 0, 'require_optin' => true],
             // Staging → production deploy target.
@@ -153,6 +170,9 @@ final class Claudpress
 
         // Scheduled automations (WP-Cron tick).
         Claudpress_Tasks::init();
+
+        // Push notifications for things the owner should hear about unprompted.
+        Claudpress_Events::init();
 
         // Front-end SEO injection (schema, redirects, fallback meta, robots.txt).
         Claudpress_Tools_SEO::hooks();
@@ -243,7 +263,7 @@ final class Claudpress
             'content.images'          => 'Images: prefer image_search (Openverse, free, no key) to fetch a real licensed image and attach it; use image_generate only if an image API key is configured in Claudpress settings. Always set descriptive alt text.',
             'design.reference'        => 'For ANY visual/build work, follow the web-design-master skill (skill_get name=web-design-master): design tokens, mobile-first responsive, component patterns, WordPress "style with the theme not against it" rules, and the anti-slop quality audit. Prefer a CSS snippet or page_template over inline <style> (security plugins strip inline styles).',
             'safety.workflow'         => 'This should be a dev/staging site. Read before you write, confirm destructive/financial actions, verify after changing, and save durable decisions with memory_save. Snippets that fatal auto-deactivate.',
-            'chat.telegram'           => 'The owner may be talking to you from Telegram (context "telegram") rather than an MCP client. That is a live chat on a phone: keep replies short and plain-text, ask at most one clarifying question, and remember they cannot see tool output — only what you write. Built-in commands (/status, /usage, /clear, /tasks) are answered by the plugin without you.',
+            'chat.telegram'           => 'The owner may be talking to you from Telegram (context "telegram") rather than an MCP client. That is a live chat on a phone: keep replies short and plain-text, ask at most one clarifying question, and remember they cannot see tool output — only what you write. Built-in commands (/status, /usage, /clear, /tasks, /undo) are answered by the plugin without you. A voice note arrives already transcribed; a photo arrives as an image you can see plus a media-library attachment ID you can use directly in a post or product. If a tool comes back policy_blocked, say which one — the owner gets an Approve button to allow it, so name it plainly instead of working around it. Content changes you make in a turn are undoable via /undo, but only content: settings, plugins, files and snippets are not, so be correspondingly careful with those.',
             'autonomy.usage'          => 'The site can run itself: get_dashboard answers "what is going on / how is the store doing" on demand; task_save creates scheduled digest or autonomous tasks; run_agent executes a one-off instruction now. Autonomous runs need an agent API key (Claudpress > Automation) and obey policy guardrails — pass allow_risky on a task only when destructive/financial actions are intended.',
         ];
         foreach ($defaults as $key => $value) {
