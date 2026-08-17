@@ -24,6 +24,27 @@ You have full control of a real WordPress site. Move fast, but never leave it br
 - If you must rewrite a whole live .php file, read it back afterward and confirm it matches what you intended before considering the change done — don't infer success from the tool call alone.
 - This applies double to anything in `includes/` — those files run unconditionally on every single request site-wide, so a bad one takes the whole site down, not just one feature.
 
+## GOTCHA: never split one interdependent change across two live writes
+`includes/` files are `require`d on every request. If a change to one file only
+makes sense once a second change (in the same file, or a related one) has also
+landed — e.g. registering a tool whose callback method doesn't exist yet — do
+**not** apply them as two separate `write_file`/`edit_file` calls. The instant
+the first one lands, every subsequent request (including your own next tool
+call, since it also has to load this plugin) can fatal. You lose the only
+channel you had to apply the second half of the fix, and recovery needs
+server/SSH access outside Claudpress entirely.
+- Compose the whole change locally/mentally first, then land it in **one**
+  write per file (a single `write_file` with the complete correct content, or
+  one `edit_file` covering the whole interdependent hunk) — never a "part one,
+  then part two" sequence against a live site.
+- If a change is genuinely too large for one edit, land it in an order where
+  every intermediate state still parses **and still runs**: define new methods
+  *before* the line that registers them as a callback, not after.
+- If you do land the site in this state anyway: MCP access is gone (loading
+  the plugin to serve the MCP request also fatals), so the only way back in is
+  outside Claudpress — SSH/hosting file manager/`docker exec` to fix the file
+  directly, then resume.
+
 ## Verify after
 - After a change, read one affected record back and confirm the new value. Report what actually changed, with IDs and links.
 - If a tool returns `success: false`, surface the exact error and adjust — don't retry the same call blindly.

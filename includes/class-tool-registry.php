@@ -15,10 +15,28 @@ final class Claudpress_Tool_Registry
 
     /**
      * @param array $input_schema  JSON Schema for the tool's arguments.
-     * @param callable $callback    fn(array $args): array  — return value is the tool result.
+     * @param mixed $callback      fn(array $args): array — return value is the tool result.
+     *                             Not type-hinted `callable` on purpose — see below.
      */
-    public function add(string $name, string $description, array $input_schema, callable $callback, array $annotations = []): void
+    public function add(string $name, string $description, array $input_schema, $callback, array $annotations = []): void
     {
+        // A PHP `callable` type hint is validated the instant this method is
+        // called — e.g. a `[self::class, 'method']` array is only "callable"
+        // if that method already exists. register() runs on every request
+        // (plugins_loaded), so one tool whose target method is missing or
+        // misspelled would throw an uncaught TypeError on every page load,
+        // taking down the entire site rather than just that one tool. This
+        // happened in production (2026-08-17): a tool was registered pointing
+        // at a callback added in a second, separate deploy step, and the site
+        // 500'd on every request in between — including the very requests
+        // needed to apply the fix, since fixing it also requires loading this
+        // plugin. Failing soft here means a bad registration degrades to "one
+        // missing tool", which is recoverable, instead of "the whole site is
+        // down and the only way to reach it is a broken plugin".
+        if (!is_callable($callback)) {
+            error_log(sprintf('[Claudpress] Tool "%s" not registered: its callback is not callable.', $name));
+            return;
+        }
         if (empty($input_schema['type'])) {
             $input_schema = array_merge(['type' => 'object', 'properties' => (object) [], 'additionalProperties' => true], $input_schema);
         }

@@ -37,6 +37,36 @@ $listed = $registry->list();
 $noschema = array_values(array_filter($listed, static fn($t) => $t['name'] === 'noschema'))[0];
 CP_Test::same('object', $noschema['inputSchema']['type'], 'a tool registered without a schema still advertises an object schema');
 
+CP_Test::group('Tool registry — a bad callback degrades one tool, not the site');
+
+// This is the regression that took pranknologia.shop down on 2026-08-17: a
+// tool was registered with a callback array pointing at a method that did not
+// exist yet. add() used to type-hint `callable`, which PHP validates the
+// instant the array is bound to the parameter — so registering ANY tool with
+// a not-yet-defined callback threw an uncaught TypeError on every single
+// request (register() runs on plugins_loaded), fatally crashing the whole
+// site rather than just that one tool.
+$safe_registry = new Claudpress_Tool_Registry();
+CP_Test::ok(
+    !method_exists('CP_Test_Missing_Callback_Target', 'not_a_real_method'),
+    'sanity check: the target method genuinely does not exist'
+);
+try {
+    $safe_registry->add('broken', 'Points at a method that does not exist.', [], ['CP_Test_Missing_Callback_Target', 'not_a_real_method']);
+    CP_Test::ok(true, 'registering a tool with an uncallable target does not throw');
+} catch (\Throwable $e) {
+    CP_Test::ok(false, 'registering a tool with an uncallable target does not throw — got: ' . $e->getMessage());
+}
+CP_Test::ok(!$safe_registry->has('broken'), 'the tool with the bad callback is simply not registered');
+
+$safe_registry->add('fine', 'A working tool registered right after the broken one.', [], static fn(array $a) => ['success' => true]);
+CP_Test::ok($safe_registry->has('fine'), 'a tool registered after a broken one is unaffected — the bootstrap keeps going');
+CP_Test::same(['fine'], $safe_registry->names(), 'the broken tool never appears in the tool list');
+
+class CP_Test_Missing_Callback_Target
+{
+}
+
 CP_Test::group('Tool registry — calling');
 
 $result = $registry->call('demo', ['x' => 1]);

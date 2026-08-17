@@ -484,6 +484,12 @@ final class Claudpress_Snippets
             'updated_at'   => current_time('mysql'),
         ];
 
+        // Only written when supplied: on an update, omitting the key must leave
+        // the stored conditions alone rather than clearing them.
+        if (array_key_exists('conditions', $a)) {
+            $row['conditions_json'] = !empty($a['conditions']) ? wp_json_encode($a['conditions']) : null;
+        }
+
         $code_changed = $existing ? ($row['code'] !== (string) $existing['code']) : true;
 
         // Fail soft, like the crash guard: broken code is still stored so the
