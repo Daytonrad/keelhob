@@ -1,8 +1,17 @@
 # Security headers for pranknologia.shop (Coolify / Traefik)
 
-Written 2026-08-18. Verified against the live site, which currently sends **none** of the
-five headers below and advertises `Server: Apache/2.4.68 (Debian)` and
-`X-Powered-By: PHP/8.3.32`.
+> **STATUS: APPLIED AND VERIFIED LIVE, 2026-08-18.** All five headers confirmed present
+> on pages and on static assets; `Server` and `X-Powered-By` are gone.
+>
+> **pranknologia.shop is a Coolify _Docker Compose_ app**, so the "Standard Applications /
+> Container Labels / Readonly labels" route below did **not** apply. What actually worked
+> is the Docker Compose section: the labels go on the `wordpress` service in the **source
+> compose**. The dashboard's "Edit Compose File" popup shows the *generated* file and is
+> read-only by design — that is not a bug and there is no unlock button. See
+> "What was actually used" at the bottom.
+
+Written 2026-08-18. At the time of writing the live site sent **none** of the five headers
+below and advertised `Server: Apache/2.4.68 (Debian)` and `X-Powered-By: PHP/8.3.32`.
 
 Coolify puts Traefik in front of the app container, so headers belong there — that way
 they cover every response including static files, not just PHP pages.
@@ -119,3 +128,47 @@ The same headers can go there instead, which needs no Coolify change and no rede
 does not cover responses Apache never sees, and it is easier to lose during a rebuild —
 the Traefik version above is the durable one. Ask and I can apply the `.htaccess`
 version immediately as a stopgap.
+
+---
+
+## What was actually used (Docker Compose route)
+
+This is the version that shipped. Added to the `wordpress` service in the **source
+compose** — `mariadb` gets nothing, it is not web-facing.
+
+```yaml
+    labels:
+      - 'traefik.http.middlewares.pk-security.headers.contentTypeNosniff=true'
+      - 'traefik.http.middlewares.pk-security.headers.referrerPolicy=strict-origin-when-cross-origin'
+      - 'traefik.http.middlewares.pk-security.headers.stsSeconds=31536000'
+      - 'traefik.http.middlewares.pk-security.headers.customResponseHeaders.X-Frame-Options=SAMEORIGIN'
+      - 'traefik.http.middlewares.pk-security.headers.customResponseHeaders.Permissions-Policy=camera=(), microphone=(), geolocation=(), interest-cohort=()'
+      - 'traefik.http.middlewares.pk-security.headers.customResponseHeaders.Server='
+      - 'traefik.http.middlewares.pk-security.headers.customResponseHeaders.X-Powered-By='
+      - 'coolify.traefik.middlewares=pk-security'
+```
+
+The last line is the one that applies it — the seven above only define the middleware.
+Coolify consumes `coolify.traefik.middlewares` at deploy time and appends it to the
+router chain alongside its own `gzip`, so no router label needs editing by hand.
+
+### Verified after deploy
+
+| Header | Value |
+|---|---|
+| `strict-transport-security` | `max-age=31536000` |
+| `x-frame-options` | `SAMEORIGIN` |
+| `x-content-type-options` | `nosniff` |
+| `referrer-policy` | `strict-origin-when-cross-origin` |
+| `permissions-policy` | `camera=(), microphone=(), geolocation=(), interest-cohort=()` |
+| `server` | removed |
+| `x-powered-by` | removed |
+
+Present on `/`, `/shop/`, `/discover/`, `/terms/`, `/privacy-policy/`, the custom 404,
+`wp-login.php`, the MCP endpoint, **and static assets** (`dashicons.min.css` carries
+`nosniff` with no `server` header) — which is the proof it is applied at the proxy and
+not just to PHP output.
+
+Regression check after deploy: every route still 200 (404 correctly 404), GSAP 3.15.0
+loads, the scroll carousel initialises with 8 cards, no horizontal overflow, and the
+browser console is clean.
