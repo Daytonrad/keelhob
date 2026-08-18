@@ -4,7 +4,7 @@ Tags: mcp, ai, claude, woocommerce, seo, automation
 Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.9.0
+Stable tag: 1.9.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -102,6 +102,15 @@ Claudpress > Automation. Pick your provider there — the model guide next to th
 field lists the exact model IDs to type for each one.
 
 == Changelog ==
+
+= 1.9.1 — SEO head injection fixes =
+* Fixed: og:description was never emitted. The head injector looked up `_claudpress_seo_og_description` while seo_meta stores `_claudpress_seo_og_desc`, so the tag silently never rendered no matter what you set.
+* Fixed: /llms.txt was served with a 404 status. The bytes were right but WordPress had already set up a 404 for the unrouted path, so AI crawlers — the only readers this file has — discarded it.
+* Fixed: the SEO title never reached <title>. seo_meta stored `_claudpress_seo_title` and nothing ever read it back. A `pre_get_document_title` filter now applies it.
+* Fixed: pages that are not `is_singular()` got no meta at all. The shop archive, the blog index and a static front page now resolve to the post that carries their SEO meta, so /shop/ no longer ships with no description and no Open Graph.
+* Added: og:url, og:type, og:site_name and twitter:card. Without them a shared link renders as a bare card on most platforms.
+* All of the above stand down when Yoast/RankMath/AIOSEO/SEOPress is active, as before.
+* Tests: 672 assertions.
 
 = 1.9.0 — Snippets control page =
 * New Claudpress > Snippets admin page: every snippet the AI has installed, listed with Name | Description | Tags | Type | Status | ID, per-row activate/deactivate, and an expandable panel explaining why the snippet exists, what it changes, where and when it runs, where it came from, and any error that switched it off. Code can be edited and snippets deleted from the browser.

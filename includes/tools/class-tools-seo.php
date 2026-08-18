@@ -519,6 +519,7 @@ final class Claudpress_Tools_SEO
         add_action('template_redirect', [self::class, 'do_redirects'], 1);
         add_action('template_redirect', [self::class, 'serve_llms_txt'], 0);
         add_filter('robots_txt', [self::class, 'filter_robots'], 20, 1);
+        add_filter('pre_get_document_title', [self::class, 'filter_title'], 20);
     }
 
     /** Serves the stored llms.txt at /llms.txt, ahead of normal routing. */
@@ -532,9 +533,58 @@ final class Claudpress_Tools_SEO
         if ($content === '') {
             return; // let it 404 rather than serve an empty file
         }
+        // WordPress found no route for /llms.txt, so it has already set up a 404.
+        // Echoing the body without correcting the status ships the right bytes under
+        // a 404, and every AI crawler this file exists for will discard it.
+        status_header(200);
+        nocache_headers();
         header('Content-Type: text/plain; charset=utf-8');
         echo $content;
         exit;
+    }
+
+    /**
+     * Which post carries the SEO meta for the current request.
+     *
+     * Not every indexable page is `is_singular()`. The shop archive, the blog
+     * index and a static front page are all backed by a real post whose meta the
+     * owner has set, and returning 0 for them is why `/shop/` shipped with no
+     * description or Open Graph tags at all.
+     */
+    private static function current_seo_post_id(): int
+    {
+        if (is_singular()) {
+            return (int) get_queried_object_id();
+        }
+        if (is_front_page()) {
+            return (int) get_option('page_on_front');
+        }
+        if (is_home()) {
+            return (int) get_option('page_for_posts');
+        }
+        if (function_exists('is_shop') && is_shop() && function_exists('wc_get_page_id')) {
+            return max(0, (int) wc_get_page_id('shop'));
+        }
+        return 0;
+    }
+
+    /**
+     * Apply the stored SEO title to <title>.
+     *
+     * `seo_meta` has always accepted and stored `_claudpress_seo_title`, but
+     * nothing ever read it back, so setting an SEO title silently did nothing.
+     */
+    public static function filter_title($title)
+    {
+        if (self::active_seo_plugins() !== ['Claudpress fallback']) {
+            return $title;
+        }
+        $id = self::current_seo_post_id();
+        if (!$id) {
+            return $title;
+        }
+        $custom = (string) get_post_meta($id, '_claudpress_seo_title', true);
+        return $custom !== '' ? $custom : $title;
     }
 
     public static function inject_head(): void
@@ -544,10 +594,10 @@ final class Claudpress_Tools_SEO
         if ($site_schema) {
             echo "\n<script type=\"application/ld+json\">" . $site_schema . "</script>\n";
         }
-        if (!is_singular()) {
+        $id = self::current_seo_post_id();
+        if (!$id) {
             return;
         }
-        $id = get_queried_object_id();
 
         $schema = get_post_meta($id, '_claudpress_schema', true);
         if ($schema) {
@@ -576,11 +626,29 @@ final class Claudpress_Tools_SEO
         if ($robots) {
             echo '<meta name="robots" content="' . esc_attr(implode(',', $robots)) . "\">\n";
         }
-        foreach (['og_title' => 'og:title', 'og_description' => 'og:description', 'og_image' => 'og:image'] as $meta_key => $prop) {
+        // NOTE the key names: seo_meta stores og:description as `og_desc`, not
+        // `og_description`. This loop used to build `_claudpress_seo_og_description`,
+        // which matches nothing, so og:description was silently never emitted.
+        $og = [];
+        foreach (['og_title' => 'og:title', 'og_desc' => 'og:description', 'og_image' => 'og:image'] as $meta_key => $prop) {
             $v = get_post_meta($id, '_claudpress_seo_' . $meta_key, true);
             if ($v) {
+                $og[$prop] = $v;
                 echo '<meta property="' . esc_attr($prop) . '" content="' . esc_attr($v) . "\">\n";
             }
+        }
+
+        // A link preview needs more than a title and an image. Without og:url and
+        // og:type the card renders bare on most platforms, and without a twitter:card
+        // X/Twitter falls back to the small summary layout.
+        if ($og) {
+            if (empty($og['og:description']) && $desc) {
+                echo '<meta property="og:description" content="' . esc_attr($desc) . "\">\n";
+            }
+            echo '<meta property="og:url" content="' . esc_url(get_permalink($id)) . "\">\n";
+            echo '<meta property="og:type" content="' . (is_singular('post') ? 'article' : 'website') . "\">\n";
+            echo '<meta property="og:site_name" content="' . esc_attr(get_bloginfo('name')) . "\">\n";
+            echo '<meta name="twitter:card" content="' . (!empty($og['og:image']) ? 'summary_large_image' : 'summary') . "\">\n";
         }
     }
 
