@@ -12,12 +12,20 @@ they cover every response including static files, not just PHP pages.
 ## Where these go
 
 **Standard application** (not Docker Compose): Coolify → your application → scroll to
-**Container Labels** → paste the block below at the end, then edit the one existing line
-described in step 2. Redeploy.
+**Container Labels**. Per Coolify's own docs you must **uncheck "Readonly labels"** to
+make that textarea editable.
+
+> **Read this before unchecking it.** Coolify's docs are explicit: once *Readonly labels*
+> is unchecked, **Coolify stops auto-generating labels on deploy** and you own them from
+> then on. Break a routing label and the application becomes unreachable. So:
+> **select everything already in that box and copy it into a text file first.** There is
+> also a **"Reset Labels to Defaults"** button in the UI, which is the escape hatch if it
+> goes wrong.
 
 **Docker Compose application**: put the `traefik.http.middlewares.*` lines in your
 service's `labels:`, and instead of step 2 add the Coolify shorthand
-`- "coolify.traefik.middlewares=pk-security"`.
+`- "coolify.traefik.middlewares=pk-security"`. Compose apps do not need the readonly
+toggle.
 
 ---
 
