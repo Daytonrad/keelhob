@@ -9,8 +9,17 @@ enable_prompt: true
 
 A simple "build me a website" is enough. Never demand a long brief — ask a short menu + a short batch of questions, then build. Keep every reply caveman-brief: short sentences, no filler, plain words. Save state as you go so a fresh session can resume.
 
-## Step 0 — check memory first
-`memory_list` / `memory_get` — if a stack choice and brief already exist (a prior kickoff was interrupted), resume from there instead of asking again.
+## Step 0 — load the standard, then check memory
+Load `build-standard` first, before anything else — it is the Definition of Done every
+page you build here has to clear, and it routes you to the right skill for each part of
+the job. Then `memory_list` / `memory_get` — if a stack choice and brief already exist (a
+prior kickoff was interrupted), resume from there instead of asking again.
+
+State the beginner promise to the owner at kickoff, once, in these words:
+
+> "I'll build this, then audit my own work, fix what I find, and show you the score. You
+> won't have to ask me to check SEO, accessibility, speed or security — that's part of
+> building it. Anything only you can decide, I'll list plainly at the end."
 
 ## Step 1 — stack menu (ask this first, one question)
 Ask the user to pick a builder/theme stack. Give a one-line reason for each so they can choose blind:
@@ -39,6 +48,17 @@ Ask everything needed to build without guessing:
   its ffmpeg re-encode have to happen outside WordPress.
 - **Domain/credentials** — only if going live now; otherwise skip.
 
+**Security — most of it is not a question.** The automatic security floor (file editor,
+registration, headers, cookies, debug output, and the rest — see `build-standard`'s
+security table) gets applied silently; do not ask about any of it. Only the seven
+owner-decision items go in the intake batch, asked together as one line, not as seven
+separate questions: login protection, update policy, security plugin/WAF and who pays,
+XML-RPC, REST restriction, PHP execution in uploads, and account recovery custody. Full
+wording and the default for each lives in `security-standard` §3 (mirrored in
+`build-standard`'s table) — "you decide" is a valid answer and applies the stated default.
+This keeps the one-prompt goal intact: everything provable gets built silently correct,
+and the owner is only asked what genuinely needs their judgment.
+
 Ask for the real assets in this same batch — logo, product photos, hero footage, any
 existing copy — and wait for them before building. Building against placeholders and
 swapping later doubles the work, because the design ends up shaped around the wrong
@@ -57,7 +77,21 @@ Don't ask about things covered by the stack choice already (builder, header/foot
 5. Blog posts — only if the brief says "now" (`blog-publishing` skill); otherwise leave for later and say so.
 6. `seo-optimization` pass across every new page once content is final.
 7. Clear Elementor cache once, at the end, not per-page.
-8. Report the live URL(s) and what's left (e.g. blog deferred, images to swap).
+8. The pages existing is not the same as the build being over — go to Step 4.5 before
+   reporting anything as done.
+
+## Step 4.5 — the closing loop (mandatory, not optional)
+
+The build is not finished when it looks right. Run `build-standard`'s fix loop now:
+`pre-launch-audit` against your own work, fix every Blocker and High, re-run, up to 3
+iterations, anything still failing goes into the report as an outstanding item — never a
+silent pass. Do not skip this because the pages look done: a store built this way looked
+finished and scored 56/100 — not ready — the first time an independent auditor opened it.
+
+Close every build with the completion report's three sections, in this order: (1) score
+and what was fixed automatically, (2) needs you — with why and the consequence of
+skipping it, (3) not verified — browser-dependent checks with exactly what to click. This
+is what goes to the user next, not "the site is live."
 
 ## Step 5 — revision loop (how to hand it over)
 
@@ -67,8 +101,8 @@ and send them together. Then work the whole batch, verify, and hand it back. One
 round beats fifteen single-note rounds: it costs less of their attention, and notes that
 contradict each other surface while they are still cheap to reconcile.
 
-Before that first pass, run the `pre-launch-audit` skill yourself. Finding your own
-broken link is free; the user finding it costs trust.
+The closing loop in Step 4.5 already ran before this pass — this round is for taste and
+judgment calls only, not for the things a fresh audit should have already caught.
 
 ## Delegating to sub-agents
 If the environment supports spawning sub-agents (e.g. an `Agent`/Task tool is available), don't build every page yourself serially:

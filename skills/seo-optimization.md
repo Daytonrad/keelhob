@@ -1,13 +1,37 @@
 ---
 name: seo-optimization
-description: Optimize pages, posts, and products for search AND AI answer engines — set SEO titles and meta descriptions, target keywords, add structured data, manage llms.txt and AI-crawler access, fix on-page and GEO issues, manage redirects and sitemaps. Use whenever the task involves SEO, GEO, AI search visibility, ranking, meta tags, schema, keywords, ChatGPT/Perplexity/AI Overviews citations, or "make this rank"/"get this cited by AI".
+description: Required build phase, not an optional pass — meta title/description, Open Graph/Twitter cards, JSON-LD schema, sitemap, robots.txt, and llms.txt for every page, verified in the rendered HTML. Also covers target keywords, GEO/AI answer-engine visibility, redirects, and ranking fixes. Use whenever the task involves SEO, GEO, AI search visibility, ranking, meta tags, schema, keywords, ChatGPT/Perplexity/AI Overviews citations, "make this rank"/"get this cited by AI", or any page-building/site-build-kickoff task reaching its SEO step.
 enable_agentic: true
 enable_prompt: true
 ---
 
 # SEO + GEO optimization
 
+This is a **required build phase**, not an optimization you get to later. `build-standard`
+lists meta title + description, Open Graph/Twitter cards, JSON-LD schema, sitemap,
+robots.txt, and `llms.txt` in its page- and site-level Definition of Done — a page without
+these is not done, the same as a page with a broken link.
+
 Two goals, one workflow: rank in classical search (Google/Bing) AND get cited by AI answer engines (ChatGPT, Perplexity, Google AI Overviews, Gemini, Claude). GEO is not a separate discipline bolted on after — AI engines extract and cite pages that are already well-structured, well-sourced, and fresh, so most of the work below serves both goals at once.
+
+## Verify in the rendered HTML, not from a tool's return value
+
+A `seo_*` tool reporting success is not evidence the tag exists. Release 1.9.1 shipped
+four silent SEO head-injection bugs — every one of them returned success while emitting
+nothing into `<head>` (see the git log commit "Fix four silent SEO head-injection bugs
+found by a live audit"). Recall is not verification; the fix could have regressed, a
+caching layer could be serving a stale head, or a theme/plugin could be stripping the tag.
+
+After every `seo_meta`, `seo_schema`, `seo_sitemap`, or `seo_redirect` call that is meant
+to change what a visitor's browser receives, fetch the actual page and grep for the tag:
+
+```php
+$html = wp_remote_retrieve_body( wp_remote_get( $url ) );
+// then grep $html for <title>, meta[name=description], og:*, application/ld+json, etc.
+```
+
+Run this through `execute_php`. Do not report a meta tag, schema block, or crawler file as
+present until you have seen it in the fetched body — never from memory of having set it.
 
 The `seo_*` tools write to whatever SEO plugin is active (Yoast, Rank Math, AIOSEO, SEOPress) and fall back to Claudpress's own head injection when none is present — so your changes apply either way.
 
@@ -39,6 +63,12 @@ If the site has brand/voice reference material (check `memory_get` for a saved b
 
 Always use real values from the page — never placeholder text.
 
+**Never fake reviews.** Never emit `aggregateRating` or `review` schema unless real
+reviews exist behind it. A store with no orders has no reviews to schema — leave the
+property out entirely rather than inventing a rating. This is not just a content-honesty
+rule: fabricated review markup is a violation of Google's structured-data policy and can
+get the whole site's rich results suppressed, on top of being a lie to the visitor.
+
 ## Titles that win clicks (and citations)
 Front-load the keyword, add a differentiator (year, number, benefit, location), stay under 60 chars so it doesn't truncate. Every page needs a *unique* title and description — never duplicate across pages.
 
@@ -51,6 +81,10 @@ Front-load the keyword, add a differentiator (year, number, benefit, location), 
 - Redirects: when a slug changes, add a 301 with `seo_redirect action=add from=/old to=/new` so link equity and users survive.
 - Sitemap: `seo_sitemap action=get_sitemap` for the URL; `action=ping` after a big content change (pings Bing only — Google retired sitemap ping in 2023, use Search Console for Google).
 - robots.txt: `seo_sitemap action=set_robots` for extra rules — never block resources search engines or AI crawlers need to render/read the page.
+- **Sitemap, robots.txt, and `llms.txt` must each return a real 200.** Fetch all three URLs
+  directly and check the status code, not just that a body came back — a 404 page served
+  with a 200 status is not "serving," and a sitemap/robots/llms.txt URL that 404s is
+  invisible to crawlers even though it "looks fine" if you only glance at content.
 
 ## Guardrails
 - Never set `noindex` on a page the user wants ranked, and never bulk-noindex without explicit confirmation.

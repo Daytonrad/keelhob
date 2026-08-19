@@ -1,5 +1,19 @@
 # Plan v2 — make "done" mean done
 
+> **Status (v1.10.0): Phases 1, 2, 4 and 5 are implemented. Phase 3 is deliberately not.**
+>
+> Shipped: the three Tier 0 rules in `Claudpress_MCP_Server::operating_protocol()`; the
+> `build-standard` and `security-standard` skills; the seven domain skills turned into
+> gates; the tiered intake and the three-section completion report; the adoption rules
+> folded into `site-safety`. `pre-launch-audit` now emits a machine-readable JSON findings
+> block, which is what the fix loop consumes today.
+>
+> Phase 3 — the `site_readiness` MCP tool — is held back on purpose. It should encode a
+> standard that has been proven on a real build, not one we guessed. The gate to start it
+> is the test in "How we will know it worked" below: a single-prompt build on a clean
+> install, audited by a fresh agent with no build context. Until that runs, the JSON block
+> from `pre-launch-audit` is the exit code.
+
 > Supersedes v1 (commit `a9eeb09`). Two things changed: **security became a first-class
 > domain** (see `security-standard.md`, researched separately), and **a review of v1 found
 > a design flaw that would have made the whole standard optional.**

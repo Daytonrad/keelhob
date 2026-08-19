@@ -7,6 +7,41 @@ enable_prompt: true
 
 # Store launch & deploy
 
+## Launch gates — not done until these pass
+
+`build-standard`'s Definition of Done treats the following as blocking for any store, not
+optional extras. A store is not launch-ready while any of these is unresolved, and the bar
+does not get lowered to pass — an unresolved item goes in the completion report as an
+outstanding Blocker, never as a silent pass.
+
+- **Tax.** If tax is enabled, rates must actually be configured for at least the region(s)
+  you sell to — or tax must be deliberately off. "Tax on, no rates" is a Blocker: it
+  silently charges the customer nothing and misstates the price on every order. Verify
+  with `wc_tax action=list_rates` and `wc_settings action=get` — don't assume rates exist
+  because someone set them up before. Rate details and the four decisions to get right
+  before entering any rate are below.
+- **Stock.** The stock-management policy is explicit, not left at whatever WooCommerce
+  defaults to: manage-stock on/off, backorder behaviour (allow / allow-notify / don't
+  allow), and the low-stock threshold are all set deliberately. Confirm with `wc_settings
+  action=get` (inventory) and per-product with `wc_product action=get`.
+- **Reviews.** The product review policy is explicit — on or off, decided, not defaulted.
+  If reviews are off, no `aggregateRating` or `review` schema may exist anywhere on the
+  site. Never fabricate reviews or star ratings to make a store look more established
+  than it is — a store with zero orders has zero reviews.
+- **Legal wiring.** Terms, Privacy, Refund/Returns, and Shipping pages exist, are
+  published, and are linked from somewhere a visitor would actually find them (footer,
+  checkout) — **and** wired into the real WooCommerce settings (checkout terms page,
+  privacy page), not just sitting at an unlinked URL nobody points at.
+- **One real test order.** Before the store takes real money, place one real order
+  end-to-end — add to cart, check out, confirm the emails arrive, move it to completed,
+  refund it — with **live** payment credentials, not test mode. Test mode only proves the
+  code path works; it is not proof the live keys and processor account do.
+
+Payment credentials, the tax position, and the decision to actually go live are the
+**owner's** call, not yours. If live credentials are involved, the real test order needs
+the owner present or their explicit sign-off — put it in the "Needs you" section of the
+completion report (`build-standard`), never wait on it silently.
+
 ## Part A — make checkout work (payments · shipping · tax)
 A store can't take orders until all three are configured. Confirm currency/base country first (`wc_settings action=get`).
 
@@ -18,7 +53,7 @@ A store can't take orders until all three are configured. Confirm currency/base 
    - Create a zone per region you ship to: `action=create_zone zone_name="UAE" regions=["AE"]`.
    - Add a method to each zone: `action=add_method zone_id=<id> method=flat_rate cost="15" title="Standard"` (or `free_shipping`, `local_pickup`).
    - Add `create_class` shipping classes if products need different rates.
-3. **Tax** (`wc_tax`): `action=enable`, then `action=add_rate country=AE rate="5.0" name="VAT"` for each jurisdiction. See the tax notes below — the defaults matter more than the rate does.
+3. **Tax** (`wc_tax`): `action=enable`, then `action=add_rate country=AE rate="5.0" name="VAT"` for each jurisdiction. See the tax notes below — the defaults matter more than the rate does. Tax-on-with-no-rate is a launch Blocker (see Launch gates above), so don't leave this half-done.
 4. **Verify**: read each back (`list`/`list_zones`/`list_rates`) and tell the owner exactly what a customer will see and pay at checkout.
 
 ### Tax — get these four decisions right before entering any rate
@@ -69,13 +104,16 @@ memory — have the owner confirm them, or point them at their tax authority's t
 - **Accounts and privacy.** Decide guest checkout, account creation during checkout, and
   login at checkout deliberately; they change the conversion path.
 - **Legal pages.** Privacy Policy, Terms, Returns/Refunds must be real pages with real
-  content and linked in the footer, and the WooCommerce *Terms and conditions* setting
-  must point at the terms page. Leaving them as `#` links is the most common way a
-  finished-looking store is not actually ready to take money. If the owner has no text
-  yet, say so plainly rather than writing law for them.
+  content and linked in the footer, and the WooCommerce *Terms and conditions* and
+  *Privacy policy* settings must point at those pages, not just exist as unlinked URLs.
+  Leaving them as `#` links or unwired settings is the most common way a finished-looking
+  store is not actually ready to take money — this is one of the blocking Launch gates
+  above. If the owner has no text yet, say so plainly rather than writing law for them.
 - **Place one real end-to-end test order** before launch: add to cart, apply a coupon,
   check out, confirm the emails arrive, then move the order through to completed and
-  refund it. Nothing else proves checkout works.
+  refund it. Nothing else proves checkout works — and per the Launch gates above, this
+  needs to happen once with live credentials, not only in test mode, before the store is
+  done.
 
 Guardrails: payment keys are secrets — set them, then confirm they're stored (the tool redacts them in its response). Don't switch a gateway out of test mode without the owner's explicit go-ahead.
 

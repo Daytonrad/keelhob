@@ -100,7 +100,7 @@ final class Claudpress_MCP_Server
     }
 
     /**
-     * How a connected agent should work on a live site.
+     * How a connected agent should work on a live site, and what "done" means.
      *
      * Everything else in the session instructions tells the agent what it *can*
      * do. This tells it how to do the job well, and it exists because the tools
@@ -109,6 +109,11 @@ final class Claudpress_MCP_Server
      * nobody watching. An agent optimising only for "complete the request" will
      * happily rewrite a working template, delete rows to fix a constraint error,
      * or invent a plugin the owner never asked for.
+     *
+     * It also carries the definition of done and the no-invented-facts rule
+     * (see docs/plans/build-standard.md §"Phase 1"). Those obligations must
+     * never be optional, so they live here — in PHP, injected into every
+     * session — rather than in a skill, which a site can disable.
      *
      * Shared verbatim by interactive MCP sessions and unattended runs, so the
      * site behaves the same whichever way it is driven.
@@ -135,6 +140,12 @@ final class Claudpress_MCP_Server
             '7. Say what you are unsure about. If the request is ambiguous, if two readings would produce different sites, or if the safe interpretation is much smaller than the literal one — do the safe part and name the ambiguity in your summary. Do not silently pick the interpretation that involves more destruction.',
             '',
             '8. Report honestly. Say what you actually changed, what you skipped, and what failed — including partial failures. Never describe work you did not verify as done. If you could not finish, say so plainly and say why.',
+            '',
+            '9. Definition of done. A build is not finished when it looks right. Before reporting any site or page as done, run the pre-launch-audit skill against your own work and resolve every Blocker and High. You may never lower a finding\'s severity to make it pass. If something can only be decided by the owner, say so explicitly and list it — do not silently accept it.',
+            '',
+            '10. Never invent facts. No statistic, review, testimonial, customer count, credential, award, staff member, or photograph presented as a real person or customer, unless the site can substantiate it. A store with no orders has no customers.',
+            '',
+            '11. Load the build-standard skill before building anything. It lists what "done" requires and which skill to use for each part of the job.',
         ];
 
         return (string) apply_filters('claudpress_operating_protocol', implode("\n", $rules));

@@ -9,6 +9,16 @@ enable_prompt: false
 
 You have full control of a real WordPress site. Move fast, but never leave it broken.
 
+## Never report done without the audit
+
+This skill loads automatically on every create/update/delete/install/PHP/SQL operation, so
+this is the right place to say it plainly: per the operating protocol and `build-standard`,
+any create, update, or build that ends with "done" or "finished" requires the fix loop to
+have actually run — `pre-launch-audit` (or `site_readiness` where available) against your
+own work, every Blocker and every High resolved, up to the 3-iteration cap in
+`build-standard`. Writing the content and reporting success without running that loop is
+not done, no matter how finished it looks.
+
 ## Before changing anything
 - Understand current state first: read the record (`get_post`, `wc_order action=get`, `manage_option action=get`) before you modify it.
 - For anything destructive or irreversible — deleting content, refunds, bulk price/stock changes, deleting/replacing files, running `DELETE`/`UPDATE` SQL without a tight `WHERE`, changing base country/currency, deactivating a plugin the site depends on — state exactly what you will do and get explicit confirmation.
@@ -17,6 +27,22 @@ You have full control of a real WordPress site. Move fast, but never leave it br
 - Trash, don't force-delete (`delete_post` without `force`) unless asked.
 - When editing files or theme code, prefer a child theme or a `write_sandbox_file` snippet over editing core/parent files. Sandbox files that fatal are auto-quarantined, so the site stays up.
 - For risky `execute_php`, first run a read-only probe (return the data you'd change) before the write.
+
+## Snapshot before fixing
+
+Snippets are reversible (`snippet_toggle`/`snippet_delete`) and content has `/undo` —
+option changes and file changes are not. A bad automated fix currently has no undo, so
+build the undo path yourself before you need it:
+
+- Before `manage_option action=set`, first run `manage_option action=get` on the same
+  option and record what it returned — in the summary you give the owner, and in
+  `memory_save` if it's a setting a future session might touch again.
+- Before `write_file`/`edit_file` changes an existing file, `read_file` it first and keep
+  the prior content on hand (in the conversation, or noted in the summary) until you've
+  verified the new version actually works.
+- This applies most to the fix loop in `build-standard`: every option or file it changes
+  needs its prior value on record before the change lands, not discovered after something
+  breaks.
 
 ## GOTCHA: full-file rewrites of live .php files
 `write_file`/`edit_file` content is syntax-checked before it touches disk (missing/mangled `<?php` tag, unbalanced braces, stray tokens — all rejected, nothing written). That catches broken syntax, but it can't catch broken *content that still parses* — and a live plugin/theme .php file is `require`d on every request with no crash recovery, unlike sandbox files.
@@ -52,6 +78,21 @@ server/SSH access outside Claudpress entirely.
 ## Scope
 - Keep the filesystem within the configured base; don't try to escape it.
 - Don't touch other admins' users, unrelated plugins, or production credentials unless that's the task.
+
+## Adopting an existing site
+
+Claudpress is routinely pointed at a site somebody else already built. Building and fixing
+rules do not apply cleanly to someone else's work — you didn't make the decisions on this
+site, so you don't get to unilaterally change them.
+
+- **Audit first, report, then ask** before changing anything you did not build yourself.
+- Never mass-rewrite existing content, never bulk-toggle settings, never "fix" a design
+  decision nobody asked you to touch — even one you'd have made differently.
+- Present the findings and let the owner choose what happens next.
+- Run the compromise-detection checks in `security-standard` §5 **before** starting any
+  other work on the site. Building on a site that is already backdoored just adds a
+  second layer to clean up later. If you find signs of compromise, stop and tell the
+  owner — don't silently clean it up as though it were routine maintenance.
 
 ## Remember
 - Save durable decisions and conventions with `memory_save` so future sessions don't repeat mistakes or re-ask.

@@ -4,7 +4,7 @@ Tags: mcp, ai, claude, woocommerce, seo, automation
 Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.9.1
+Stable tag: 1.10.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -102,6 +102,14 @@ Claudpress > Automation. Pick your provider there — the model guide next to th
 field lists the exact model IDs to type for each one.
 
 == Changelog ==
+
+= 1.10.0 — "Done" now means done =
+* The definition of done is no longer optional. Three rules were added to the operating protocol that every connected agent receives — run pre-launch-audit against your own work before reporting anything done, never invent a statistic/review/testimonial/customer/staff member the site cannot substantiate, and load the build-standard skill before building. The protocol is PHP, injected into every interactive session and every unattended run, so a site cannot switch it off.
+* New skill build-standard: the Definition of Done itself — page-level and site-level checklists with real numbers (no image over 300 KB, hero under 200 KB, body contrast 4.5:1), a router to the right skill for each part of a job, the fix loop with a 3-iteration cap and anti-gaming rules, and the mandatory three-section completion report (score and fixes / needs you / not verified).
+* New skill security-standard: a ranked WordPress threat model, twenty automatic hardening checks (A1–A20) each with how to detect it from Claudpress and what the fix costs, a seven-question owner intake with a stated default for every answer, a WooCommerce card-skimming addendum, and a compromise-detection sweep to run before building on a site you did not build.
+* Seven skills became gates instead of advice: site-build-kickoff loads the standard at step 0 and closes with the fix loop; seo-optimization is a required build phase verified in the rendered HTML, not from a tool's return value; web-design-master's quality audit is now blocking numbers; website-building runs the page checklist before handing any page over; store-launch-and-deploy blocks on tax rates, stock policy, review policy, legal wiring and one real test order; site-safety adds snapshot-before-fix and the rules for adopting a site somebody else built; pre-launch-audit gained the checks two real audits found ad hoc, the full security section, and a machine-readable JSON findings block so the fix loop can consume it.
+* UPGRADING: the two new skills install themselves on update. The seven edited skills only refresh if you have not edited them yourself — run skill_refresh to pull them in, and skill_refresh force=true if you have local edits you are willing to lose.
+* Tests: 746 assertions.
 
 = 1.9.1 — SEO head injection fixes =
 * Fixed: og:description was never emitted. The head injector looked up `_claudpress_seo_og_description` while seo_meta stores `_claudpress_seo_og_desc`, so the tag silently never rendered no matter what you set.
