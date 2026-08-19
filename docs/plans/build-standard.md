@@ -1,18 +1,20 @@
 # Plan v2 — make "done" mean done
 
-> **Status (v1.10.0): Phases 1, 2, 4 and 5 are implemented. Phase 3 is deliberately not.**
+> **Status (v1.10.0): all five phases are implemented.**
 >
 > Shipped: the three Tier 0 rules in `Claudpress_MCP_Server::operating_protocol()`; the
 > `build-standard` and `security-standard` skills; the seven domain skills turned into
 > gates; the tiered intake and the three-section completion report; the adoption rules
-> folded into `site-safety`. `pre-launch-audit` now emits a machine-readable JSON findings
-> block, which is what the fix loop consumes today.
+> folded into `site-safety`; and Phase 3, the `site_readiness` MCP tool
+> (`includes/tools/class-tools-readiness.php`) — read-only, always-on, returning structured
+> `pass`/`complete`/`findings`/`skipped`/`not_verified` shape-compatible with
+> `pre-launch-audit`'s JSON block. `pre-launch-audit` still emits that block; the fix loop
+> can consume either source now.
 >
-> Phase 3 — the `site_readiness` MCP tool — is held back on purpose. It should encode a
-> standard that has been proven on a real build, not one we guessed. The gate to start it
-> is the test in "How we will know it worked" below: a single-prompt build on a clean
-> install, audited by a fresh agent with no build context. Until that runs, the JSON block
-> from `pre-launch-audit` is the exit code.
+> What has **not** happened yet is the test in "How we will know it worked" below: a
+> single-prompt build on a clean install, audited by a fresh agent with no build context.
+> The tool exists, but the standard it encodes has not been validated end-to-end on a real
+> build. That remains the outstanding piece of work.
 
 > Supersedes v1 (commit `a9eeb09`). Two things changed: **security became a first-class
 > domain** (see `security-standard.md`, researched separately), and **a review of v1 found
@@ -173,7 +175,8 @@ a browser, it must use it.
 
 ## The fix loop — with termination and anti-gaming rules (**R3, R4, R7**)
 
-1. Run `pre-launch-audit` (or `site_readiness` once Phase 3 lands).
+1. Run `site_readiness` for the objective baseline, then `pre-launch-audit` for the
+   judgement pass it cannot do.
 2. Fix every Blocker and High.
 3. Re-run. Repeat to a maximum of **3 iterations**.
 4. Anything still failing after 3 goes to the completion report as an explicit outstanding

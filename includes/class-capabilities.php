@@ -19,10 +19,17 @@ if (!defined('ABSPATH')) {
 
 final class Claudpress_Capabilities
 {
-    /** Read-only introspection that is always available regardless of toggles. */
+    /**
+     * Read-only introspection that is always available regardless of toggles.
+     *
+     * `site_readiness` belongs here even though it touches SEO/security/store
+     * data: it never writes anything, and it is the exit code the
+     * `build-standard` skill checks against, so it must work even with every
+     * other capability restricted.
+     */
     public static function always_on(): array
     {
-        return ['get_site_info', 'get_dashboard', 'memory_list', 'memory_get', 'skill_list', 'skill_get', 'task_list', 'agent_runs'];
+        return ['get_site_info', 'get_dashboard', 'memory_list', 'memory_get', 'skill_list', 'skill_get', 'task_list', 'agent_runs', 'site_readiness'];
     }
 
     /**

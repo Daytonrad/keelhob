@@ -494,7 +494,8 @@ final class Claudpress_Tools_SEO
         return is_array($stored) ? array_merge($defaults, array_intersect_key($stored, $defaults)) : $defaults;
     }
 
-    private static function sitemap_url(): string
+    /** Public because site_readiness checks this URL and must not drift from it. */
+    public static function sitemap_url(): string
     {
         $active = (array) get_option('active_plugins', []);
         $known  = [

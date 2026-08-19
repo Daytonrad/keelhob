@@ -36,6 +36,17 @@ report success while silently emitting nothing.
 
 ## Gathering evidence
 
+Run `site_readiness` first. It covers the objective half of this checklist mechanically —
+heading order, alt text, meta/OG, JSON-LD validity, dead `href="#"` links, image weight,
+security headers, and (when WooCommerce is active) tax/stock sanity — and returns
+`pass`/`complete`/`findings`/`skipped`/`not_verified` shape-compatible with the JSON block
+below. Treat its `findings` as your objective baseline and do not re-derive what it already
+measured; spend your own effort on what it structurally cannot judge — design, hierarchy,
+copy quality, trust, conversion, and whether the site actually makes sense for its
+audience. Still verify independently rather than taking its output on faith: it is one more
+source of evidence, not a substitute for opening the page yourself. It changes nothing on
+the site, same as this skill.
+
 Work from the real site, not from the plan:
 
 - `get_site_info` — versions, active theme and plugins, WooCommerce presence.

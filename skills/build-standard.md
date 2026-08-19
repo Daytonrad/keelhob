@@ -149,14 +149,29 @@ the gate. Reach for the site-level pass only when the scope is "the site" or "la
 
 ## The fix loop
 
-1. Run `pre-launch-audit` (or `site_readiness` if it's available in this environment)
-   against the current build.
-2. Fix every **Blocker** and every **High**.
-3. Re-run the audit.
-4. Repeat steps 2–3 to a maximum of **3 iterations total**.
-5. Anything still failing after 3 iterations goes into the completion report as an
+1. Run `site_readiness` first, against the current build. It is the objective exit code:
+   fast, machine-checkable, and unarguable — heading order, alt text, meta/OG, JSON-LD,
+   dead links, image weight, security headers, and (when WooCommerce is active) tax/stock
+   sanity, all checked from the rendered site, not from memory.
+2. Run `pre-launch-audit` on top of it. It is the judgement layer `site_readiness` cannot
+   provide — design, copy quality, hierarchy, trust, conversion, whether the site actually
+   makes sense for its audience. Neither replaces the other; a build is not audited until
+   both have run.
+3. Fix every **Blocker** and every **High** from either source.
+4. Re-run both.
+5. Repeat steps 3–4 to a maximum of **3 iterations total**.
+6. Anything still failing after 3 iterations goes into the completion report as an
    explicit outstanding item, with the reason it wasn't resolved — never reported as a
    pass.
+
+`site_readiness` returns `pass` and `complete` as two different signals — read both, never
+just `pass`. `pass` means nothing that actually ran failed (zero open Blockers and Highs).
+`complete` means every check ran (nothing in `skipped` — WooCommerce inactive, no HTTPS, a
+capability the owner disabled, etc. all land there). A store with WooCommerce off can come
+back `pass: true, complete: false`, and that is not a green light: a skipped check is never
+a pass. If `complete` is false, every item in `skipped` goes into the completion report's
+"Not verified" section alongside the browser-dependent checks — it was never actually
+checked, so it cannot be reported as one.
 
 Hard rules, because a loop that scores its own exit is easy to game by accident:
 

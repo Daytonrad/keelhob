@@ -81,6 +81,7 @@ require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-ops.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-automation.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-payments.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-deploy.php';
+require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-readiness.php';
 
 /**
  * Boot the plugin once all plugins are loaded (so WooCommerce detection works).

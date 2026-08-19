@@ -185,6 +185,7 @@ final class Claudpress
         Claudpress_Tools_Automation::register($this->registry);
         Claudpress_Tools_Payments::register($this->registry);
         Claudpress_Tools_Deploy::register($this->registry);
+        Claudpress_Tools_Readiness::register($this->registry);
 
         do_action('claudpress_register_tools', $this->registry);
 
