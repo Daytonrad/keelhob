@@ -147,6 +147,23 @@ video; and confirm the scrub still works after a hard refresh with an empty cach
 ## Images (critical — do not skip)
 Designs need real images. Use `image_search` (free Openverse, no key) to fetch and attach a relevant licensed image; use `image_generate` only if an image API key is configured. Always set descriptive alt text. Match orientation to the slot (wide hero, square avatar).
 
+## Before handing any page over
+
+Run this per page, as you finish building it — not as a batch after the whole site is
+built. `build-standard` is the source of truth for this list; it is reproduced here so
+you don't have to reload another skill mid-page:
+
+- One `<h1>`; heading levels never skip.
+- Every content image has alt text; decorative images `alt=""`.
+- Title + meta description present; Open Graph on anything shareable.
+- Every link resolves — no `href="#"`, no "coming soon", no lorem, no placeholder image.
+- No image over 300 KB; the LCP/hero image under 200 KB; below-the-fold lazy-loaded.
+- Body-text contrast at least 4.5:1 against its actual rendered background.
+- Every factual claim on the page is true and agrees with every other page.
+
+A page that fails one of these is not finished — fix it before moving to the next page,
+not at the end when seven pages share the same mistake.
+
 ## Finish
 - Run the `seo-optimization` pass on the new page.
 - Report the live URL and the edit path.

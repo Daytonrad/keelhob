@@ -93,6 +93,26 @@ CP_Test::contains('Verify what you changed', $protocol, 'verification rule is pr
 CP_Test::contains('Report honestly', $protocol, 'honest-reporting rule is present');
 CP_Test::contains('execute_sql', $protocol, 'the sharp tools are named explicitly');
 CP_Test::contains('capability the owner switched off', $protocol, 'working around disabled capabilities is forbidden');
+CP_Test::contains('pre-launch-audit', $protocol, 'the definition-of-done rule points at the audit skill');
+CP_Test::contains('Never invent facts', $protocol, 'the no-invented-facts rule is present');
+CP_Test::contains('A store with no orders has no customers', $protocol, 'the invented-facts rule names the store-with-no-orders case');
+CP_Test::contains('build-standard', $protocol, 'the protocol tells the agent to load the build-standard skill');
+
+// Tier 0 is only real if both injection paths carry it, not just the getter.
+// system_prompt() is intentionally private, so reach it via reflection like
+// the filesystem-safety tests do for php_syntax_error().
+$system_prompt_method = new ReflectionMethod(Claudpress_Agent_Runtime::class, 'system_prompt');
+@$system_prompt_method->setAccessible(true); // no-op (and deprecated) on PHP 8.1+, still required on the 8.0 floor
+
+$unattended_prompt = $system_prompt_method->invoke(null, false, '');
+CP_Test::contains('pre-launch-audit', $unattended_prompt, 'the definition-of-done rule reaches unattended runs');
+CP_Test::contains('Never invent facts', $unattended_prompt, 'the no-invented-facts rule reaches unattended runs');
+CP_Test::contains('build-standard', $unattended_prompt, 'the build-standard load rule reaches unattended runs');
+
+$interactive_prompt = $system_prompt_method->invoke(null, true, '');
+CP_Test::contains('pre-launch-audit', $interactive_prompt, 'the definition-of-done rule reaches interactive sessions');
+CP_Test::contains('Never invent facts', $interactive_prompt, 'the no-invented-facts rule reaches interactive sessions');
+CP_Test::contains('build-standard', $interactive_prompt, 'the build-standard load rule reaches interactive sessions');
 
 // A filter lets a site tighten the rules; it must not be able to vanish silently.
 add_filter('claudpress_operating_protocol', static fn($p) => $p . "\n9. House rule.");

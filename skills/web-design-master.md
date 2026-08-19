@@ -105,13 +105,39 @@ Every design needs real imagery. Use `image_search` (Openverse, free) to fetch a
 ## 7. Motion (subtle only)
 Small, purposeful: fade/translate on scroll-in, 150–250ms ease on hover/focus. Animate `transform`/`opacity` only — never layout properties. Always honor `@media (prefers-reduced-motion:reduce)` with a calm alternative. No autoplay carousels that hijack scroll.
 
-## 8. Quality audit — pass before "done"
-Score each 0–4; fix anything below 3.
-- **Accessibility:** text contrast ≥ 4.5:1; visible focus states; semantic HTML (`<button>`, `<nav>`, one `<h1>`, ordered headings); alt text on images; labels on inputs.
-- **Responsive:** works at 375/768/1280; no fixed widths; no horizontal scroll; touch targets ≥44px.
-- **Theming:** all values from tokens; dark-mode-aware if the site is; no hard-coded one-off colors.
-- **Performance:** images lazy + sized; cheap animations; no huge blur/shadow stacks.
-- **Craft:** consistent spacing rhythm; aligned edges; one accent; real content (no lorem ipsum).
+## 8. Quality audit — blocking numbers, not advice
+
+These are gates from `build-standard`'s page-level Definition of Done, not a taste
+checklist. A page that fails one of them is not done, full stop — and the number does not
+get relaxed to make the page pass. "Score each 0-4" invites rounding a 2 up to a 3; these
+don't round.
+
+- **Alt-text coverage — 100%.** Every content image has meaningful alt text; every purely
+  decorative image gets `alt=""`. Not "most images" — every one, checked, not assumed.
+- **Heading order — exactly one `<h1>`, no skipped levels.** `h2` straight to `h4` is a
+  finding, the same as no `<h1>` at all or two of them.
+- **Body-text contrast — at least 4.5:1**, measured against the actual rendered
+  background the text sits on, not the design-file background or the token's nominal
+  value. A tinted section background changes the real contrast; check it there.
+- **Image budget** — no image over **300 KB**; the LCP/hero image under **200 KB**;
+  everything below the fold `loading="lazy"`; modern format (WebP/AVIF) where the host
+  supports it. These are the numbers, not "optimize images."
+- **Touch targets ≥ 44×44px** — every tappable element, measured, not eyeballed at
+  desktop width where it looks bigger than it renders on a phone.
+
+**Responsive** is half provable from markup and half not. Provable now, and still gates:
+no fixed pixel widths on containers, no unconstrained images (`max-width: 100%`, plus
+`width`/`height` so nothing shifts), no element wider than its parent. For what genuinely
+needs a rendered browser — console errors, real horizontal scroll at 375px, animation
+smoothness — see `build-standard`'s "needs a browser" section: state it as unverified,
+never claim it passed.
+
+Two more from the same standard, still page-level and still not optional:
+- **Semantic structure and craft:** visible focus states; semantic HTML (`<button>`,
+  `<nav>`); labels on every input; consistent spacing rhythm; aligned edges; one accent
+  color; real content, no lorem ipsum.
+- **Theming and motion:** all values from tokens, no hard-coded one-off colors; cheap
+  animations only, no huge blur/shadow stacks.
 
 ## 9. Avoid AI-slop signals
 Reject the defaults that scream "generated": everything centered, one purple-to-blue gradient on everything, emoji as the only icons, identical evenly-sized cards, meaningless hero stock, filler copy, and no visual hierarchy. Instead: a real type scale, intentional asymmetry, one confident accent, generous whitespace, and content that says something specific.

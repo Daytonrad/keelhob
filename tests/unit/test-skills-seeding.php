@@ -90,3 +90,37 @@ foreach ($files as $file) {
     }
 }
 CP_Test::same([], $bad, 'every bundled skill has a name, a usable description, and a body');
+
+/**
+ * Every shipped skill file must actually survive parse_markdown().
+ *
+ * seed_bundled_skills() silently `continue`s past a file whose frontmatter it
+ * cannot read, so a skill with a broken header does not fail loudly — it just
+ * never reaches the site. That is exactly the delivery hole this release set
+ * out to close, so the shipped files get checked here rather than discovered
+ * missing on somebody's install.
+ */
+CP_Test::group('Skills — every shipped skill file parses and is complete');
+
+$skill_files = glob(dirname(__DIR__, 2) . '/skills/*.md');
+CP_Test::ok(count($skill_files) >= 15, 'the plugin ships a full skill pack');
+
+$seen_names = [];
+foreach ($skill_files as $file) {
+    $slug   = basename($file, '.md');
+    $parsed = Claudpress_Skills::parse_markdown((string) file_get_contents($file));
+
+    CP_Test::ok(!empty($parsed['name']), $slug . ' declares a name in its frontmatter');
+    CP_Test::ok(!empty($parsed['description']), $slug . ' declares a description agents can route on');
+    CP_Test::ok(trim((string) ($parsed['body'] ?? '')) !== '', $slug . ' has a body left after the frontmatter is stripped');
+    CP_Test::same($slug, (string) ($parsed['name'] ?? ''), $slug . ' has a frontmatter name matching its filename');
+
+    $seen_names[] = (string) ($parsed['name'] ?? '');
+}
+
+CP_Test::same(count($seen_names), count(array_unique($seen_names)), 'no two shipped skills claim the same name');
+
+// The contract in the operating protocol names these two by name. If either
+// stops shipping, every agent is pointed at a skill that does not exist.
+CP_Test::ok(in_array('build-standard', $seen_names, true), 'build-standard ships, because the operating protocol tells every agent to load it');
+CP_Test::ok(in_array('security-standard', $seen_names, true), 'security-standard ships, because build-standard routes security work to it');
