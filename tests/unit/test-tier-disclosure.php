@@ -86,3 +86,20 @@ foreach (['why_unavailable', 'how_to_enable'] as $field) {
     CP_Test::contains($field, $src, 'each missing capability explains ' . $field . ', so the agent can tell the owner something useful');
 }
 CP_Test::contains('not a setting', $src, 'the agent is told this is not a switch the owner can flip, so it stops hunting for one');
+
+CP_Test::group('Tier disclosure — the definition of done degrades, it does not dangle');
+
+// build-standard is FREE and routes to pre-launch-audit, which is PRO. Left
+// alone that is a free-tier agent being told to run a skill that is not there:
+// it will hunt for it, fail, and either report the site broken or - much worse
+// - grade its own design work, which is the exact failure the whole standard
+// exists to prevent.
+$protocol = Claudpress_MCP_Server::operating_protocol();
+CP_Test::contains('site_readiness', $protocol, 'the protocol names the checker that exists on every site');
+CP_Test::contains('Claudpress Pro', $protocol, 'and says plainly that the deeper audit is a Pro skill');
+CP_Test::contains('skipping it is correct', $protocol, 'so a free agent knows the absence is expected, not a fault');
+
+$skill = file_get_contents(CLAUDPRESS_DIR . 'skills/build-standard.md');
+CP_Test::contains('site_readiness` is the checker on every', $skill, 'the skill names the free checker up front');
+CP_Test::contains('run the loop on `site_readiness` alone', $skill, 'the fix loop has a free path');
+CP_Test::contains('scoring your own design work', $skill, 'and forbids the tempting shortcut of self-grading');

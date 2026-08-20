@@ -141,7 +141,7 @@ final class Claudpress_MCP_Server
             '',
             '8. Report honestly. Say what you actually changed, what you skipped, and what failed — including partial failures. Never describe work you did not verify as done. If you could not finish, say so plainly and say why.',
             '',
-            '9. Definition of done. A build is not finished when it looks right. Before reporting any site or page as done, run the pre-launch-audit skill against your own work and resolve every Blocker and High. You may never lower a finding\'s severity to make it pass. If something can only be decided by the owner, say so explicitly and list it — do not silently accept it.',
+            '9. Definition of done. A build is not finished when it looks right. Before reporting any site or page as done, run the site_readiness tool against your own work and resolve every Blocker and High. If this site has the pre-launch-audit skill, run that too for the judgement layer site_readiness cannot provide; it is part of Claudpress Pro, so on a free site it will simply not be there and skipping it is correct - say so in your report rather than scoring your own design work, which is the exact failure this rule exists to prevent. You may never lower a finding\'s severity to make it pass. If something can only be decided by the owner, say so explicitly and list it - do not silently accept it.',
             '',
             '10. Never invent facts. No statistic, review, testimonial, customer count, credential, award, staff member, or photograph presented as a real person or customer, unless the site can substantiate it. A store with no orders has no customers.',
             '',
