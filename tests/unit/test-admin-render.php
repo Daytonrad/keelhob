@@ -113,7 +113,6 @@ Claudpress_Admin_Snippets::$source = static function (array $filters): array {
 $admin = new Claudpress_Admin();
 $pages = [
     'render'            => 'Connect',
-    'render_snippets'   => 'Snippets',
     'render_automation' => 'Automation',
     'render_guide'      => 'Guide',
     'render_activity'   => 'Activity',
@@ -121,6 +120,16 @@ $pages = [
 
 /** @var array<string, string> $html Rendered markup per page, for later assertions. */
 $html = [];
+
+// The Snippets screen moved to the Pro add-on, so it is no longer a method on
+// Claudpress_Admin. It is still rendered here - the assertions below are about
+// the markup, and the markup did not move.
+if (class_exists('Claudpress_Admin_Snippets')) {
+    ob_start();
+    (new Claudpress_Admin_Snippets())->render();
+    $html['Snippets'] = (string) ob_get_clean();
+    CP_Test::ok($html['Snippets'] !== '', 'Snippets renders from the add-on');
+}
 
 foreach ($pages as $method => $label) {
     $out    = '';

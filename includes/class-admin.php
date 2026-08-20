@@ -140,7 +140,6 @@ final class Claudpress_Admin
         add_submenu_page('claudpress', __('Connect', 'claudpress'), __('Connect', 'claudpress'), 'manage_options', 'claudpress', [$this, 'render']);
         // Directly after Connect: this is the primary "what has the AI done to
         // my site" surface, and it must be easy to find in a hurry.
-        add_submenu_page('claudpress', __('Snippets', 'claudpress'), __('Snippets', 'claudpress'), 'manage_options', 'claudpress-snippets', [$this, 'render_snippets']);
         // Skills sit next to Snippets for the same reason: both answer "what is
         // this agent actually working from?", and the Pro list on that screen is
         // the only honest place to say what expertise exists but is not here.
@@ -278,10 +277,6 @@ final class Claudpress_Admin
         exit;
     }
 
-    public function render_snippets(): void
-    {
-        (new Claudpress_Admin_Snippets())->render();
-    }
 
     public function render_skills(): void
     {
@@ -1654,7 +1649,7 @@ final class Claudpress_Admin
                 printf(
                     /* translators: %s: link to the Snippets page */
                     esc_html__('When your AI writes code onto this site, every piece of it is listed on the %s page — what it is, why it was written, what it changes, and a switch to turn it off. That page is the first place to look if the site starts behaving oddly.', 'claudpress'),
-                    '<a href="' . esc_url(admin_url('admin.php?page=claudpress-snippets')) . '">' . esc_html__('Snippets', 'claudpress') . '</a>'
+                    esc_html__('Snippets', 'claudpress')
                 );
                 ?>
             </p>

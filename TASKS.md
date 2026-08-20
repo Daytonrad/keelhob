@@ -39,7 +39,8 @@ Done and verified:
 - **Signed remote skills** — Ed25519, fails closed, markdown only, never
   overwrites your own skills.
 
-Biggest thing still to build: **the Snippets Studio** (Phase 4), then the cloud.
+Biggest thing still to build: **the cloud backend** (Phase 5) and the site. The
+Snippets Studio now renders all four tabs against real WordPress.
 
 Two things I got wrong and fixed, so you know the shape of the mistakes:
 all 6 Pro skills were shipping in the free zip until I built the zip and read
@@ -112,14 +113,14 @@ Everything below is being built to work the moment these land.
 - [x] `skill_list` returns `available` + `tier` over MCP
 - [x] `build-standard.md` + operating protocol rule 9 fall back to `site_readiness` on free
 
-## Phase 4 — Snippets Studio (Pro add-on)
+## Phase 4 — Snippets Studio (Pro add-on) — all four tabs render live (36/36 checks)
 
 - [x] Add-on plugin scaffold
 - [x] Schema: source, ai_prompt, ai_model, ai_review, ai_review_at + revisions table
-- [ ] Tab 1 All Snippets (WP_List_Table, filters, badges)
-- [ ] Tab 2 Add/Edit + Ask AI (advisory, parse is the gate)
-- [ ] Tab 3 AI Compose (plan -> approve -> build -> save inactive)
-- [ ] Tab 4 Library (bundled + private)
+- [x] Tab 1 All Snippets (WP_List_Table, filters, badges)
+- [x] Tab 2 Add/Edit + Ask AI (advisory, parse is the gate)
+- [x] Tab 3 AI Compose (plan -> approve -> build -> save inactive)
+- [x] Tab 4 Library (bundled + private)
 - [x] Move **deploy** + **payments** tool files to the add-on (6 tools no longer in the free zip)
 - [x] `class-tools-ops.php` split → `manage_updates`, `send_email` moved to add-on
 - [x] `class-tools-automation.php` split → `task_save/run/delete`, `run_agent`, `notify_owner` moved; **`get_dashboard`, `task_list`, `agent_runs` stayed free (always-on)**

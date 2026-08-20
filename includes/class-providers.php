@@ -209,6 +209,21 @@ abstract class Claudpress_Provider
      * @param array $override provider|api_key|endpoint|model, any subset
      * @return array{id: string, class: class-string<Claudpress_Provider>, key: string, endpoint: string, model: string}
      */
+    /**
+     * The currently configured provider, resolved.
+     *
+     * resolve() is protected because callers inside this file pass an override
+     * from an unsaved form. Everyone else - the add-on, a third-party plugin -
+     * just wants to know what this site is set up to talk to, so they get a
+     * read-only view of that and no way to smuggle a different key in.
+     *
+     * @return array{id: string, class: class-string<Claudpress_Provider>, key: string, endpoint: string, model: string}
+     */
+    public static function configured(): array
+    {
+        return self::resolve([]);
+    }
+
     protected static function resolve(array $override): array
     {
         $s    = Claudpress::instance()->settings();

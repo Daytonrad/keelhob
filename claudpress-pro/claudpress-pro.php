@@ -72,6 +72,14 @@ require_once CLAUDPRESS_PRO_DIR . 'includes/class-tools-ops-pro.php';
 require_once CLAUDPRESS_PRO_DIR . 'includes/class-tools-automation-pro.php';
 require_once CLAUDPRESS_PRO_DIR . 'includes/class-tools-woocommerce-pro.php';
 require_once CLAUDPRESS_PRO_DIR . 'includes/class-tools-seo-pro.php';
+require_once CLAUDPRESS_PRO_DIR . 'includes/class-admin-snippets.php';
+require_once CLAUDPRESS_PRO_DIR . 'includes/class-studio.php';
+require_once CLAUDPRESS_PRO_DIR . 'includes/class-studio-list.php';
+require_once CLAUDPRESS_PRO_DIR . 'includes/class-studio-edit.php';
+require_once CLAUDPRESS_PRO_DIR . 'includes/class-studio-compose.php';
+require_once CLAUDPRESS_PRO_DIR . 'includes/class-studio-library.php';
+require_once CLAUDPRESS_PRO_DIR . 'includes/class-studio-ai.php';
+require_once CLAUDPRESS_PRO_DIR . 'includes/class-studio-actions.php';
 
     /**
      * The one line that turns the tier on.
@@ -85,6 +93,10 @@ require_once CLAUDPRESS_PRO_DIR . 'includes/class-tools-seo-pro.php';
     add_filter('claudpress_is_pro', 'claudpress_pro_is_pro');
 
     add_action('claudpress_register_tools', ['Claudpress_Pro_Tools', 'register']);
+
+    $studio = new Claudpress_Pro_Studio();
+    add_action('admin_menu', [$studio, 'menu'], 20);
+    (new Claudpress_Pro_Studio_Actions())->hooks();
 }
 
 /**

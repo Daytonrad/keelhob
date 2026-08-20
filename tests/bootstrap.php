@@ -530,7 +530,11 @@ require_once CLAUDPRESS_DIR . 'includes/class-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/class-skills.php';
 require_once CLAUDPRESS_DIR . 'includes/class-skills-remote.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin.php';
-require_once CLAUDPRESS_DIR . 'includes/class-admin-snippets.php';
+// The snippets screen moved to the Pro add-on. Loaded from there when present,
+// so the tests can still exercise it without the free plugin pretending to own it.
+if (file_exists(CLAUDPRESS_DIR . 'claudpress-pro/includes/class-admin-snippets.php')) {
+    require_once CLAUDPRESS_DIR . 'claudpress-pro/includes/class-admin-snippets.php';
+}
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-filesystem.php';
 
 // --- notifier -------------------------------------------------------------

@@ -69,7 +69,6 @@ require_once CLAUDPRESS_DIR . 'includes/class-agent-runtime.php';
 require_once CLAUDPRESS_DIR . 'includes/class-tasks.php';
 require_once CLAUDPRESS_DIR . 'includes/class-migration.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin.php';
-require_once CLAUDPRESS_DIR . 'includes/class-admin-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin-skills.php';
 
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-core.php';
