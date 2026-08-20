@@ -30,6 +30,12 @@ final class Claudpress_Pro_Tools
             return;
         }
 
+        // The tool classes that moved out of the free plugin. They keep their
+        // original names and shapes, so an agent that worked against a Pro site
+        // before the split sees no difference.
+        Claudpress_Tools_Payments::register($registry);
+        Claudpress_Tools_Deploy::register($registry);
+
         $registry->add(
             'pro_status',
             __('Report the Claudpress Pro licence state for this site. Read-only.', 'claudpress-pro'),

@@ -66,6 +66,8 @@ function claudpress_pro_boot(): void
 
     require_once CLAUDPRESS_PRO_DIR . 'includes/class-claudpress-pro-licence.php';
     require_once CLAUDPRESS_PRO_DIR . 'includes/class-claudpress-pro-tools.php';
+require_once CLAUDPRESS_PRO_DIR . 'includes/class-tools-payments.php';
+require_once CLAUDPRESS_PRO_DIR . 'includes/class-tools-deploy.php';
 
     /**
      * The one line that turns the tier on.

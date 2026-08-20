@@ -38,13 +38,29 @@ foreach ($registered as $tool => $file) {
 }
 CP_Test::same([], $ungoverned, 'every registered tool is either in a capability group or explicitly always-on');
 
+// A FREE group naming a tool that does not exist is a bug: the free plugin is
+// supposed to contain everything it advertises.
+//
+// A PRO group naming a missing tool is now expected, and is in fact the point.
+// Pro tool code is not in the free plugin at all - not present and switched
+// off, but absent - because a licence check living in a file the user already
+// has is a five-minute edit away from being deleted. The group definition stays
+// behind so unavailable_groups() can still describe the feature to an agent
+// without shipping its implementation.
 $phantom = [];
+$pro_absent = [];
 foreach ($grouped as $tool => $group) {
-    if (!isset($registered[$tool])) {
-        $phantom[] = $tool . ' (group: ' . $group . ')';
+    if (isset($registered[$tool])) {
+        continue;
     }
+    if (Claudpress_Capabilities::group_tier($group) === Claudpress_Capabilities::TIER_PRO) {
+        $pro_absent[] = $tool;
+        continue;
+    }
+    $phantom[] = $tool . ' (group: ' . $group . ')';
 }
-CP_Test::same([], $phantom, 'no capability group references a tool that no longer exists');
+CP_Test::same([], $phantom, 'no FREE capability group references a tool that does not ship');
+CP_Test::ok($pro_absent !== [], 'Pro tool code is genuinely absent from the free plugin, not merely gated: ' . implode(', ', $pro_absent));
 
 $phantom_always = [];
 foreach ($always as $tool) {

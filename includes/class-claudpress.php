@@ -237,8 +237,11 @@ final class Claudpress
         Claudpress_Tools_Elementor::register($this->registry);
         Claudpress_Tools_Ops::register($this->registry);
         Claudpress_Tools_Automation::register($this->registry);
-        Claudpress_Tools_Payments::register($this->registry);
-        Claudpress_Tools_Deploy::register($this->registry);
+        // Payments (gateways, shipping, tax) and Deploy (staging to production)
+        // are Pro. Their code is not in the free plugin at all - not present and
+        // switched off, but absent - because a licence check sitting in a file
+        // the user already has is a five-minute edit away from being removed.
+        // The add-on registers them through claudpress_register_tools below.
         Claudpress_Tools_Readiness::register($this->registry);
 
         /**
