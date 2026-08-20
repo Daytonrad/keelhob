@@ -21,9 +21,17 @@ define('CLAUDPRESS_REST_NAMESPACE', 'claudpress/v1');
 define('CLAUDPRESS_SANDBOX_DIR', WP_CONTENT_DIR . '/claudpress-sandbox');
 define('CLAUDPRESS_MAX_EXECUTION_TIME', 120);
 
+// Fixed test salts. Claudpress_Secrets derives its encryption key from
+// these, so they must be defined before any settings are read.
+define('AUTH_KEY', 'cp-test-auth-key-0000000000000001');
+define('SECURE_AUTH_KEY', 'cp-test-secure-auth-key-000000002');
+define('AUTH_SALT', 'cp-test-auth-salt-000000000000003');
+
 // ---- in-memory option store ------------------------------------------------
 
-$GLOBALS['cp_test_options'] = [];
+$GLOBALS['cp_test_options']  = [];
+$GLOBALS['cp_test_autoload']   = [];
+$GLOBALS['cp_test_transients'] = [];
 
 function cp_test_reset_options(array $options = []): void
 {
@@ -35,8 +43,9 @@ function get_option(string $name, $default = false)
     return array_key_exists($name, $GLOBALS['cp_test_options']) ? $GLOBALS['cp_test_options'][$name] : $default;
 }
 
-function update_option(string $name, $value): bool
+function update_option(string $name, $value, $autoload = null): bool
 {
+    $GLOBALS['cp_test_autoload'][$name] = $autoload;
     $GLOBALS['cp_test_options'][$name] = $value;
     return true;
 }
@@ -135,7 +144,7 @@ function get_bloginfo(string $show = 'name'): string
 
 function home_url(string $path = ''): string
 {
-    return 'https://example.test' . $path;
+    return ($GLOBALS['cp_test_home_url'] ?? 'https://example.test') . $path;
 }
 
 function number_format_i18n($number, $decimals = 0): string
@@ -296,10 +305,18 @@ function wp_next_scheduled($hook) { return time() + 3600; }
 function human_time_diff($from, $to = 0) { return '1 hour'; }
 function get_current_screen() { return null; }
 function get_permalink($id = 0) { return 'https://example.test/?p=' . (int) $id; }
-function set_transient($key, $value, $ttl = 0) { return true; }
-function get_transient($key) { return false; }
+function set_transient($key, $value, $ttl = 0)
+{
+    $GLOBALS['cp_test_transients'][$key] = $value;
+    return true;
+}
 
-function delete_transient($key) { return true; }
+function get_transient($key)
+{
+    return $GLOBALS['cp_test_transients'][$key] ?? false;
+}
+
+function delete_transient($key) { unset($GLOBALS['cp_test_transients'][$key]); return true; }
 function wp_unslash($v) { return is_string($v) ? stripslashes($v) : $v; }
 
 function wp_trim_words($text, $num_words = 55, $more = null)
@@ -308,7 +325,34 @@ function wp_trim_words($text, $num_words = 55, $more = null)
     return implode(' ', array_slice($words, 0, $num_words));
 }
 
+
+function wp_set_current_user($id) { $GLOBALS['cp_test_current_user'] = (int) $id; return true; }
+function get_users($args = []) { return [1]; }
+function user_can($user, $cap) { return true; }
+function wp_authenticate_application_password($input, $username, $password) { return new WP_Error('bad', 'no'); }
+function is_ssl() { return false; }
+
+if (!defined('MINUTE_IN_SECONDS')) { define('MINUTE_IN_SECONDS', 60); }
+if (!defined('HOUR_IN_SECONDS')) { define('HOUR_IN_SECONDS', 3600); }
+if (!defined('DAY_IN_SECONDS')) { define('DAY_IN_SECONDS', 86400); }
+if (!defined('WEEK_IN_SECONDS')) { define('WEEK_IN_SECONDS', 604800); }
+
+function wp_normalize_path($path)
+{
+    $path = str_replace(chr(92), '/', (string) $path);
+    $path = preg_replace('|(?<=.)/+|', '/', $path);
+    if (':' === substr($path, 1, 1)) { $path = ucfirst($path); }
+    return $path;
+}
+
+function wp_mkdir_p($dir) { return is_dir($dir) ? true : @mkdir($dir, 0777, true); }
+
+function trailingslashit($s) { return rtrim((string) $s, '/') . '/'; }
+
+require_once CLAUDPRESS_DIR . 'includes/class-secrets.php';
 require_once CLAUDPRESS_DIR . 'includes/class-claudpress.php';
+require_once CLAUDPRESS_DIR . 'includes/class-auth.php';
+require_once CLAUDPRESS_DIR . 'includes/class-logger.php';
 require_once CLAUDPRESS_DIR . 'includes/class-tool-registry.php';
 require_once CLAUDPRESS_DIR . 'includes/class-capabilities.php';
 require_once CLAUDPRESS_DIR . 'includes/class-memory.php';
@@ -327,3 +371,4 @@ require_once CLAUDPRESS_DIR . 'includes/class-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/class-skills.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin-snippets.php';
+require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-filesystem.php';

@@ -65,7 +65,18 @@ final class Claudpress
     {
         return [
             'abilities_enabled' => false,
+            // Kept only to carry a pre-1.10.1 plaintext token through the
+            // upgrade; Claudpress_Auth swaps it for a hash on first use.
             'token'             => '',
+            'token_hash'        => '',
+            'token_expires_at'  => 0,
+            'token_last_used'   => 0,
+
+            // Off by default on purpose: deleting the plugin must not
+            // destroy the owner's snippets, memory and skills. See uninstall.php.
+            'delete_data_on_uninstall' => false,
+            // Quietens every mention of the paid add-on, everywhere.
+            'hide_paid_notices'        => false,
             'allow_app_passwords' => true,
             // Filesystem base: operations are confined at or below this path.
             'fs_base'           => ABSPATH,
@@ -141,7 +152,17 @@ final class Claudpress
         if (!is_array($saved)) {
             $saved = [];
         }
-        return array_merge(self::default_settings(), $saved);
+        $merged = array_merge(self::default_settings(), $saved);
+
+        // Decrypt on the way out so every existing caller keeps working with
+        // plain values and none of them has to know secrets are encrypted at
+        // rest. Values written before 1.10.1 pass through untouched.
+        foreach (Claudpress_Secrets::fields() as $field) {
+            if (isset($merged[$field]) && is_string($merged[$field]) && $merged[$field] !== '') {
+                $merged[$field] = Claudpress_Secrets::decrypt($merged[$field]);
+            }
+        }
+        return $merged;
     }
 
     public function get(string $key, $default = null)
@@ -152,7 +173,20 @@ final class Claudpress
 
     public function update(array $patch): void
     {
-        update_option(self::OPTION_SETTINGS, array_merge($this->settings(), $patch));
+        $all = array_merge($this->settings(), $patch);
+
+        // Encrypt on the way in. settings() decrypted them, so re-encrypting
+        // the whole merged array keeps untouched fields correct too.
+        foreach (Claudpress_Secrets::fields() as $field) {
+            if (isset($all[$field]) && is_string($all[$field]) && $all[$field] !== '') {
+                $all[$field] = Claudpress_Secrets::encrypt($all[$field]);
+            }
+        }
+
+        // autoload=false: this option holds credentials, and there is no reason
+        // for it to be loaded into memory on every single front-end request
+        // where any other plugin could read it out of the options cache.
+        update_option(self::OPTION_SETTINGS, $all, false);
     }
 
     public function abilities_enabled(): bool
@@ -251,8 +285,11 @@ final class Claudpress
             $existing = [];
         }
         // Generate a token on first activation so the user has something to copy.
-        if (empty($existing['token'])) {
-            $existing['token'] = self::generate_token();
+        if (empty($existing['token']) && empty($existing['token_hash'])) {
+            $plain                    = self::generate_token();
+            $existing['token_hash']   = hash('sha256', $plain);
+            $existing['token']        = '';
+            self::flash_token($plain);
         }
         update_option(self::OPTION_SETTINGS, array_merge(self::default_settings(), $existing));
 
@@ -316,5 +353,43 @@ final class Claudpress
     public static function generate_token(): string
     {
         return 'cp_' . bin2hex(random_bytes(24));
+    }
+
+    /**
+     * Mint a new bearer token: store only its hash, hand back the plaintext.
+     *
+     * The plaintext is never written to the options table. It goes into a
+     * short-lived transient purely so the Connect screen can render it once, on
+     * the very next page load, and is deleted the moment it is read. If the
+     * owner misses that window their only option is to regenerate - which is
+     * the correct trade for a credential that grants full administrative
+     * control of the site.
+     */
+    public static function set_token(): string
+    {
+        $plain = self::generate_token();
+        self::instance()->update([
+            'token'            => '',
+            'token_hash'       => hash('sha256', $plain),
+            'token_last_used'  => 0,
+        ]);
+        self::flash_token($plain);
+        return $plain;
+    }
+
+    /** Stash a freshly minted token for one render. */
+    public static function flash_token(string $plain): void
+    {
+        set_transient('claudpress_token_flash', $plain, 5 * MINUTE_IN_SECONDS);
+    }
+
+    /** Read and immediately burn the flashed token. '' when there is none. */
+    public static function take_flashed_token(): string
+    {
+        $plain = (string) get_transient('claudpress_token_flash');
+        if ($plain !== '') {
+            delete_transient('claudpress_token_flash');
+        }
+        return $plain;
     }
 }

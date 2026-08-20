@@ -172,26 +172,28 @@ final class Claudpress_Admin
         $action = $_POST['claudpress_action'] ?? 'settings';
 
         if ($action === 'regenerate_token') {
-            Claudpress::instance()->update(['token' => Claudpress::generate_token()]);
+            Claudpress::set_token();
         } elseif ($action === 'settings') {
             Claudpress::instance()->update([
                 'abilities_enabled'   => !empty($_POST['abilities_enabled']),
                 'allow_app_passwords' => !empty($_POST['allow_app_passwords']),
                 'require_https'       => !empty($_POST['require_https']),
                 'log_calls'           => !empty($_POST['log_calls']),
+                'delete_data_on_uninstall' => !empty($_POST['delete_data_on_uninstall']),
+                'hide_paid_notices'        => !empty($_POST['hide_paid_notices']),
                 'fs_base'             => !empty($_POST['fs_base']) ? sanitize_text_field(wp_unslash($_POST['fs_base'])) : ABSPATH,
                 'run_snippets'        => !empty($_POST['run_snippets']),
                 'site_label'          => sanitize_text_field(wp_unslash($_POST['site_label'] ?? '')),
                 'builder'             => sanitize_key($_POST['builder'] ?? 'auto'),
                 'image_provider'      => sanitize_key($_POST['image_provider'] ?? 'openai'),
-                'image_api_key'       => sanitize_text_field(wp_unslash($_POST['image_api_key'] ?? '')),
+                'image_api_key'       => self::secret_from_post('image_api_key'),
                 'image_api_endpoint'  => self::endpoint_override(
                     esc_url_raw(wp_unslash($_POST['image_api_endpoint'] ?? '')),
                     Claudpress_Image_Provider::get(sanitize_key($_POST['image_provider'] ?? 'openai'))::default_endpoint()
                 ),
                 'image_api_model'     => sanitize_text_field(wp_unslash($_POST['image_api_model'] ?? '')),
                 'deploy_target_url'   => esc_url_raw(wp_unslash($_POST['deploy_target_url'] ?? '')),
-                'deploy_target_token' => sanitize_text_field(wp_unslash($_POST['deploy_target_token'] ?? '')),
+                'deploy_target_token' => self::secret_from_post('deploy_target_token'),
             ]);
         } elseif ($action === 'clear_memory') {
             Claudpress::instance()->memory->clear();
@@ -205,7 +207,7 @@ final class Claudpress_Admin
         } elseif ($action === 'automation_settings') {
             Claudpress::instance()->update([
                 'agent_provider'        => sanitize_key($_POST['agent_provider'] ?? 'anthropic'),
-                'agent_api_key'         => sanitize_text_field(wp_unslash($_POST['agent_api_key'] ?? '')),
+                'agent_api_key'         => self::secret_from_post('agent_api_key'),
                 'agent_api_endpoint'    => self::endpoint_override(
                     esc_url_raw(wp_unslash($_POST['agent_api_endpoint'] ?? '')),
                     Claudpress_Provider::get(sanitize_key($_POST['agent_provider'] ?? 'anthropic'))::default_endpoint()
@@ -217,7 +219,7 @@ final class Claudpress_Admin
                 'agent_max_runs_per_day'   => max(0, (int) ($_POST['agent_max_runs_per_day'] ?? 0)),
                 'notify_email'          => sanitize_text_field(wp_unslash($_POST['notify_email'] ?? '')),
                 'notify_webhook_url'    => esc_url_raw(wp_unslash($_POST['notify_webhook_url'] ?? '')),
-                'notify_telegram_token' => sanitize_text_field(wp_unslash($_POST['notify_telegram_token'] ?? '')),
+                'notify_telegram_token' => self::secret_from_post('notify_telegram_token'),
                 'notify_telegram_chat'  => sanitize_text_field(wp_unslash($_POST['notify_telegram_chat'] ?? '')),
                 'policy' => [
                     'enabled'       => !empty($_POST['policy_enabled']),
@@ -264,7 +266,7 @@ final class Claudpress_Admin
                 'telegram_photos'        => !empty($_POST['telegram_photos']),
                 'telegram_progress'      => !empty($_POST['telegram_progress']),
                 'voice_provider'         => sanitize_key($_POST['voice_provider'] ?? 'openai'),
-                'voice_api_key'          => sanitize_text_field(wp_unslash($_POST['voice_api_key'] ?? '')),
+                'voice_api_key'          => self::secret_from_post('voice_api_key'),
                 'voice_model'            => sanitize_text_field(wp_unslash($_POST['voice_model'] ?? '')),
                 'voice_api_endpoint'     => self::endpoint_override(
                     esc_url_raw(wp_unslash($_POST['voice_api_endpoint'] ?? '')),
@@ -343,7 +345,12 @@ final class Claudpress_Admin
     {
         $s        = Claudpress::instance()->settings();
         $endpoint = rest_url(CLAUDPRESS_REST_NAMESPACE . '/mcp');
-        $token    = (string) $s['token'];
+        // S5: the token is stored hashed, so the plaintext exists only in the
+        // one page load straight after it is minted. After that the screen shows
+        // a placeholder, and the owner regenerates if they need a new one.
+        $token_plain = Claudpress::take_flashed_token();
+        $have_token  = ($token_plain !== '');
+        $token       = $have_token ? $token_plain : 'YOUR_TOKEN_HERE';
         $host     = wp_parse_url(home_url(), PHP_URL_HOST);
         // The MCP server name is the string the agent sees for this site, so it
         // should be the same handle the owner uses — that is what makes
@@ -449,7 +456,7 @@ final class Claudpress_Admin
                                     </select>
                                 </label>
                             </p>
-                            <p><label><?php esc_html_e('Image API key:', 'claudpress'); ?> <input type="password" name="image_api_key" value="<?php echo esc_attr($s['image_api_key'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off" placeholder="<?php echo esc_attr($img_p::key_hint()); ?>"></label></p>
+                            <p><label><?php esc_html_e('Image API key:', 'claudpress'); ?> <input type="password" name="image_api_key" value="<?php echo esc_attr(Claudpress_Secrets::mask((string) ($s['image_api_key'] ?? ''))); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off" placeholder="<?php echo esc_attr($img_p::key_hint()); ?>"></label></p>
                             <p><label><?php esc_html_e('Image model:', 'claudpress'); ?> <input type="text" name="image_api_model" value="<?php echo esc_attr($s['image_api_model'] ?? ''); ?>" class="regular-text" style="max-width:280px;" placeholder="<?php echo esc_attr($img_p::default_model()); ?>"></label>
                                 <span style="color:#888;margin-left:8px;"><?php esc_html_e('Blank = ', 'claudpress'); ?><code><?php echo esc_html($img_p::default_model()); ?></code></span></p>
                             <p><label><?php esc_html_e('Image endpoint override (optional):', 'claudpress'); ?> <input type="text" name="image_api_endpoint" value="<?php echo esc_attr($s['image_api_endpoint'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" placeholder="<?php echo esc_attr($img_p::default_endpoint()); ?>"></label></p>
@@ -461,7 +468,7 @@ final class Claudpress_Admin
                             ); ?>
                             <p style="color:#666;margin-top:16px;"><strong><?php esc_html_e('Staging → production deploy', 'claudpress'); ?></strong> <?php esc_html_e('(optional — target for deploy_push: your live site\'s Claudpress endpoint)', 'claudpress'); ?></p>
                             <p><label><?php esc_html_e('Production site URL:', 'claudpress'); ?> <input type="text" name="deploy_target_url" value="<?php echo esc_attr($s['deploy_target_url'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" placeholder="https://your-live-site.com"></label></p>
-                            <p><label><?php esc_html_e('Production bearer token:', 'claudpress'); ?> <input type="password" name="deploy_target_token" value="<?php echo esc_attr($s['deploy_target_token'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off" placeholder="<?php esc_attr_e('cp_... (the live site\'s Claudpress token)', 'claudpress'); ?>"></label></p>
+                            <p><label><?php esc_html_e('Production bearer token:', 'claudpress'); ?> <input type="password" name="deploy_target_token" value="<?php echo esc_attr(Claudpress_Secrets::mask((string) ($s['deploy_target_token'] ?? ''))); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off" placeholder="<?php esc_attr_e('cp_... (the live site\'s Claudpress token)', 'claudpress'); ?>"></label></p>
                             <p><button class="button button-primary"><?php esc_html_e('Save settings', 'claudpress'); ?></button></p>
                         </form>
                     </div>
@@ -475,7 +482,27 @@ final class Claudpress_Admin
                         <input readonly value="<?php echo esc_attr($endpoint); ?>" class="regular-text" style="width:100%;max-width:520px;font-family:monospace;" onclick="this.select()">
 
                         <p style="margin-top:16px;"><strong><?php esc_html_e('Bearer token', 'claudpress'); ?></strong> <?php esc_html_e('(keep secret — it grants full site access)', 'claudpress'); ?></p>
-                        <input readonly value="<?php echo esc_attr($token); ?>" class="regular-text" style="width:100%;max-width:520px;font-family:monospace;" onclick="this.select()">
+                        <?php if ($have_token) : ?>
+                            <div style="padding:10px 12px;border-left:4px solid #d63638;background:#fcf0f1;margin-bottom:8px;">
+                                <strong><?php esc_html_e('Copy this now, it is not shown again.', 'claudpress'); ?></strong><br>
+                                <span style="color:#555;"><?php esc_html_e('Claudpress stores only a hash of this token, so it cannot be displayed a second time. If you lose it, regenerate below.', 'claudpress'); ?></span>
+                            </div>
+                            <input readonly value="<?php echo esc_attr($token); ?>" class="regular-text" style="width:100%;max-width:520px;font-family:monospace;" onclick="this.select()">
+                        <?php else : ?>
+                            <input readonly value="••••••••••••" class="regular-text" style="width:100%;max-width:520px;font-family:monospace;color:#888;">
+                            <p style="color:#666;margin-top:4px;">
+                                <?php esc_html_e('Stored hashed and cannot be shown again. Regenerate below to get a new one; existing clients will need updating.', 'claudpress'); ?>
+                                <?php
+                                $last_used = (int) Claudpress::instance()->get('token_last_used', 0);
+                                if ($last_used > 0) {
+                                    /* translators: %s: human-readable time difference, e.g. 3 hours. */
+                                    echo '<br>' . esc_html(sprintf(__('Last used %s ago.', 'claudpress'), human_time_diff($last_used, time())));
+                                } else {
+                                    echo '<br>' . esc_html__('Never used yet.', 'claudpress');
+                                }
+                                ?>
+                            </p>
+                        <?php endif; ?>
                         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:8px;" onsubmit="return confirm('<?php echo esc_js(__('Regenerating the token will disconnect existing clients. Continue?', 'claudpress')); ?>');">
                             <?php wp_nonce_field('claudpress_save'); ?>
                             <input type="hidden" name="action" value="claudpress_save">
@@ -618,7 +645,7 @@ final class Claudpress_Admin
                                 </label>
                                 <span style="color:#888;margin-left:8px;"><?php esc_html_e('Save after changing, then check the model guide below.', 'claudpress'); ?></span>
                             </p>
-                            <p><label><?php esc_html_e('API key:', 'claudpress'); ?> <input type="password" name="agent_api_key" value="<?php echo esc_attr($s['agent_api_key'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off" placeholder="<?php echo esc_attr($agent_p::key_hint()); ?>"></label>
+                            <p><label><?php esc_html_e('API key:', 'claudpress'); ?> <input type="password" name="agent_api_key" value="<?php echo esc_attr(Claudpress_Secrets::mask((string) ($s['agent_api_key'] ?? ''))); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off" placeholder="<?php echo esc_attr($agent_p::key_hint()); ?>"></label>
                                 <br><span style="color:#888;"><?php esc_html_e('Get a key:', 'claudpress'); ?> <a href="<?php echo esc_url($agent_p::key_url()); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html($agent_p::key_url()); ?></a></span></p>
                             <p><label><?php esc_html_e('Model:', 'claudpress'); ?> <input type="text" name="agent_model" value="<?php echo esc_attr($s['agent_model'] ?? ''); ?>" class="regular-text" style="max-width:280px;" placeholder="<?php echo esc_attr($agent_p::default_model()); ?>"></label>
                                 <span style="color:#888;margin-left:8px;"><?php esc_html_e('Blank = ', 'claudpress'); ?><code><?php echo esc_html($agent_p::default_model()); ?></code></span></p>
@@ -663,7 +690,7 @@ final class Claudpress_Admin
                             <h3><?php esc_html_e('Notifications', 'claudpress'); ?></h3>
                             <p><label><?php esc_html_e('Email(s), comma-separated (blank = admin email):', 'claudpress'); ?> <input type="text" name="notify_email" value="<?php echo esc_attr($s['notify_email'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;"></label></p>
                             <p><label><?php esc_html_e('Webhook URL (Slack/generic, optional):', 'claudpress'); ?> <input type="text" name="notify_webhook_url" value="<?php echo esc_attr($s['notify_webhook_url'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;"></label></p>
-                            <p><label><?php esc_html_e('Telegram bot token:', 'claudpress'); ?> <input type="text" name="notify_telegram_token" value="<?php echo esc_attr($s['notify_telegram_token'] ?? ''); ?>" class="regular-text" style="max-width:340px;"></label>
+                            <p><label><?php esc_html_e('Telegram bot token:', 'claudpress'); ?> <input type="text" name="notify_telegram_token" value="<?php echo esc_attr(Claudpress_Secrets::mask((string) ($s['notify_telegram_token'] ?? ''))); ?>" class="regular-text" style="max-width:340px;"></label>
                                <label style="margin-left:8px;"><?php esc_html_e('chat id:', 'claudpress'); ?> <input type="text" name="notify_telegram_chat" value="<?php echo esc_attr($s['notify_telegram_chat'] ?? ''); ?>" style="max-width:160px;"></label></p>
 
                             <h3><?php esc_html_e('Guardrails (policy)', 'claudpress'); ?></h3>
@@ -1026,7 +1053,7 @@ final class Claudpress_Admin
                 </p>
                 <p>
                     <label><?php esc_html_e('Transcription API key:', 'claudpress'); ?>
-                    <input type="password" name="voice_api_key" value="<?php echo esc_attr($s['voice_api_key'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off"></label>
+                    <input type="password" name="voice_api_key" value="<?php echo esc_attr(Claudpress_Secrets::mask((string) ($s['voice_api_key'] ?? ''))); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off"></label>
                     <br><span style="color:#888;">
                         <?php
                         if ($voice_key !== '' && trim((string) ($s['voice_api_key'] ?? '')) === '') {
@@ -1394,5 +1421,27 @@ final class Claudpress_Admin
             </tbody></table>
         </div>
         <?php
+    }
+
+    /**
+     * Read a credential field from $_POST, honouring the mask.
+     *
+     * The form renders a mask rather than the stored key, so an unchanged form
+     * posts that mask straight back. Writing it blindly would replace every
+     * saved credential with a row of dots the first time anyone saved an
+     * unrelated setting on the same screen - which is exactly the sort of
+     * silent, delayed breakage that is miserable to diagnose.
+     *
+     * So: a posted mask means 'leave it alone', an empty string means 'clear it',
+     * and anything else is a genuinely new key.
+     */
+    private static function secret_from_post(string $field): string
+    {
+        $posted = sanitize_text_field(wp_unslash($_POST[$field] ?? ''));
+
+        if (Claudpress_Secrets::is_mask($posted)) {
+            return (string) Claudpress::instance()->get($field, '');
+        }
+        return $posted;
     }
 }

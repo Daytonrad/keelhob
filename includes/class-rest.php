@@ -147,13 +147,19 @@ final class Claudpress_Rest
      */
     public function status(WP_REST_Request $request): WP_REST_Response
     {
+        // S6: this route is deliberately unauthenticated so a client can
+        // discover the endpoint before it has credentials. That makes anything
+        // returned here public, so the exact version number must not be: once
+        // the plugin has an install base, a public version string is a shopping
+        // list for anyone scanning for un-patched sites. Authenticated callers
+        // still get the full picture.
         $body = [
             'name'     => 'Claudpress',
-            'version'  => CLAUDPRESS_VERSION,
             'endpoint' => rest_url(CLAUDPRESS_REST_NAMESPACE . '/mcp'),
         ];
 
         if (Claudpress_Auth::authenticate() === true) {
+            $body['version']           = CLAUDPRESS_VERSION;
             $body['abilities_enabled'] = Claudpress::instance()->abilities_enabled();
             $body['tool_count']        = count(Claudpress::instance()->registry->names());
         }

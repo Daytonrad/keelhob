@@ -210,21 +210,25 @@ ob_start();
 $admin->render_automation();
 $automation = (string) ob_get_clean();
 
+// Changed in 1.10.1 (S2). This block used to assert the opposite - that each
+// key WAS rendered into its input - on the reasoning that a password input is
+// a safe enough home for a secret. It is not: type="password" only hides the
+// value on screen, while the real key still sits in the page source, where
+// admin-side XSS, a browser extension, a screen share or view-source picks it
+// straight back up. The screen now renders a mask instead, and the stored value
+// is only ever replaced when someone types a genuinely new one.
 foreach ([
     'image key on Connect'      => ['sk-SECRETIMAGEKEY', $connect],
     'deploy token on Connect'   => ['cp_SECRETDEPLOYTOKEN', $connect],
     'agent key on Automation'   => ['sk-ant-SECRETAGENTKEY', $automation],
 ] as $what => [$secret, $page]) {
-    $pos = strpos($page, $secret);
-    CP_Test::ok($pos !== false, $what . ' is rendered into its field');
-    if ($pos === false) {
-        continue;
-    }
-    // The only acceptable home for a secret is a password input's value.
-    $context = substr($page, max(0, $pos - 200), 260);
     CP_Test::ok(
-        strpos($context, 'type="password"') !== false,
-        $what . ' appears only inside a password input'
+        strpos($page, $secret) === false,
+        $what . ' never appears in the page source'
+    );
+    CP_Test::ok(
+        strpos($page, substr($secret, -4)) !== false,
+        $what . ' still shows its last four characters, so the owner can tell which key is installed'
     );
 }
 
