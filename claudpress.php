@@ -52,6 +52,7 @@ require_once CLAUDPRESS_DIR . 'includes/class-mcp-server.php';
 require_once CLAUDPRESS_DIR . 'includes/class-rest.php';
 require_once CLAUDPRESS_DIR . 'includes/class-memory.php';
 require_once CLAUDPRESS_DIR . 'includes/class-skills.php';
+require_once CLAUDPRESS_DIR . 'includes/class-skills-remote.php';
 require_once CLAUDPRESS_DIR . 'includes/class-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/class-sandbox.php';
 require_once CLAUDPRESS_DIR . 'includes/class-logger.php';
@@ -69,6 +70,7 @@ require_once CLAUDPRESS_DIR . 'includes/class-tasks.php';
 require_once CLAUDPRESS_DIR . 'includes/class-migration.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin-snippets.php';
+require_once CLAUDPRESS_DIR . 'includes/class-admin-skills.php';
 
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-core.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-filesystem.php';

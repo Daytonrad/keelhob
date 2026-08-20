@@ -141,6 +141,10 @@ final class Claudpress_Admin
         // Directly after Connect: this is the primary "what has the AI done to
         // my site" surface, and it must be easy to find in a hurry.
         add_submenu_page('claudpress', __('Snippets', 'claudpress'), __('Snippets', 'claudpress'), 'manage_options', 'claudpress-snippets', [$this, 'render_snippets']);
+        // Skills sit next to Snippets for the same reason: both answer "what is
+        // this agent actually working from?", and the Pro list on that screen is
+        // the only honest place to say what expertise exists but is not here.
+        add_submenu_page('claudpress', __('Skills', 'claudpress'), __('Skills', 'claudpress'), 'manage_options', 'claudpress-skills', [$this, 'render_skills']);
         add_submenu_page('claudpress', __('Automation', 'claudpress'), __('Automation', 'claudpress'), 'manage_options', 'claudpress-automation', [$this, 'render_automation']);
         add_submenu_page('claudpress', __('Guide', 'claudpress'), __('Guide', 'claudpress'), 'manage_options', 'claudpress-guide', [$this, 'render_guide']);
         add_submenu_page('claudpress', __('Activity', 'claudpress'), __('Activity', 'claudpress'), 'manage_options', 'claudpress-activity', [$this, 'render_activity']);
@@ -277,6 +281,11 @@ final class Claudpress_Admin
     public function render_snippets(): void
     {
         (new Claudpress_Admin_Snippets())->render();
+    }
+
+    public function render_skills(): void
+    {
+        (new Claudpress_Admin_Skills())->render();
     }
 
     public function handle_save(): void

@@ -13,7 +13,7 @@ final class Claudpress_Tools_Skills
 {
     public static function register(Claudpress_Tool_Registry $r): void
     {
-        $r->add('skill_list', 'List all skills on this site (name, description, enabled/agentic/prompt flags). At session start you receive descriptions only; call skill_get to load a body when a task matches. Read-only.', [
+        $r->add('skill_list', 'List every skill this site has (name, description, source, enabled/agentic/prompt flags), plus the skills that exist but are not available here, marked available:false with the tier that carries them. At session start you receive descriptions only; call skill_get to load a body when a task matches. Never call skill_get on an unavailable skill — it is listed so you know it exists and what it would do, not so you can try it. Read-only.', [
             'type' => 'object', 'properties' => (object) [],
         ], [self::class, 'list'], ['readOnlyHint' => true]);
 
@@ -50,13 +50,43 @@ final class Claudpress_Tools_Skills
         ], [self::class, 'delete'], ['destructiveHint' => true]);
     }
 
+    /**
+     * Everything on this site, then everything that exists and is not.
+     *
+     * The second half is the point: an agent that cannot see a skill exists
+     * either invents a worse version of it or keeps probing for one. Names and
+     * descriptions travel, bodies never do — a description tells the agent
+     * enough to route around the gap and tell the owner what is missing.
+     */
     public static function list(array $a): array
     {
         $skills = array_map(fn($s) => [
             'name' => $s['name'], 'description' => $s['description'],
             'enabled' => (bool) $s['enabled'], 'agentic' => (bool) $s['enable_agentic'],
             'prompt' => (bool) $s['enable_prompt'], 'bundled' => (bool) $s['is_bundled'],
+            'source' => Claudpress_Skills::normalize_source((string) ($s['source'] ?? '')),
+            'version' => (string) ($s['version'] ?? ''),
+            'tier' => Claudpress_Skill_Catalog::tier((string) $s['name']),
+            'available' => true,
         ], Claudpress::instance()->skills->all());
+
+        $here = array_column($skills, 'name');
+        foreach (Claudpress_Skill_Catalog::unavailable() as $pro) {
+            // A Pro skill copied here from a licensed site is installed, whatever
+            // the catalogue says about the tier that sells it. Listing it twice,
+            // once as unavailable, would be a lie the agent then acts on.
+            if (in_array($pro['name'], $here, true)) {
+                continue;
+            }
+            $skills[] = [
+                'name'        => $pro['name'],
+                'description' => $pro['description'],
+                'tier'        => 'pro',
+                'available'   => false,
+                'note'        => 'Not installed on this site. Do not call skill_get for it.',
+            ];
+        }
+
         return ['success' => true, 'skills' => $skills];
     }
 

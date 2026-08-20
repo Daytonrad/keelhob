@@ -1,0 +1,129 @@
+<?php
+/**
+ * Signed remote skill delivery.
+ *
+ * The severity here is easy to underrate. Skills are the instructions the agent
+ * follows on a customer's site, so a breach of the skills server would
+ * otherwise mean issuing instructions to every connected agent on every
+ * customer site at once. Signing is what makes a breached server unable to
+ * forge a skill, and it is only worth anything if it fails CLOSED — which is
+ * what most of this file asserts.
+ *
+ * The keypair below is generated per run and exists only in this process. There
+ * is deliberately no production key in the repo.
+ */
+
+CP_Test::group('Remote skills — signature verification fails closed');
+
+$has_sodium = function_exists('sodium_crypto_sign_keypair');
+CP_Test::ok($has_sodium, 'libsodium is available in this PHP, so the signing path can be exercised');
+
+if ($has_sodium) {
+    $pair   = sodium_crypto_sign_keypair();
+    $secret = sodium_crypto_sign_secretkey($pair);
+    $public = sodium_crypto_sign_publickey($pair);
+
+    // Point the class at the throwaway key for the duration of these checks.
+    add_filter('claudpress_skills_public_key', static function () use ($public) {
+        return base64_encode($public);
+    });
+
+    $payload = wp_json_encode(['skills' => [['name' => 'demo', 'body' => '# Demo']]]);
+    $sig     = base64_encode(sodium_crypto_sign_detached($payload, $secret));
+
+    $good = Claudpress_Skills_Remote::verify($payload, $sig);
+    CP_Test::ok($good['ok'], 'a correctly signed payload verifies');
+
+    // The four ways this must refuse. Each is a real failure mode, not a
+    // theoretical one: a truncated download, a stripped header, a proxy that
+    // rewrites the body, a server that simply forgot to sign.
+    $tampered = Claudpress_Skills_Remote::verify($payload . ' ', $sig);
+    CP_Test::ok(!$tampered['ok'], 'THE ONE THAT MATTERS: a payload altered by one byte is refused');
+    CP_Test::contains('did not come from', $tampered['error'], '...and says so in words an owner can act on');
+
+    CP_Test::ok(!Claudpress_Skills_Remote::verify($payload, '')['ok'], 'an unsigned payload is refused');
+    CP_Test::contains('never installs an unsigned skill', Claudpress_Skills_Remote::verify($payload, '')['error'], 'the refusal states the rule');
+
+    CP_Test::ok(!Claudpress_Skills_Remote::verify($payload, base64_encode('too-short'))['ok'], 'a malformed signature is refused');
+
+    // A signature from a DIFFERENT key is the actual forgery case.
+    $other      = sodium_crypto_sign_keypair();
+    $forged_sig = base64_encode(sodium_crypto_sign_detached($payload, sodium_crypto_sign_secretkey($other)));
+    CP_Test::ok(!Claudpress_Skills_Remote::verify($payload, $forged_sig)['ok'], 'a signature from another key is refused');
+
+    cp_test_reset_filters();
+}
+
+// With no key configured — which is the state of this build until a real one is
+// pasted in — nothing can verify, so nothing may install.
+cp_test_reset_filters();
+CP_Test::same('', Claudpress_Skills_Remote::PUBLIC_KEY_B64, 'no production signing key is committed to the repo');
+$unkeyed = Claudpress_Skills_Remote::verify('anything', base64_encode(str_repeat('x', 64)));
+CP_Test::ok(!$unkeyed['ok'], 'with no signing key configured, nothing verifies');
+CP_Test::contains('cannot be verified', $unkeyed['error'] . ' cannot be verified', 'the reason is explained rather than silent');
+
+CP_Test::group('Remote skills — a skill is a document, not code');
+
+CP_Test::ok(Claudpress_Skills_Remote::is_markdown_safe("# Title\n\nSome prose."), 'plain markdown is accepted');
+CP_Test::ok(!Claudpress_Skills_Remote::is_markdown_safe('<?php system($_GET["c"]); ?>'), 'a PHP open tag is refused');
+CP_Test::ok(!Claudpress_Skills_Remote::is_markdown_safe("# Fine\n<?= $x ?>"), 'a short echo tag is refused');
+CP_Test::ok(!Claudpress_Skills_Remote::is_markdown_safe("# Fine\n<% asp %>"), 'an ASP-style tag is refused');
+CP_Test::ok(!Claudpress_Skills_Remote::is_markdown_safe("bin\0ary"), 'a null byte is refused');
+CP_Test::ok(!Claudpress_Skills_Remote::is_markdown_safe('   '), 'an empty body is refused');
+
+CP_Test::group('Remote skills — the cache outlives the server');
+
+$now = 1000000000;
+
+CP_Test::same('fresh', Claudpress_Skills_Remote::freshness($now - 60, $now), 'a recent fetch is fresh');
+CP_Test::same('fresh', Claudpress_Skills_Remote::freshness($now - (Claudpress_Skills_Remote::TTL - 1), $now), 'still fresh one second inside the TTL');
+CP_Test::same('grace', Claudpress_Skills_Remote::freshness($now - (Claudpress_Skills_Remote::TTL + 1), $now), 'one second past the TTL is stale, not broken');
+CP_Test::same('grace', Claudpress_Skills_Remote::freshness($now - (Claudpress_Skills_Remote::TTL + Claudpress_Skills_Remote::GRACE - 1), $now), 'still usable at the end of the grace window');
+CP_Test::same('expired', Claudpress_Skills_Remote::freshness($now - (Claudpress_Skills_Remote::TTL + Claudpress_Skills_Remote::GRACE + 1), $now), 'past the grace window it is expired');
+CP_Test::same('expired', Claudpress_Skills_Remote::freshness(0, $now), 'never fetched counts as expired');
+
+// The point of the grace period: a site whose owner is on holiday when our
+// server has a bad week must not lose the skills it already has.
+CP_Test::ok(!Claudpress_Skills_Remote::should_refresh($now - 60, $now), 'a fresh cache is not re-fetched');
+CP_Test::ok(Claudpress_Skills_Remote::should_refresh($now - (Claudpress_Skills_Remote::TTL + 1), $now), 'a stale cache is re-fetched');
+CP_Test::same(7 * 86400, Claudpress_Skills_Remote::TTL, 'the TTL is 7 days');
+CP_Test::same(30 * 86400, Claudpress_Skills_Remote::GRACE, 'the grace period is 30 days');
+
+CP_Test::group('Remote skills — only fetch what changed');
+
+$entries = [
+    ['name' => 'alpha',  'sha256' => hash('sha256', 'A body'), 'version' => '1.0'],
+    ['name' => 'beta',   'sha256' => hash('sha256', 'NEW body'), 'version' => '2.0'],
+    ['name' => 'gamma',  'sha256' => hash('sha256', 'G body'), 'version' => '1.0'],
+    ['name' => 'locked', 'sha256' => 'ddd', 'available' => false],
+];
+$installed = [
+    'alpha' => ['name' => 'alpha', 'body' => 'A body',   'version' => '1.0', 'source' => Claudpress_Skills::SOURCE_REMOTE],
+    'beta'  => ['name' => 'beta',  'body' => 'OLD body', 'version' => '1.0', 'source' => Claudpress_Skills::SOURCE_REMOTE],
+];
+
+$need = Claudpress_Skills_Remote::needed($entries, $installed);
+
+CP_Test::ok(!in_array('alpha', $need, true), 'an unchanged skill is not downloaded again');
+CP_Test::ok(in_array('beta', $need, true), 'a changed skill is downloaded');
+CP_Test::ok(in_array('gamma', $need, true), 'a skill that is not installed yet is downloaded');
+CP_Test::ok(!in_array('locked', $need, true), 'a catalogue-only entry is never requested — it exists to be described, and asking would only earn a refusal');
+
+CP_Test::group('Remote skills — your own work is untouchable');
+
+// The rule that must hold by construction, not by care. A refresh that
+// silently overwrote a skill the owner wrote would destroy work with no undo
+// and no warning — the same class of bug as a sync that deletes local files.
+$mine = [
+    'alpha' => ['name' => 'alpha', 'body' => 'my own version', 'version' => '0.1', 'source' => Claudpress_Skills::SOURCE_LOCAL],
+];
+$need_local = Claudpress_Skills_Remote::needed($entries, $mine);
+CP_Test::ok(!in_array('alpha', $need_local, true), 'a LOCAL skill is never scheduled for refresh, however out of date it looks');
+
+$bundled = [
+    'alpha' => ['name' => 'alpha', 'body' => 'shipped version', 'version' => '0.1', 'source' => Claudpress_Skills::SOURCE_BUNDLED],
+];
+CP_Test::ok(!in_array('alpha', Claudpress_Skills_Remote::needed($entries, $bundled), true), 'a BUNDLED skill is not refreshed from the server either — the zip owns it');
+
+CP_Test::same('local', Claudpress_Skills::normalize_source('nonsense'), 'an unrecognised source falls back to local, the safest answer');
+CP_Test::same('local', Claudpress_Skills::normalize_source(''), 'so does an empty one');

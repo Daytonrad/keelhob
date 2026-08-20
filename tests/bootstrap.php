@@ -528,6 +528,7 @@ require_once CLAUDPRESS_DIR . 'includes/class-tasks.php';
 require_once CLAUDPRESS_DIR . 'includes/class-migration.php';
 require_once CLAUDPRESS_DIR . 'includes/class-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/class-skills.php';
+require_once CLAUDPRESS_DIR . 'includes/class-skills-remote.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-filesystem.php';
@@ -567,3 +568,9 @@ $GLOBALS['cp_test_mail']  = [];
 $GLOBALS['cp_test_posts'] = [];
 
 require_once CLAUDPRESS_DIR . 'includes/class-notifier.php';
+
+// The Pro add-on lives beside the plugin, not inside it. Loading its classes
+// here lets the tier gate be exercised from both sides in one process.
+if (file_exists(CLAUDPRESS_DIR . 'claudpress-pro/includes/class-claudpress-pro-licence.php')) {
+    require_once CLAUDPRESS_DIR . 'claudpress-pro/includes/class-claudpress-pro-licence.php';
+}

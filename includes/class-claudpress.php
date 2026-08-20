@@ -241,6 +241,21 @@ final class Claudpress
         Claudpress_Tools_Deploy::register($this->registry);
         Claudpress_Tools_Readiness::register($this->registry);
 
+        /**
+         * The extension seam for tools that do not live in this plugin.
+         *
+         * Fires once per request, after every core group has registered and
+         * before anything reads the registry, so an add-on or a third-party
+         * plugin can contribute tools without this file having to know they
+         * exist. The paid add-on registers its Pro tools here — that is the
+         * whole coupling between the two zips, and keeping it to one action is
+         * what lets them ship and update independently.
+         *
+         * Add tools with $registry->add(); registration fails soft, so a bad
+         * callback costs one tool rather than the request.
+         *
+         * @param Claudpress_Tool_Registry $registry
+         */
         do_action('claudpress_register_tools', $this->registry);
 
         // Code-snippets engine — active snippets run on every request.
@@ -289,6 +304,9 @@ final class Claudpress
         // After install_table() has added the columns: give pre-1.9 snippets a
         // uid and a created_at so the Snippets page and cross-site copy work.
         Claudpress_Snippets::backfill();
+        // Rows written before the source column existed have to be classified
+        // before anything can refresh them; see Claudpress_Skills::backfill_sources().
+        Claudpress_Skills::backfill_sources();
         Claudpress_Skills::seed_bundled_skills();
         self::seed_default_memory();
         if (!file_exists(CLAUDPRESS_SANDBOX_DIR)) {
@@ -330,6 +348,9 @@ final class Claudpress
         Claudpress_Logger::install_table();
         Claudpress_Snippet_Log::install_table();
         Claudpress_Snippets::backfill();
+        // Rows written before the source column existed have to be classified
+        // before anything can refresh them; see Claudpress_Skills::backfill_sources().
+        Claudpress_Skills::backfill_sources();
         Claudpress_Skills::seed_bundled_skills();
         self::seed_default_memory();
         update_option('claudpress_db_version', CLAUDPRESS_VERSION);
