@@ -59,8 +59,21 @@ wp plugin activate claudpress
 
 ## Run the checks
 
+All of them, in the right order (the free-install checks need the add-on off,
+the rest need it on):
+
 ```bash
-wp eval-file <repo>/Claudpress/tests/rig/checks.php
+bash tests/rig/run-all.sh /path/to/rig/wordpress
+# or: export CP_RIG=/path/to/rig/wordpress && bash tests/rig/run-all.sh
+```
+
+150 checks across four files. Or run one at a time:
+
+```bash
+wp eval-file <repo>/Claudpress/tests/rig/checks.php          # free install (39)
+wp eval-file <repo>/Claudpress/tests/rig/checks-pro.php      # with the add-on (48)
+wp eval-file <repo>/Claudpress/tests/rig/checks-studio.php   # the Studio screens (36)
+wp eval-file <repo>/Claudpress/tests/rig/checks-compose.php  # the AI Compose flow (27)
 ```
 
 Exits non-zero if anything fails, so it can go in CI once there is CI.

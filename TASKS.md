@@ -10,19 +10,20 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done + verified · `[!]` blo
 
 ## Where it stands
 
-**Everything is green.** 1361 unit assertions; 39 live checks on a free install,
-48 with the Pro add-on, 36 for the Studio and 27 for the Compose flow — all against
-real WordPress with WooCommerce.
+**Everything is green.** 1390 unit assertions and 150 live checks against real
+WordPress with WooCommerce — 39 on a free install, 48 with the Pro add-on, 36 for
+the Studio screens, 27 for the AI Compose flow.
 Both zips build, and the build refuses to ship Pro code in the free zip.
 
 **How to re-run any of it:**
 
 ```bash
 cd Claudpress
-php tests/run.php                 # unit suite
-bash bin/build-zip.sh             # both zips + the anti-contamination guard
+php tests/run.php                              # 1390 unit assertions
+bash bin/build-zip.sh                          # both zips + the contamination guard
+bash tests/rig/run-all.sh /path/to/wordpress   # 150 live checks
 ```
-For the live rig see `tests/rig/README.md` (WordPress on SQLite, no Docker).
+Building the rig from scratch: `tests/rig/README.md` (WordPress on SQLite, no Docker).
 
 Done and verified:
 
