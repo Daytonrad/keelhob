@@ -577,4 +577,10 @@ require_once CLAUDPRESS_DIR . 'includes/class-notifier.php';
 // here lets the tier gate be exercised from both sides in one process.
 if (file_exists(CLAUDPRESS_DIR . 'claudpress-pro/includes/class-claudpress-pro-licence.php')) {
     require_once CLAUDPRESS_DIR . 'claudpress-pro/includes/class-claudpress-pro-licence.php';
-}
+}
+
+// Studio helpers live in the add-on but are pure functions, so they belong in
+// the fast suite rather than only in the rig.
+if (file_exists(CLAUDPRESS_DIR . 'claudpress-pro/includes/class-studio-ai.php')) {
+    require_once CLAUDPRESS_DIR . 'claudpress-pro/includes/class-studio-ai.php';
+}
