@@ -57,6 +57,11 @@ final class Claudpress_Snippets
             impact TEXT NULL,
             origin_site VARCHAR(191) NOT NULL DEFAULT '',
             origin_uid VARCHAR(40) NOT NULL DEFAULT '',
+            source VARCHAR(20) NOT NULL DEFAULT 'manual',
+            ai_prompt TEXT NULL,
+            ai_model VARCHAR(60) NOT NULL DEFAULT '',
+            ai_review LONGTEXT NULL,
+            ai_review_at DATETIME NULL DEFAULT NULL,
             created_at DATETIME NULL,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
@@ -65,6 +70,32 @@ final class Claudpress_Snippets
             KEY uid (uid),
             KEY origin_uid (origin_uid)
         ) {$charset};");
+
+        // Revisions. The free tier writes them (they are how you find out what
+        // the agent changed); the Pro Studio is what turns them into one-click
+        // rollback. Recording history is not the paid part - being able to act
+        // on it comfortably is.
+        $revisions = self::revisions_table();
+        dbDelta("CREATE TABLE {$revisions} (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            snippet_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            snippet_uid VARCHAR(40) NOT NULL DEFAULT '',
+            name VARCHAR(191) NOT NULL DEFAULT '',
+            code LONGTEXT NULL,
+            note VARCHAR(191) NOT NULL DEFAULT '',
+            author_type VARCHAR(10) NOT NULL DEFAULT 'user',
+            user_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY snippet_id (snippet_id),
+            KEY snippet_uid (snippet_uid)
+        ) {$charset};");
+    }
+
+    public static function revisions_table(): string
+    {
+        global $wpdb;
+        return $wpdb->prefix . 'claudpress_snippet_revisions';
     }
 
     /**
@@ -491,6 +522,9 @@ final class Claudpress_Snippets
             'impact'       => array_key_exists('impact', $a) ? (string) $a['impact'] : ($existing['impact'] ?? null),
             'origin_site'  => array_key_exists('origin_site', $a) ? sanitize_text_field((string) $a['origin_site']) : (string) ($existing['origin_site'] ?? ''),
             'origin_uid'   => array_key_exists('origin_uid', $a) ? sanitize_text_field((string) $a['origin_uid']) : (string) ($existing['origin_uid'] ?? ''),
+            'source'       => array_key_exists('source', $a) ? self::normalize_source((string) $a['source']) : (string) ($existing['source'] ?? 'manual'),
+            'ai_prompt'    => array_key_exists('ai_prompt', $a) ? (string) $a['ai_prompt'] : ($existing['ai_prompt'] ?? null),
+            'ai_model'     => array_key_exists('ai_model', $a) ? sanitize_text_field((string) $a['ai_model']) : (string) ($existing['ai_model'] ?? ''),
             'updated_at'   => current_time('mysql'),
         ];
 
@@ -501,6 +535,18 @@ final class Claudpress_Snippets
         }
 
         $code_changed = $existing ? ($row['code'] !== (string) $existing['code']) : true;
+
+        // Snapshot BEFORE the write, and only when the code actually moved.
+        // Saving a snippet without touching its code - renaming it, retagging it,
+        // flipping a condition - must not fill the history with identical
+        // entries, or the history stops being readable and nobody uses it.
+        if ($existing && $code_changed) {
+            self::record_revision(
+                $existing,
+                sprintf(__('Before edit (%s)', 'claudpress'), $row['source']),
+                Claudpress_Snippet_Log::actor()
+            );
+        }
 
         // Fail soft, like the crash guard: broken code is still stored so the
         // owner does not lose their work, but it is forced off and labelled.
@@ -653,5 +699,55 @@ final class Claudpress_Snippets
             Claudpress_Snippet_Log::record((string) ($snip['uid'] ?? ''), (string) ($snip['name'] ?? ''), 'deleted');
         }
         return ['success' => (bool) $deleted, 'id' => $id];
+    }
+
+    /** How a snippet came to exist. Anything unrecognised is treated as hand-written. */
+    const SOURCES = ['manual', 'ai', 'library', 'cloud'];
+
+    public static function normalize_source(string $source): string
+    {
+        $source = strtolower(trim($source));
+        return in_array($source, self::SOURCES, true) ? $source : 'manual';
+    }
+
+    /**
+     * Record what a snippet looked like before this change.
+     *
+     * Written on every save that alters the code, by anyone - agent or human.
+     * It is deliberately cheap and deliberately free: the owner finding out what
+     * the agent changed to their site is not a premium feature, and a history
+     * that only some sites keep is not a history you can rely on.
+     */
+    public static function record_revision(array $before, string $note, string $author_type = 'user'): void
+    {
+        global $wpdb;
+        if (!isset($wpdb) || empty($before['id'])) {
+            return;
+        }
+        $wpdb->insert(self::revisions_table(), [
+            'snippet_id'  => (int) $before['id'],
+            'snippet_uid' => (string) ($before['uid'] ?? ''),
+            'name'        => mb_substr((string) ($before['name'] ?? ''), 0, 191),
+            'code'        => (string) ($before['code'] ?? ''),
+            'note'        => mb_substr($note, 0, 191),
+            'author_type' => in_array($author_type, ['user', 'agent'], true) ? $author_type : 'user',
+            'user_id'     => function_exists('get_current_user_id') ? (int) get_current_user_id() : 0,
+            'created_at'  => current_time('mysql'),
+        ]);
+    }
+
+    /** @return array<int, array<string, mixed>> newest first */
+    public static function revisions(int $snippet_id, int $limit = 20): array
+    {
+        global $wpdb;
+        if (!isset($wpdb)) {
+            return [];
+        }
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM " . self::revisions_table() . " WHERE snippet_id = %d ORDER BY id DESC LIMIT %d",
+            $snippet_id,
+            max(1, min(200, $limit))
+        ), ARRAY_A);
+        return $rows ?: [];
     }
 }

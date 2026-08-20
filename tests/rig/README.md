@@ -95,3 +95,17 @@ serve.
 
 Delete the rig directory. Nothing in it is precious, and rebuilding takes a
 couple of minutes. Never point the rig at a database you care about.
+
+## One rig quirk that will waste your time
+
+Do not trust `sqlite_master.sql` or `PRAGMA table_info` to tell you whether a
+column exists. The SQLite integration plugin translates MySQL DDL, and the
+stored schema text does not always list columns that genuinely are there:
+`dbDelta` adds them, values write and read back correctly, and the introspection
+still says they are missing.
+
+Check behaviour instead — write a row, read it back. If that works, the column
+exists, whatever the DDL claims.
+
+This is a property of the rig, not of the plugin. On MySQL, `dbDelta` behaves
+the way it is documented to.
