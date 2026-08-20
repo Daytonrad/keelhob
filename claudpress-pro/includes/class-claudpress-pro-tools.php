@@ -35,6 +35,8 @@ final class Claudpress_Pro_Tools
         // before the split sees no difference.
         Claudpress_Tools_Payments::register($registry);
         Claudpress_Tools_Deploy::register($registry);
+        Claudpress_Tools_Ops_Pro::register($registry);
+        Claudpress_Tools_Automation_Pro::register($registry);
 
         $registry->add(
             'pro_status',

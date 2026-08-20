@@ -69,18 +69,38 @@ $all     = Claudpress::instance()->registry->names();
 $visible = array_values(array_filter($all, static fn($n) => Claudpress_Capabilities::tool_allowed($n)));
 $hidden  = array_values(array_diff($all, $visible));
 
-check('Tier hides Pro tools from the registry', count($hidden) > 0, count($visible) . ' visible / ' . count($hidden) . ' hidden');
-check('Tier keeps execute_php free', in_array('execute_php', $visible, true));
-check('Tier keeps snippet_save free', in_array('snippet_save', $visible, true));
-check('Tier keeps write_file free', in_array('write_file', $visible, true));
-check('Tier keeps site_readiness free', in_array('site_readiness', $visible, true));
-check('Tier hides run_agent', in_array('run_agent', $hidden, true));
-// deploy_push used to be registered-then-filtered. Since the tool code moved to
-// the add-on it is not registered at all on a free install, which is a stronger
-// property than being hidden: there is nothing to unhide.
-check('Deploy tools are absent, not merely hidden', !in_array('deploy_push', $all, true));
-check('...and their class does not exist either', !class_exists('Claudpress_Tools_Deploy'));
-check('Payments tools are absent too', !in_array('wc_payments', $all, true));
+// What actually matters is that a Pro tool is not USABLE on a free install.
+// Whether it is absent from the registry (the code moved to the add-on) or
+// present-but-filtered (the code is still in core) is an implementation detail
+// that changes as files migrate, and asserting the detail rather than the
+// property meant this check broke twice for no good reason.
+$usable = static function (string $tool) use ($all) {
+    return in_array($tool, $all, true) && Claudpress_Capabilities::tool_allowed($tool);
+};
+
+check('Pro tools are not usable on a free install', count($hidden) + count(array_diff(Claudpress_Capabilities::pro_tools(), $all)) > 0,
+    count($visible) . ' visible / ' . count($hidden) . ' filtered / ' . count(array_diff(Claudpress_Capabilities::pro_tools(), $all)) . ' absent');
+
+foreach (['run_agent', 'deploy_push', 'wc_payments', 'send_email', 'manage_updates', 'task_save'] as $tool) {
+    check('  ' . $tool . ' is unusable', !$usable($tool));
+}
+// wc_* tools only register when WooCommerce is active, so a rig without it
+// would fail these for a reason that has nothing to do with tiering.
+$free_tools = ['execute_php', 'write_file', 'snippet_save', 'site_readiness', 'image_search'];
+if (class_exists('WooCommerce')) {
+    $free_tools[] = 'wc_product';
+    $free_tools[] = 'wc_coupon';
+} else {
+    echo "NOTE  WooCommerce is not installed on this rig, so wc_* tools are skipped." . PHP_EOL;
+}
+foreach ($free_tools as $tool) {
+    check('  ' . $tool . ' is usable (free)', $usable($tool));
+}
+
+// The always-on promise: these work whatever else is restricted.
+foreach (Claudpress_Capabilities::always_on() as $tool) {
+    check('  always-on: ' . $tool, $usable($tool));
+}
 
 $info = Claudpress_Tools_Core::get_site_info([]);
 check('get_site_info reports the plan', ($info['claudpress']['plan'] ?? '') === 'free');
