@@ -10,8 +10,18 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done + verified · `[!]` blo
 
 ## Where it stands
 
-**Everything is green.** 1349 unit assertions, 37 live checks against a real
-WordPress, both zips build, and the build refuses to ship Pro code in the free zip.
+**Everything is green.** 1361 unit assertions; 39 live checks on a free install
+and 48 with the Pro add-on active, both against a real WordPress with WooCommerce.
+Both zips build, and the build refuses to ship Pro code in the free zip.
+
+**How to re-run any of it:**
+
+```bash
+cd Claudpress
+php tests/run.php                 # unit suite
+bash bin/build-zip.sh             # both zips + the anti-contamination guard
+```
+For the live rig see `tests/rig/README.md` (WordPress on SQLite, no Docker).
 
 Done and verified:
 
@@ -137,7 +147,7 @@ Everything below is being built to work the moment these land.
 
 - [x] WP-CLI + SQLite + `php -S` rig up
 - [ ] AI mock mu-plugin (no key, no spend)  **<- needed before Snippets Studio work**
-- [ ] Install WooCommerce on the rig so the store demo path is actually exercised  **<- next**
+- [x] WooCommerce installed on the rig — wc_* tools now genuinely exercised both sides
 - [ ] Local cloud stub server
 
 ---
@@ -161,4 +171,5 @@ Everything below is being built to work the moment these land.
 | 2026-08-20 | Split ops + automation tool files. Nearly broke `always_on()` — three of automation's tools are always-on and had to stay free. |
 | 2026-08-20 | Live rig **37/37**. Unit suite **1361**. Free zip down to 268K; **19 Pro tools no longer ship in it**. |
 | 2026-08-20 | All four mixed tool files split. `seo` capability group split too (setup free, optimization Pro). |
-| 2026-08-20 | Add-on installed in the rig and tested from BOTH sides: **40/40** Pro checks. Found a missing WooCommerce guard the unit tests could not see. |
+| 2026-08-20 | Add-on installed in the rig and tested from BOTH sides. Found a missing WooCommerce guard the unit tests could not see. |
+| 2026-08-20 | WooCommerce installed on the rig. Final: **39** free-side + **48** Pro-side live checks, all passing. |
