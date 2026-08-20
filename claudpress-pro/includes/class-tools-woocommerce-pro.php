@@ -18,6 +18,15 @@ final class Claudpress_Tools_Woocommerce_Pro
 {
     public static function register(Claudpress_Tool_Registry $r): void
     {
+        // The free class carried this guard and the carve left it behind, so
+        // for a while wc_order and wc_report registered on sites with no
+        // WooCommerce at all - tools an agent could see, call, and get an error
+        // from, for a store that does not exist. Caught by running the add-on
+        // against a real WordPress without WooCommerce installed.
+        if (!class_exists('WooCommerce')) {
+            return;
+        }
+
         $r->add('wc_order', 'Manage WooCommerce orders. Actions: list, get, update_status, add_note, refund, create. Filter list by status, customer, and date. update_status moves an order (e.g. processing → completed).', [
             'type' => 'object',
             'properties' => [

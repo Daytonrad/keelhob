@@ -137,7 +137,7 @@ Everything below is being built to work the moment these land.
 
 - [x] WP-CLI + SQLite + `php -S` rig up
 - [ ] AI mock mu-plugin (no key, no spend)  **<- needed before Snippets Studio work**
-- [ ] Install WooCommerce on the rig so the store demo path is actually exercised
+- [ ] Install WooCommerce on the rig so the store demo path is actually exercised  **<- next**
 - [ ] Local cloud stub server
 
 ---
@@ -161,3 +161,4 @@ Everything below is being built to work the moment these land.
 | 2026-08-20 | Split ops + automation tool files. Nearly broke `always_on()` — three of automation's tools are always-on and had to stay free. |
 | 2026-08-20 | Live rig **37/37**. Unit suite **1361**. Free zip down to 268K; **19 Pro tools no longer ship in it**. |
 | 2026-08-20 | All four mixed tool files split. `seo` capability group split too (setup free, optimization Pro). |
+| 2026-08-20 | Add-on installed in the rig and tested from BOTH sides: **40/40** Pro checks. Found a missing WooCommerce guard the unit tests could not see. |
