@@ -8,6 +8,36 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done + verified · `[!]` blo
 
 ---
 
+## Where it stands
+
+**Everything is green.** 1349 unit assertions, 37 live checks against a real
+WordPress, both zips build, and the build refuses to ship Pro code in the free zip.
+
+Done and verified:
+
+- **All 7 security bugs + the uninstall data-loss bug** (1.10.1). Each was proven
+  against the pre-fix code first — the old `write_file` really did let you write
+  a PHP file anywhere on the server, and the old uninstall really did delete
+  every snippet you had.
+- **The free/Pro line** exists in the capability layer, and **13 Pro tools plus
+  all 6 Pro skills no longer ship in the free zip at all** — not gated, absent.
+- **Consent gate**, **provider picker**, **notification channels**, **Activity
+  page** with paging and retention, **Skills screen**, **tier disclosure to agents**.
+- **Pro add-on scaffold** with a licence gate that is generous about outages and
+  strict about expiry.
+- **Signed remote skills** — Ed25519, fails closed, markdown only, never
+  overwrites your own skills.
+
+Biggest thing still to build: **the Snippets Studio** (Phase 4), then the cloud.
+
+Two things I got wrong and fixed, so you know the shape of the mistakes:
+all 6 Pro skills were shipping in the free zip until I built the zip and read
+it; and splitting the automation tools nearly removed three always-on tools from
+the free plugin.
+
+
+---
+
 ## BLOCKED ON YOU (everything else is built around these)
 
 | # | What I need | Why | Where it plugs in |
@@ -80,11 +110,11 @@ Everything below is being built to work the moment these land.
 - [ ] Tab 3 AI Compose (plan -> approve -> build -> save inactive)
 - [ ] Tab 4 Library (bundled + private)
 - [x] Move **deploy** + **payments** tool files to the add-on (6 tools no longer in the free zip)
-- [ ] Split the 4 **mixed** tool files — each has free and Pro tools in one file:
-      - `class-tools-woocommerce.php` → `wc_order`, `wc_report` are Pro; product/coupon/settings stay free
-      - `class-tools-seo.php` → `seo_analyze`, `seo_redirect` are Pro; meta/schema/sitemap stay free
-      - `class-tools-ops.php` → `manage_updates`, `send_email` are Pro; image_search/generate stay free
-      - `class-tools-automation.php` → `task_*`, `run_agent`, `notify_owner` are Pro; **`get_dashboard` and `agent_runs` are always-on and must stay free**
+- [x] `class-tools-ops.php` split → `manage_updates`, `send_email` moved to add-on
+- [x] `class-tools-automation.php` split → `task_save/run/delete`, `run_agent`, `notify_owner` moved; **`get_dashboard`, `task_list`, `agent_runs` stayed free (always-on)**
+- [ ] `class-tools-woocommerce.php` → move `wc_order`, `wc_report`; keep product/coupon/settings free
+- [ ] `class-tools-seo.php` → move `seo_analyze`, `seo_redirect`; keep meta/schema/sitemap free
+      (note: `seo_redirect` pairs with the `do_redirects` hook — existing redirects must keep working on free)
 
 ## Phase 5 — cloud (built against a local stub until B2 lands)
 
@@ -107,6 +137,7 @@ Everything below is being built to work the moment these land.
 
 - [x] WP-CLI + SQLite + `php -S` rig up
 - [ ] AI mock mu-plugin (no key, no spend)  **<- needed before Snippets Studio work**
+- [ ] Install WooCommerce on the rig so the store demo path is actually exercised
 - [ ] Local cloud stub server
 
 ---
@@ -127,4 +158,5 @@ Everything below is being built to work the moment these land.
 | 2026-08-20 | Two subagents were cut off by a session limit mid-task; I verified and finished their work rather than discarding it. |
 | 2026-08-20 | **Caught by building the zip and reading it:** all 6 Pro skills were shipping in the free zip. Build now splits by tier. |
 | 2026-08-20 | **Same gap for tools:** moved deploy + payments out of the free plugin entirely. 4 mixed files still to split. |
-| 2026-08-20 | Live rig now at **25/25** checks. Unit suite **1339**. |
+| 2026-08-20 | Split ops + automation tool files. Nearly broke `always_on()` — three of automation's tools are always-on and had to stay free. |
+| 2026-08-20 | Live rig **37/37**. Unit suite **1349**. Free zip down to 54 entries; 13 Pro tools no longer ship in it. |
