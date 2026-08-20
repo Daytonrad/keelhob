@@ -67,9 +67,9 @@ Everything below is being built to work the moment these land.
 - [x] Remote fetch, 7-day TTL, 30-day grace, never blocks
 - [x] Ed25519 signature verification, markdown-only validation
 - [x] Refresh never touches `local` rows
-- [~] Skills admin screen (class-admin-skills.php written; menu registration + tests pending)
+- [x] Skills admin screen: On this site / Available in Pro / changelog (verified live: hide_paid_notices removes 3.3KB of Pro section)
 - [x] `skill_list` returns `available` + `tier` over MCP
-- [ ] `build-standard.md` falls back to `site_readiness` on free  **<- next**
+- [x] `build-standard.md` + operating protocol rule 9 fall back to `site_readiness` on free
 
 ## Phase 4 — Snippets Studio (Pro add-on)
 
@@ -79,7 +79,12 @@ Everything below is being built to work the moment these land.
 - [ ] Tab 2 Add/Edit + Ask AI (advisory, parse is the gate)
 - [ ] Tab 3 AI Compose (plan -> approve -> build -> save inactive)
 - [ ] Tab 4 Library (bundled + private)
-- [ ] Move deploy/automation/money-Woo/seo_analyze tools to add-on
+- [x] Move **deploy** + **payments** tool files to the add-on (6 tools no longer in the free zip)
+- [ ] Split the 4 **mixed** tool files — each has free and Pro tools in one file:
+      - `class-tools-woocommerce.php` → `wc_order`, `wc_report` are Pro; product/coupon/settings stay free
+      - `class-tools-seo.php` → `seo_analyze`, `seo_redirect` are Pro; meta/schema/sitemap stay free
+      - `class-tools-ops.php` → `manage_updates`, `send_email` are Pro; image_search/generate stay free
+      - `class-tools-automation.php` → `task_*`, `run_agent`, `notify_owner` are Pro; **`get_dashboard` and `agent_runs` are always-on and must stay free**
 
 ## Phase 5 — cloud (built against a local stub until B2 lands)
 
@@ -101,7 +106,7 @@ Everything below is being built to work the moment these land.
 ## Test rig
 
 - [x] WP-CLI + SQLite + `php -S` rig up
-- [ ] AI mock mu-plugin (no key, no spend)
+- [ ] AI mock mu-plugin (no key, no spend)  **<- needed before Snippets Studio work**
 - [ ] Local cloud stub server
 
 ---
@@ -120,3 +125,6 @@ Everything below is being built to work the moment these land.
 | 2026-08-20 | **Live WordPress rig built** (SQLite, no Docker). `tests/rig/` — 23/23 live checks pass against real $wpdb. |
 | 2026-08-20 | **Pro add-on scaffold + signed remote skills + two-zip build.** Build guard proven: contaminate the tree, build exits 1. |
 | 2026-08-20 | Two subagents were cut off by a session limit mid-task; I verified and finished their work rather than discarding it. |
+| 2026-08-20 | **Caught by building the zip and reading it:** all 6 Pro skills were shipping in the free zip. Build now splits by tier. |
+| 2026-08-20 | **Same gap for tools:** moved deploy + payments out of the free plugin entirely. 4 mixed files still to split. |
+| 2026-08-20 | Live rig now at **25/25** checks. Unit suite **1339**. |

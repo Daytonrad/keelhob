@@ -75,7 +75,12 @@ check('Tier keeps snippet_save free', in_array('snippet_save', $visible, true));
 check('Tier keeps write_file free', in_array('write_file', $visible, true));
 check('Tier keeps site_readiness free', in_array('site_readiness', $visible, true));
 check('Tier hides run_agent', in_array('run_agent', $hidden, true));
-check('Tier hides deploy_push', in_array('deploy_push', $hidden, true));
+// deploy_push used to be registered-then-filtered. Since the tool code moved to
+// the add-on it is not registered at all on a free install, which is a stronger
+// property than being hidden: there is nothing to unhide.
+check('Deploy tools are absent, not merely hidden', !in_array('deploy_push', $all, true));
+check('...and their class does not exist either', !class_exists('Claudpress_Tools_Deploy'));
+check('Payments tools are absent too', !in_array('wc_payments', $all, true));
 
 $info = Claudpress_Tools_Core::get_site_info([]);
 check('get_site_info reports the plan', ($info['claudpress']['plan'] ?? '') === 'free');
