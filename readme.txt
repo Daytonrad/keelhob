@@ -4,7 +4,7 @@ Tags: mcp, ai, claude, woocommerce, seo, automation
 Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.10.0
+Stable tag: 1.10.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -102,6 +102,16 @@ Claudpress > Automation. Pick your provider there — the model guide next to th
 field lists the exact model IDs to type for each one.
 
 == Changelog ==
+
+= 1.10.1 - security and a data-loss fix =
+* IMPORTANT: deleting the plugin no longer deletes your data. Until now, uninstalling dropped every snippet, memory, skill and scheduled task, permanently and without warning - which is a disaster if you were only removing the plugin to test for a conflict. Uninstall now keeps everything by default, so reinstalling puts you back where you were. There is a new setting if you genuinely do want everything erased.
+* Fixed a critical file-writing flaw. The write_file tool could be pointed outside its allowed directory using "..", which meant it could write a PHP file anywhere on the server the site can write to. Reading, editing and deleting files were not affected. If you have ever exposed your Claudpress endpoint to anyone you do not trust, update now.
+* API keys are now encrypted in the database instead of stored as plain text, and are no longer printed into the settings page source. The page shows the last four characters so you can still tell which key is installed. Your existing keys are re-encrypted the first time you save.
+* Secrets no longer appear in the Activity log. Payment gateway keys passed to the store tools were being written to the log table in clear text and shown on screen.
+* Failed logins are now rate limited, and the connection endpoint no longer accepts ordinary account passwords - only Application Passwords. Together those closed a way to guess passwords that security plugins and two-factor plugins could not see, because they only watch the normal login page.
+* The connection token is now stored as a hash and shown once, when you create it. Your current token keeps working; it is converted automatically the first time it is used. If you lose it, regenerate it.
+* The public status endpoint no longer reveals the exact plugin version to unauthenticated callers.
+* Fixed a way to bypass the "require HTTPS" setting by sending a forged Host header.
 
 = 1.10.0 — "Done" now means done =
 * The definition of done is no longer optional. Three rules were added to the operating protocol that every connected agent receives — run pre-launch-audit against your own work before reporting anything done, never invent a statistic/review/testimonial/customer/staff member the site cannot substantiate, and load the build-standard skill before building. The protocol is PHP, injected into every interactive session and every unattended run, so a site cannot switch it off.
