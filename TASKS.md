@@ -115,7 +115,7 @@ Everything below is being built to work the moment these land.
 ## Phase 4 — Snippets Studio (Pro add-on)
 
 - [x] Add-on plugin scaffold
-- [ ] Schema: description, priority, source, ai_*, error_last + revisions table
+- [x] Schema: source, ai_prompt, ai_model, ai_review, ai_review_at + revisions table
 - [ ] Tab 1 All Snippets (WP_List_Table, filters, badges)
 - [ ] Tab 2 Add/Edit + Ask AI (advisory, parse is the gate)
 - [ ] Tab 3 AI Compose (plan -> approve -> build -> save inactive)
@@ -146,7 +146,7 @@ Everything below is being built to work the moment these land.
 ## Test rig
 
 - [x] WP-CLI + SQLite + `php -S` rig up
-- [ ] AI mock mu-plugin (no key, no spend)  **<- needed before Snippets Studio work**
+- [x] AI mock mu-plugin (no key, no spend) — `tests/rig/ai-mock.php`; full `run_agent` loop verified through it
 - [x] WooCommerce installed on the rig — wc_* tools now genuinely exercised both sides
 - [ ] Local cloud stub server
 

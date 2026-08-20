@@ -109,3 +109,31 @@ exists, whatever the DDL claims.
 
 This is a property of the rig, not of the plugin. On MySQL, `dbDelta` behaves
 the way it is documented to.
+
+## Testing the AI paths without a key or any spend
+
+Copy `ai-mock.php` into the rig:
+
+```bash
+cp <repo>/Claudpress/tests/rig/ai-mock.php <RIG>/wordpress/wp-content/mu-plugins/
+```
+
+It hooks `pre_http_request`, matches the three provider hosts, and replays
+canned responses in each vendor's own shape. Then set any placeholder key:
+
+```bash
+wp eval 'Claudpress::instance()->update(["agent_provider"=>"anthropic","agent_api_key"=>"sk-ant-RIG-MOCK-NOT-A-REAL-KEY","agent_model"=>"mock-model-newest"]);'
+```
+
+What it replaces is only the network hop. Building the request, parsing the
+response, linting the code that comes back, the whole agent loop, usage
+accounting — all of that runs for real. That is the part worth testing, and it
+is exactly the part a stub of the plugin's own classes would have skipped.
+
+Verified working: `test_connection`, `fetch_models`, and a complete `run_agent`
+loop returning a summary, step count and token usage.
+
+Define `CLAUDPRESS_MOCK_FAIL` to make every call fail, for testing error paths.
+
+**It lives in `tests/rig/` and is copied in by hand on purpose.** It must never
+be anywhere the build could sweep it into a zip.
