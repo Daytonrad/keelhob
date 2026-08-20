@@ -37,6 +37,8 @@ final class Claudpress_Pro_Tools
         Claudpress_Tools_Deploy::register($registry);
         Claudpress_Tools_Ops_Pro::register($registry);
         Claudpress_Tools_Automation_Pro::register($registry);
+        Claudpress_Tools_Woocommerce_Pro::register($registry);
+        Claudpress_Tools_Seo_Pro::register($registry);
 
         $registry->add(
             'pro_status',

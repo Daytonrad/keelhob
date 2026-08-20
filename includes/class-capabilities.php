@@ -79,10 +79,21 @@ final class Claudpress_Capabilities
                 'desc' => 'Tax settings and rates.',
                 'tools' => ['wc_tax'],
             ],
+            // Setting a site up to be found and improving it afterwards are two
+            // different jobs. Titles, descriptions, schema and a sitemap are part
+            // of building the site, so they are free - a page nobody can index is
+            // not finished. Scoring a page against a target keyword and managing
+            // redirects is the loop you run forever after launch, which is what a
+            // subscription is actually for.
             'seo' => [
-                'label' => 'SEO', 'sensitive' => false, 'tier' => self::TIER_FREE,
-                'desc' => 'Meta, schema, redirects, sitemap, analysis.',
-                'tools' => ['seo_meta', 'seo_analyze', 'seo_schema', 'seo_redirect', 'seo_sitemap'],
+                'label' => 'SEO setup', 'sensitive' => false, 'tier' => self::TIER_FREE,
+                'desc' => 'Meta titles and descriptions, JSON-LD schema, and the sitemap.',
+                'tools' => ['seo_meta', 'seo_schema', 'seo_sitemap'],
+            ],
+            'seo_optimize' => [
+                'label' => 'SEO optimization', 'sensitive' => false, 'tier' => self::TIER_PRO,
+                'desc' => 'Score pages against a target keyword, and manage redirects when URLs change.',
+                'tools' => ['seo_analyze', 'seo_redirect'],
             ],
             'design' => [
                 'label' => 'Design / Elementor', 'sensitive' => false, 'tier' => self::TIER_FREE,

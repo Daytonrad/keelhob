@@ -35,7 +35,7 @@ foreach ($expect_free as $key) {
     CP_Test::same('free', Claudpress_Capabilities::group_tier($key), $key . ' is free (the build must work with no licence)');
 }
 
-$expect_pro = ['store_orders', 'payments', 'shipping', 'tax', 'users', 'updates', 'comms', 'automation', 'deploy'];
+$expect_pro = ['store_orders', 'seo_optimize', 'payments', 'shipping', 'tax', 'users', 'updates', 'comms', 'automation', 'deploy'];
 foreach ($expect_pro as $key) {
     CP_Test::same('pro', Claudpress_Capabilities::group_tier($key), $key . ' is Pro');
 }
@@ -92,3 +92,24 @@ CP_Test::ok(!Claudpress_Capabilities::tool_allowed('run_agent'), 'a Pro user who
 
 cp_test_reset_filters();
 cp_test_reset_options();
+
+CP_Test::group('Tiers — a downgrade must not break the site you already have');
+
+// seo_redirect (creating a redirect) is Pro. do_redirects (SERVING one that
+// already exists) is not, and must never become Pro. Otherwise a customer who
+// lets their subscription lapse would find every redirect they ever made had
+// turned into a 404 — losing traffic and rankings as a side effect of billing.
+// Downgrading should cost you new features. It should never break what is live.
+$seo_free = file_get_contents(CLAUDPRESS_DIR . 'includes/tools/class-tools-seo.php');
+
+CP_Test::contains('function do_redirects', $seo_free, 'the redirect SERVER stays in the free plugin');
+CP_Test::contains("add_action('template_redirect', [self::class, 'do_redirects']", $seo_free, '...and stays hooked on the front end');
+CP_Test::ok(strpos($seo_free, "add('seo_redirect'") === false, 'but creating a redirect is not a free tool');
+
+$pro_seo = CLAUDPRESS_DIR . 'claudpress-pro/includes/class-tools-seo-pro.php';
+if (file_exists($pro_seo)) {
+    $src = file_get_contents($pro_seo);
+    CP_Test::contains("add('seo_redirect'", $src, 'creating a redirect moved to the add-on');
+    CP_Test::ok(strpos($src, 'function do_redirects') === false, 'and the server did NOT go with it');
+    CP_Test::contains('Claudpress_Tools_Seo::seo_meta', $src, 'seo_analyze reads back what the free meta tool wrote, rather than duplicating it');
+}

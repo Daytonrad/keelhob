@@ -19,8 +19,9 @@ Done and verified:
   against the pre-fix code first — the old `write_file` really did let you write
   a PHP file anywhere on the server, and the old uninstall really did delete
   every snippet you had.
-- **The free/Pro line** exists in the capability layer, and **13 Pro tools plus
+- **The free/Pro line** exists in the capability layer, and **19 Pro tools plus
   all 6 Pro skills no longer ship in the free zip at all** — not gated, absent.
+  Every mixed tool file has now been split.
 - **Consent gate**, **provider picker**, **notification channels**, **Activity
   page** with paging and retention, **Skills screen**, **tier disclosure to agents**.
 - **Pro add-on scaffold** with a licence gate that is generous about outages and
@@ -112,9 +113,8 @@ Everything below is being built to work the moment these land.
 - [x] Move **deploy** + **payments** tool files to the add-on (6 tools no longer in the free zip)
 - [x] `class-tools-ops.php` split → `manage_updates`, `send_email` moved to add-on
 - [x] `class-tools-automation.php` split → `task_save/run/delete`, `run_agent`, `notify_owner` moved; **`get_dashboard`, `task_list`, `agent_runs` stayed free (always-on)**
-- [ ] `class-tools-woocommerce.php` → move `wc_order`, `wc_report`; keep product/coupon/settings free
-- [ ] `class-tools-seo.php` → move `seo_analyze`, `seo_redirect`; keep meta/schema/sitemap free
-      (note: `seo_redirect` pairs with the `do_redirects` hook — existing redirects must keep working on free)
+- [x] `class-tools-woocommerce.php` split → `wc_order`, `wc_report` moved
+- [x] `class-tools-seo.php` split → `seo_analyze`, `seo_redirect` moved; **`do_redirects` stayed free so a lapsed subscription never turns live redirects into 404s**
 
 ## Phase 5 — cloud (built against a local stub until B2 lands)
 
@@ -159,4 +159,5 @@ Everything below is being built to work the moment these land.
 | 2026-08-20 | **Caught by building the zip and reading it:** all 6 Pro skills were shipping in the free zip. Build now splits by tier. |
 | 2026-08-20 | **Same gap for tools:** moved deploy + payments out of the free plugin entirely. 4 mixed files still to split. |
 | 2026-08-20 | Split ops + automation tool files. Nearly broke `always_on()` — three of automation's tools are always-on and had to stay free. |
-| 2026-08-20 | Live rig **37/37**. Unit suite **1349**. Free zip down to 54 entries; 13 Pro tools no longer ship in it. |
+| 2026-08-20 | Live rig **37/37**. Unit suite **1361**. Free zip down to 268K; **19 Pro tools no longer ship in it**. |
+| 2026-08-20 | All four mixed tool files split. `seo` capability group split too (setup free, optimization Pro). |
