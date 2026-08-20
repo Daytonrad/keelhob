@@ -43,7 +43,37 @@ cp "$ROOT/claudpress.php"  "$FREE_STAGE/"
 cp "$ROOT/uninstall.php"   "$FREE_STAGE/"
 cp "$ROOT/readme.txt"      "$FREE_STAGE/"
 cp -r "$ROOT/includes"     "$FREE_STAGE/"
-cp -r "$ROOT/skills"       "$FREE_STAGE/"
+
+# Skills are split by tier, and the catalogue is the single source of truth for
+# which is which. Reading it here rather than keeping a second list in this
+# script is deliberate: two lists drift, and the way this one would drift is by
+# quietly shipping a paid skill in the free zip.
+mkdir -p "$FREE_STAGE/skills" "$PRO_STAGE/skills"
+
+free_skills="$(ROOT="$ROOT" php -r 'define("ABSPATH",1); require getenv("ROOT") . "/includes/class-skill-catalog.php"; echo implode(chr(10), Claudpress_Skill_Catalog::names("free"));')"
+pro_skills="$(ROOT="$ROOT" php -r 'define("ABSPATH",1); require getenv("ROOT") . "/includes/class-skill-catalog.php"; echo implode(chr(10), Claudpress_Skill_Catalog::names("pro"));')"
+
+while IFS= read -r name; do
+  [ -n "$name" ] || continue
+  [ -f "$ROOT/skills/$name.md" ] || { echo "::error::catalogue lists free skill '$name' but skills/$name.md does not exist" >&2; exit 1; }
+  cp "$ROOT/skills/$name.md" "$FREE_STAGE/skills/"
+done <<< "$(printf "%s" "$free_skills" | tr -d "")"
+
+while IFS= read -r name; do
+  [ -n "$name" ] || continue
+  [ -f "$ROOT/skills/$name.md" ] || { echo "::error::catalogue lists Pro skill '$name' but skills/$name.md does not exist" >&2; exit 1; }
+  cp "$ROOT/skills/$name.md" "$PRO_STAGE/skills/"
+done <<< "$(printf "%s" "$pro_skills" | tr -d "")"
+
+# Every skill on disk must be accounted for. A new skill that nobody tiered
+# would otherwise vanish from both zips without a word.
+for f in "$ROOT/skills/"*.md; do
+  base="$(basename "$f" .md)"
+  if [ ! -f "$FREE_STAGE/skills/$base.md" ] && [ ! -f "$PRO_STAGE/skills/$base.md" ]; then
+    echo "::error::skills/$base.md is in neither zip - add it to includes/class-skill-catalog.php" >&2
+    exit 1
+  fi
+done
 
 # ---- stage the Pro add-on --------------------------------------------------
 

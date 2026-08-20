@@ -77,3 +77,17 @@ CP_Test::ok(strlen($src) < 20000, 'the catalogue is metadata-sized, not body-siz
 add_filter('claudpress_is_pro', static function () { return true; });
 CP_Test::same([], Claudpress_Skill_Catalog::unavailable(), 'a Pro site is told nothing is missing');
 cp_test_reset_filters();
+
+CP_Test::group('Skill catalogue — the build splits skills by tier');
+
+// Before this was wired, every one of the 15 skills shipped in the free zip,
+// including all six Pro ones. The tier split existed in the catalogue and
+// nowhere that mattered, which is the most expensive kind of half-done: it
+// looks finished from the inside.
+$build = file_get_contents(CLAUDPRESS_DIR . 'bin/build-zip.sh');
+
+CP_Test::contains('Claudpress_Skill_Catalog::names', $build, 'the build reads the catalogue rather than keeping a second list that would drift');
+CP_Test::contains('FREE_STAGE/skills', $build, 'free skills are staged for the free zip');
+CP_Test::contains('PRO_STAGE/skills', $build, 'Pro skills are staged for the Pro zip');
+CP_Test::ok(strpos($build, 'cp -r "$ROOT/skills"       "$FREE_STAGE/"') === false, 'the old copy-everything line is gone');
+CP_Test::contains('is in neither zip', $build, 'a skill nobody tiered fails the build instead of vanishing from both zips');
