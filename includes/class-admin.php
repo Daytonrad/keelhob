@@ -11,6 +11,9 @@ if (!defined('ABSPATH')) {
 
 final class Claudpress_Admin
 {
+    /** Bump when what the owner is agreeing to materially changes. */
+    const CONSENT_VERSION = 1;
+
     /** Nonce action shared by the two provider endpoints. */
     private const PROVIDER_NONCE = 'claudpress_provider';
 
@@ -286,8 +289,16 @@ final class Claudpress_Admin
         if ($action === 'regenerate_token') {
             Claudpress::set_token();
         } elseif ($action === 'settings') {
+            // Record WHO accepted and WHEN, not merely that the box is ticked.
+            // If someone later says they never agreed to an AI editing their
+            // live site, a timestamp and a user id is the whole answer, and it
+            // has to be captured at the moment of the click or not at all.
+            $consent = self::consent_from_post();
             Claudpress::instance()->update([
-                'abilities_enabled'   => !empty($_POST['abilities_enabled']),
+                'abilities_enabled'   => $consent['abilities_enabled'],
+                'consent_by'          => $consent['consent_by'],
+                'consent_at'          => $consent['consent_at'],
+                'consent_version'     => $consent['consent_version'],
                 'allow_app_passwords' => !empty($_POST['allow_app_passwords']),
                 'require_https'       => !empty($_POST['require_https']),
                 'log_calls'           => !empty($_POST['log_calls']),
@@ -513,13 +524,40 @@ final class Claudpress_Admin
                             <?php wp_nonce_field('claudpress_save'); ?>
                             <input type="hidden" name="action" value="claudpress_save">
                             <input type="hidden" name="claudpress_action" value="settings">
+                            <div style="border:1px solid #dcdcde;border-left:4px solid #d63638;background:#fff;padding:14px 16px;margin-bottom:14px;">
+                                <p style="margin-top:0;font-size:14px;"><strong><?php esc_html_e('Before you switch this on', 'claudpress'); ?></strong></p>
+                                <p><?php esc_html_e('Claudpress lets an AI agent make real changes to this live site. It can write code, edit pages and products, change settings, install plugins, and touch your store. It can be wrong, and wrong changes can break pages, checkout, or the admin area.', 'claudpress'); ?></p>
+                                <p><?php esc_html_e('Your instructions, the content and code involved, and a short description of this site (WordPress and PHP versions, theme, active well-known plugins) are sent to the AI provider you choose, under that provider terms.', 'claudpress'); ?></p>
+                                <p><?php esc_html_e('You pay that provider directly for what you use. Claudpress cannot see or cap that spend.', 'claudpress'); ?></p>
+                                <p><?php esc_html_e('There are real safeguards. Code is saved switched off, PHP is syntax-checked before it can go live, a snippet that crashes the site is switched back off automatically, recent changes can be undone, and every action is written to the Activity log. These are safeguards, not a guarantee.', 'claudpress'); ?></p>
+                                <p style="margin-bottom:0;"><?php esc_html_e('You stay responsible for reviewing what the agent does, for keeping the capability switches set to what you actually want, and for having a backup.', 'claudpress'); ?></p>
+                            </div>
                             <p>
                                 <label style="font-size:15px;">
                                     <input type="checkbox" name="abilities_enabled" value="1" <?php checked($enabled); ?>>
-                                    <strong><?php esc_html_e('Enable AI abilities', 'claudpress'); ?></strong> <?php esc_html_e('(master switch)', 'claudpress'); ?>
-                                </label>
+                                    <strong><?php esc_html_e('Turn on AI abilities', 'claudpress'); ?></strong>
+                                </label><br>
+                                <span style="color:#555;margin-left:24px;"><?php esc_html_e('I have read the points above and accept that AI-driven changes run on my site at my own risk.', 'claudpress'); ?></span>
                             </p>
-                            <p style="color:#a00;"><?php esc_html_e('While ON, a connected agent can modify everything. Keep this to dev/staging sites with backups.', 'claudpress'); ?></p>
+                            <?php
+                            // Show who accepted and when. If this is ever
+                            // disputed, the answer should be on the screen
+                            // rather than reconstructed from memory.
+                            $consent_at = (int) ($s['consent_at'] ?? 0);
+                            if ($enabled && $consent_at > 0) :
+                                $who = get_userdata((int) ($s['consent_by'] ?? 0));
+                                ?>
+                                <p style="color:#666;font-size:12px;">
+                                    <?php
+                                    echo esc_html(sprintf(
+                                        /* translators: 1: user login, 2: date and time. */
+                                        __('Accepted by %1$s on %2$s.', 'claudpress'),
+                                        $who ? $who->user_login : __('an unknown user', 'claudpress'),
+                                        date_i18n(get_option('date_format') . ' H:i', $consent_at)
+                                    ));
+                                    ?>
+                                </p>
+                            <?php endif; ?>
                             <hr>
                             <p><label><input type="checkbox" name="allow_app_passwords" value="1" <?php checked(!empty($s['allow_app_passwords'])); ?>> <?php esc_html_e('Allow Application Password (Basic) auth in addition to the bearer token', 'claudpress'); ?></label></p>
                             <p><label><input type="checkbox" name="require_https" value="1" <?php checked(!empty($s['require_https'])); ?>> <?php esc_html_e('Require HTTPS (recommended for remote sites)', 'claudpress'); ?></label></p>
@@ -1827,5 +1865,57 @@ final class Claudpress_Admin
             return (string) Claudpress::instance()->get($field, '');
         }
         return $posted;
+    }
+
+    /**
+     * Work out the consent fields for a settings save.
+     *
+     * Turning abilities ON records a fresh acceptance. Turning them OFF leaves
+     * the record alone - it is a historical fact, not a current state, and
+     * wiping it would destroy the only evidence that it ever happened.
+     *
+     * CONSENT_VERSION is bumped in code when what the owner is agreeing to
+     * materially changes: a new provider host, a materially wider capability
+     * set. A stored version older than the current one means the site re-asks.
+     *
+     * @return array{abilities_enabled:bool, consent_by:int, consent_at:int, consent_version:int}
+     */
+    private static function consent_from_post(): array
+    {
+        $s       = Claudpress::instance()->settings();
+        $ticked  = !empty($_POST['abilities_enabled']);
+        $was_on  = !empty($s['abilities_enabled']);
+        $current = (int) ($s['consent_version'] ?? 0);
+
+        if ($ticked && (!$was_on || $current < self::CONSENT_VERSION)) {
+            return [
+                'abilities_enabled' => true,
+                'consent_by'        => get_current_user_id(),
+                'consent_at'        => time(),
+                'consent_version'   => self::CONSENT_VERSION,
+            ];
+        }
+
+        return [
+            'abilities_enabled' => $ticked,
+            'consent_by'        => (int) ($s['consent_by'] ?? 0),
+            'consent_at'        => (int) ($s['consent_at'] ?? 0),
+            'consent_version'   => $current,
+        ];
+    }
+
+    /**
+     * True when the owner has not accepted the CURRENT terms.
+     *
+     * Used to re-show the consent block prominently after an upgrade that
+     * widened what the agent may do.
+     */
+    public static function consent_is_stale(): bool
+    {
+        $s = Claudpress::instance()->settings();
+        if (empty($s['abilities_enabled'])) {
+            return false;
+        }
+        return (int) ($s['consent_version'] ?? 0) < self::CONSENT_VERSION;
     }
 }

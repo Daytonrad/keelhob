@@ -84,6 +84,13 @@ final class Claudpress
             // informed so it stops trying, while keeping their own admin
             // quiet.
             'disclose_pro'             => true,
+
+            // Who accepted the AI-abilities warning, when, and which version of
+            // it. Kept even after abilities are switched off again: it is a
+            // historical fact, and it is the only evidence that it happened.
+            'consent_by'               => 0,
+            'consent_at'               => 0,
+            'consent_version'          => 0,
             'allow_app_passwords' => true,
             // Filesystem base: operations are confined at or below this path.
             'fs_base'           => ABSPATH,
