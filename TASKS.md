@@ -57,23 +57,23 @@ Everything below is being built to work the moment these land.
 - [x] `get_site_info` capability block
 - [ ] `seed_defaults()` in `class-memory.php` (idempotent)
 - [ ] Move Snippets page out of free core
-- [ ] Two-zip build script
+- [x] Two-zip build script
 - [ ] Self-hosted updater (port from VibeSnip)
 
 ## Phase 3 — live skills
 
 - [x] Skill catalogue: 15 skills, 9 free / 6 Pro, names+descriptions only, drift test
-- [ ] `source` column on skills (bundled/remote/local)
-- [ ] Remote fetch, 7-day TTL, 30-day grace, never blocks
-- [ ] Ed25519 signature verification, markdown-only validation
-- [ ] Refresh never touches `local` rows
-- [ ] Skills admin screen: On this site / Available in Pro / changelog
-- [ ] `skill_list` returns `available` + `tier` over MCP
-- [ ] `build-standard.md` falls back to `site_readiness` on free
+- [x] `source` column on skills (bundled/remote/local)
+- [x] Remote fetch, 7-day TTL, 30-day grace, never blocks
+- [x] Ed25519 signature verification, markdown-only validation
+- [x] Refresh never touches `local` rows
+- [~] Skills admin screen (class-admin-skills.php written; menu registration + tests pending)
+- [x] `skill_list` returns `available` + `tier` over MCP
+- [ ] `build-standard.md` falls back to `site_readiness` on free  **<- next**
 
 ## Phase 4 — Snippets Studio (Pro add-on)
 
-- [ ] Add-on plugin scaffold
+- [x] Add-on plugin scaffold
 - [ ] Schema: description, priority, source, ai_*, error_last + revisions table
 - [ ] Tab 1 All Snippets (WP_List_Table, filters, badges)
 - [ ] Tab 2 Add/Edit + Ask AI (advisory, parse is the gate)
@@ -100,7 +100,7 @@ Everything below is being built to work the moment these land.
 
 ## Test rig
 
-- [ ] WP-CLI + SQLite + `php -S` rig up
+- [x] WP-CLI + SQLite + `php -S` rig up
 - [ ] AI mock mu-plugin (no key, no spend)
 - [ ] Local cloud stub server
 
@@ -116,4 +116,7 @@ Everything below is being built to work the moment these land.
 | 2026-08-20 | Proved each fix against the pre-fix code first: S1 allowed 4 attacks, U1 destroyed all data. |
 | 2026-08-20 | **Tier split done.** Had to split two capability groups: `code`→snippets+code_exec, `store`→store+store_orders. |
 | 2026-08-20 | **Phase 1 mostly done** (two subagents in parallel + my own work). Activity page, provider picker, notifier channels, tier disclosure, consent gate. |
-| 2026-08-20 | Test suite grew 919 → **1261 assertions**, all passing. |
+| 2026-08-20 | Test suite grew 919 → **1327 assertions**, all passing. |
+| 2026-08-20 | **Live WordPress rig built** (SQLite, no Docker). `tests/rig/` — 23/23 live checks pass against real $wpdb. |
+| 2026-08-20 | **Pro add-on scaffold + signed remote skills + two-zip build.** Build guard proven: contaminate the tree, build exits 1. |
+| 2026-08-20 | Two subagents were cut off by a session limit mid-task; I verified and finished their work rather than discarding it. |
