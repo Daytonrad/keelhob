@@ -77,6 +77,13 @@ final class Claudpress
             'delete_data_on_uninstall' => false,
             // Quietens every mention of the paid add-on, everywhere.
             'hide_paid_notices'        => false,
+
+            // Whether a connected AGENT is told what Pro includes. Separate
+            // from hide_paid_notices on purpose: that one is about what a
+            // human sees on screen. Someone may reasonably want the agent
+            // informed so it stops trying, while keeping their own admin
+            // quiet.
+            'disclose_pro'             => true,
             'allow_app_passwords' => true,
             // Filesystem base: operations are confined at or below this path.
             'fs_base'           => ABSPATH,
@@ -109,6 +116,12 @@ final class Claudpress
             // Notifications.
             'notify_email'          => '',
             'notify_webhook_url'    => '',
+
+            // Which channels a digest goes to. NULL, not [], is the
+            // unconfigured state: an empty array is a real choice meaning
+            // 'send nowhere', and defaulting to it would silently stop
+            // every existing digest the moment this shipped.
+            'notify_channels'       => null,
             'notify_telegram_token' => '',
             'notify_telegram_chat'  => '',
             // Telegram chat front-end (inbound). Off until the owner connects a
@@ -265,6 +278,7 @@ final class Claudpress
         Claudpress_Agent_Runs::install_table();
         Claudpress_Telegram::install_table();
         Claudpress_Logger::install_table();
+        Claudpress_Snippet_Log::install_table();
         // After install_table() has added the columns: give pre-1.9 snippets a
         // uid and a created_at so the Snippets page and cross-site copy work.
         Claudpress_Snippets::backfill();
@@ -307,6 +321,7 @@ final class Claudpress
         Claudpress_Agent_Runs::install_table();
         Claudpress_Telegram::install_table();
         Claudpress_Logger::install_table();
+        Claudpress_Snippet_Log::install_table();
         Claudpress_Snippets::backfill();
         Claudpress_Skills::seed_bundled_skills();
         self::seed_default_memory();

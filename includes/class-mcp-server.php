@@ -165,7 +165,7 @@ final class Claudpress_MCP_Server
             : 'AI abilities are DISABLED. Ask the site owner to enable them in WP Admin > Claudpress before making changes. Read-only introspection may still work.';
         $lines[] = '';
         $lines[] = 'The universal escape hatch is execute_php: it runs arbitrary PHP in the full WordPress runtime ($wpdb, WP_Query, WooCommerce, every plugin API). Prefer the dedicated high-level tools for common work, and fall back to execute_php for anything not covered.';
-        $lines[] = 'Powers include: content & blogging (create_post, upload_media), the WooCommerce store (wc_product/order/coupon/report), SEO (seo_meta/analyze/schema), live code that changes the site (snippet_save — PHP/CSS/JS/HTML, incl. pixel-perfect custom page templates), Elementor page building (elementor_page + elementor_settings prepare_for_ai), plugin/theme updates (manage_updates), owner email (send_email), images (image_search free / image_generate), a full status snapshot (get_dashboard — use for "how is the store doing / what needs attention"), scheduled/one-off autonomy (task_save, run_agent) so the site can run itself, checkout setup (wc_payments/wc_shipping/wc_tax), and staging→production deploy (export_bundle/import_bundle/deploy_push).';
+        $lines[] = 'Powers include: content and blogging (create_post, upload_media), the WooCommerce catalogue (wc_product/wc_coupon/wc_settings), SEO (seo_meta/seo_schema/seo_sitemap), live code that changes the site (snippet_save - PHP/CSS/JS/HTML, incl. pixel-perfect custom page templates), Elementor page building (elementor_page + elementor_settings prepare_for_ai), the filesystem (read_file/write_file/edit_file), raw execution (execute_php/execute_sql), images (image_search free / image_generate), a full status snapshot (get_dashboard), and a read-only build grade (site_readiness). Whatever tools/list returns is the whole truth about what you can do here - do not assume a tool exists because it is normal for WordPress.';
         $lines[] = 'START HERE: call memory_list once at the beginning — it holds this site\'s operating context (build mode, builder, conventions). Persist new durable decisions with memory_save. Memory and skills are shared by every connected agent.';
         $lines[] = '';
         $lines[] = self::operating_protocol();
@@ -173,6 +173,8 @@ final class Claudpress_MCP_Server
         if ($builder && $builder !== 'auto') {
             $lines[] = 'Configured page builder: ' . $builder . '. Build with this unless told otherwise.';
         }
+        $lines = array_merge($lines, self::tier_notice());
+
         $off = Claudpress_Capabilities::disabled_labels();
         if (!empty($off)) {
             $lines[] = '';
@@ -189,6 +191,51 @@ final class Claudpress_MCP_Server
             }
         }
         return implode("\n", $lines);
+    }
+
+    /**
+     * Tell a connected agent what this tier does not include, and why.
+     *
+     * An agent that does not know a capability is missing burns tokens finding
+     * out by trial, then often reports the site as broken - or worse, reaches
+     * the same outcome through execute_php, which is entirely possible on the
+     * free tier and squarely against the owner's interest. A short factual
+     * list costs a few dozen tokens once per session and prevents all of it.
+     *
+     * The tone is deliberately flat. An agent quoting marketing copy at the
+     * owner makes the plugin feel like adware, so this names what is absent and
+     * stops. Owners can switch it off in Settings; a developer can remove it
+     * entirely with the filter.
+     *
+     * @return array<int, string>
+     */
+    private static function tier_notice(): array
+    {
+        if (Claudpress_Capabilities::is_pro()) {
+            return [];
+        }
+        if (!Claudpress::instance()->get('disclose_pro', true)) {
+            return [];
+        }
+
+        $missing = Claudpress_Capabilities::unavailable_groups();
+        if (empty($missing)) {
+            return [];
+        }
+
+        $lines   = [''];
+        $lines[] = 'TIER: this site runs the free version of Claudpress. The capabilities below exist in Claudpress Pro and are NOT installed here. Their tools are absent from tools/list and calling them will fail. Do not attempt them, and do not reproduce them by hand through execute_php, execute_sql, snippets or file writes. If the owner asks for one, say plainly that it needs Claudpress Pro.';
+
+        foreach ($missing as $group) {
+            $lines[] = sprintf('- %s: %s', $group['label'], $group['what_it_does']);
+        }
+
+        /**
+         * Filter the tier notice. Return [] to remove it entirely.
+         *
+         * @param array<int, string> $lines
+         */
+        return (array) apply_filters('claudpress_tier_notice', $lines);
     }
 
     /** tools/list filtered by the owner's capability toggles. */
@@ -224,6 +271,14 @@ final class Claudpress_MCP_Server
         if (!Claudpress_Capabilities::tool_allowed($name)) {
             $group = Claudpress_Capabilities::tool_group($name);
             $label = $group ? (Claudpress_Capabilities::groups()[$group]['label'] ?? $group) : $name;
+            if ($group !== null && !Claudpress_Capabilities::tier_allows($group)) {
+                return $this->tool_error(sprintf(
+                    '"%s" is not available on this site: the "%s" capability is part of Claudpress Pro, which is not installed. This is not a setting the owner can switch on. Do not retry, and do not try to reach the same outcome through execute_php, execute_sql, snippets or file writes - that is working around something the owner has not paid for. Tell the owner plainly that it needs Claudpress Pro.',
+                    $name,
+                    $label
+                ));
+            }
+
             return $this->tool_error(sprintf('The "%s" capability is turned OFF by the site owner, so this tool is off-limits. Do not attempt tasks in this area.', $label));
         }
 

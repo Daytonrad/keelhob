@@ -349,12 +349,171 @@ function wp_mkdir_p($dir) { return is_dir($dir) ? true : @mkdir($dir, 0777, true
 
 function trailingslashit($s) { return rtrim((string) $s, '/') . '/'; }
 
+// ---- AJAX + HTTP, so the provider endpoints can be exercised ---------------
+// The two provider endpoints accept an API key, so their nonce and capability
+// checks are the thing most worth asserting. These stubs record every check
+// rather than performing one, and wp_send_json_* unwinds the way wp_die() does
+// in production, so a handler that "returns" after refusing cannot be mistaken
+// for one that stopped.
+
+$GLOBALS['cp_test_ajax'] = ['nonces' => [], 'caps' => []];
+$GLOBALS['cp_test_http'] = [];
+
+/** Queue one canned HTTP response for the next wp_remote_* call. */
+function cp_test_http_queue(int $code, $body, array $headers = []): void
+{
+    $GLOBALS['cp_test_http'][] = [
+        'code'    => $code,
+        'body'    => is_string($body) ? $body : json_encode($body),
+        'headers' => $headers,
+    ];
+}
+
+function cp_test_reset_ajax(): void
+{
+    $GLOBALS['cp_test_ajax'] = ['nonces' => [], 'caps' => []];
+    $GLOBALS['cp_test_http'] = [];
+    unset($GLOBALS['cp_test_cap_allow']);
+}
+
+/** Thrown in place of the wp_die() that ends a real wp_send_json_* response. */
+class CP_Test_Json_Sent extends Exception
+{
+    public bool $success;
+    public array $data;
+    public int $status;
+
+    public function __construct(bool $success, array $data, int $status)
+    {
+        parent::__construct($success ? 'success' : 'error');
+        $this->success = $success;
+        $this->data    = $data;
+        $this->status  = $status;
+    }
+}
+
+if (!function_exists('current_user_can')) {
+    function current_user_can($cap, ...$args)
+    {
+        $GLOBALS['cp_test_ajax']['caps'][] = (string) $cap;
+        return $GLOBALS['cp_test_cap_allow'] ?? true;
+    }
+}
+
+if (!function_exists('check_ajax_referer')) {
+    function check_ajax_referer($action = -1, $query_arg = false, $stop = true)
+    {
+        $GLOBALS['cp_test_ajax']['nonces'][] = (string) $action;
+        return 1;
+    }
+}
+
+if (!function_exists('wp_create_nonce')) {
+    function wp_create_nonce($action = -1) { return 'nonce-' . md5((string) $action); }
+}
+
+if (!function_exists('wp_verify_nonce')) {
+    function wp_verify_nonce($nonce, $action = -1) { return 1; }
+}
+
+if (!function_exists('wp_send_json_success')) {
+    function wp_send_json_success($data = null, $status = 200)
+    {
+        throw new CP_Test_Json_Sent(true, (array) $data, (int) $status);
+    }
+}
+
+if (!function_exists('wp_send_json_error')) {
+    function wp_send_json_error($data = null, $status = 400)
+    {
+        throw new CP_Test_Json_Sent(false, (array) $data, (int) $status);
+    }
+}
+
+if (!function_exists('_n')) {
+    function _n($single, $plural, $number, $domain = null) { return ((int) $number === 1) ? $single : $plural; }
+}
+
+/** The next queued response, or a 200 with an empty body when nothing is queued. */
+function cp_test_http_next(string $url, array $args)
+{
+    $GLOBALS['cp_test_http_last'] = ['url' => $url, 'args' => $args];
+    if (!$GLOBALS['cp_test_http']) {
+        return ['response' => ['code' => 200], 'body' => '{}', 'headers' => []];
+    }
+    $next = array_shift($GLOBALS['cp_test_http']);
+    if ($next instanceof WP_Error) {
+        return $next;
+    }
+    return ['response' => ['code' => $next['code']], 'body' => $next['body'], 'headers' => $next['headers']];
+}
+
+if (!function_exists('wp_remote_get')) {
+    function wp_remote_get($url, $args = []) { return cp_test_http_next((string) $url, (array) $args); }
+}
+
+if (!function_exists('wp_remote_post')) {
+    function wp_remote_post($url, $args = []) { return cp_test_http_next((string) $url, (array) $args); }
+}
+
+if (!function_exists('wp_remote_retrieve_response_code')) {
+    function wp_remote_retrieve_response_code($resp) { return is_array($resp) ? ($resp['response']['code'] ?? 0) : 0; }
+}
+
+if (!function_exists('wp_remote_retrieve_body')) {
+    function wp_remote_retrieve_body($resp) { return is_array($resp) ? (string) ($resp['body'] ?? '') : ''; }
+}
+
+if (!function_exists('wp_remote_retrieve_header')) {
+    function wp_remote_retrieve_header($resp, $header) { return is_array($resp) ? ($resp['headers'][$header] ?? '') : ''; }
+}
+
+// ---- Pagination + current-user stubs ---------------------------------------
+// Guarded: these are generic enough that a future bootstrap edit (or a test
+// file that needs them earlier) could define them too, and a redeclare is fatal.
+
+if (!function_exists('get_current_user_id')) {
+    function get_current_user_id() { return (int) ($GLOBALS['cp_test_current_user'] ?? 0); }
+}
+
+if (!function_exists('_n')) {
+    function _n($single, $plural, $number, $domain = null) { return (int) $number === 1 ? (string) $single : (string) $plural; }
+}
+
+if (!function_exists('add_query_arg')) {
+    // Mirrors the real one in the way that matters here: values are NOT
+    // urlencoded, which is what lets paginate_links() find its '%#%' token.
+    function add_query_arg($args, $url = '') {
+        $parts = [];
+        foreach ((array) $args as $k => $v) { $parts[] = $k . '=' . $v; }
+        return $url . (strpos((string) $url, '?') === false ? '?' : '&') . implode('&', $parts);
+    }
+}
+
+if (!function_exists('paginate_links')) {
+    function paginate_links($args = []) {
+        $total   = max(1, (int) ($args['total'] ?? 1));
+        $current = max(1, (int) ($args['current'] ?? 1));
+        $base    = (string) ($args['base'] ?? '');
+        $out     = '';
+        for ($i = 1; $i <= $total; $i++) {
+            $href = str_replace('%#%', (string) $i, $base);
+            $out .= $i === $current
+                ? '<span class="page-numbers current">' . $i . '</span>'
+                : '<a class="page-numbers" href="' . esc_url($href) . '">' . $i . '</a>';
+        }
+        return $out;
+    }
+}
+
 require_once CLAUDPRESS_DIR . 'includes/class-secrets.php';
 require_once CLAUDPRESS_DIR . 'includes/class-claudpress.php';
 require_once CLAUDPRESS_DIR . 'includes/class-auth.php';
 require_once CLAUDPRESS_DIR . 'includes/class-logger.php';
+require_once CLAUDPRESS_DIR . 'includes/class-snippet-log.php';
 require_once CLAUDPRESS_DIR . 'includes/class-tool-registry.php';
 require_once CLAUDPRESS_DIR . 'includes/class-capabilities.php';
+require_once CLAUDPRESS_DIR . 'includes/class-skill-catalog.php';
 require_once CLAUDPRESS_DIR . 'includes/class-memory.php';
 require_once CLAUDPRESS_DIR . 'includes/class-policy.php';
 require_once CLAUDPRESS_DIR . 'includes/class-agent-runs.php';
@@ -372,3 +531,39 @@ require_once CLAUDPRESS_DIR . 'includes/class-skills.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-filesystem.php';
+
+// --- notifier -------------------------------------------------------------
+if (!function_exists('wp_mail')) {
+    function wp_mail($to, $subject, $message, $headers = [], $attachments = [])
+    {
+        $GLOBALS['cp_test_mail'][] = compact('to', 'subject', 'message');
+        return true;
+    }
+}
+if (!function_exists('wp_remote_post')) {
+    function wp_remote_post($url, $args = [])
+    {
+        $GLOBALS['cp_test_posts'][] = ['url' => $url, 'args' => $args];
+        return ['response' => ['code' => 200], 'body' => '{}'];
+    }
+}
+if (!function_exists('wp_remote_retrieve_response_code')) {
+    function wp_remote_retrieve_response_code($r) { return $r['response']['code'] ?? 0; }
+}
+if (!function_exists('wp_remote_retrieve_body')) {
+    function wp_remote_retrieve_body($r) { return $r['body'] ?? ''; }
+}
+if (!class_exists('WP_Error')) {
+    class WP_Error
+    {
+        private $code;
+        private $message;
+        public function __construct($code = '', $message = '', $data = []) { $this->code = $code; $this->message = $message; }
+        public function get_error_code() { return $this->code; }
+        public function get_error_message() { return $this->message; }
+    }
+}
+$GLOBALS['cp_test_mail']  = [];
+$GLOBALS['cp_test_posts'] = [];
+
+require_once CLAUDPRESS_DIR . 'includes/class-notifier.php';

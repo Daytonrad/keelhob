@@ -164,6 +164,32 @@ final class Claudpress_Tools_Core
                 'abilities_enabled' => Claudpress::instance()->abilities_enabled(),
                 'tool_count'        => count(Claudpress::instance()->registry->names()),
                 'fs_base'           => Claudpress::instance()->get('fs_base'),
+
+                // Structured, not prose. An agent can branch on this; it
+                // cannot reliably branch on a paragraph. Free tools are
+                // listed alongside the missing ones so the agent has the
+                // whole shape of the install in one call, rather than
+                // inferring it from what tools/list happens to contain.
+                'plan'              => Claudpress_Capabilities::is_pro() ? 'pro' : 'free',
+                'available_capabilities' => array_keys(array_filter(
+                    Claudpress_Capabilities::groups(),
+                    static function ($group, $key) {
+                        return Claudpress_Capabilities::tier_allows($key)
+                            && Claudpress_Capabilities::is_group_enabled($key);
+                    },
+                    ARRAY_FILTER_USE_BOTH
+                )),
+                'unavailable_capabilities' => array_map(
+                    static function (array $group) {
+                        return [
+                            'name'           => $group['name'],
+                            'what_it_does'   => $group['what_it_does'],
+                            'why_unavailable' => 'Part of Claudpress Pro, which is not installed on this site.',
+                            'how_to_enable'   => 'The site owner installs the Claudpress Pro add-on. It is not a setting, and it cannot be switched on from here.',
+                        ];
+                    },
+                    Claudpress_Capabilities::unavailable_groups()
+                ),
             ],
         ];
     }

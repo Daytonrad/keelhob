@@ -10,7 +10,14 @@ if (!defined('ABSPATH')) {
 
 final class Claudpress_Logger
 {
-    const MAX_ROWS = 500;
+    /**
+     * Lowered from 500 in 1.11: the Activity screen renders this table ten rows
+     * at a time now, and nobody has ever audited the 400th-most-recent tool
+     * call. Two hundred is a couple of days of heavy agent work — enough to
+     * answer "what did it just do to my site", which is the only question this
+     * log is asked.
+     */
+    const MAX_ROWS = 200;
 
     public static function table(): string
     {
@@ -74,14 +81,21 @@ final class Claudpress_Logger
         }
     }
 
-    public function recent(int $limit = 50): array
+    public function recent(int $limit = 50, int $offset = 0): array
     {
         global $wpdb;
         $rows = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM " . self::table() . " ORDER BY id DESC LIMIT %d",
-            $limit
+            "SELECT * FROM " . self::table() . " ORDER BY id DESC LIMIT %d OFFSET %d",
+            max(1, $limit),
+            max(0, $offset)
         ), ARRAY_A);
         return $rows ?: [];
+    }
+
+    public function count_all(): int
+    {
+        global $wpdb;
+        return (int) $wpdb->get_var("SELECT COUNT(*) FROM " . self::table());
     }
 
     /**

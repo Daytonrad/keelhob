@@ -61,9 +61,19 @@ class CP_Test_Bag
         return $this->rows;
     }
 
-    public function recent($limit = 100): array
+    public function recent($limit = 100, $offset = 0): array
     {
-        return $this->rows;
+        return array_slice($this->rows, (int) $offset, (int) $limit);
+    }
+
+    public function paged($limit, $offset): array
+    {
+        return array_slice($this->rows, (int) $offset, (int) $limit);
+    }
+
+    public function count_all(): int
+    {
+        return count($this->rows);
     }
 }
 

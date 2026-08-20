@@ -399,7 +399,17 @@ final class Claudpress_Snippets
     private static function deactivate_with_error(int $id, string $message): void
     {
         global $wpdb;
+        $snip = self::get($id);
         $wpdb->update(self::table(), ['active' => 0, 'last_error' => mb_substr($message, 0, 1000)], ['id' => $id]);
+
+        // Logged as well as announced: the notification is a moment, the log is
+        // the answer to "when did this thing start being off?" three days later.
+        Claudpress_Snippet_Log::record(
+            (string) ($snip['uid'] ?? ''),
+            (string) ($snip['name'] ?? ''),
+            'fatal_deactivated',
+            $message
+        );
 
         // Something the agent wrote is now switched off. The site is up because
         // of it, but only the owner can decide whether the missing behaviour
@@ -513,6 +523,15 @@ final class Claudpress_Snippets
             $id = (int) $wpdb->insert_id;
         }
 
+        // Logged after the write, so a failed save leaves no record of a change
+        // that never happened.
+        Claudpress_Snippet_Log::record(
+            (string) ($existing['uid'] ?? ($row['uid'] ?? '')),
+            (string) $row['name'],
+            $existing ? 'updated' : 'created',
+            $lint !== '' ? 'Forced inactive: ' . $lint : null
+        );
+
         $res = ['success' => true, 'id' => $id, 'active' => (bool) $row['active'], 'type' => $type, 'location' => $location];
         if ($lint !== '') {
             $res['lint_error'] = $lint;
@@ -605,7 +624,8 @@ final class Claudpress_Snippets
     public static function toggle(int $id, bool $active): array
     {
         global $wpdb;
-        if (!self::get($id)) {
+        $snip = self::get($id);
+        if (!$snip) {
             return ['success' => false, 'error' => 'Snippet not found.'];
         }
         $update = ['active' => $active ? 1 : 0];
@@ -613,13 +633,25 @@ final class Claudpress_Snippets
             $update['last_error'] = null; // clear prior crash record on manual re-activate
         }
         $wpdb->update(self::table(), $update, ['id' => $id]);
+
+        Claudpress_Snippet_Log::record(
+            (string) ($snip['uid'] ?? ''),
+            (string) ($snip['name'] ?? ''),
+            $active ? 'activated' : 'deactivated'
+        );
         return ['success' => true, 'id' => $id, 'active' => $active];
     }
 
     public static function delete(int $id): array
     {
         global $wpdb;
+        // Read before the delete: afterwards there is nothing left to name the
+        // snippet by, and "something was deleted" is not an audit trail.
+        $snip    = self::get($id);
         $deleted = $wpdb->delete(self::table(), ['id' => $id]);
+        if ($deleted && $snip) {
+            Claudpress_Snippet_Log::record((string) ($snip['uid'] ?? ''), (string) ($snip['name'] ?? ''), 'deleted');
+        }
         return ['success' => (bool) $deleted, 'id' => $id];
     }
 }

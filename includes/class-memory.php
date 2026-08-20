@@ -84,6 +84,38 @@ final class Claudpress_Memory
         return $rows ?: [];
     }
 
+    /**
+     * One page of memory, for the Activity screen.
+     *
+     * Note what is deliberately absent from this class: a MAX_ROWS constant and
+     * a ring-buffer trim, of the kind Claudpress_Logger and
+     * Claudpress_Snippet_Log both have. Memory is not a log. It is the agent's
+     * long-term knowledge of this site — the brand colour the owner gave it,
+     * the conventions it was told to follow, the decisions it was asked to
+     * remember. Capping the table would silently make the agent forget things a
+     * human deliberately told it, with no error and no way to know which ones.
+     * So memory is paginated, never trimmed. Please do not "optimise" that.
+     *
+     * @return array<int, array>
+     */
+    public function paged(int $limit, int $offset): array
+    {
+        global $wpdb;
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT mem_key AS `key`, mem_value AS `value`, category, updated_at FROM " . self::table()
+            . " ORDER BY category, mem_key LIMIT %d OFFSET %d",
+            max(1, $limit),
+            max(0, $offset)
+        ), ARRAY_A);
+        return $rows ?: [];
+    }
+
+    public function count_all(): int
+    {
+        global $wpdb;
+        return (int) $wpdb->get_var("SELECT COUNT(*) FROM " . self::table());
+    }
+
     public function delete(string $key): array
     {
         global $wpdb;
