@@ -35,26 +35,26 @@ Everything below is being built to work the moment these land.
 - [x] U1 `uninstall.php` deletes everything unconditionally — flip to preserve-by-default
 - [x] Verify: traversal test, log redaction test, lockout test, uninstall both directions
 
-## Phase 1 — settings, consent, activity (1.11.0)
+## Phase 1 — settings, consent, activity (1.11.0) — mostly done
 
-- [ ] Consent gate on "Turn on AI abilities" + consent_by/at/version
-- [ ] Provider picker: per-provider rows, live swap, model dropdown (10, newest first)
-- [ ] `parse_models()` on each provider + `fetch_models()` + models cache (1 week)
-- [ ] `test_connection()` + Refresh button + Advanced custom endpoint
-- [ ] Two AJAX handlers with nonce AND `manage_options`
-- [ ] Digest destinations: Email / Telegram / webhook checkboxes, disabled until connected
-- [ ] `Claudpress_Notifier::send()` gains a channel-list argument
-- [ ] Hide-paid-notices setting
-- [ ] Activity page: 3 sections, 10 rows each, independent paging
-- [ ] Snippet-activity table + 200-row trim; logger 500 -> 200; memory uncapped
+- [x] Consent gate on "Turn on AI abilities" + consent_by/at/version
+- [x] Provider picker: per-provider rows, live swap, model dropdown (10, newest first)
+- [x] `parse_models()` on each provider + `fetch_models()` + models cache (1 week)
+- [x] `test_connection()` + Refresh button + Advanced custom endpoint
+- [x] Two AJAX handlers with nonce AND `manage_options`
+- [~] Digest destinations (logic + tests done in Claudpress_Notifier; needs its checkboxes on screen)
+- [x] `Claudpress_Notifier::send()` gains a channel-list argument
+- [~] Hide-paid-notices setting (stored + honoured in code; needs its checkbox on screen)
+- [x] Activity page: 3 sections, 10 rows each, independent paging
+- [x] Snippet-activity table + 200-row trim; logger 500 -> 200; memory uncapped
 
 ## Phase 2 — tiering + two zips (2.0.0)
 
-- [ ] Split `code` capability into `snippets` (free) + `code_exec` (free, separate toggle)
-- [ ] `tier` field per capability group + `is_pro()`
-- [ ] Tool registry skips Pro tools when unlicensed
-- [ ] Tier disclosure in `server_instructions()` + toggle
-- [ ] `get_site_info` capability block
+- [x] Split `code` capability into `snippets` (free) + `code_exec` (free, separate toggle)
+- [x] `tier` field per capability group + `is_pro()`
+- [x] Tool registry skips Pro tools when unlicensed
+- [x] Tier disclosure in `server_instructions()` + toggle
+- [x] `get_site_info` capability block
 - [ ] `seed_defaults()` in `class-memory.php` (idempotent)
 - [ ] Move Snippets page out of free core
 - [ ] Two-zip build script
@@ -62,6 +62,7 @@ Everything below is being built to work the moment these land.
 
 ## Phase 3 — live skills
 
+- [x] Skill catalogue: 15 skills, 9 free / 6 Pro, names+descriptions only, drift test
 - [ ] `source` column on skills (bundled/remote/local)
 - [ ] Remote fetch, 7-day TTL, 30-day grace, never blocks
 - [ ] Ed25519 signature verification, markdown-only validation
@@ -113,3 +114,6 @@ Everything below is being built to work the moment these land.
 | 2026-08-20 | **Phase 0 done.** All 7 security fixes + the uninstall data-loss bug. Version 1.10.1. |
 | 2026-08-20 | Wrote the missing test runner (`php tests/run.php`) — the framework existed but nothing ran it. |
 | 2026-08-20 | Proved each fix against the pre-fix code first: S1 allowed 4 attacks, U1 destroyed all data. |
+| 2026-08-20 | **Tier split done.** Had to split two capability groups: `code`→snippets+code_exec, `store`→store+store_orders. |
+| 2026-08-20 | **Phase 1 mostly done** (two subagents in parallel + my own work). Activity page, provider picker, notifier channels, tier disclosure, consent gate. |
+| 2026-08-20 | Test suite grew 919 → **1261 assertions**, all passing. |

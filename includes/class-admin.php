@@ -304,6 +304,9 @@ final class Claudpress_Admin
                 'log_calls'           => !empty($_POST['log_calls']),
                 'delete_data_on_uninstall' => !empty($_POST['delete_data_on_uninstall']),
                 'hide_paid_notices'        => !empty($_POST['hide_paid_notices']),
+                'disclose_pro'             => !empty($_POST['disclose_pro']),
+
+                'notify_channels'          => self::channels_from_post(),
                 'fs_base'             => !empty($_POST['fs_base']) ? sanitize_text_field(wp_unslash($_POST['fs_base'])) : ABSPATH,
                 'run_snippets'        => !empty($_POST['run_snippets']),
                 'site_label'          => sanitize_text_field(wp_unslash($_POST['site_label'] ?? '')),
@@ -562,6 +565,73 @@ final class Claudpress_Admin
                             <p><label><input type="checkbox" name="allow_app_passwords" value="1" <?php checked(!empty($s['allow_app_passwords'])); ?>> <?php esc_html_e('Allow Application Password (Basic) auth in addition to the bearer token', 'claudpress'); ?></label></p>
                             <p><label><input type="checkbox" name="require_https" value="1" <?php checked(!empty($s['require_https'])); ?>> <?php esc_html_e('Require HTTPS (recommended for remote sites)', 'claudpress'); ?></label></p>
                             <p><label><input type="checkbox" name="log_calls" value="1" <?php checked(!empty($s['log_calls'])); ?>> <?php esc_html_e('Log tool calls (Activity tab)', 'claudpress'); ?></label></p>
+                            <hr>
+                            <p style="margin-bottom:6px;"><strong><?php esc_html_e('Notifications', 'claudpress'); ?></strong></p>
+                            <?php
+                            // Preference and connectivity are two different
+                            // things. A disabled checkbox posts nothing, so the
+                            // stored choice must never be derived from this
+                            // form - otherwise losing a Telegram token would
+                            // silently erase the choice and reconnecting would
+                            // not bring it back. See Claudpress_Notifier.
+                            $availability = Claudpress_Notifier::availability();
+                            $chosen       = Claudpress_Notifier::chosen_channels();
+                            foreach (Claudpress_Notifier::labels() as $channel => $label) :
+                                $connected = !empty($availability[$channel]['connected']);
+                                ?>
+                                <p style="margin:4px 0;">
+                                    <label style="<?php echo $connected ? '' : 'color:#888;'; ?>">
+                                        <input type="checkbox" name="notify_channels[]" value="<?php echo esc_attr($channel); ?>"
+                                            <?php checked(in_array($channel, $chosen, true)); ?>
+                                            <?php disabled(!$connected); ?>>
+                                        <?php echo esc_html($label); ?>
+                                    </label>
+                                    <?php if (!$connected) : ?>
+                                        <span style="color:#a00;font-size:12px;">— <?php echo esc_html($availability[$channel]['reason']); ?></span>
+                                    <?php endif; ?>
+                                </p>
+                                <?php
+                            endforeach;
+
+                            if (empty(Claudpress_Notifier::effective_channels())) :
+                                ?>
+                                <p style="color:#a00;font-size:12px;margin-top:2px;">
+                                    <?php esc_html_e('Nothing is selected, so digests and alerts will not be sent anywhere.', 'claudpress'); ?>
+                                </p>
+                            <?php endif; ?>
+
+                            <hr>
+                            <p style="margin-bottom:6px;"><strong><?php esc_html_e('Agents and notices', 'claudpress'); ?></strong></p>
+                            <p>
+                                <label>
+                                    <input type="checkbox" name="disclose_pro" value="1" <?php checked(!empty($s['disclose_pro'])); ?>>
+                                    <?php esc_html_e('Tell connected agents which features are part of Claudpress Pro', 'claudpress'); ?>
+                                </label><br>
+                                <span style="color:#666;font-size:12px;margin-left:24px;">
+                                    <?php esc_html_e('An agent that does not know a feature is missing will keep trying, then report your site as broken. This tells it once, factually, at the start of the session.', 'claudpress'); ?>
+                                </span>
+                            </p>
+                            <p>
+                                <label>
+                                    <input type="checkbox" name="hide_paid_notices" value="1" <?php checked(!empty($s['hide_paid_notices'])); ?>>
+                                    <?php esc_html_e('Hide notices about optional paid features', 'claudpress'); ?>
+                                </label><br>
+                                <span style="color:#666;font-size:12px;margin-left:24px;">
+                                    <?php esc_html_e('Claudpress is fully functional without any paid add-on. Tick this and it will stop mentioning them on screen.', 'claudpress'); ?>
+                                </span>
+                            </p>
+
+                            <hr>
+                            <p style="margin-bottom:6px;"><strong><?php esc_html_e('Uninstall', 'claudpress'); ?></strong></p>
+                            <p>
+                                <label>
+                                    <input type="checkbox" name="delete_data_on_uninstall" value="1" <?php checked(!empty($s['delete_data_on_uninstall'])); ?>>
+                                    <?php esc_html_e('Delete all Claudpress data when the plugin is deleted', 'claudpress'); ?>
+                                </label><br>
+                                <span style="color:#666;font-size:12px;margin-left:24px;">
+                                    <?php esc_html_e('Off by default: deleting the plugin leaves your snippets, memory, skills and history in the database, so reinstalling restores them. There is no undo once this is on.', 'claudpress'); ?>
+                                </span>
+                            </p>
                             <p>
                                 <label><?php esc_html_e('Filesystem base directory (tools are confined at/below this path):', 'claudpress'); ?><br>
                                 <input type="text" name="fs_base" value="<?php echo esc_attr($s['fs_base']); ?>" class="regular-text" style="width:100%;max-width:520px;"></label>
@@ -1917,5 +1987,41 @@ final class Claudpress_Admin
             return false;
         }
         return (int) ($s['consent_version'] ?? 0) < self::CONSENT_VERSION;
+    }
+
+    /**
+     * Merge posted notification channels over the stored preference.
+     *
+     * The naive version of this is a straight read of $_POST, and it is wrong
+     * in a way that only shows up later. A DISABLED checkbox submits nothing.
+     * So a channel whose credentials are missing - the very reason its box is
+     * disabled - would be absent from the post, get treated as "unticked", and
+     * be quietly dropped from the preference. Reconnecting Telegram would then
+     * NOT resume the digests, and nothing on screen would explain why.
+     *
+     * So the posted value is only trusted for channels the owner could actually
+     * have touched. For the rest, the stored preference is carried through
+     * untouched.
+     *
+     * @return string[]
+     */
+    private static function channels_from_post(): array
+    {
+        $posted    = array_map('sanitize_key', (array) ($_POST['notify_channels'] ?? []));
+        $stored    = Claudpress_Notifier::chosen_channels();
+        $available = Claudpress_Notifier::availability();
+        $out       = [];
+
+        foreach (Claudpress_Notifier::CHANNELS as $channel) {
+            $editable = !empty($available[$channel]['connected']);
+            $keep     = $editable
+                ? in_array($channel, $posted, true)
+                : in_array($channel, $stored, true);
+
+            if ($keep) {
+                $out[] = $channel;
+            }
+        }
+        return $out;
     }
 }
