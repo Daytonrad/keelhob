@@ -91,7 +91,7 @@ final class Claudpress_Pro_Studio_AI
     public static function build(string $prompt, string $approved_plan) {
         $system = 'You are writing a single WordPress code snippet. '
             . 'Return ONLY the code — no explanation, no markdown fences, no commentary. '
-            . 'PHP snippets must open with <?php and must not close the tag. '
+            . 'Do NOT include an opening <?php tag and do NOT include a closing ?> tag - snippets are stored as bare PHP. '
             . 'Write it to be dropped into a snippet manager: no function name collisions, '
             . 'guard anything that assumes a plugin is present, and fail quietly rather than fatally.';
 
@@ -104,7 +104,12 @@ final class Claudpress_Pro_Studio_AI
         }
 
         $code = self::strip_fences($text);
+
+        // Type first, THEN strip the tag. guess_type() reads the opening <?php
+        // to recognise PHP, so stripping before guessing would make every PHP
+        // snippet look like something else.
         $type = self::guess_type($code);
+        $code = self::strip_php_tags($code, $type);
 
         if (trim($code) === '') {
             return new WP_Error('claudpress_studio_empty', __('The AI returned nothing usable.', 'claudpress-pro'));
@@ -206,22 +211,73 @@ final class Claudpress_Pro_Studio_AI
      * Trusting the model's own label would be simpler and is not safe: a
      * mislabelled PHP snippet stored as CSS skips the parse gate entirely,
      * because CSS is not parsed. The code decides, not the label.
+     *
+     * The hard case is BARE PHP. Claudpress stores snippets without an opening
+     * tag, so "add_filter('x', function () { ... });" is the normal shape - and
+     * a naive CSS check matches it happily, because it is a selector-ish thing
+     * followed by braces. PHP is therefore tested for first, on what PHP
+     * actually contains, and CSS last and strictly.
      */
-    public static function guess_type(string $code): string {
+    public static function guess_type(string $code): string
+    {
         $trimmed = ltrim($code);
 
         if (stripos($trimmed, '<?php') === 0 || strpos($trimmed, '<?php') !== false) {
             return 'php';
         }
+
+        // Bare PHP: look for things only PHP has.
+        $php_markers = [
+            '/add_(action|filter|shortcode|menu_page)\s*\(/i',
+            '/(function|foreach|endif|elseif|require_once|namespace)/',
+            '/\$[a-zA-Z_]\w*\s*(=|->|\[)/',
+            '/->\s*[a-zA-Z_]\w*\s*\(/',
+            '/[A-Za-z_]\w*::\w+/',
+        ];
+        foreach ($php_markers as $pattern) {
+            if (preg_match($pattern, $trimmed)) {
+                return 'php';
+            }
+        }
+
         if (stripos($trimmed, '<script') === 0 || preg_match('/^\s*(document\.|window\.|jQuery|\(function)/', $trimmed)) {
             return 'js';
         }
-        if (preg_match('/^\s*[.#a-zA-Z\[][^{;]*\{[^}]*\}/s', $trimmed)) {
+
+        // CSS, strictly: a selector, a brace, and at least one "property: value".
+        if (preg_match('/^[^{};]+\{[^}]*[a-z-]+\s*:\s*[^;}]+[;}]/i', $trimmed)) {
             return 'css';
         }
+
         if (stripos($trimmed, '<') === 0) {
             return 'html';
         }
+
         return 'php';
+    }
+
+
+    /**
+     * Remove the opening <?php and any closing ?> from generated PHP.
+     *
+     * Snippets are stored as BARE PHP - Claudpress_Snippets::lint_php() prepends
+     * its own "<?php " before parsing, and run_php() hands the body straight to
+     * eval(). A snippet that arrives with its own tag becomes "<?php <?php ..."
+     * at lint time and fails the parse gate, so it would save switched off with
+     * a syntax error and the whole feature would look broken.
+     *
+     * The system prompt asks the model not to include one. This strips it
+     * anyway, because an instruction in a prompt is a request, not a guarantee,
+     * and the failure it prevents is silent and total.
+     */
+    public static function strip_php_tags(string $code, string $type): string
+    {
+        if ($type !== 'php') {
+            return $code;
+        }
+        $code = preg_replace('/^\s*<\?php\s*/i', '', $code, 1);
+        $code = preg_replace('/\s*\?>\s*$/', '', (string) $code, 1);
+
+        return trim((string) $code);
     }
 }

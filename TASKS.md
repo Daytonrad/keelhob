@@ -10,8 +10,9 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done + verified · `[!]` blo
 
 ## Where it stands
 
-**Everything is green.** 1361 unit assertions; 39 live checks on a free install
-and 48 with the Pro add-on active, both against a real WordPress with WooCommerce.
+**Everything is green.** 1361 unit assertions; 39 live checks on a free install,
+48 with the Pro add-on, 36 for the Studio and 27 for the Compose flow — all against
+real WordPress with WooCommerce.
 Both zips build, and the build refuses to ship Pro code in the free zip.
 
 **How to re-run any of it:**
@@ -113,7 +114,7 @@ Everything below is being built to work the moment these land.
 - [x] `skill_list` returns `available` + `tier` over MCP
 - [x] `build-standard.md` + operating protocol rule 9 fall back to `site_readiness` on free
 
-## Phase 4 — Snippets Studio (Pro add-on) — all four tabs render live (36/36 checks)
+## Phase 4 — Snippets Studio (Pro add-on) ✅ four tabs + full Compose flow verified live
 
 - [x] Add-on plugin scaffold
 - [x] Schema: source, ai_prompt, ai_model, ai_review, ai_review_at + revisions table

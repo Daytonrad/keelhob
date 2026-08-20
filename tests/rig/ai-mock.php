@@ -30,6 +30,14 @@ if (!defined('ABSPATH')) {
 add_filter('pre_http_request', 'claudpress_rig_ai_mock', 10, 3);
 
 function claudpress_rig_ai_mock($preempt, $args, $url) {
+    // Somebody earlier in the chain already answered - a test forcing an outage,
+    // another mock, a caching layer. Overriding that would make this filter
+    // impossible to test around, which is exactly what happened: a deliberate
+    // failure injected at priority 1 was silently undone here at priority 10.
+    if ($preempt !== false) {
+        return $preempt;
+    }
+
     $hosts = ['api.anthropic.com', 'api.openai.com', 'generativelanguage.googleapis.com'];
     $host  = (string) wp_parse_url($url, PHP_URL_HOST);
 
@@ -51,8 +59,13 @@ function claudpress_rig_ai_mock($preempt, $args, $url) {
         ]);
     }
 
-    $sent   = json_decode((string) ($args['body'] ?? '{}'), true) ?: [];
-    $prompt = claudpress_rig_last_user_text($sent);
+    $sent = json_decode((string) ($args['body'] ?? '{}'), true) ?: [];
+
+    // Intent lives in the SYSTEM prompt, not the user turn. Matching on the user
+    // text alone made a plan request look identical to a code request, because
+    // the user only ever says what they want - 'add a shipping banner' - and
+    // never says which of the three calls this is.
+    $prompt = claudpress_rig_system_text($sent) . ' ' . claudpress_rig_last_user_text($sent);
     $text   = claudpress_rig_answer($prompt);
 
     // Answer in the shape the requesting provider's parse() expects.
@@ -91,7 +104,7 @@ function claudpress_rig_ai_mock($preempt, $args, $url) {
 function claudpress_rig_answer(string $prompt): string {
     $p = strtolower($prompt);
 
-    if (strpos($p, 'verdict') !== false || strpos($p, 'review') !== false || strpos($p, 'safe') !== false) {
+    if (strpos($p, 'you are reviewing') !== false) {
         return wp_json_encode([
             'summary'      => 'Adds a filter that appends a line to post content. Low risk.',
             'verdict'      => 'caution',
@@ -107,7 +120,7 @@ function claudpress_rig_answer(string $prompt): string {
         ]);
     }
 
-    if (strpos($p, 'plan') !== false && strpos($p, 'step') !== false) {
+    if (strpos($p, 'do not write any code yet') !== false) {
         return wp_json_encode([
             'summary' => 'Add a small PHP snippet that appends a note to post content.',
             'steps'   => ['Hook the_content', 'Append the note', 'Return the content'],
@@ -120,7 +133,10 @@ function claudpress_rig_answer(string $prompt): string {
     // Default: a snippet. Deliberately valid PHP, so the lint gate passes and the
     // test exercises the SUCCESS path. Flip a character in a test to exercise
     // the refusal path instead.
-    return "<?php\nadd_filter('the_content', function (\$content) {\n    return \$content . '<!-- mocked snippet -->';\n});\n";
+    // Bare PHP, no opening tag: that is how Claudpress stores snippets, and
+    // lint_php() prepends its own. A mock that returned a tagged snippet would
+    // have hidden the very bug this caught.
+    return "add_filter('the_content', function (\$content) {\n    return \$content . '<!-- mocked snippet -->';\n});";
 }
 
 function claudpress_rig_last_user_text(array $sent): string {
@@ -149,4 +165,21 @@ function claudpress_rig_response(array $body): array {
         'cookies'  => [],
         'filename' => null,
     ];
+}
+
+function claudpress_rig_system_text(array $sent): string {
+    if (is_string($sent['system'] ?? null)) {
+        return $sent['system'];
+    }
+    foreach ((array) ($sent['system'] ?? []) as $part) {
+        if (is_string($part['text'] ?? null)) {
+            return $part['text'];
+        }
+    }
+    foreach ((array) ($sent['messages'] ?? []) as $m) {
+        if (($m['role'] ?? '') === 'system' && is_string($m['content'] ?? null)) {
+            return $m['content'];
+        }
+    }
+    return (string) ($sent['systemInstruction']['parts'][0]['text'] ?? '');
 }
