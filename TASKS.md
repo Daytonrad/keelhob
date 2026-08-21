@@ -67,6 +67,24 @@ the free plugin.
 | B5 Business details | Drafting from the project; you review |
 | B6 AI cost figure | ❌ **Dropped.** Cost is model × tokens and we control neither. Publish a range + "set a spend limit with your provider". |
 
+## Live right now
+
+**staging.claudpress.com is running Claudpress 1.10.1.** Installed and verified
+over the real internet — 18 MCP checks and 5 consent checks all pass.
+
+- PHP 8.3.33, libsodium present (so signed skills will work)
+- 46 tools exposed; all 5 Pro tools correctly absent
+- `/status` leaks no version (S6, confirmed in production)
+- The consent gate blocks `execute_php` and `write_file`, while always-on reads still answer
+- The tier notice reaches connected agents, naming all 10 Pro capabilities
+
+**I did not tick the consent box.** It says "I have read the points above and
+accept that AI-driven changes run on my site at my own risk" — that is your
+acceptance to give, not mine. Tick it in Claudpress → Connect when you are ready
+and the agent can start working on the site.
+
+The bearer token is in `.staging-token` (gitignored).
+
 ## Still needs a person
 
 - [ ] **Start `claudpress.local` in LocalWP** — the site exists but has no HTTP port assigned, so it is not running

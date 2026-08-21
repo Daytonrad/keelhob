@@ -15,3 +15,6 @@ Thumbs.db
 # Local env / secrets (never commit tokens or API keys)
 .env
 *.local
+
+# Holds a live bearer token for the staging site. Never commit.
+.staging-token
