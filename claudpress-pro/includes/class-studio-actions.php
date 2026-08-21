@@ -75,6 +75,32 @@ final class Claudpress_Pro_Studio_Actions
             case 'restore':
                 $this->restore($id, isset($_POST['revision_id']) ? (int) $_POST['revision_id'] : 0);
                 break;
+            case 'cloud_start_pairing':
+                $started = Claudpress_Pro_Cloud::start_pairing();
+                Claudpress_Pro_Studio::redirect('library', empty($started['ok']) ? 'cloud_error' : 'saved', ['lib' => 'private']);
+                break;
+
+            case 'cloud_cancel_pairing':
+                Claudpress_Pro_Cloud::cancel_pairing();
+                Claudpress_Pro_Studio::redirect('library', 'saved', ['lib' => 'private']);
+                break;
+
+            case 'cloud_import':
+                // Lands inactive and goes through the same parse gate as
+                // anything else. Code from elsewhere is exactly the code
+                // somebody should read before it runs.
+                $imported = Claudpress_Pro_Cloud_Library::import(sanitize_text_field(wp_unslash($_POST['cloud_uid'] ?? '')));
+                if (!empty($imported['ok'])) {
+                    Claudpress_Pro_Studio::redirect('edit', 'imported', ['snippet' => (int) $imported['id']]);
+                }
+                Claudpress_Pro_Studio::redirect('library', 'cloud_error', ['lib' => 'private']);
+                break;
+
+            case 'cloud_push':
+                Claudpress_Pro_Cloud_Library::push((int) ($_POST['snippet_id'] ?? 0));
+                Claudpress_Pro_Studio::redirect('library', 'saved', ['lib' => 'private']);
+                break;
+
             case 'use_library':
                 $this->use_library(isset($_POST['library_key']) ? sanitize_key(wp_unslash($_POST['library_key'])) : '');
                 break;

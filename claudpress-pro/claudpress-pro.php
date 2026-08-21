@@ -80,6 +80,8 @@ require_once CLAUDPRESS_PRO_DIR . 'includes/class-studio-compose.php';
 require_once CLAUDPRESS_PRO_DIR . 'includes/class-studio-library.php';
 require_once CLAUDPRESS_PRO_DIR . 'includes/class-studio-ai.php';
 require_once CLAUDPRESS_PRO_DIR . 'includes/class-studio-actions.php';
+require_once CLAUDPRESS_PRO_DIR . 'includes/class-cloud.php';
+require_once CLAUDPRESS_PRO_DIR . 'includes/class-cloud-library.php';
 
     /**
      * The one line that turns the tier on.

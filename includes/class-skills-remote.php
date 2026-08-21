@@ -38,7 +38,7 @@ final class Claudpress_Skills_Remote
      * deliberately overridable — by constant for a whole install, by filter for
      * a single site or a test.
      */
-    const DEFAULT_ENDPOINT = 'https://skills.claudpress.com/v1/skills';
+    const DEFAULT_ENDPOINT = 'https://api.claudpress.com/v1/skills';
 
     /**
      * The Ed25519 public key that every bundle must verify against, base64.

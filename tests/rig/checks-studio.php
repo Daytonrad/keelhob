@@ -82,7 +82,12 @@ check('...and says so rather than hiding', strpos($compose, 'No AI provider is c
 // --- library ---
 $library = $render('library');
 check('library shows both sub-tabs', strpos($library, 'Private library') !== false && strpos($library, 'Claudpress library') !== false);
-check('private library is honest about not being connected', strpos($render('library', ['lib' => 'private']), 'Not connected yet') !== false);
+$private = $render('library', ['lib' => 'private']);
+check('an unlinked site is offered pairing, not an error', strpos($private, 'Link this site') !== false);
+// The reassurance is the point of the whole flow: a device code exists so that
+// nobody types their claudpress.com password into a WordPress install.
+check('...and told their password stays out of WordPress', strpos($private, 'never typed into WordPress') !== false);
+check('the pairing screen has no password field at all', strpos($private, 'type="password"') === false);
 
 // --- the two verdicts, side by side ---
 ob_start();

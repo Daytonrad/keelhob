@@ -41,8 +41,12 @@ Done and verified:
 - **Signed remote skills** — Ed25519, fails closed, markdown only, never
   overwrites your own skills.
 
-Biggest thing still to build: **the cloud backend** (Phase 5) and the site. The
-Snippets Studio now renders all four tabs against real WordPress.
+Biggest thing still to build: **deploying the API** and **the website**.
+
+The backend exists at `../claudpress-api` — NestJS + Prisma, schema live on
+supa.flintopia.net, 15 skills seeded, 47 unit tests + 17 cross-language checks +
+33 live-database checks. It is not deployed yet; `README.md` there has the
+Coolify steps.
 
 Two things I got wrong and fixed, so you know the shape of the mistakes:
 all 6 Pro skills were shipping in the free zip until I built the zip and read
@@ -154,14 +158,14 @@ Everything below is being built to work the moment these land.
 - [x] `class-tools-woocommerce.php` split → `wc_order`, `wc_report` moved
 - [x] `class-tools-seo.php` split → `seo_analyze`, `seo_redirect` moved; **`do_redirects` stayed free so a lapsed subscription never turns live redirects into 404s**
 
-## Phase 5 — cloud (built against a local stub until B2 lands)
+## Phase 5 — cloud — API built, schema live, plugin connector done
 
-- [ ] Supabase schema + RLS
-- [ ] Edge functions: pair, skills/free, skills/pro, library push/pull
-- [ ] Device pairing (10-min single-use codes)
-- [ ] `wp_claudpress_cloud_map` + 3-way hash sync + conflict UI
-- [ ] No delete/export path reachable from the plugin
-- [ ] Local stub server so all of this is testable now
+- [x] Supabase schema + RLS
+- [x] API endpoints: pair, skills/free, skills/pro, library push/pull, licence, Freemius webhook (NestJS, not edge functions)
+- [x] Device pairing (10-min single-use codes)
+- [x] `wp_claudpress_cloud_map` + 3-way hash sync + conflict UI
+- [x] No delete/export path reachable from the plugin
+- [x] Tested against the REAL database over the /pg/query bridge (33 checks) — no stub needed
 
 ## Phase 6 — site
 

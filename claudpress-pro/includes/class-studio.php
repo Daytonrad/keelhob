@@ -132,6 +132,7 @@ final class Claudpress_Pro_Studio
             'deleted'    => ['success', __('Snippet deleted.', 'claudpress-pro')],
             'imported'   => ['success', __('Added to this site, switched off. Review it, then activate.', 'claudpress-pro')],
             'lint'       => ['error', __('That code does not parse, so it was saved switched OFF. The error is shown on the snippet.', 'claudpress-pro')],
+            'cloud_error' => ['error', __('That did not work. Your snippets on this site are unaffected.', 'claudpress-pro')],
         ];
         $key = isset($_GET['cp_msg']) ? sanitize_key(wp_unslash($_GET['cp_msg'])) : '';
         if ($key === '' || !isset($map[$key])) {
