@@ -22,6 +22,7 @@ foreach ([
     'break pages, checkout, or the admin area' => 'it names the concrete damage, not a vague "at your own risk"',
     'sent to the AI provider you choose'       => 'it discloses that site data leaves the server',
     'cannot see or cap that spend'             => 'it warns that the bill is theirs and uncapped',
+    'Set a spend limit on your provider'       => 'and tells them the one thing that actually protects them',
     'safeguards, not a guarantee'              => 'it does not oversell the safety loop',
     'for having a backup'                      => 'it says whose job the backup is',
     'at my own risk'                           => 'the checkbox label is an acceptance, not just an on switch',

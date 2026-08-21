@@ -52,10 +52,35 @@ the free plugin.
 
 ---
 
-## BLOCKED ON YOU (everything else is built around these)
+## Credentials — all delivered 2026-08-21
 
-| # | What I need | Why | Where it plugs in |
-|---|---|---|---|
+| | Status |
+|---|---|
+| B1 Freemius product ID + keys | ✅ in `.env` |
+| B2 Supabase URL + service key | ✅ `supa.flintopia.net` — self-hosted, not supabase.com |
+| B3 Domain | ✅ **claudpress.com** |
+| B4 Ed25519 signing key | ✅ public half embedded; you hold the secret |
+| B5 Business details | Drafting from the project; you review |
+| B6 AI cost figure | ❌ **Dropped.** Cost is model × tokens and we control neither. Publish a range + "set a spend limit with your provider". |
+
+## Still needs a person
+
+- [ ] **Start `claudpress.local` in LocalWP** — the site exists but has no HTTP port assigned, so it is not running
+- [ ] Record the videos (I can script and edit via `tubergen`)
+- [ ] Have somebody liable read the ToS before Pro ships
+
+## Architecture — decided 2026-08-21
+
+```
+WordPress (claudpress.com) ──HTTPS──▶ NestJS + Prisma ──▶ self-hosted Supabase
+  site, docs, downloads,              licences, seats,      Postgres + Auth + Storage
+  account dashboard                   sync, Freemius        (no Edge Functions)
+  ⭐ runs Claudpress itself
+```
+
+Full reasoning in `docs/plans/free-pro-split.md` §0b.
+
+---|---|---|---|
 | B1 | Freemius product ID + secret key | Licence validation for the Pro endpoint | `claudpress.php` bootstrap, skills endpoint |
 | B2 | Supabase project URL + service key | Cloud library + skills server | Edge functions, `.env` |
 | B3 | Domain name + DNS to Coolify | Updater, site, endpoints | Site config |

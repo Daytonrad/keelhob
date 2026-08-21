@@ -2,7 +2,7 @@
 
 **Complete build plan.** Version 1.10.0 → 2.0.0 (free core) + 1.0.0 (`claudpress-pro`).
 Written 2026-08-19. Every open question in this document is answered; nothing is left "TBD"
-except two items explicitly marked **MEASURE** with instructions for how to settle them.
+and every credential it was blocked on has now been supplied.
 
 ---
 
@@ -27,41 +27,115 @@ except two items explicitly marked **MEASURE** with instructions for how to sett
 ---
 
 <a id="0"></a>
-## 0. Am I ready to build this, A to Z?
+## 0. What is blocked, and what is not
 
-**Yes for the code. No for the parts that need you personally.** The honest division:
+**Everything that was blocked on credentials is now unblocked.** Delivered 2026-08-21
+and stored in `.env` (gitignored):
 
-**I can build, unattended:**
+| | Status |
+|---|---|
+| Freemius product ID, public key, secret key | ✅ in `.env` |
+| Self-hosted Supabase URL + service key | ✅ `supa.flintopia.net` — own host, not supabase.com |
+| Domain | ✅ **claudpress.com** |
+| Ed25519 release signing key | ✅ public half embedded in the plugin; owner holds the secret |
+| Business details for legal pages | Draft from what the project already knows, owner reviews |
 
-- All seven security fixes (§9)
-- The capability split, `is_pro()`, tier disclosure, the Settings toggles
-- The consent gate, the provider picker, the uninstall fix
-- The Activity page rebuild with pagination and retention
-- The Snippets Studio, all four tabs, ported from VibeSnip
-- The skills manifest, catalogue screen, signature verification, cache and grace logic
-- The cloud connector, device pairing, push/pull/conflict handling
-- The two-zip build scripts, the self-hosted updater
-- The Supabase schema and edge functions
-- The marketing site, docs and account dashboard
-- Every test in §13
+One note on the signing key, so it is not repeated. The first key supplied was an
+`ssh-ed25519` PUBLIC key — the kind that goes in `authorized_keys`. Wrong shape twice:
+only the public half, and signing with an OpenSSH private key produces SSHSIG, a
+different envelope from the raw detached signature libsodium verifies. It would have
+looked right and never validated. A dedicated keypair replaced it, which is also correct
+independently — a release signing key should not share a lifetime or a blast radius with
+server access.
 
-**I cannot do these — they need you:**
+**Still genuinely needs a person:**
 
-| Blocker | Why | What I need from you |
-|---|---|---|
-| Freemius account | Needs your identity and payout details | Set it up, give me the product ID + secret key |
-| Domain | Needs a purchase | Register it, point DNS at the Coolify box |
-| Supabase project | Needs an account | Create it, give me the URL + service key |
-| Ed25519 signing key | **You must hold the private key.** If I generate it in a session, it is in a transcript | Generate with `sodium_crypto_sign_keypair()`, store the secret in CI, give me only the public key |
-| Legal pages | Need your real business details and a lawyer's eye | Give me the details; I draft, you review |
-| The videos | It is your face and your channel | Record; I can script and edit via `tubergen` |
-
-**The one thing I would change if you let me:** do §9 (security) and §10.3b (the uninstall
-data-loss bug) **first and alone**, ship them as 1.10.1, and only then start the split. Those are
-live bugs in code you run in production today. Everything else is new work that can wait.
+| | Why |
+|---|---|
+| The videos | It is your face and your channel. I can script and edit via `tubergen`. |
+| A lawyer's eye on the ToS | I can draft it. Somebody who is liable should read it. |
+| Starting the LocalWP site | `claudpress.local` exists but is not running — no HTTP port assigned. |
 
 ---
 
+<a id="0b"></a>
+## 0b. The system, end to end
+
+Decided 2026-08-21, replacing the earlier "Next.js marketing site" plan.
+
+```
+  claudpress.com                    api.claudpress.com            supa.flintopia.net
+  ┌────────────────────┐            ┌──────────────────┐          ┌─────────────────┐
+  │ WordPress          │  HTTPS     │ NestJS + Prisma  │  SQL     │ Supabase        │
+  │ • marketing        │ ─────────▶ │ • licences       │ ───────▶ │ • Postgres      │
+  │ • docs             │  bearer    │ • entitlements   │  Prisma  │ • Auth (GoTrue) │
+  │ • downloads        │  token     │ • seats & sync   │          │ • Storage (zips)│
+  │ • account dashboard│            │ • skill bundles  │          │                 │
+  │                    │            │ • Freemius hooks │          │ self-hosted on  │
+  │ runs Claudpress ⭐ │            │                  │          │ Coolify         │
+  └────────────────────┘            └──────────────────┘          └─────────────────┘
+         ▲                                   ▲
+         │ the plugin on a customer site     │
+         └───────────────────────────────────┘
+              device pairing, skills, library sync
+```
+
+**⭐ claudpress.com runs Claudpress.** That is the point, not a coincidence. Building the
+product's own site with the product is a marketing asset no Next.js site can match — "we
+built this with it" is checkable — and it is a brutal quality forcing function. Every rough
+edge gets found by the person who has to fix it.
+
+### Why these three and not fewer
+
+The first sketch was WordPress → NestJS → Prisma → **self-hosted Supabase**, and that had
+one layer too many. Supabase self-hosted ships Postgres, Auth, Storage, Realtime, PostgREST
+AND Edge Functions. Putting NestJS in front of all that means operating the whole stack
+while using it as "just Postgres" — paying the ops cost twice.
+
+So each layer has exactly one job and they do not overlap:
+
+| Layer | Owns | Deliberately does NOT |
+|---|---|---|
+| **Supabase** (self-hosted, Coolify) | Postgres, **Auth**, Storage for the zips | Edge Functions, PostgREST, Realtime — NestJS owns the API |
+| **NestJS + Prisma** | Every licence, entitlement, seat and sync rule | Ever touch WordPress's database |
+| **WordPress** | Site, docs, downloads, pricing, account dashboard | Ever see a service-role key |
+
+**Auth is what justifies self-hosting Supabase at all.** Signup, password reset, email
+verification, sessions — weeks of work, free, and exactly the account system the site needs.
+Without it the case for Supabase over plain Postgres would be thin.
+
+NestJS + Prisma also matches Aftasia in this workspace. Consistency across projects is worth
+something real when you are the only maintainer.
+
+### Freemius and Supabase Auth are not alternatives
+
+They answer different questions and the project needs both:
+
+| | Job |
+|---|---|
+| **Freemius** | Money. Takes the card, is **merchant of record** so no company is required, handles VAT, refunds and chargebacks, issues licence keys, hosts the Pro update server. |
+| **Supabase Auth** | Identity. Who is logged into claudpress.com to see their private library and linked sites. |
+| **NestJS** | Links them — the account row stores the Freemius licence and user id. |
+
+Freemius's own hosted portal cannot host the private library, because that needs *your*
+account system. Supabase Auth cannot take a payment. Neither replaces the other.
+
+### The account dashboard lives in WordPress
+
+Licence keys, linked sites, private library management, billing links. One site, one domain,
+one deploy — and the agent can manage it too, which is the dogfooding argument again. It is
+mostly CRUD, which WordPress does well. It moves to its own app only if it starts to hurt.
+
+**One risk this creates, and it must be designed in rather than bolted on.** §8.1 says the
+private library can only be deleted from the website, never from WordPress. If the website
+*is* WordPress, running Claudpress, with an agent connected — an agent could drive the
+dashboard, and the rule quietly weakens.
+
+The fix: **destructive account actions require a fresh password re-entry**, not merely a
+valid session. Deleting from the library, revoking a site, cancelling a subscription. A
+session is something an agent inherits; a password is something only a person has.
+
+---
 <a id="1"></a>
 ## 1. Context and locked decisions
 
@@ -1039,11 +1113,31 @@ trial is about *sampling Pro*, not about using the product at all. A card wall i
 customers, and lock early buyers in for as long as they stay subscribed. Honest urgency, and it
 buys room to raise later — very hard to do otherwise.
 
-**MEASURE — the AI cost line.** The pricing page must say what a build costs the user, because they
-bring their own key. Do not publish a guess. Run three real store builds end to end, record actual
-token spend from the provider dashboard, and publish the range. The working estimate is **$3–$10
-per full store build**, but treat that as unverified until measured. Copy: *"Free plugin. You bring
-your own AI key — about $X–$Y for a full store build."*
+**The AI cost line — a range, never a number.**
+
+An earlier draft said to measure three real builds and publish the figure. That was wrong,
+and the owner was right to push back: the cost is model × tokens, and we control neither.
+The same build on Fable and on Sonnet differ by an order of magnitude. Any single number we
+print is wrong for almost everybody who reads it, and it is wrong in the direction that
+produces angry emails.
+
+So publish an honest range, framed as an assumption, and name the variable:
+
+> Free plugin. You bring your own AI key. A full store build is typically a few dollars,
+> but it depends entirely on which model you choose.
+
+**The more important thing to say is not the price.** Claudpress cannot cap what the
+provider charges — the consent gate already admits this. Somebody on an uncapped key who
+leaves the agent running can get a genuinely unpleasant bill, and that is a refund request
+and a bad review, not a rounding error.
+
+So the pricing page and the consent gate both link to the provider's own spend controls:
+
+> **Set a spend limit on your provider account before you start.** Claudpress cannot cap
+> what your AI provider bills you — only they can.
+
+That sentence protects the customer, and protects you from the support load of somebody who
+was not protected.
 
 ### 11.7 Three non-technical risks
 
@@ -1232,5 +1326,12 @@ Everything that was open at some point in planning, and how it was settled.
 | Digest destinations? | **Per-channel checkboxes** (Email, Telegram, webhook), disabled until connected, with the preference stored separately from the connection state. |
 | Who holds the signing key? | **You.** Generated by you, stored in CI, never in a transcript. |
 | Free-core version at the split? | **2.0.0.** Add-on starts at **1.0.0**. |
-| AI cost per build on the pricing page? | **MEASURE** — three real builds, then publish the range. Working estimate $3–$10. |
+| The public website? | **WordPress at claudpress.com, running Claudpress itself.** Replaces the earlier Next.js plan. Dogfooding is the argument. |
+| The SaaS backend? | **NestJS + Prisma** at api.claudpress.com. Owns every licence, seat and sync rule. |
+| The database and identity? | **Self-hosted Supabase** on Coolify (`supa.flintopia.net`) for Postgres + Auth + Storage. **No Edge Functions, no PostgREST** — that was the overlap. |
+| Freemius, now that we have Supabase Auth? | **Both.** Freemius is money and merchant of record; Supabase Auth is who is logged into the site. Neither replaces the other. |
+| Where does the account dashboard live? | **In WordPress.** One site, one deploy, and the agent can manage it. Moves out only if it hurts. |
+| The risk that creates? | An agent on claudpress.com could drive the dashboard, weakening §8.1. **Destructive account actions require a fresh password re-entry**, not just a session. |
+| Prisma anywhere near WordPress? | **Never.** WordPress talks to NestJS over HTTPS with a bearer token, and never sees a service-role key. |
+| AI cost per build on the pricing page? | **A range, never a number.** Cost is model × tokens and we control neither. Say "a few dollars, depends on your model", and — more importantly — tell people to set a spend limit with their provider. |
 | Competitor prices? | **RE-VERIFY** before publishing the pricing page. |
