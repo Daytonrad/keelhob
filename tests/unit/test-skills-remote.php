@@ -57,7 +57,29 @@ if ($has_sodium) {
 // With no key configured — which is the state of this build until a real one is
 // pasted in — nothing can verify, so nothing may install.
 cp_test_reset_filters();
-CP_Test::same('', Claudpress_Skills_Remote::PUBLIC_KEY_B64, 'no production signing key is committed to the repo');
+// The PUBLIC half belongs in the repo - it only verifies, it cannot sign, and
+// every copy of the plugin needs it.
+//
+// The assertion that matters is the LENGTH. An Ed25519 public key is 32 bytes;
+// the secret half is 64. If this ever decodes to 64 bytes, somebody has pasted
+// the signing key into the plugin and it is now in every zip, every install and
+// every git clone. That is not a bug you fix by deleting the line - it means
+// rotating the key, and every installed copy stops trusting new skills until it
+// updates. So it is worth a test that fails loudly the moment it happens.
+$key_b64 = Claudpress_Skills_Remote::PUBLIC_KEY_B64;
+CP_Test::ok($key_b64 !== '', 'a signing public key is configured');
+
+$key_raw = base64_decode($key_b64, true);
+CP_Test::ok(is_string($key_raw), 'the key is valid base64');
+CP_Test::same(32, strlen((string) $key_raw), 'it is 32 bytes - a PUBLIC key. 64 would mean the SECRET half was committed.');
+
+// And it is wired up: something signed by anyone else must not verify against it.
+if ($has_sodium) {
+    $stranger = sodium_crypto_sign_keypair();
+    $payload  = '{"skills":[]}';
+    $sig      = base64_encode(sodium_crypto_sign_detached($payload, sodium_crypto_sign_secretkey($stranger)));
+    CP_Test::ok(!Claudpress_Skills_Remote::verify($payload, $sig)['ok'], 'a bundle signed by anyone else is refused by the configured key');
+}
 $unkeyed = Claudpress_Skills_Remote::verify('anything', base64_encode(str_repeat('x', 64)));
 CP_Test::ok(!$unkeyed['ok'], 'with no signing key configured, nothing verifies');
 CP_Test::contains('cannot be verified', $unkeyed['error'] . ' cannot be verified', 'the reason is explained rather than silent');
