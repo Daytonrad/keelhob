@@ -108,6 +108,80 @@ final class Claudpress_Admin
     }
 
     /**
+     * Test an image or transcription key.
+     *
+     * Separate from ajax_test_connection() because the check is a different
+     * shape: those providers are not chat providers, and testing them the chat
+     * way would mean generating an image or transcribing audio - a real charge,
+     * on every press, for a button people press when something is already wrong.
+     */
+    public function ajax_test_media(): void
+    {
+        self::guard_provider_ajax();
+
+        // phpcs:disable WordPress.Security.NonceVerification.Missing -- guard_provider_ajax() checks it.
+        $kind     = sanitize_key(wp_unslash($_POST['kind'] ?? ''));
+        $pid      = sanitize_key(wp_unslash($_POST['provider'] ?? ''));
+        $key      = sanitize_text_field(wp_unslash($_POST['api_key'] ?? ''));
+        $model    = sanitize_text_field(wp_unslash($_POST['model'] ?? ''));
+        $endpoint = trim(esc_url_raw(wp_unslash($_POST['endpoint'] ?? '')));
+        // phpcs:enable WordPress.Security.NonceVerification.Missing
+
+        $s = Claudpress::instance()->settings();
+
+        if ($kind === 'image') {
+            /** @var class-string<Claudpress_Image_Provider>|null $cls */
+            $cls    = Claudpress_Image_Provider::providers()[$pid] ?? null;
+            $stored = (string) ($s['image_api_key'] ?? '');
+        } elseif ($kind === 'voice') {
+            /** @var class-string<Claudpress_Transcribe_Provider>|null $cls */
+            $cls = Claudpress_Transcribe_Provider::providers()[$pid] ?? null;
+            // Voice deliberately falls back to another key for the same vendor,
+            // so an owner who already pasted an OpenAI key is not asked twice.
+            // The test has to honour that, or it reports "no key" for a setup
+            // that works perfectly.
+            $stored = ((string) ($s['voice_provider'] ?? 'openai') === $pid)
+                ? Claudpress_Transcribe_Provider::key()
+                : (string) ($s['voice_api_key'] ?? '');
+        } else {
+            wp_send_json_error(['message' => __('Unknown provider type.', 'claudpress')], 400);
+            return;
+        }
+
+        if ($cls === null) {
+            wp_send_json_error(['message' => __('Unknown provider.', 'claudpress')], 400);
+            return;
+        }
+
+        // An untouched key field posts the mask back. Eight bullets are not a
+        // key, and sending them to a vendor tests nothing - fall through to the
+        // stored one rather than report a failure the owner cannot act on.
+        if ($key === '' || Claudpress_Secrets::is_mask($key)) {
+            $key = $stored;
+        }
+        if (trim($key) === '') {
+            wp_send_json_error(['message' => __('Add an API key first, then test it.', 'claudpress')], 400);
+            return;
+        }
+
+        $model  = $model !== '' ? $model : $cls::default_model();
+        $result = Claudpress_Media_Check::run($cls::verify_url($endpoint, $model), $cls::auth_headers($key), $model);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()], 400);
+        }
+
+        wp_send_json_success([
+            'message' => sprintf(
+                /* translators: 1: provider name, 2: model id. */
+                __('Connected to %1$s using %2$s.', 'claudpress'),
+                $cls::label(),
+                $model
+            ),
+        ]);
+    }
+
+    /**
      * The model the form actually chose.
      *
      * The dropdown carries a sentinel rather than a value for "type your own",
@@ -132,6 +206,7 @@ final class Claudpress_Admin
         // see guard_provider_ajax() for why that changes what they must check.
         add_action('wp_ajax_claudpress_fetch_models', [$this, 'ajax_fetch_models']);
         add_action('wp_ajax_claudpress_test_connection', [$this, 'ajax_test_connection']);
+        add_action('wp_ajax_claudpress_test_media', [$this, 'ajax_test_media']);
     }
 
     public function menu(): void
@@ -227,6 +302,251 @@ final class Claudpress_Admin
                 </div>
             <?php endforeach; ?>
         </details>
+        <?php
+    }
+
+    /**
+     * The image / transcription provider block: picker, key, model, Test.
+     *
+     * One renderer for both, because they are the same screen twice and two
+     * copies would drift. The shape mirrors the agent-brain block above: one
+     * row per provider, only the selected one enabled, everything swapping the
+     * moment the picker changes rather than after a save.
+     *
+     * The model is a dropdown with no free-text escape. These lists are short,
+     * curated and vendor-specific, and a typed model id fails as an opaque 404
+     * days later, inside a scheduled run, where nobody connects it back to a
+     * settings screen. An owner who genuinely needs a model that is not listed
+     * has the endpoint override under Advanced.
+     *
+     * @param array{
+     *   kind: string, providers: array<string, class-string>, current: string,
+     *   provider_field: string, key_field: string, model_field: string,
+     *   endpoint_field: string, provider_label: string, key_label: string,
+     *   model_label: string, key_value: string, model_value: string,
+     *   endpoint_value: string, current_key_note?: string
+     * } $a
+     */
+    private static function render_media_provider(array $a): void
+    {
+        $kind = $a['kind'];
+        $note = (string) ($a['current_key_note'] ?? '');
+        // Minted here rather than passed in: the two callers sit on different
+        // admin pages, and a block that mints its own nonce cannot be rendered
+        // with one that was never created.
+        $nonce = wp_create_nonce(self::PROVIDER_NONCE);
+        ?>
+        <div class="claudpress-media-block" id="claudpress-media-<?php echo esc_attr($kind); ?>" data-kind="<?php echo esc_attr($kind); ?>"
+            data-nonce="<?php echo esc_attr($nonce); ?>">
+            <p>
+                <label><strong><?php echo esc_html($a['provider_label']); ?></strong><br>
+                    <select name="<?php echo esc_attr($a['provider_field']); ?>" class="claudpress-media-picker" style="max-width:340px;">
+                        <?php foreach ($a['providers'] as $pid => $cls) : ?>
+                            <option value="<?php echo esc_attr($pid); ?>" <?php selected($a['current'], $pid); ?>><?php echo esc_html($cls::label()); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+            </p>
+
+            <?php foreach ($a['providers'] as $pid => $cls) :
+                // Only the selected provider's row carries the stored key, model
+                // and endpoint. Those belong to it, and pre-filling another
+                // vendor's row with them is how a key ends up at the wrong host.
+                $is_current = ($pid === $a['current']);
+                $chosen     = ($is_current && $a['model_value'] !== '') ? $a['model_value'] : $cls::default_model();
+                $ids        = array_column($cls::models(), 'id');
+                ?>
+                <div class="claudpress-provider-row" data-provider="<?php echo esc_attr($pid); ?>" <?php echo $is_current ? '' : 'hidden'; ?>
+                    style="border:1px solid #e2e4e7;border-radius:8px;padding:12px 14px;margin:0 0 12px;background:#fbfbfc;">
+                    <?php
+                    // Disabled fields post nothing. The form stores one key, one
+                    // model and one endpoint, so without this the rows nobody is
+                    // looking at would submit alongside the one they filled in,
+                    // and whichever came last in the document would win.
+                    // Rendered server-side rather than left to the script, so a
+                    // page where the script never ran still saves the right
+                    // provider instead of silently wiping the key.
+                    ?>
+                    <fieldset class="claudpress-provider-fields" style="border:0;padding:0;margin:0;" <?php echo $is_current ? '' : 'disabled'; ?>>
+
+                        <p style="margin-top:0;">
+                            <label><strong><?php echo esc_html($a['key_label']); ?></strong><br>
+                                <input type="password" name="<?php echo esc_attr($a['key_field']); ?>" class="regular-text claudpress-key-input"
+                                    style="width:100%;max-width:520px;" autocomplete="off"
+                                    value="<?php echo $is_current ? esc_attr($a['key_value']) : ''; ?>"
+                                    placeholder="<?php echo esc_attr($cls::key_hint()); ?>">
+                            </label>
+                            <br><span style="color:#888;">
+                                <?php
+                                // The link is per-row and unconditional. Hiding
+                                // it behind the reuse note was the original bug
+                                // in miniature: the one thing somebody without
+                                // a key needs is the link to go and get one.
+                                ?>
+                                <a href="<?php echo esc_url($cls::key_url()); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Get a key from this provider', 'claudpress'); ?></a>
+                                &middot; <?php esc_html_e('Stored on this site and sent only to the provider you select.', 'claudpress'); ?>
+                                <?php if ($is_current && $note !== '') : ?>
+                                    <br><em><?php echo esc_html($note); ?></em>
+                                <?php endif; ?>
+                            </span>
+                        </p>
+
+                        <p>
+                            <label><strong><?php echo esc_html($a['model_label']); ?></strong><br>
+                                <select name="<?php echo esc_attr($a['model_field']); ?>" class="claudpress-model-select" style="max-width:560px;">
+                                    <?php
+                                    // A model saved before this list existed, or
+                                    // typed by hand into an older build, is kept
+                                    // as an option rather than silently swapped
+                                    // for the default. Changing which model a
+                                    // working site uses is not a UI upgrade's
+                                    // decision to make.
+                                    if ($is_current && $chosen !== '' && !in_array($chosen, $ids, true)) :
+                                        ?>
+                                        <option value="<?php echo esc_attr($chosen); ?>" selected>
+                                            <?php echo esc_html($chosen . ' - ' . __('your saved model', 'claudpress')); ?>
+                                        </option>
+                                    <?php endif; ?>
+                                    <?php foreach ($cls::models() as $m) : ?>
+                                        <option value="<?php echo esc_attr($m['id']); ?>" <?php selected($chosen, $m['id']); ?>>
+                                            <?php echo esc_html($m['id'] . ' - ' . $m['note']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label>
+                            <br>
+                            <button type="button" class="button claudpress-media-test" data-busy="<?php esc_attr_e('Testing...', 'claudpress'); ?>" style="margin-top:8px;">
+                                <?php esc_html_e('Test connection', 'claudpress'); ?>
+                            </button>
+                            <span class="claudpress-provider-status" role="status" style="margin-left:8px;"></span>
+                            <br><span style="color:#888;"><?php esc_html_e('The test only asks the provider to describe the model, so it costs nothing and generates nothing.', 'claudpress'); ?></span>
+                        </p>
+
+                        <details>
+                            <summary style="cursor:pointer;"><?php esc_html_e('Advanced', 'claudpress'); ?></summary>
+                            <p style="margin:8px 0 0;">
+                                <label><?php esc_html_e('Custom endpoint', 'claudpress'); ?><br>
+                                    <input type="text" name="<?php echo esc_attr($a['endpoint_field']); ?>" class="regular-text claudpress-endpoint-input"
+                                        style="width:100%;max-width:520px;"
+                                        value="<?php echo $is_current ? esc_attr($a['endpoint_value']) : ''; ?>"
+                                        placeholder="<?php echo esc_attr($cls::default_endpoint()); ?>">
+                                </label>
+                                <br><span style="color:#888;">
+                                    <?php esc_html_e('Pointing this at a gateway, proxy or self-hosted deployment sends your data to that host, under that host\'s terms rather than the vendor\'s. Blank uses the provider default.', 'claudpress'); ?>
+                                </span>
+                            </p>
+                        </details>
+                    </fieldset>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <?php
+        self::media_provider_script();
+    }
+
+    /**
+     * One script for every media block on the page.
+     *
+     * Bound at document level rather than per block, so the Connect page's image
+     * block and the Automation page's voice block share it and cannot drift.
+     *
+     * The "only once" guard is in the JavaScript rather than a PHP static on
+     * purpose. A PHP static is scoped to the request, which is correct in
+     * WordPress and quietly wrong everywhere else - it made the second page
+     * rendered in any one process come out with no script at all, and the first
+     * place that bit was the harness written to prove this feature works. A
+     * flag on window is true wherever the page actually runs.
+     */
+    private static function media_provider_script(): void
+    {
+        ?>
+        <script>
+        (function () {
+            if (window.claudpressMediaBound) { return; }
+            window.claudpressMediaBound = true;
+
+            var ajax   = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
+            var FAILED = <?php echo wp_json_encode(__('That did not go through. Check the browser console for details.', 'claudpress')); ?>;
+
+            function each(list, fn) { Array.prototype.forEach.call(list, fn); }
+
+            function show(block, id) {
+                each(block.querySelectorAll('.claudpress-provider-row'), function (row) {
+                    var on = (row.getAttribute('data-provider') === id);
+                    row.hidden = !on;
+                    // One flag for the whole row: a disabled fieldset takes its
+                    // fields out of the form, which is what keeps the rows
+                    // nobody is looking at from overwriting the one they filled
+                    // in when the page is saved.
+                    var fields = row.querySelector('.claudpress-provider-fields');
+                    if (fields) { fields.disabled = !on; }
+                });
+            }
+
+            function valueOf(row, sel) {
+                var el = row.querySelector(sel);
+                return el ? el.value : '';
+            }
+
+            document.addEventListener('change', function (e) {
+                if (!e.target.classList || !e.target.classList.contains('claudpress-media-picker')) { return; }
+                var block = e.target.closest('.claudpress-media-block');
+                if (!block) { return; }
+                show(block, e.target.value);
+                // A provider change invalidates the previous answer. A green
+                // "Connected to OpenAI" sitting beside a Google row is worse
+                // than showing nothing at all.
+                each(block.querySelectorAll('.claudpress-provider-status'), function (st) { st.textContent = ''; });
+            });
+
+            document.addEventListener('click', function (e) {
+                var btn = e.target.closest ? e.target.closest('.claudpress-media-test') : null;
+                if (!btn) { return; }
+                e.preventDefault();
+
+                var block  = btn.closest('.claudpress-media-block');
+                var row    = btn.closest('.claudpress-provider-row');
+                var status = row.querySelector('.claudpress-provider-status');
+
+                var body = new URLSearchParams();
+                body.set('action', 'claudpress_test_media');
+                body.set('nonce', block.getAttribute('data-nonce'));
+                body.set('kind', block.getAttribute('data-kind'));
+                body.set('provider', row.getAttribute('data-provider'));
+                body.set('api_key', valueOf(row, '.claudpress-key-input'));
+                body.set('model', valueOf(row, '.claudpress-model-select'));
+                body.set('endpoint', valueOf(row, '.claudpress-endpoint-input'));
+
+                status.style.color = '#666';
+                status.textContent = btn.getAttribute('data-busy');
+                btn.disabled = true;
+
+                fetch(ajax, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body.toString()
+                }).then(function (r) {
+                    return r.json();
+                }).then(function (json) {
+                    var ok  = !!(json && json.success);
+                    var msg = (json && json.data && json.data.message) ? json.data.message : FAILED;
+                    status.style.color = ok ? '#16a34a' : '#b91c1c';
+                    status.textContent = msg;
+                })['catch'](function () {
+                    status.style.color = '#b91c1c';
+                    status.textContent = FAILED;
+                })['finally'](function () {
+                    btn.disabled = false;
+                });
+            });
+
+            each(document.querySelectorAll('.claudpress-media-block'), function (block) {
+                var picker = block.querySelector('.claudpress-media-picker');
+                if (picker) { show(block, picker.value); }
+            });
+        })();
+        </script>
         <?php
     }
 
@@ -667,29 +987,24 @@ final class Claudpress_Admin
                             </p>
                             <?php
                             $img_id = (string) ($s['image_provider'] ?? 'openai');
-                            /** @var class-string<Claudpress_Image_Provider> $img_p */
-                            $img_p  = Claudpress_Image_Provider::get($img_id);
                             ?>
-                            <p style="color:#666;margin-top:16px;"><strong><?php esc_html_e('AI image generation', 'claudpress'); ?></strong> — <?php esc_html_e('optional. Leave the key blank to use free Openverse stock images via image_search instead.', 'claudpress'); ?></p>
-                            <p>
-                                <label><?php esc_html_e('Image provider:', 'claudpress'); ?>
-                                    <select name="image_provider" style="max-width:320px;">
-                                        <?php foreach (Claudpress_Image_Provider::providers() as $pid => $cls) : ?>
-                                            <option value="<?php echo esc_attr($pid); ?>" <?php selected($img_id, $pid); ?>><?php echo esc_html($cls::label()); ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </label>
-                            </p>
-                            <p><label><?php esc_html_e('Image API key:', 'claudpress'); ?> <input type="password" name="image_api_key" value="<?php echo esc_attr(Claudpress_Secrets::mask((string) ($s['image_api_key'] ?? ''))); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off" placeholder="<?php echo esc_attr($img_p::key_hint()); ?>"></label></p>
-                            <p><label><?php esc_html_e('Image model:', 'claudpress'); ?> <input type="text" name="image_api_model" value="<?php echo esc_attr($s['image_api_model'] ?? ''); ?>" class="regular-text" style="max-width:280px;" placeholder="<?php echo esc_attr($img_p::default_model()); ?>"></label>
-                                <span style="color:#888;margin-left:8px;"><?php esc_html_e('Blank = ', 'claudpress'); ?><code><?php echo esc_html($img_p::default_model()); ?></code></span></p>
-                            <p><label><?php esc_html_e('Image endpoint override (optional):', 'claudpress'); ?> <input type="text" name="image_api_endpoint" value="<?php echo esc_attr($s['image_api_endpoint'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" placeholder="<?php echo esc_attr($img_p::default_endpoint()); ?>"></label></p>
+                            <p style="color:#666;margin-top:22px;"><strong><?php esc_html_e('AI image generation', 'claudpress'); ?></strong> — <?php esc_html_e('optional. Leave the key blank to use free Openverse stock images via image_search instead.', 'claudpress'); ?></p>
+                            <?php self::render_media_provider([
+                                'kind'           => 'image',
+                                'providers'      => Claudpress_Image_Provider::providers(),
+                                'current'        => $img_id,
+                                'provider_field' => 'image_provider',
+                                'key_field'      => 'image_api_key',
+                                'model_field'    => 'image_api_model',
+                                'endpoint_field' => 'image_api_endpoint',
+                                'provider_label' => __('Image provider', 'claudpress'),
+                                'key_label'      => __('Image API key', 'claudpress'),
+                                'model_label'    => __('Image model', 'claudpress'),
+                                'key_value'      => Claudpress_Secrets::mask((string) ($s['image_api_key'] ?? '')),
+                                'model_value'    => (string) ($s['image_api_model'] ?? ''),
+                                'endpoint_value' => (string) ($s['image_api_endpoint'] ?? ''),
+                            ]); ?>
 
-                            <?php self::render_model_guide(
-                                __('Which image model ID do I put in the Image model field?', 'claudpress'),
-                                Claudpress_Image_Provider::providers(),
-                                $img_id
-                            ); ?>
                             <p style="color:#666;margin-top:16px;"><strong><?php esc_html_e('Staging → production deploy', 'claudpress'); ?></strong> <?php esc_html_e('(optional — target for deploy_push: your live site\'s Claudpress endpoint)', 'claudpress'); ?></p>
                             <p><label><?php esc_html_e('Production site URL:', 'claudpress'); ?> <input type="text" name="deploy_target_url" value="<?php echo esc_attr($s['deploy_target_url'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" placeholder="https://your-live-site.com"></label></p>
                             <p><label><?php esc_html_e('Production bearer token:', 'claudpress'); ?> <input type="password" name="deploy_target_token" value="<?php echo esc_attr(Claudpress_Secrets::mask((string) ($s['deploy_target_token'] ?? ''))); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off" placeholder="<?php esc_attr_e('cp_... (the live site\'s Claudpress token)', 'claudpress'); ?>"></label></p>
@@ -1431,8 +1746,6 @@ final class Claudpress_Admin
 
                 <?php
                 $voice_id = (string) ($s['voice_provider'] ?? 'openai');
-                /** @var class-string<Claudpress_Transcribe_Provider> $voice_p */
-                $voice_p   = Claudpress_Transcribe_Provider::get($voice_id);
                 $voice_key = Claudpress_Transcribe_Provider::key();
                 ?>
                 <p>
@@ -1449,38 +1762,27 @@ final class Claudpress_Admin
                 <p style="color:#666;max-width:620px;">
                     <?php esc_html_e('Transcription is a separate service from the agent brain: Anthropic has no speech-to-text API, so voice needs an OpenAI or Google key even if Claude is doing the thinking. Leave the key blank to reuse a key you already entered for the same vendor.', 'claudpress'); ?>
                 </p>
-                <p>
-                    <label><?php esc_html_e('Transcription provider:', 'claudpress'); ?>
-                        <select name="voice_provider" style="max-width:320px;">
-                            <?php foreach (Claudpress_Transcribe_Provider::providers() as $vid => $vcls) : ?>
-                                <option value="<?php echo esc_attr($vid); ?>" <?php selected($voice_id, $vid); ?>><?php echo esc_html($vcls::label()); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </label>
-                </p>
-                <p>
-                    <label><?php esc_html_e('Transcription API key:', 'claudpress'); ?>
-                    <input type="password" name="voice_api_key" value="<?php echo esc_attr(Claudpress_Secrets::mask((string) ($s['voice_api_key'] ?? ''))); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off"></label>
-                    <br><span style="color:#888;">
-                        <?php
-                        if ($voice_key !== '' && trim((string) ($s['voice_api_key'] ?? '')) === '') {
-                            esc_html_e('Blank — currently reusing another key you configured for this vendor.', 'claudpress');
-                        } else {
-                            esc_html_e('Get a key:', 'claudpress');
-                            echo ' <a href="' . esc_url($voice_p::key_url()) . '" target="_blank" rel="noopener noreferrer">' . esc_html($voice_p::key_url()) . '</a>';
-                        }
-                        ?>
-                    </span>
-                </p>
-                <p>
-                    <label><?php esc_html_e('Transcription model:', 'claudpress'); ?>
-                    <input type="text" name="voice_model" value="<?php echo esc_attr($s['voice_model'] ?? ''); ?>" class="regular-text" style="max-width:280px;" placeholder="<?php echo esc_attr($voice_p::default_model()); ?>"></label>
-                    <span style="color:#888;margin-left:8px;"><?php esc_html_e('Blank = ', 'claudpress'); ?><code><?php echo esc_html($voice_p::default_model()); ?></code></span>
-                </p>
-                <p>
-                    <label><?php esc_html_e('Transcription endpoint override (optional):', 'claudpress'); ?>
-                    <input type="text" name="voice_api_endpoint" value="<?php echo esc_attr($s['voice_api_endpoint'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" placeholder="<?php echo esc_attr($voice_p::default_endpoint()); ?>"></label>
-                </p>
+                <?php self::render_media_provider([
+                    'kind'           => 'voice',
+                    'providers'      => Claudpress_Transcribe_Provider::providers(),
+                    'current'        => $voice_id,
+                    'provider_field' => 'voice_provider',
+                    'key_field'      => 'voice_api_key',
+                    'model_field'    => 'voice_model',
+                    'endpoint_field' => 'voice_api_endpoint',
+                    'provider_label' => __('Transcription provider', 'claudpress'),
+                    'key_label'      => __('Transcription API key', 'claudpress'),
+                    'model_label'    => __('Transcription model', 'claudpress'),
+                    'key_value'      => Claudpress_Secrets::mask((string) ($s['voice_api_key'] ?? '')),
+                    'model_value'    => (string) ($s['voice_model'] ?? ''),
+                    'endpoint_value' => (string) ($s['voice_api_endpoint'] ?? ''),
+                    // Only true when the box really is empty and a same-vendor
+                    // key is filling in for it. Saying so beats an empty field
+                    // that looks broken but works.
+                    'current_key_note' => ($voice_key !== '' && trim((string) ($s['voice_api_key'] ?? '')) === '')
+                        ? __('Blank — currently reusing another key you entered for this same vendor.', 'claudpress')
+                        : '',
+                ]); ?>
 
                 <p><button class="button button-primary"><?php esc_html_e('Save chat settings', 'claudpress'); ?></button></p>
             </form>

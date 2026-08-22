@@ -975,6 +975,20 @@ abstract class Claudpress_Image_Provider
 
     abstract public static function headers(string $key): array;
 
+    /** Auth headers only, for a plain GET. No Content-Type: there is no body. */
+    abstract public static function auth_headers(string $key): array;
+
+    /**
+     * A URL that proves the key works WITHOUT generating an image.
+     *
+     * Generating one to test the connection would bill the owner every time
+     * they pressed Test, which is exactly the surprise the budget caps exist to
+     * prevent. Asking the vendor to describe the chosen model costs nothing and
+     * answers two questions at once: is the key good, and does this model exist
+     * for this account.
+     */
+    abstract public static function verify_url(string $endpoint, string $model): string;
+
     public static function url(string $endpoint, string $model): string
     {
         return $endpoint;
@@ -1042,6 +1056,21 @@ final class Claudpress_Image_Provider_OpenAI extends Claudpress_Image_Provider
         return ['Authorization' => 'Bearer ' . $key, 'Content-Type' => 'application/json'];
     }
 
+    public static function auth_headers(string $key): array
+    {
+        return ['Authorization' => 'Bearer ' . $key];
+    }
+
+    public static function verify_url(string $endpoint, string $model): string
+    {
+        $base = $endpoint !== '' ? $endpoint : self::default_endpoint();
+        // .../v1/images/generations is the generate route; .../v1/models/<id>
+        // is its describe route. Derived rather than hard-coded so a gateway
+        // that mirrors OpenAI under its own host is tested at that host.
+        $base = (string) preg_replace('#/images/generations/?$#', '', $base);
+        return rtrim($base, '/') . '/models/' . rawurlencode($model);
+    }
+
     public static function body(string $model, string $prompt, string $size): array
     {
         return ['model' => $model, 'prompt' => $prompt, 'size' => $size, 'n' => 1];
@@ -1100,6 +1129,20 @@ final class Claudpress_Image_Provider_Google extends Claudpress_Image_Provider
         return ['x-goog-api-key' => $key, 'Content-Type' => 'application/json'];
     }
 
+    public static function auth_headers(string $key): array
+    {
+        return ['x-goog-api-key' => $key];
+    }
+
+    public static function verify_url(string $endpoint, string $model): string
+    {
+        $base = $endpoint !== '' ? $endpoint : self::default_endpoint();
+        // An override may already be a full ".../models/<id>:generateContent".
+        // Strip the action back off rather than appending a second model id.
+        $base = (string) preg_replace('#/[^/]*:generateContent/?$#', '', $base);
+        return rtrim($base, '/') . '/' . rawurlencode($model);
+    }
+
     public static function body(string $model, string $prompt, string $size): array
     {
         // Gemini has no size parameter; the aspect ratio is expressed in the prompt.
@@ -1126,6 +1169,69 @@ final class Claudpress_Image_Provider_Google extends Claudpress_Image_Provider
 }
 
 /**
+ * "Does this key work?" for the image and transcription providers.
+ *
+ * Both families answer it the same way and neither may answer it the way the
+ * chat provider does. A chat test costs a handful of tokens; generating an
+ * image or transcribing audio to test a key would put a real charge on the
+ * owner's account every single time they pressed the button, and the person
+ * pressing it is usually pressing it repeatedly because something is wrong.
+ *
+ * So the test is a GET that asks the vendor to describe the chosen model. It
+ * costs nothing, and it separates the two failures that actually matter: a key
+ * the vendor rejects, and a model this account cannot reach.
+ */
+final class Claudpress_Media_Check
+{
+    /**
+     * @param array<string,string> $headers auth only
+     * @return true|WP_Error
+     */
+    public static function run(string $url, array $headers, string $model)
+    {
+        if ($url === '') {
+            return new WP_Error('claudpress_no_url', __('This provider cannot be tested automatically.', 'claudpress'));
+        }
+
+        $resp = wp_remote_get($url, ['timeout' => 20, 'headers' => $headers]);
+        if (is_wp_error($resp)) {
+            return $resp;
+        }
+
+        $code = (int) wp_remote_retrieve_response_code($resp);
+        if ($code >= 200 && $code < 300) {
+            return true;
+        }
+
+        $data = json_decode((string) wp_remote_retrieve_body($resp), true);
+        $msg  = is_array($data) ? (string) ($data['error']['message'] ?? '') : '';
+
+        if ($code === 401 || $code === 403) {
+            return new WP_Error('claudpress_key', __('Your API key was rejected. Check it above.', 'claudpress'));
+        }
+        if ($code === 404) {
+            return new WP_Error('claudpress_model', sprintf(
+                /* translators: %s: model id. */
+                __('The key works, but your account cannot reach %s. Pick another model, or enable it with your provider.', 'claudpress'),
+                $model
+            ));
+        }
+        if ($code === 429) {
+            return new WP_Error('claudpress_rate', __('The provider is rate-limiting this key. Wait a moment and test again.', 'claudpress'));
+        }
+        if ($msg !== '') {
+            return new WP_Error('claudpress_api', $msg);
+        }
+
+        return new WP_Error('claudpress_api', sprintf(
+            /* translators: %d: HTTP status code. */
+            __('The provider answered with HTTP %d.', 'claudpress'),
+            $code
+        ));
+    }
+}
+
+/**
  * Speech-to-text providers, for voice notes sent to the Telegram bot.
  *
  * Separate from the chat adapters for the same reason the image ones are: one
@@ -1140,6 +1246,33 @@ abstract class Claudpress_Transcribe_Provider
     abstract public static function default_endpoint(): string;
     abstract public static function default_model(): string;
     abstract public static function key_url(): string;
+    abstract public static function models_url(): string;
+    abstract public static function key_hint(): string;
+
+    /**
+     * The transcription models this vendor offers, newest and best first.
+     *
+     * A short curated list, not the vendor's whole catalogue: a chat model that
+     * happens to accept audio is not the same as one that transcribes well, and
+     * the /models endpoint cannot tell the two apart. Offering the wrong one
+     * produces a confident, wrong transcript rather than an error.
+     *
+     * @return array<int, array{id: string, note: string}>
+     */
+    abstract public static function models(): array;
+
+    /** Auth headers only, for a plain GET. No Content-Type: there is no body. */
+    abstract public static function auth_headers(string $key): array;
+
+    /**
+     * A URL that proves the key works WITHOUT transcribing anything.
+     *
+     * Testing by sending audio would need audio to send and would bill the
+     * owner for every press of Test. Asking the vendor to describe the chosen
+     * model costs nothing and catches both failures worth catching: a rejected
+     * key, and a model this account cannot reach.
+     */
+    abstract public static function verify_url(string $endpoint, string $model): string;
 
     /**
      * Perform the transcription.
@@ -1226,6 +1359,29 @@ final class Claudpress_Transcribe_Provider_OpenAI extends Claudpress_Transcribe_
     public static function default_endpoint(): string { return 'https://api.openai.com/v1/audio/transcriptions'; }
     public static function default_model(): string { return 'gpt-4o-mini-transcribe'; }
     public static function key_url(): string { return 'https://platform.openai.com/api-keys'; }
+    public static function models_url(): string { return 'https://platform.openai.com/docs/guides/speech-to-text'; }
+    public static function key_hint(): string { return 'sk-...'; }
+
+    public static function models(): array
+    {
+        return [
+            ['id' => 'gpt-4o-mini-transcribe', 'note' => 'Recommended. Fast and cheap, and accurate enough for voice notes.'],
+            ['id' => 'gpt-4o-transcribe',      'note' => 'More accurate on accents, noise and technical words. Costs more.'],
+            ['id' => 'whisper-1',              'note' => 'The older Whisper model. Still solid, and the widest language coverage.'],
+        ];
+    }
+
+    public static function auth_headers(string $key): array
+    {
+        return ['Authorization' => 'Bearer ' . $key];
+    }
+
+    public static function verify_url(string $endpoint, string $model): string
+    {
+        $base = $endpoint !== '' ? $endpoint : self::default_endpoint();
+        $base = (string) preg_replace('#/audio/transcriptions/?$#', '', $base);
+        return rtrim($base, '/') . '/models/' . rawurlencode($model);
+    }
 
     public static function transcribe(string $key, string $model, string $endpoint, string $bytes, string $mime, string $filename): array
     {
@@ -1264,6 +1420,29 @@ final class Claudpress_Transcribe_Provider_Google extends Claudpress_Transcribe_
     public static function default_endpoint(): string { return 'https://generativelanguage.googleapis.com/v1beta/models'; }
     public static function default_model(): string { return 'gemini-flash-latest'; }
     public static function key_url(): string { return 'https://aistudio.google.com/apikey'; }
+    public static function models_url(): string { return 'https://ai.google.dev/gemini-api/docs/audio'; }
+    public static function key_hint(): string { return 'AIza...'; }
+
+    public static function models(): array
+    {
+        return [
+            ['id' => 'gemini-flash-latest', 'note' => 'Recommended. An alias that always points at the current Flash model.'],
+            ['id' => 'gemini-2.5-flash',    'note' => 'A pinned version, so an upgrade cannot change your results.'],
+            ['id' => 'gemini-2.5-pro',      'note' => 'Slower and dearer. Better on poor audio and unusual vocabulary.'],
+        ];
+    }
+
+    public static function auth_headers(string $key): array
+    {
+        return ['x-goog-api-key' => $key];
+    }
+
+    public static function verify_url(string $endpoint, string $model): string
+    {
+        $base = $endpoint !== '' ? $endpoint : self::default_endpoint();
+        $base = (string) preg_replace('#/[^/]*:generateContent/?$#', '', $base);
+        return rtrim($base, '/') . '/' . rawurlencode($model);
+    }
 
     public static function transcribe(string $key, string $model, string $endpoint, string $bytes, string $mime, string $filename): array
     {
