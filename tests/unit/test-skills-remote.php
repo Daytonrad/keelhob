@@ -88,7 +88,15 @@ CP_Test::group('Remote skills — a skill is a document, not code');
 
 CP_Test::ok(Claudpress_Skills_Remote::is_markdown_safe("# Title\n\nSome prose."), 'plain markdown is accepted');
 CP_Test::ok(!Claudpress_Skills_Remote::is_markdown_safe('<?php system($_GET["c"]); ?>'), 'a PHP open tag is refused');
-CP_Test::ok(!Claudpress_Skills_Remote::is_markdown_safe("# Fine\n<?= $x ?>"), 'a short echo tag is refused');
+// The payload is single-quoted on purpose. Written in double quotes, PHP
+// interpolated the variable inside it, so the tag arrived empty and every
+// run warned about an undefined variable. Single quotes keep the tag whole,
+// which is the shape it takes in a real file.
+//
+// Note for anyone editing the comment above: a PHP close tag written out in
+// a // comment ends PHP mode for the rest of the file. Describe the tags,
+// do not spell them.
+CP_Test::ok(!Claudpress_Skills_Remote::is_markdown_safe("# Fine\n" . '<?= $x ?>'), 'a short echo tag is refused');
 CP_Test::ok(!Claudpress_Skills_Remote::is_markdown_safe("# Fine\n<% asp %>"), 'an ASP-style tag is refused');
 CP_Test::ok(!Claudpress_Skills_Remote::is_markdown_safe("bin\0ary"), 'a null byte is refused');
 CP_Test::ok(!Claudpress_Skills_Remote::is_markdown_safe('   '), 'an empty body is refused');
