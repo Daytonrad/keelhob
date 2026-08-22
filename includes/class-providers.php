@@ -989,6 +989,30 @@ abstract class Claudpress_Image_Provider
      */
     abstract public static function verify_url(string $endpoint, string $model): string;
 
+    /**
+     * The vendor's own model catalogue, so Refresh can find models newer than
+     * this release. Empty string means the vendor publishes no such list.
+     */
+    public static function models_list_url(string $endpoint): string
+    {
+        return '';
+    }
+
+    /**
+     * Pull the models THIS provider can actually use out of that catalogue.
+     *
+     * Vendors return one flat list of everything the account can touch, with
+     * nothing in it that marks a model as an image model. So this matches on
+     * names, and a name match is a guess — which is exactly why a refresh only
+     * ever adds to the curated list in models() and never replaces it.
+     *
+     * @return array<int, string>
+     */
+    public static function parse_models(array $data): array
+    {
+        return [];
+    }
+
     public static function url(string $endpoint, string $model): string
     {
         return $endpoint;
@@ -1071,6 +1095,40 @@ final class Claudpress_Image_Provider_OpenAI extends Claudpress_Image_Provider
         return rtrim($base, '/') . '/models/' . rawurlencode($model);
     }
 
+    public static function models_list_url(string $endpoint): string
+    {
+        $base = $endpoint !== '' ? $endpoint : self::default_endpoint();
+        $base = (string) preg_replace('#/images/generations/?$#', '', $base);
+        return rtrim($base, '/') . '/models';
+    }
+
+    public static function parse_models(array $data): array
+    {
+        // OpenAI's list is every model the account can reach, so the image ones
+        // have to be picked out by name. Both families are prefixes, which is
+        // narrow enough that a chat or audio model cannot slip through.
+        $families = ['gpt-image', 'dall-e'];
+
+        $rows = (isset($data['data']) && is_array($data['data'])) ? $data['data'] : [];
+        // 'created' is a unix timestamp: newest first, so a new model shows up
+        // at the top rather than below three retired ones.
+        usort($rows, static function ($a, $b) {
+            return ((int) ($b['created'] ?? 0)) <=> ((int) ($a['created'] ?? 0));
+        });
+
+        $out = [];
+        foreach ($rows as $m) {
+            $id = (string) ($m['id'] ?? '');
+            foreach ($families as $family) {
+                if ($id !== '' && strpos($id, $family) === 0) {
+                    $out[] = $id;
+                    break;
+                }
+            }
+        }
+        return array_values(array_unique($out));
+    }
+
     public static function body(string $model, string $prompt, string $size): array
     {
         return ['model' => $model, 'prompt' => $prompt, 'size' => $size, 'n' => 1];
@@ -1141,6 +1199,38 @@ final class Claudpress_Image_Provider_Google extends Claudpress_Image_Provider
         // Strip the action back off rather than appending a second model id.
         $base = (string) preg_replace('#/[^/]*:generateContent/?$#', '', $base);
         return rtrim($base, '/') . '/' . rawurlencode($model);
+    }
+
+    public static function models_list_url(string $endpoint): string
+    {
+        // For Gemini the endpoint IS the collection: ".../v1beta/models".
+        $base = $endpoint !== '' ? $endpoint : self::default_endpoint();
+        return (string) preg_replace('#/[^/]*:generateContent/?$#', '', $base);
+    }
+
+    public static function parse_models(array $data): array
+    {
+        $rows = (isset($data['models']) && is_array($data['models'])) ? $data['models'] : [];
+
+        $out = [];
+        foreach ($rows as $m) {
+            $id = (string) preg_replace('#^models/#', '', (string) ($m['name'] ?? ''));
+            if ($id === '' || strpos($id, 'gemini') !== 0 || strpos($id, 'image') === false) {
+                continue;
+            }
+            // Imagen and Veo make pictures and video too, but through :predict,
+            // which this adapter does not speak. They are excluded by the
+            // gemini prefix above rather than by a blocklist that would need
+            // updating every time Google ships another one.
+            $methods = isset($m['supportedGenerationMethods']) ? (array) $m['supportedGenerationMethods'] : [];
+            if ($methods && !in_array('generateContent', $methods, true)) {
+                continue;
+            }
+            $out[] = $id;
+        }
+        $out = array_values(array_unique($out));
+        rsort($out, SORT_NATURAL);
+        return $out;
     }
 
     public static function body(string $model, string $prompt, string $size): array
@@ -1229,6 +1319,126 @@ final class Claudpress_Media_Check
             $code
         ));
     }
+    // ---- the model list ---------------------------------------------------
+
+    const MODELS_CACHE = 'claudpress_media_models_';
+    const MODELS_SHOWN = 12;
+
+    /**
+     * What the dropdown offers: the curated list, plus anything new the vendor
+     * is advertising that we have not catalogued yet.
+     *
+     * The curated entries ALWAYS survive. A vendor's model list is one flat
+     * catalogue of everything the account can touch — chat, embeddings, speech,
+     * video — with nothing in it that says "this one draws pictures". Picking
+     * the image models back out of it means matching on names, and a name match
+     * is a guess that goes stale. If a refresh were allowed to replace the list,
+     * one renamed model would empty the dropdown, or worse, quietly drop the
+     * model a working site is using.
+     *
+     * So a refresh only ever ADDS. That is the whole design: the catalogue is
+     * the floor, the vendor is the ceiling.
+     *
+     * @param class-string $cls
+     * @return array<int, array{id: string, note: string}>
+     */
+    public static function models(string $cls, string $kind, string $pid, string $keep = ''): array
+    {
+        $out  = [];
+        $seen = [];
+
+        foreach ($cls::models() as $m) {
+            $out[]  = ['id' => (string) $m['id'], 'note' => (string) $m['note']];
+            $seen[] = (string) $m['id'];
+        }
+
+        $cached = get_transient(self::MODELS_CACHE . $kind . '_' . $pid);
+        if (is_array($cached)) {
+            foreach ($cached as $id) {
+                $id = (string) $id;
+                if ($id === '' || in_array($id, $seen, true)) {
+                    continue;
+                }
+                $out[]  = ['id' => $id, 'note' => __('Newer — offered by your provider, not yet described here.', 'claudpress')];
+                $seen[] = $id;
+            }
+        }
+
+        $out = array_slice($out, 0, self::MODELS_SHOWN);
+
+        // Whatever is already saved stays on the list even when the vendor has
+        // stopped advertising it. A model silently vanishing from the dropdown
+        // would switch the site to a different one on the next save.
+        if ($keep !== '' && !in_array($keep, array_column($out, 'id'), true)) {
+            array_unshift($out, ['id' => $keep, 'note' => __('your saved model', 'claudpress')]);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Ask the vendor what this key can really reach, and remember it for a week.
+     *
+     * @param class-string $cls
+     * @return array<int, array{id: string, note: string}>|WP_Error
+     */
+    public static function refresh(string $cls, string $kind, string $pid, string $key, string $endpoint, string $keep = '')
+    {
+        if (trim($key) === '') {
+            return new WP_Error('claudpress_no_key', __('Add an API key first, then refresh the model list.', 'claudpress'));
+        }
+
+        $url = $cls::models_list_url($endpoint);
+        if ($url === '') {
+            return new WP_Error(
+                'claudpress_no_model_list',
+                __('This provider does not publish a model list. The models above are the ones this plugin supports.', 'claudpress')
+            );
+        }
+
+        $resp = wp_remote_get($url, ['timeout' => 20, 'headers' => $cls::auth_headers($key)]);
+        if (is_wp_error($resp)) {
+            return $resp;
+        }
+
+        $code = (int) wp_remote_retrieve_response_code($resp);
+        $data = json_decode((string) wp_remote_retrieve_body($resp), true);
+
+        if ($code === 401 || $code === 403) {
+            return new WP_Error('claudpress_key', __('Your API key was rejected. Check it above.', 'claudpress'));
+        }
+        if ($code < 200 || $code >= 300 || !is_array($data)) {
+            $msg = is_array($data) ? (string) ($data['error']['message'] ?? '') : '';
+            return new WP_Error('claudpress_api', $msg !== '' ? $msg : sprintf(
+                /* translators: %d: HTTP status code. */
+                __('The model list could not be read (HTTP %d).', 'claudpress'),
+                $code
+            ));
+        }
+
+        $found = $cls::parse_models($data);
+
+        // Not an error. The key works and the vendor answered; it simply had
+        // nothing this plugin has not already got. Saying "no models" here
+        // would read as a failure and send somebody hunting for a broken key.
+        set_transient(self::MODELS_CACHE . $kind . '_' . $pid, $found, WEEK_IN_SECONDS);
+
+        return self::models($cls, $kind, $pid, $keep);
+    }
+
+    /** Drop every cached media list, so the next look asks the vendors again. */
+    public static function forget(): void
+    {
+        foreach (['image', 'voice'] as $kind) {
+            $all = $kind === 'image'
+                ? Claudpress_Image_Provider::providers()
+                : Claudpress_Transcribe_Provider::providers();
+            foreach (array_keys($all) as $pid) {
+                delete_transient(self::MODELS_CACHE . $kind . '_' . $pid);
+            }
+        }
+    }
+
 }
 
 /**
@@ -1273,6 +1483,24 @@ abstract class Claudpress_Transcribe_Provider
      * key, and a model this account cannot reach.
      */
     abstract public static function verify_url(string $endpoint, string $model): string;
+
+    /** As on the image family: the vendor's catalogue, for the Refresh button. */
+    public static function models_list_url(string $endpoint): string
+    {
+        return '';
+    }
+
+    /**
+     * As on the image family: a name match, which is a guess, which is why
+     * Claudpress_Media_Check::models() adds to the curated list rather than
+     * trusting this to replace it.
+     *
+     * @return array<int, string>
+     */
+    public static function parse_models(array $data): array
+    {
+        return [];
+    }
 
     /**
      * Perform the transcription.
@@ -1383,6 +1611,38 @@ final class Claudpress_Transcribe_Provider_OpenAI extends Claudpress_Transcribe_
         return rtrim($base, '/') . '/models/' . rawurlencode($model);
     }
 
+    public static function models_list_url(string $endpoint): string
+    {
+        $base = $endpoint !== '' ? $endpoint : self::default_endpoint();
+        $base = (string) preg_replace('#/audio/transcriptions/?$#', '', $base);
+        return rtrim($base, '/') . '/models';
+    }
+
+    public static function parse_models(array $data): array
+    {
+        // A model that merely ACCEPTS audio is not a transcription model:
+        // gpt-4o-audio answers in speech and would return no transcript at all.
+        // Only these two markers name models whose job is writing down words.
+        $markers = ['transcribe', 'whisper'];
+
+        $rows = (isset($data['data']) && is_array($data['data'])) ? $data['data'] : [];
+        usort($rows, static function ($a, $b) {
+            return ((int) ($b['created'] ?? 0)) <=> ((int) ($a['created'] ?? 0));
+        });
+
+        $out = [];
+        foreach ($rows as $m) {
+            $id = (string) ($m['id'] ?? '');
+            foreach ($markers as $marker) {
+                if ($id !== '' && strpos($id, $marker) !== false) {
+                    $out[] = $id;
+                    break;
+                }
+            }
+        }
+        return array_values(array_unique($out));
+    }
+
     public static function transcribe(string $key, string $model, string $endpoint, string $bytes, string $mime, string $filename): array
     {
         $part = self::multipart(['model' => $model ?: self::default_model()], 'file', $filename, $mime, $bytes);
@@ -1442,6 +1702,43 @@ final class Claudpress_Transcribe_Provider_Google extends Claudpress_Transcribe_
         $base = $endpoint !== '' ? $endpoint : self::default_endpoint();
         $base = (string) preg_replace('#/[^/]*:generateContent/?$#', '', $base);
         return rtrim($base, '/') . '/' . rawurlencode($model);
+    }
+
+    public static function models_list_url(string $endpoint): string
+    {
+        $base = $endpoint !== '' ? $endpoint : self::default_endpoint();
+        return (string) preg_replace('#/[^/]*:generateContent/?$#', '', $base);
+    }
+
+    public static function parse_models(array $data): array
+    {
+        // Gemini transcribes as a side effect of generateContent, so the
+        // candidates are the ordinary text models. Everything excluded here
+        // still answers generateContent - and returns speech, or a picture, or
+        // a vector - which is why the filter cannot simply trust that method.
+        $not_text = ['-tts', 'image', 'embedding', 'aqa', 'veo-', 'imagen-'];
+        $rows     = (isset($data['models']) && is_array($data['models'])) ? $data['models'] : [];
+
+        $out = [];
+        foreach ($rows as $m) {
+            $id = (string) preg_replace('#^models/#', '', (string) ($m['name'] ?? ''));
+            if ($id === '' || strpos($id, 'gemini') !== 0) {
+                continue;
+            }
+            $methods = isset($m['supportedGenerationMethods']) ? (array) $m['supportedGenerationMethods'] : [];
+            if ($methods && !in_array('generateContent', $methods, true)) {
+                continue;
+            }
+            foreach ($not_text as $marker) {
+                if (strpos($id, $marker) !== false) {
+                    continue 2;
+                }
+            }
+            $out[] = $id;
+        }
+        $out = array_values(array_unique($out));
+        rsort($out, SORT_NATURAL);
+        return $out;
     }
 
     public static function transcribe(string $key, string $model, string $endpoint, string $bytes, string $mime, string $filename): array

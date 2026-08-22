@@ -590,6 +590,152 @@ CP_Test::same('', $r['url'], '...without sending the key anywhere');
 cp_test_reset_ajax();
 cp_test_reset_options();
 
+
+CP_Test::group('Media providers — Refresh adds, never replaces');
+
+/**
+ * A vendor's model list is one flat catalogue of everything the account can
+ * touch, with nothing in it that says which models draw pictures or write down
+ * speech. Picking them out means matching on names, and a name match is a guess
+ * that goes stale.
+ *
+ * So the rule these cover: a refresh may only ADD. If it were allowed to
+ * replace the list, one rename at the vendor would empty the dropdown — or
+ * quietly drop the model a working site is already using.
+ */
+
+// What OpenAI really returns: everything, in one list.
+$openai_catalogue = ['data' => [
+    ['id' => 'gpt-image-2',            'created' => 900],
+    ['id' => 'gpt-image-1',            'created' => 800],
+    ['id' => 'dall-e-3',               'created' => 300],
+    ['id' => 'gpt-5',                  'created' => 950],
+    ['id' => 'gpt-4o-audio-preview',   'created' => 700],
+    ['id' => 'gpt-4o-transcribe',      'created' => 750],
+    ['id' => 'gpt-4o-mini-transcribe', 'created' => 760],
+    ['id' => 'whisper-1',              'created' => 200],
+    ['id' => 'text-embedding-3-large', 'created' => 500],
+    ['id' => 'tts-1',                  'created' => 400],
+    ['id' => 'omni-moderation-latest', 'created' => 600],
+]];
+
+$img = Claudpress_Image_Provider_OpenAI::parse_models($openai_catalogue);
+CP_Test::same(['gpt-image-2', 'gpt-image-1', 'dall-e-3'], $img, 'OpenAI images: only image models, newest first');
+foreach (['gpt-5', 'whisper-1', 'tts-1', 'text-embedding-3-large', 'omni-moderation-latest'] as $wrong) {
+    CP_Test::ok(!in_array($wrong, $img, true), 'OpenAI images: ' . $wrong . ' is not offered as an image model');
+}
+
+$voice = Claudpress_Transcribe_Provider_OpenAI::parse_models($openai_catalogue);
+CP_Test::same(['gpt-4o-mini-transcribe', 'gpt-4o-transcribe', 'whisper-1'], $voice, 'OpenAI voice: only transcription models, newest first');
+
+// The trap worth naming: gpt-4o-audio ACCEPTS audio, and answers in speech. It
+// would return no transcript at all, and the failure would look like a bad key.
+CP_Test::ok(!in_array('gpt-4o-audio-preview', $voice, true), 'OpenAI voice: an audio model that SPEAKS is not offered for transcription');
+CP_Test::ok(!in_array('gpt-5', $voice, true), 'OpenAI voice: a plain chat model is not offered for transcription');
+
+// Gemini's list, with the shapes that actually appear in it.
+$google_catalogue = ['models' => [
+    ['name' => 'models/gemini-3-pro-image',     'supportedGenerationMethods' => ['generateContent']],
+    ['name' => 'models/gemini-2.5-flash-image', 'supportedGenerationMethods' => ['generateContent']],
+    ['name' => 'models/gemini-2.5-flash',       'supportedGenerationMethods' => ['generateContent']],
+    ['name' => 'models/gemini-2.5-pro',         'supportedGenerationMethods' => ['generateContent']],
+    ['name' => 'models/gemini-2.5-flash-tts',   'supportedGenerationMethods' => ['generateContent']],
+    ['name' => 'models/imagen-4.0-generate',    'supportedGenerationMethods' => ['predict']],
+    ['name' => 'models/veo-3.0-generate',       'supportedGenerationMethods' => ['predictLongRunning']],
+    ['name' => 'models/text-embedding-004',     'supportedGenerationMethods' => ['embedContent']],
+]];
+
+$gimg = Claudpress_Image_Provider_Google::parse_models($google_catalogue);
+CP_Test::ok(in_array('gemini-3-pro-image', $gimg, true), 'Gemini images: the image models are found');
+CP_Test::ok(in_array('gemini-2.5-flash-image', $gimg, true), 'Gemini images: both image models are found');
+CP_Test::ok(!in_array('gemini-2.5-flash', $gimg, true), 'Gemini images: a text model is not offered');
+// Imagen and Veo do make pictures and video - through :predict, which this
+// adapter does not speak. Offering one would fail on the first request.
+CP_Test::ok(!in_array('imagen-4.0-generate', $gimg, true), 'Gemini images: imagen is excluded, because this adapter speaks generateContent');
+CP_Test::ok(!in_array('veo-3.0-generate', $gimg, true), 'Gemini images: veo is excluded for the same reason');
+
+$gvoice = Claudpress_Transcribe_Provider_Google::parse_models($google_catalogue);
+CP_Test::ok(in_array('gemini-2.5-flash', $gvoice, true), 'Gemini voice: text models are the transcription candidates');
+CP_Test::ok(!in_array('gemini-3-pro-image', $gvoice, true), 'Gemini voice: an image model is not offered');
+// Every one of these answers generateContent and returns something that is not
+// a transcript, which is why the filter cannot simply trust that method.
+CP_Test::ok(!in_array('gemini-2.5-flash-tts', $gvoice, true), 'Gemini voice: a speech model is not offered, though it answers generateContent');
+CP_Test::ok(!in_array('text-embedding-004', $gvoice, true), 'Gemini voice: an embedding model is not offered');
+
+CP_Test::group('Media providers — the merged dropdown');
+
+cp_test_reset_options();
+cp_test_reset_ajax();
+
+// With no refresh ever run, the dropdown is exactly the curated list.
+$fresh = Claudpress_Media_Check::models(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai');
+CP_Test::same(
+    array_column(Claudpress_Image_Provider_OpenAI::models(), 'id'),
+    array_column($fresh, 'id'),
+    'a site that has never refreshed sees the curated list, so an offline site still has a working dropdown'
+);
+
+// Now a refresh finds a model this release has never heard of.
+cp_test_http_queue(200, $openai_catalogue);
+$after = Claudpress_Media_Check::refresh(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai', 'sk-key', '');
+CP_Test::ok(!is_wp_error($after), 'a refresh with a good key succeeds');
+
+$ids = array_column(is_array($after) ? $after : [], 'id');
+CP_Test::ok(in_array('gpt-image-2', $ids, true), 'the newly discovered model is added to the dropdown');
+foreach (array_column(Claudpress_Image_Provider_OpenAI::models(), 'id') as $curated) {
+    CP_Test::ok(in_array($curated, $ids, true), 'refresh keeps the curated model ' . $curated);
+}
+
+// And the failure that must not happen: a vendor that answers with nothing
+// useful must not be able to empty the list.
+cp_test_reset_ajax();
+cp_test_http_queue(200, ['data' => []]);
+$empty = Claudpress_Media_Check::refresh(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai', 'sk-key', '');
+CP_Test::ok(!is_wp_error($empty), 'a vendor with nothing new is not an error - the key worked');
+CP_Test::ok(
+    count(is_array($empty) ? $empty : []) >= count(Claudpress_Image_Provider_OpenAI::models()),
+    'an empty vendor answer cannot empty the dropdown'
+);
+
+// A model already saved stays offered even when the vendor stops listing it.
+cp_test_reset_ajax();
+cp_test_http_queue(200, ['data' => []]);
+$kept = Claudpress_Media_Check::refresh(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai', 'sk-key', '', 'dall-e-2-retired');
+CP_Test::ok(
+    in_array('dall-e-2-retired', array_column(is_array($kept) ? $kept : [], 'id'), true),
+    'the model this site is USING stays on the list even after the vendor drops it'
+);
+
+// A bad key says so, and does not poison the cache.
+cp_test_reset_ajax();
+cp_test_http_queue(401, ['error' => ['message' => 'Incorrect API key provided']]);
+$bad = Claudpress_Media_Check::refresh(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai', 'sk-bad', '');
+CP_Test::ok(is_wp_error($bad), 'a rejected key fails the refresh');
+CP_Test::contains('rejected', $bad->get_error_message(), 'and says the key was rejected, not "HTTP 401"');
+
+cp_test_reset_ajax();
+$nokey = Claudpress_Media_Check::refresh(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai', '', '');
+CP_Test::ok(is_wp_error($nokey), 'refreshing with no key fails');
+CP_Test::contains('Add an API key', $nokey->get_error_message(), 'and says to add one');
+
+CP_Test::group('Media providers — the refresh URL is the catalogue, not the work');
+
+foreach ([
+    'image' => Claudpress_Image_Provider::providers(),
+    'voice' => Claudpress_Transcribe_Provider::providers(),
+] as $kind => $family) {
+    foreach ($family as $pid => $cls) {
+        $url = $cls::models_list_url($cls::default_endpoint());
+        CP_Test::ok($url !== '', $kind . '/' . $pid . ' publishes a model list');
+        CP_Test::ok(strpos($url, '/images/generations') === false, $kind . '/' . $pid . ': listing models does not call image generation');
+        CP_Test::ok(strpos($url, '/audio/transcriptions') === false, $kind . '/' . $pid . ': listing models does not call transcription');
+        CP_Test::ok(strpos($url, ':generateContent') === false, $kind . '/' . $pid . ': listing models does not call generateContent');
+    }
+}
+
+cp_test_reset_ajax();
+cp_test_reset_options();
+
 CP_Test::group('Admin — strings are internationalized');
 
 // Catch a future edit that drops a raw English string back into a template.

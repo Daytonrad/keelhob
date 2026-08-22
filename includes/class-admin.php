@@ -127,42 +127,7 @@ final class Claudpress_Admin
         $endpoint = trim(esc_url_raw(wp_unslash($_POST['endpoint'] ?? '')));
         // phpcs:enable WordPress.Security.NonceVerification.Missing
 
-        $s = Claudpress::instance()->settings();
-
-        if ($kind === 'image') {
-            /** @var class-string<Claudpress_Image_Provider>|null $cls */
-            $cls    = Claudpress_Image_Provider::providers()[$pid] ?? null;
-            $stored = (string) ($s['image_api_key'] ?? '');
-        } elseif ($kind === 'voice') {
-            /** @var class-string<Claudpress_Transcribe_Provider>|null $cls */
-            $cls = Claudpress_Transcribe_Provider::providers()[$pid] ?? null;
-            // Voice deliberately falls back to another key for the same vendor,
-            // so an owner who already pasted an OpenAI key is not asked twice.
-            // The test has to honour that, or it reports "no key" for a setup
-            // that works perfectly.
-            $stored = ((string) ($s['voice_provider'] ?? 'openai') === $pid)
-                ? Claudpress_Transcribe_Provider::key()
-                : (string) ($s['voice_api_key'] ?? '');
-        } else {
-            wp_send_json_error(['message' => __('Unknown provider type.', 'claudpress')], 400);
-            return;
-        }
-
-        if ($cls === null) {
-            wp_send_json_error(['message' => __('Unknown provider.', 'claudpress')], 400);
-            return;
-        }
-
-        // An untouched key field posts the mask back. Eight bullets are not a
-        // key, and sending them to a vendor tests nothing - fall through to the
-        // stored one rather than report a failure the owner cannot act on.
-        if ($key === '' || Claudpress_Secrets::is_mask($key)) {
-            $key = $stored;
-        }
-        if (trim($key) === '') {
-            wp_send_json_error(['message' => __('Add an API key first, then test it.', 'claudpress')], 400);
-            return;
-        }
+        [$cls, $key] = self::media_provider_from_post($kind, $pid, $key);
 
         $model  = $model !== '' ? $model : $cls::default_model();
         $result = Claudpress_Media_Check::run($cls::verify_url($endpoint, $model), $cls::auth_headers($key), $model);
@@ -181,6 +146,94 @@ final class Claudpress_Admin
         ]);
     }
 
+    /**
+     * Which adapter and which key a media request is really about.
+     *
+     * Sends the JSON error and stops the request itself rather than returning a
+     * failure for the caller to remember to check. Both endpoints accept a key
+     * from the form, so a path that carried on with a null adapter would send
+     * somebody's key to whichever vendor happened to be the default.
+     *
+     * @return array{0: class-string, 1: string}
+     */
+    private static function media_provider_from_post(string $kind, string $pid, string $key): array
+    {
+        $s = Claudpress::instance()->settings();
+
+        if ($kind === 'image') {
+            /** @var class-string<Claudpress_Image_Provider>|null $cls */
+            $cls    = Claudpress_Image_Provider::providers()[$pid] ?? null;
+            $stored = (string) ($s['image_api_key'] ?? '');
+        } elseif ($kind === 'voice') {
+            /** @var class-string<Claudpress_Transcribe_Provider>|null $cls */
+            $cls = Claudpress_Transcribe_Provider::providers()[$pid] ?? null;
+            // Voice deliberately falls back to another key for the same vendor,
+            // so an owner who already pasted an OpenAI key is not asked twice.
+            // Both endpoints have to honour that, or they report "no key" for a
+            // setup that works perfectly.
+            $stored = ((string) ($s['voice_provider'] ?? 'openai') === $pid)
+                ? Claudpress_Transcribe_Provider::key()
+                : (string) ($s['voice_api_key'] ?? '');
+        } else {
+            wp_send_json_error(['message' => __('Unknown provider type.', 'claudpress')], 400);
+            exit;
+        }
+
+        if ($cls === null) {
+            wp_send_json_error(['message' => __('Unknown provider.', 'claudpress')], 400);
+            exit;
+        }
+
+        // An untouched key field posts the mask back. Eight bullets are not a
+        // key, and sending them to a vendor tests nothing - fall through to the
+        // stored one rather than report a failure the owner cannot act on.
+        if ($key === '' || Claudpress_Secrets::is_mask($key)) {
+            $key = $stored;
+        }
+        if (trim($key) === '') {
+            wp_send_json_error(['message' => __('Add an API key first, then try again.', 'claudpress')], 400);
+            exit;
+        }
+
+        return [$cls, $key];
+    }
+
+    /**
+     * Replace an image or transcription dropdown with what the key can reach.
+     *
+     * The list that comes back is the curated one PLUS anything new the vendor
+     * advertises - never the vendor's alone. See Claudpress_Media_Check::models()
+     * for why: the catalogue is matched by name, and a name match that misses
+     * would otherwise empty the dropdown or drop the model a site is using.
+     */
+    public function ajax_fetch_media_models(): void
+    {
+        self::guard_provider_ajax();
+
+        // phpcs:disable WordPress.Security.NonceVerification.Missing -- guard_provider_ajax() checks it.
+        $kind     = sanitize_key(wp_unslash($_POST['kind'] ?? ''));
+        $pid      = sanitize_key(wp_unslash($_POST['provider'] ?? ''));
+        $key      = sanitize_text_field(wp_unslash($_POST['api_key'] ?? ''));
+        $keep     = sanitize_text_field(wp_unslash($_POST['model'] ?? ''));
+        $endpoint = trim(esc_url_raw(wp_unslash($_POST['endpoint'] ?? '')));
+        // phpcs:enable WordPress.Security.NonceVerification.Missing
+
+        [$cls, $key] = self::media_provider_from_post($kind, $pid, $key);
+
+        $models = Claudpress_Media_Check::refresh($cls, $kind, $pid, $key, $endpoint, $keep);
+        if (is_wp_error($models)) {
+            wp_send_json_error(['message' => $models->get_error_message()], 400);
+        }
+
+        wp_send_json_success([
+            'models'  => $models,
+            /* translators: %d: number of models on the list. */
+            'message' => sprintf(_n('%d model available.', '%d models available.', count($models), 'claudpress'), count($models)),
+        ]);
+    }
+
+    /**
+     * The model the form actually chose.
     /**
      * The model the form actually chose.
      *
@@ -207,6 +260,7 @@ final class Claudpress_Admin
         add_action('wp_ajax_claudpress_fetch_models', [$this, 'ajax_fetch_models']);
         add_action('wp_ajax_claudpress_test_connection', [$this, 'ajax_test_connection']);
         add_action('wp_ajax_claudpress_test_media', [$this, 'ajax_test_media']);
+        add_action('wp_ajax_claudpress_fetch_media_models', [$this, 'ajax_fetch_media_models']);
     }
 
     public function menu(): void
@@ -354,7 +408,9 @@ final class Claudpress_Admin
                 // vendor's row with them is how a key ends up at the wrong host.
                 $is_current = ($pid === $a['current']);
                 $chosen     = ($is_current && $a['model_value'] !== '') ? $a['model_value'] : $cls::default_model();
-                $ids        = array_column($cls::models(), 'id');
+                // The curated list, plus anything a Refresh has since found, plus
+                // whatever is saved even if neither mentions it any more.
+                $models     = Claudpress_Media_Check::models($cls, $kind, $pid, $is_current ? $chosen : '');
                 ?>
                 <div class="claudpress-provider-row" data-provider="<?php echo esc_attr($pid); ?>" <?php echo $is_current ? '' : 'hidden'; ?>
                     style="border:1px solid #e2e4e7;border-radius:8px;padding:12px 14px;margin:0 0 12px;background:#fbfbfc;">
@@ -394,20 +450,7 @@ final class Claudpress_Admin
                         <p>
                             <label><strong><?php echo esc_html($a['model_label']); ?></strong><br>
                                 <select name="<?php echo esc_attr($a['model_field']); ?>" class="claudpress-model-select" style="max-width:560px;">
-                                    <?php
-                                    // A model saved before this list existed, or
-                                    // typed by hand into an older build, is kept
-                                    // as an option rather than silently swapped
-                                    // for the default. Changing which model a
-                                    // working site uses is not a UI upgrade's
-                                    // decision to make.
-                                    if ($is_current && $chosen !== '' && !in_array($chosen, $ids, true)) :
-                                        ?>
-                                        <option value="<?php echo esc_attr($chosen); ?>" selected>
-                                            <?php echo esc_html($chosen . ' - ' . __('your saved model', 'claudpress')); ?>
-                                        </option>
-                                    <?php endif; ?>
-                                    <?php foreach ($cls::models() as $m) : ?>
+                                    <?php foreach ($models as $m) : ?>
                                         <option value="<?php echo esc_attr($m['id']); ?>" <?php selected($chosen, $m['id']); ?>>
                                             <?php echo esc_html($m['id'] . ' - ' . $m['note']); ?>
                                         </option>
@@ -415,6 +458,11 @@ final class Claudpress_Admin
                                 </select>
                             </label>
                             <br>
+                            <?php if ($cls::models_list_url($cls::default_endpoint()) !== '') : ?>
+                                <button type="button" class="button claudpress-media-refresh" data-busy="<?php esc_attr_e('Refreshing...', 'claudpress'); ?>" style="margin-top:8px;">
+                                    <?php esc_html_e('Refresh models', 'claudpress'); ?>
+                                </button>
+                            <?php endif; ?>
                             <button type="button" class="button claudpress-media-test" data-busy="<?php esc_attr_e('Testing...', 'claudpress'); ?>" style="margin-top:8px;">
                                 <?php esc_html_e('Test connection', 'claudpress'); ?>
                             </button>
@@ -499,17 +547,30 @@ final class Claudpress_Admin
                 each(block.querySelectorAll('.claudpress-provider-status'), function (st) { st.textContent = ''; });
             });
 
+            function fill(sel, models) {
+                // The chosen model survives a refresh. Repopulating a dropdown
+                // is not permission to change which model the site uses.
+                var keep = sel.value;
+                sel.innerHTML = '';
+                models.forEach(function (m) {
+                    sel.appendChild(new Option(m.id + ' - ' + m.note, m.id, false, m.id === keep));
+                });
+                if (!sel.value) { sel.selectedIndex = 0; }
+            }
+
             document.addEventListener('click', function (e) {
-                var btn = e.target.closest ? e.target.closest('.claudpress-media-test') : null;
+                if (!e.target.closest) { return; }
+                var btn = e.target.closest('.claudpress-media-test, .claudpress-media-refresh');
                 if (!btn) { return; }
                 e.preventDefault();
 
+                var refreshing = btn.classList.contains('claudpress-media-refresh');
                 var block  = btn.closest('.claudpress-media-block');
                 var row    = btn.closest('.claudpress-provider-row');
                 var status = row.querySelector('.claudpress-provider-status');
 
                 var body = new URLSearchParams();
-                body.set('action', 'claudpress_test_media');
+                body.set('action', refreshing ? 'claudpress_fetch_media_models' : 'claudpress_test_media');
                 body.set('nonce', block.getAttribute('data-nonce'));
                 body.set('kind', block.getAttribute('data-kind'));
                 body.set('provider', row.getAttribute('data-provider'));
@@ -533,6 +594,9 @@ final class Claudpress_Admin
                     var msg = (json && json.data && json.data.message) ? json.data.message : FAILED;
                     status.style.color = ok ? '#16a34a' : '#b91c1c';
                     status.textContent = msg;
+                    if (ok && refreshing && json.data.models) {
+                        fill(row.querySelector('.claudpress-model-select'), json.data.models);
+                    }
                 })['catch'](function () {
                     status.style.color = '#b91c1c';
                     status.textContent = FAILED;
