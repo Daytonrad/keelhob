@@ -40,9 +40,6 @@ if ! command -v "$WPCLI" >/dev/null 2>&1; then
   fi
 fi
 
-# checks.php expects the add-on OFF (it asserts Pro tools are absent).
-# The others expect it ON. Ordering the runs is cheaper and clearer than making
-# each script tolerate either state.
 run() {
   local label="$1" script="$2"
   echo
@@ -56,20 +53,16 @@ run() {
 
 fails=0
 
-# shellcheck disable=SC2086
-$WPCLI plugin deactivate claudpress-pro --path="$WP" >/dev/null 2>&1
-run "Free install"        checks.php         || fails=$((fails + 1))
-
-# shellcheck disable=SC2086
-$WPCLI plugin activate claudpress-pro --path="$WP" >/dev/null 2>&1
-run "With the Pro add-on" checks-pro.php     || fails=$((fails + 1))
-run "Snippets Studio"     checks-studio.php  || fails=$((fails + 1))
-run "AI Compose flow"     checks-compose.php || fails=$((fails + 1))
+# There used to be two plugins here, activated and deactivated between runs to
+# test each side of the paywall. One plugin now, so one pass.
+run "Core"            checks.php         || fails=$((fails + 1))
+run "Snippets Studio" checks-studio.php  || fails=$((fails + 1))
+run "AI Compose flow" checks-compose.php || fails=$((fails + 1))
 
 echo
 echo "--------------------------------------------------------------"
 if [ "$fails" -gt 0 ]; then
-  echo "$fails of 4 check files FAILED"
+  echo "$fails of 3 check files FAILED"
   exit 1
 fi
-echo "All 4 check files passed."
+echo "All 3 check files passed."

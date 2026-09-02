@@ -16,8 +16,6 @@ function check($label, $ok, $detail = '') {
     printf("%s  %s%s\n", $ok ? 'PASS' : 'FAIL', str_pad($label, 52), $detail);
 }
 
-add_filter('claudpress_pro_licence_override', static fn() => true, 99);
-delete_transient(Claudpress_Pro_Licence::TRANSIENT);
 wp_set_current_user(1);
 set_current_screen('admin');
 

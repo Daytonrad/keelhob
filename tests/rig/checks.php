@@ -64,37 +64,61 @@ $s = Claudpress::instance()->settings();
 check('S5 token stored as a hash', !empty($s['token_hash']) && strlen($s['token_hash']) === 64);
 check('S5 no plaintext token stored', ($s['token'] ?? '') === '');
 
-// ------------------------------------------------------------ tiering -----
-$all     = Claudpress::instance()->registry->names();
-$visible = array_values(array_filter($all, static fn($n) => Claudpress_Capabilities::tool_allowed($n)));
-$hidden  = array_values(array_diff($all, $visible));
-
-// What actually matters is that a Pro tool is not USABLE on a free install.
-// Whether it is absent from the registry (the code moved to the add-on) or
-// present-but-filtered (the code is still in core) is an implementation detail
-// that changes as files migrate, and asserting the detail rather than the
-// property meant this check broke twice for no good reason.
+// ------------------------------------------------------ capabilities ------
+//
+// This section used to prove a free install could not use the paid tools, and
+// its other half lived in checks-pro.php, which proved they came back under a
+// licence. There is one plugin now, so both halves collapse into one question
+// that is worth more than either: is every tool this plugin claims to have
+// actually here and actually callable on a real WordPress?
+//
+// The tool list below is exactly the set checks-pro.php guarded. They are the
+// ones that moved during the merge, which makes them the ones most likely to
+// have been dropped on the way.
+$all   = Claudpress::instance()->registry->names();
 $usable = static function (string $tool) use ($all) {
     return in_array($tool, $all, true) && Claudpress_Capabilities::tool_allowed($tool);
 };
+$present = static function (string $tool) use ($all) {
+    return in_array($tool, $all, true);
+};
 
-check('Pro tools are not usable on a free install', count($hidden) + count(array_diff(Claudpress_Capabilities::pro_tools(), $all)) > 0,
-    count($visible) . ' visible / ' . count($hidden) . ' filtered / ' . count(array_diff(Claudpress_Capabilities::pro_tools(), $all)) . ' absent');
-
-foreach (['run_agent', 'deploy_push', 'wc_payments', 'send_email', 'manage_updates', 'task_save'] as $tool) {
-    check('  ' . $tool . ' is unusable', !$usable($tool));
-}
-// wc_* tools only register when WooCommerce is active, so a rig without it
-// would fail these for a reason that has nothing to do with tiering.
-$free_tools = ['execute_php', 'write_file', 'snippet_save', 'site_readiness', 'image_search'];
+$merged = [
+    'deploy_push', 'export_bundle', 'import_bundle',
+    'manage_updates', 'send_email',
+    'task_save', 'task_run', 'task_delete', 'run_agent', 'notify_owner',
+    'seo_analyze', 'seo_redirect',
+];
 if (class_exists('WooCommerce')) {
-    $free_tools[] = 'wc_product';
-    $free_tools[] = 'wc_coupon';
+    $merged = array_merge($merged, ['wc_payments', 'wc_shipping', 'wc_tax', 'wc_order', 'wc_report']);
 } else {
     echo "NOTE  WooCommerce is not installed on this rig, so wc_* tools are skipped." . PHP_EOL;
 }
-foreach ($free_tools as $tool) {
-    check('  ' . $tool . ' is usable (free)', $usable($tool));
+
+$missing = array_values(array_filter($merged, static fn($t) => !$present($t)));
+check('every formerly-paid tool is present', $missing === [], $missing ? 'missing: ' . implode(', ', $missing) : count($merged) . ' checked');
+
+// Names must not have drifted. A renamed tool is a broken integration for
+// anyone who scripted against it, and the merge touched every one of these.
+foreach ($all as $name) {
+    check('  ' . $name . ' carries no tier suffix', strpos($name, '_pro') === false && strpos($name, 'pro_') !== 0);
+}
+
+// The eight high-blast-radius groups ship OFF. On a fresh rig that means these
+// are present but refused - which is the whole safety story of 2.0.0, and the
+// thing most likely to be broken by a careless default.
+foreach (['deploy_push', 'send_email', 'manage_updates', 'wc_payments'] as $tool) {
+    check('  ' . $tool . ' is present but refused by default', $present($tool) && !$usable($tool));
+}
+
+// Everything the build journey needs works out of the box, with no setup.
+$build_tools = ['execute_php', 'write_file', 'snippet_save', 'site_readiness', 'image_search', 'seo_meta', 'create_post'];
+if (class_exists('WooCommerce')) {
+    $build_tools[] = 'wc_product';
+    $build_tools[] = 'wc_coupon';
+}
+foreach ($build_tools as $tool) {
+    check('  ' . $tool . ' is usable on a fresh install', $usable($tool));
 }
 
 // The always-on promise: these work whatever else is restricted.
@@ -102,12 +126,15 @@ foreach (Claudpress_Capabilities::always_on() as $tool) {
     check('  always-on: ' . $tool, $usable($tool));
 }
 
+// And the agent is told what is off, by name, with the switch that fixes it -
+// so it stops instead of retry-looping and calling the site broken.
 $info = Claudpress_Tools_Core::get_site_info([]);
-check('get_site_info reports the plan', ($info['claudpress']['plan'] ?? '') === 'free');
-check('get_site_info lists what is unavailable', count($info['claudpress']['unavailable_capabilities'] ?? []) > 0,
+check('get_site_info reports no plan or tier', !isset($info['claudpress']['plan']));
+check('get_site_info lists what is switched off', count($info['claudpress']['unavailable_capabilities'] ?? []) > 0,
     count($info['claudpress']['unavailable_capabilities']) . ' groups');
 $first = $info['claudpress']['unavailable_capabilities'][0] ?? [];
 check('...each with why and how', !empty($first['why_unavailable']) && !empty($first['how_to_enable']));
+check('...and "how" names a setting, not a purchase', strpos((string) ($first['how_to_enable'] ?? ''), 'Settings') !== false);
 
 // -------------------------------------------------------- snippet log -----
 $snip = Claudpress_Snippets::save(['name' => 'Rig test snippet', 'code' => '<?php add_filter("the_content", fn($c) => $c);', 'snippet_type' => 'php']);
