@@ -255,6 +255,7 @@ final class Claudpress_Admin
         add_action('admin_post_claudpress_save', [$this, 'handle_save']);
         add_action('admin_bar_menu', [$this, 'admin_bar'], 100);
         add_action('admin_notices', [$this, 'notice']);
+        add_action('admin_notices', [$this, 'upgrade_notice']);
         // Both of these accept an API key so an unsaved one can be tested;
         // see guard_provider_ajax() for why that changes what they must check.
         add_action('wp_ajax_claudpress_fetch_models', [$this, 'ajax_fetch_models']);
@@ -291,6 +292,53 @@ final class Claudpress_Admin
                 esc_html__('A connected AI agent can read and modify everything on this site. Use development/staging sites only.', 'claudpress')
             );
         }
+    }
+
+    /**
+     * Tell the owner what 2.0.0 switched off, once, on any admin screen.
+     *
+     * The upgrade forces eight capability groups off, because until 2.0.0 a
+     * paywall was the only thing standing between a connected agent and this
+     * site's users, gateways, outbound email and production deploys. That is
+     * the right default, but doing it silently would mean an owner discovering
+     * by accident that automations they relied on had stopped.
+     *
+     * Deliberately not limited to Claudpress screens, and deliberately not
+     * auto-dismissed on view: someone who never opens the plugin's own pages is
+     * exactly the person who most needs to read this.
+     */
+    public function upgrade_notice(): void
+    {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+        $reset = get_option('claudpress_2_0_0_capabilities_reset', '');
+        if ($reset === '' || $reset === 'dismissed' || $reset === 'none') {
+            return;
+        }
+
+        if (!empty($_GET['claudpress_ack_2_0_0']) && check_admin_referer('claudpress_ack_2_0_0')) {
+            update_option('claudpress_2_0_0_capabilities_reset', 'dismissed');
+            return;
+        }
+
+        $groups = array_filter(array_map('trim', explode(',', (string) $reset)));
+        $labels = [];
+        $all    = Claudpress_Capabilities::groups();
+        foreach ($groups as $group) {
+            $labels[] = (string) ($all[$group]['label'] ?? $group);
+        }
+
+        printf(
+            '<div class="notice notice-warning"><p><strong>%s</strong></p><p>%s</p><p><strong>%s</strong></p><p><a class="button button-primary" href="%s">%s</a> <a class="button" href="%s">%s</a></p></div>',
+            esc_html__('Claudpress 2.0.0: everything is free now, and some capabilities were switched off.', 'claudpress'),
+            esc_html__('Every paid feature is included at no cost. Because the old paid tier was also the only thing keeping the riskiest tools out of reach, these areas now start switched OFF, and you decide which to turn back on:', 'claudpress'),
+            esc_html(implode(' · ', $labels)),
+            esc_url(admin_url('admin.php?page=claudpress&tab=settings')),
+            esc_html__('Review capabilities', 'claudpress'),
+            esc_url(wp_nonce_url(add_query_arg('claudpress_ack_2_0_0', '1'), 'claudpress_ack_2_0_0')),
+            esc_html__('Got it', 'claudpress')
+        );
     }
 
     public function admin_bar($bar): void

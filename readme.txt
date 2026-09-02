@@ -4,7 +4,7 @@ Tags: mcp, ai, claude, woocommerce, seo, automation
 Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.10.1
+Stable tag: 2.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -112,6 +112,14 @@ Claudpress > Automation. Pick your provider there — the model guide next to th
 field lists the exact model IDs to type for each one.
 
 == Changelog ==
+
+= 2.0.0 - free forever, one plugin =
+* Claudpress is now free, in full, permanently. There is no paid add-on, no licence, no tier and nothing held back. Every feature that was going to be sold - payments, shipping, tax, orders and reports, user management, updates, email and notifications, deploy to production, the Snippets Studio, and all fifteen expert skills - is in this one plugin. The project is funded by donations from people who find it useful.
+* PLEASE READ IF YOU ARE UPGRADING: eight capability groups are switched OFF by this update, and you turn back on the ones you want. Payments, Shipping, Tax, Store orders & reports, Users, Updates, Email & notifications, and Deploy. Until now the paywall was the only thing standing between a connected AI agent and those tools. Removing the paywall without replacing that guard would have silently handed every site the ability to email its customers, edit its users, change its payment gateways and push to production. An admin notice will point you at the setting.
+* Everything the ten-minute build needs stays on: content, design, snippets, SEO, files, images, memory, skills and code execution.
+* Skill updates now come from this project's public GitHub releases instead of a server we ran. No account, no key, and nothing about your site is sent. Every skill is still verified against a signature before it is written, and an unsigned one is discarded rather than installed.
+* The private snippet library and site pairing are gone. They only ever worked by talking to that server. Snippets stored on your own site are untouched, and still listed in the Studio.
+* Nothing you have made is affected by any of this. Snippets, skills, memory, tasks and settings all carry over.
 
 = 1.10.1 - security and a data-loss fix =
 * IMPORTANT: deleting the plugin no longer deletes your data. Until now, uninstalling dropped every snippet, memory, skill and scheduled task, permanently and without warning - which is a disaster if you were only removing the plugin to test for a conflict. Uninstall now keeps everything by default, so reinstalling puts you back where you were. There is a new setting if you genuinely do want everything erased.

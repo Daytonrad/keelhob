@@ -299,12 +299,72 @@ final class Claudpress
         Claudpress_Skills::backfill_sources();
         Claudpress_Skills::seed_bundled_skills();
         self::seed_default_memory();
+        self::upgrade_to_2_0_0($stored);
         if (!file_exists(CLAUDPRESS_SANDBOX_DIR)) {
             wp_mkdir_p(CLAUDPRESS_SANDBOX_DIR);
             @file_put_contents(CLAUDPRESS_SANDBOX_DIR . '/index.php', "<?php // Silence is golden.\n");
             @file_put_contents(CLAUDPRESS_SANDBOX_DIR . '/.htaccess', "Deny from all\n");
         }
         update_option('claudpress_db_version', CLAUDPRESS_VERSION);
+    }
+
+    /**
+     * The one-time 2.0.0 upgrade, and the reason it is not optional.
+     *
+     * Before 2.0.0 eight capability groups - payments, shipping, tax, orders,
+     * users, updates, comms and deploy - were unreachable because they sat
+     * behind a paywall. Their own on/off toggle was never consulted, so on a
+     * long-running site it may well be sitting at "on", meaning nothing at all.
+     *
+     * 2.0.0 deletes the paywall. Left alone, that would have silently granted
+     * every upgrading site the ability to email its customers, edit its users,
+     * change its payment gateways and push to production - delivered by an
+     * automatic update, to an owner who asked for nothing and was told nothing.
+     *
+     * So these are forced OFF, not defaulted off. "Only if no value is stored"
+     * is exactly the version of this that does not work, because the stored
+     * value is the meaningless leftover. The owner turns back on whatever they
+     * actually want, and an admin notice tells them that is waiting for them -
+     * switching something off silently is its own kind of bug.
+     *
+     * @param string $stored The db version this site is upgrading FROM.
+     */
+    private static function upgrade_to_2_0_0(string $stored): void
+    {
+        // A brand-new install has never had the paywall doing this job for it,
+        // and default_enabled() already covers it. Only sites carrying an older
+        // version need the correction.
+        if ($stored === '' || version_compare($stored, '2.0.0', '>=')) {
+            return;
+        }
+        if (get_option('claudpress_2_0_0_capabilities_reset', '') !== '') {
+            return;
+        }
+
+        $settings = get_option(self::OPTION_SETTINGS, []);
+        if (!is_array($settings)) {
+            $settings = [];
+        }
+        $caps = isset($settings['capabilities']) && is_array($settings['capabilities']) ? $settings['capabilities'] : [];
+
+        $turned_off = [];
+        foreach (Claudpress_Capabilities::DISABLED_BY_DEFAULT as $group) {
+            if (!array_key_exists($group, $caps) || !empty($caps[$group])) {
+                $turned_off[] = $group;
+            }
+            $caps[$group] = false;
+        }
+        $settings['capabilities'] = $caps;
+
+        // Dead keys from the tier that no longer exists. Left behind they are
+        // harmless, but they are also a lie about what the plugin reads.
+        unset($settings['disclose_pro'], $settings['hide_paid_notices'], $settings['skills_token']);
+
+        update_option(self::OPTION_SETTINGS, $settings);
+        delete_option('claudpress_pro_licence');
+        delete_transient('claudpress_pro_licence_valid');
+
+        update_option('claudpress_2_0_0_capabilities_reset', $turned_off ? implode(',', $turned_off) : 'none');
     }
 
     public static function on_activate(): void
