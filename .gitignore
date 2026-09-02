@@ -18,3 +18,20 @@ Thumbs.db
 
 # Holds a live bearer token for the staging site. Never commit.
 .staging-token
+
+# Private working docs. They live in ../claudpress-vital/ and are deliberately
+# outside this repository, because this repository is public.
+#
+# They are the business plan the project used to have: tier tables, price
+# points, conversion levers, a rebrand plan, and pre-launch audits of a live
+# site. None of it describes how the plugin works, and publishing a site's own
+# security findings helps nobody but an attacker.
+#
+# Listed by name as well as by path so a stray `git add -f` from the wrong
+# directory still cannot bring one back.
+TASKS.md
+docs/audits/
+docs/ops/
+docs/plans/free-pro-split.md
+docs/plans/rebrand.md
+docs/design-system-brief.md

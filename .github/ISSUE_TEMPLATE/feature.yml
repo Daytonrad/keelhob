@@ -1,0 +1,33 @@
+name: Feature request
+description: Something Claudpress should be able to do
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check [ROADMAP.md](https://github.com/calflint/claudpress/blob/main/ROADMAP.md)
+        first — it may already be planned, and the roadmap says openly what
+        level of support unlocks what.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you actually trying to do
+      description: >
+        Describe the job, not the feature. "I need X" often has a better answer
+        than X.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you think would solve it
+    validations:
+      required: true
+
+  - type: textarea
+    id: today
+    attributes:
+      label: How you work around it today
+      description: If you already have a workaround, that is useful to know.
