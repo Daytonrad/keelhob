@@ -48,7 +48,7 @@ final class Claudpress_Admin_Snippets
         $label = Claudpress::site_label();
         ?>
         <div class="wrap">
-            <h1><?php esc_html_e('Snippets', 'claudpress'); ?></h1>
+            <h1><?php esc_html_e('Snippets', 'claudpress'); ?></h1><?php Claudpress_Donate::button(); ?>
             <?php if (isset($_GET['saved'])) : ?>
                 <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Saved.', 'claudpress'); ?></p></div>
             <?php endif; ?>

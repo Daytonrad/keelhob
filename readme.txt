@@ -4,6 +4,7 @@ Tags: mcp, ai, claude, woocommerce, seo, automation
 Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
+Donate link: https://ko-fi.com/claudpress
 Stable tag: 2.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -32,6 +33,18 @@ Features:
 * Telegram chat: message a bot and the on-site agent runs your site — no MCP client needed
 * Voice notes, photos, one-tap approvals, /undo and per-chat roles for that chat
 * Event alerts: paid orders, low stock, a crashed snippet, available updates
+
+== Support this project ==
+
+Claudpress is free, GPL, and stays that way. There is no paid version, no locked
+feature and no trial. It is built in evenings around a full-time job, and
+donations are the only thing deciding whether it keeps being built.
+
+https://ko-fi.com/claudpress
+
+Other things that help just as much: report a bug you hit, write a skill and
+open a pull request (skills are plain markdown, no PHP needed), star the
+repository, or just tell someone. Nothing here has a marketing budget.
 
 == External services ==
 

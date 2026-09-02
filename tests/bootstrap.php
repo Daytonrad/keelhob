@@ -541,7 +541,19 @@ require_once CLAUDPRESS_DIR . 'includes/class-migration.php';
 require_once CLAUDPRESS_DIR . 'includes/class-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/class-skills.php';
 require_once CLAUDPRESS_DIR . 'includes/class-skills-remote.php';
+// Project links, matching the defaults in claudpress.php.
+if (!defined('CLAUDPRESS_DONATE_URL')) {
+    define('CLAUDPRESS_DONATE_URL', 'https://ko-fi.com/claudpress');
+}
+if (!defined('CLAUDPRESS_SERVICES_URL')) {
+    define('CLAUDPRESS_SERVICES_URL', 'https://claudpress.com/services');
+}
+if (!defined('CLAUDPRESS_REPO_URL')) {
+    define('CLAUDPRESS_REPO_URL', 'https://github.com/calflint/claudpress');
+}
+
 require_once CLAUDPRESS_DIR . 'includes/class-updater.php';
+require_once CLAUDPRESS_DIR . 'includes/class-donate.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-filesystem.php';

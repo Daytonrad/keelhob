@@ -28,6 +28,23 @@ define('CLAUDPRESS_DIR', plugin_dir_path(__FILE__));
 define('CLAUDPRESS_URL', plugin_dir_url(__FILE__));
 define('CLAUDPRESS_BASENAME', plugin_basename(__FILE__));
 
+/**
+ * Where the project lives, in one place.
+ *
+ * Defined rather than hard-coded at each call site so a handle change is one
+ * edit, and so an empty value hides its button instead of rendering a dead
+ * link - a Donate button that 404s is worse than no Donate button.
+ */
+if (!defined('CLAUDPRESS_DONATE_URL')) {
+    define('CLAUDPRESS_DONATE_URL', 'https://ko-fi.com/claudpress');
+}
+if (!defined('CLAUDPRESS_SERVICES_URL')) {
+    define('CLAUDPRESS_SERVICES_URL', 'https://claudpress.com/services');
+}
+if (!defined('CLAUDPRESS_REPO_URL')) {
+    define('CLAUDPRESS_REPO_URL', 'https://github.com/calflint/claudpress');
+}
+
 // Namespace for the MCP REST route: /wp-json/claudpress/v1/mcp
 define('CLAUDPRESS_REST_NAMESPACE', 'claudpress/v1');
 
@@ -69,6 +86,7 @@ require_once CLAUDPRESS_DIR . 'includes/class-agent-runtime.php';
 require_once CLAUDPRESS_DIR . 'includes/class-tasks.php';
 require_once CLAUDPRESS_DIR . 'includes/class-migration.php';
 require_once CLAUDPRESS_DIR . 'includes/class-updater.php';
+require_once CLAUDPRESS_DIR . 'includes/class-donate.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin-skills.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin-snippets.php';
@@ -106,6 +124,7 @@ add_action('plugins_loaded', static function () {
     load_plugin_textdomain('claudpress', false, dirname(CLAUDPRESS_BASENAME) . '/languages');
     Claudpress::instance()->boot();
     Claudpress_Updater::init();
+    Claudpress_Donate::init();
 
     $studio = new Claudpress_Studio();
     add_action('admin_menu', [$studio, 'menu'], 20);

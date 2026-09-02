@@ -1,10 +1,44 @@
+<div align="center">
+
 # Claudpress
 
-**A self-contained MCP server for WordPress.** Upload one plugin, flip a switch, and connect Claude Code (or Claude Desktop, Cursor, Codex, any MCP client) to run your whole site — content, WooCommerce store, SEO, files, and PHP — with cross-session memory and a skills engine.
+**Build your WordPress site or store from one prompt. Free, forever.**
 
-Don't want to run a client at all? Add your own API key and the site runs itself: on a schedule, or [from a Telegram chat on your phone](#chat-to-your-site-on-telegram--no-mcp-client-needed) — voice notes, screenshots, approve-by-button and `/undo` included.
+[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](LICENSE)
+[![Donate on Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20this%20project-c2185b.svg)](https://ko-fi.com/claudpress)
+[![Roadmap](https://img.shields.io/badge/Roadmap-what's%20next-333.svg)](ROADMAP.md)
 
-Inspired by [Novamira](https://novamira.ai), rebuilt from scratch with **no external dependencies**, **no WordPress 6.9 requirement**, and **every "pro" feature unlocked**: bundled expert skills, persistent memory, WooCommerce, and SEO all included and free.
+</div>
+
+WordPress promised that anyone could build a site in an afternoon. AI site
+builders are quietly taking that promise away — and taking WordPress users with
+it. Claudpress hands it back, with a database, a store, and code you actually
+own.
+
+Install one plugin, connect Claude Code (or Claude Desktop, Cursor, Codex, any
+MCP client), and say what you want. It asks a few questions, then builds:
+pages, products, checkout, SEO, snippets, media. You watch.
+
+Don't want to run a client at all? Add your own API key and the site runs
+itself: on a schedule, or [from a Telegram chat on your phone](#chat-to-your-site-on-telegram--no-mcp-client-needed)
+— voice notes, screenshots, approve-by-button and `/undo` included.
+
+## Free, and that is not a trial
+
+Every feature is in this repository. No paid tier, no locked capability, no
+trial, no "pro" add-on, no upsell in the admin, no telemetry beyond an update
+check you can switch off ([exactly what it sends](PRIVACY.md)).
+
+There was going to be a paid version — payments, orders, deploy, the Snippets
+Studio, six of the fifteen skills. It was built, and then given away. The
+project runs on donations instead, and the [roadmap](ROADMAP.md) says out loud
+what more support would make possible.
+
+**[♥ Support Claudpress on Ko-fi](https://ko-fi.com/claudpress)** — or star the
+repo, report a bug, or write a skill. Skills are plain markdown; no PHP needed.
+
+Inspired by [Novamira](https://novamira.ai), rebuilt from scratch with **no
+external dependencies** and **no WordPress 6.9 requirement**.
 
 > ⚠️ **Development / staging only.** Claudpress gives a connected AI agent unrestricted control of this WordPress install (arbitrary PHP, database, filesystem). Only enable AI abilities on sites you can afford to break, with backups. Deactivating the plugin turns abilities off.
 
@@ -185,9 +219,9 @@ It also runs **whole-plugin integrity checks** that read the source: every regis
 
 **CI** (`.github/workflows/ci.yml`) lints every PHP file on 8.0–8.4, runs the suite on 8.0/8.3/8.4, builds the zip and asserts its layout (one top-level `claudpress/`, no dev files). The live smoke test runs on manual dispatch when `CLAUDPRESS_URL` / `CLAUDPRESS_TOKEN` secrets are configured.
 
-## Skills & memory (the "pro" features, free)
+## Skills & memory
 
-- **Skills** are Markdown playbooks stored in WordPress that the agent loads automatically when a task matches their description. Claudpress ships with expert skills for WooCommerce operations, SEO, blog publishing, safety, and a `skill-creator`. Write your own from the agent ("create a skill that…") or edit them in the DB.
+- **Skills** are Markdown playbooks stored in WordPress that the agent loads automatically when a task matches their description. Claudpress ships with fifteen expert skills covering the whole journey: kicking off a build, web design, page building, SEO, blog publishing, safety, a pre-launch audit, launching and running a WooCommerce store, and a `skill-creator` for writing your own. Write your own from the agent ("create a skill that…") or edit them in the DB.
 - **Memory** is per-site key/value knowledge the agent persists across sessions ("remember: primary color is #f8ca50"). Shared by every connected agent.
 
 ## Architecture
@@ -218,6 +252,9 @@ includes/
   class-migration.php       portable bundles (products, menus, widgets)
   class-admin.php           connect / automation / guide / activity UI
   class-admin-snippets.php  the Snippets page: what the AI installed, and its off switch
+  class-studio*.php         the Snippets Studio: list, edit, compose, library
+  class-updater.php         updates from GitHub releases + the anonymous site count
+  class-donate.php          the donate button, and the page behind it
   tools/                    core, filesystem, content, site, woocommerce, seo, memory, skills,
                             snippets, elementor, ops, automation, payments, deploy
 skills/                     bundled expert skill playbooks (markdown)
@@ -226,6 +263,14 @@ bin/build-zip.sh            reproducible plugin packaging
 ```
 
 The MCP transport answers a single `application/json` JSON-RPC response per request (the simplest valid Streamable-HTTP mode), which every MCP client accepts. No Node bridge required for HTTP-capable clients.
+
+## Contributing
+
+Pull requests, bug reports, skills, translations and documentation are all
+wanted and all credited. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to run
+the test suite (no Docker needed) and what "done" means here.
+
+Issues tagged `good first issue` are genuinely that.
 
 ## License
 
