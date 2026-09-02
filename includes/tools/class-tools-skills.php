@@ -66,26 +66,7 @@ final class Claudpress_Tools_Skills
             'prompt' => (bool) $s['enable_prompt'], 'bundled' => (bool) $s['is_bundled'],
             'source' => Claudpress_Skills::normalize_source((string) ($s['source'] ?? '')),
             'version' => (string) ($s['version'] ?? ''),
-            'tier' => Claudpress_Skill_Catalog::tier((string) $s['name']),
-            'available' => true,
         ], Claudpress::instance()->skills->all());
-
-        $here = array_column($skills, 'name');
-        foreach (Claudpress_Skill_Catalog::unavailable() as $pro) {
-            // A Pro skill copied here from a licensed site is installed, whatever
-            // the catalogue says about the tier that sells it. Listing it twice,
-            // once as unavailable, would be a lie the agent then acts on.
-            if (in_array($pro['name'], $here, true)) {
-                continue;
-            }
-            $skills[] = [
-                'name'        => $pro['name'],
-                'description' => $pro['description'],
-                'tier'        => 'pro',
-                'available'   => false,
-                'note'        => 'Not installed on this site. Do not call skill_get for it.',
-            ];
-        }
 
         return ['success' => true, 'skills' => $skills];
     }

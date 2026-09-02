@@ -70,6 +70,17 @@ require_once CLAUDPRESS_DIR . 'includes/class-tasks.php';
 require_once CLAUDPRESS_DIR . 'includes/class-migration.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin-skills.php';
+require_once CLAUDPRESS_DIR . 'includes/class-admin-snippets.php';
+
+// The Snippets Studio. These used to live in a separate paid add-on; they are
+// part of the plugin now, like everything else.
+require_once CLAUDPRESS_DIR . 'includes/class-studio.php';
+require_once CLAUDPRESS_DIR . 'includes/class-studio-actions.php';
+require_once CLAUDPRESS_DIR . 'includes/class-studio-ai.php';
+require_once CLAUDPRESS_DIR . 'includes/class-studio-compose.php';
+require_once CLAUDPRESS_DIR . 'includes/class-studio-edit.php';
+require_once CLAUDPRESS_DIR . 'includes/class-studio-library.php';
+require_once CLAUDPRESS_DIR . 'includes/class-studio-list.php';
 
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-core.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-filesystem.php';
@@ -83,6 +94,8 @@ require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-elementor.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-ops.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-automation.php';
+require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-payments.php';
+require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-deploy.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-readiness.php';
 
 /**
@@ -91,6 +104,10 @@ require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-readiness.php';
 add_action('plugins_loaded', static function () {
     load_plugin_textdomain('claudpress', false, dirname(CLAUDPRESS_BASENAME) . '/languages');
     Claudpress::instance()->boot();
+
+    $studio = new Claudpress_Studio();
+    add_action('admin_menu', [$studio, 'menu'], 20);
+    (new Claudpress_Studio_Actions())->hooks();
 }, 20);
 
 register_activation_hook(__FILE__, ['Claudpress', 'on_activate']);

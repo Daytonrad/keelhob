@@ -19,8 +19,34 @@ if (!defined('ABSPATH')) {
 
 final class Claudpress_Capabilities
 {
-    const TIER_FREE = 'free';
-    const TIER_PRO  = 'pro';
+    /**
+     * Capability groups that ship SWITCHED OFF, and why that list exists.
+     *
+     * These eight used to be unreachable for a different reason: they were
+     * behind a paywall, and the paywall happened to be acting as a safety
+     * fence. Removing the paywall without replacing the fence would have handed
+     * every fresh install - and worse, every site that merely *upgraded* - the
+     * ability to email customers, edit users, change payment gateways and push
+     * to production, silently, on an auto-update.
+     *
+     * So the fence is explicit now, and it is here rather than in the settings
+     * defaults because two lists drift, and the way this one would drift is by
+     * switching send_email on for everybody.
+     *
+     * Everything not named here is on: content, design, snippets, SEO, files,
+     * images, memory, skills and code execution are what "build me a site"
+     * needs, and asking permission for those would make the product pointless.
+     */
+    const DISABLED_BY_DEFAULT = [
+        'store_orders',
+        'payments',
+        'shipping',
+        'tax',
+        'users',
+        'updates',
+        'comms',
+        'deploy',
+    ];
 
     /**
      * Read-only introspection that is always available regardless of toggles.
@@ -43,39 +69,37 @@ final class Claudpress_Capabilities
     {
         return [
             'content' => [
-                'label' => 'Content', 'sensitive' => false, 'tier' => self::TIER_FREE,
+                'label' => 'Content', 'sensitive' => false,
                 'desc' => 'Create/edit posts, pages, media, taxonomies.',
                 'tools' => ['create_post', 'update_post', 'delete_post', 'get_post', 'list_posts', 'upload_media', 'manage_taxonomy'],
             ],
-            // Building a store and running one are different jobs, and the
-            // line between them is the cleanest paywall in the product.
-            // Products, coupons and settings are what the ten-minute demo needs,
-            // so they are free. Orders and reports only exist once real
-            // customers are paying, which means the person who hits that wall is
-            // by definition earning money from the plugin: it never blocks a
-            // beginner and always catches a business.
+            // Building a store and running one are different jobs. Products,
+            // coupons and settings are what the ten-minute build needs, so they
+            // are on. Orders, reports and money are what a live business
+            // depends on, so those start switched off - see
+            // DISABLED_BY_DEFAULT.
             'store' => [
-                'label' => 'Store (products & catalogue)', 'sensitive' => true, 'tier' => self::TIER_FREE,
+                'label' => 'Store (products & catalogue)', 'sensitive' => true,
                 'desc' => 'WooCommerce products, coupons and store settings.',
                 'tools' => ['wc_product', 'wc_coupon', 'wc_settings'],
             ],
             'store_orders' => [
-                'label' => 'Store (orders & reports)', 'sensitive' => true, 'tier' => self::TIER_PRO,
+                'label' => 'Store (orders & reports)', 'sensitive' => true,
                 'desc' => 'Read and refund orders, and read sales reports.',
                 'tools' => ['wc_order', 'wc_report'],
             ],
             'payments' => [
-                'label' => 'Payments (money)', 'sensitive' => true, 'tier' => self::TIER_PRO,
+                'label' => 'Payments (money)', 'sensitive' => true,
                 'desc' => 'Enable and configure payment gateways and keys.',
                 'tools' => ['wc_payments'],
             ],
             'shipping' => [
-                'label' => 'Shipping', 'sensitive' => true, 'tier' => self::TIER_PRO,
+                'label' => 'Shipping', 'sensitive' => true,
                 'desc' => 'Shipping zones, methods, and rates.',
                 'tools' => ['wc_shipping'],
             ],
             'tax' => [
-                'label' => 'Tax', 'sensitive' => true, 'tier' => self::TIER_PRO,
+                'label' => 'Tax', 'sensitive' => true,
                 'desc' => 'Tax settings and rates.',
                 'tools' => ['wc_tax'],
             ],
@@ -86,17 +110,17 @@ final class Claudpress_Capabilities
             // redirects is the loop you run forever after launch, which is what a
             // subscription is actually for.
             'seo' => [
-                'label' => 'SEO setup', 'sensitive' => false, 'tier' => self::TIER_FREE,
+                'label' => 'SEO setup', 'sensitive' => false,
                 'desc' => 'Meta titles and descriptions, JSON-LD schema, and the sitemap.',
                 'tools' => ['seo_meta', 'seo_schema', 'seo_sitemap'],
             ],
             'seo_optimize' => [
-                'label' => 'SEO optimization', 'sensitive' => false, 'tier' => self::TIER_PRO,
+                'label' => 'SEO optimization', 'sensitive' => false,
                 'desc' => 'Score pages against a target keyword, and manage redirects when URLs change.',
                 'tools' => ['seo_analyze', 'seo_redirect'],
             ],
             'design' => [
-                'label' => 'Design / Elementor', 'sensitive' => false, 'tier' => self::TIER_FREE,
+                'label' => 'Design / Elementor', 'sensitive' => false,
                 'desc' => 'Build and edit Elementor pages, kit, settings.',
                 'tools' => ['elementor_page', 'elementor_settings', 'elementor_kit'],
             ],
@@ -108,62 +132,62 @@ final class Claudpress_Capabilities
             // maintaining snippets but never running loose PHP could not
             // express that before.
             'snippets' => [
-                'label' => 'Snippets', 'sensitive' => true, 'tier' => self::TIER_FREE,
+                'label' => 'Snippets', 'sensitive' => true,
                 'desc' => 'Create and manage live code snippets (PHP, CSS, JS, HTML).',
                 'tools' => ['snippet_save', 'snippet_list', 'snippet_get', 'snippet_toggle', 'snippet_delete'],
             ],
             'code_exec' => [
-                'label' => 'Raw code execution', 'sensitive' => true, 'tier' => self::TIER_FREE,
+                'label' => 'Raw code execution', 'sensitive' => true,
                 'desc' => 'Run arbitrary PHP and SQL directly.',
                 'tools' => ['execute_php', 'execute_sql'],
             ],
             'files' => [
-                'label' => 'Filesystem', 'sensitive' => true, 'tier' => self::TIER_FREE,
+                'label' => 'Filesystem', 'sensitive' => true,
                 'desc' => 'Read/write/delete files and sandbox scripts.',
                 'tools' => ['read_file', 'write_file', 'edit_file', 'delete_file', 'list_directory', 'write_sandbox_file'],
             ],
             'users' => [
-                'label' => 'Users', 'sensitive' => true, 'tier' => self::TIER_PRO,
+                'label' => 'Users', 'sensitive' => true,
                 'desc' => 'Create/edit/delete user accounts and roles.',
                 'tools' => ['manage_user'],
             ],
             'site_admin' => [
-                'label' => 'Site admin (plugins/themes/options)', 'sensitive' => true, 'tier' => self::TIER_FREE,
+                'label' => 'Site admin (plugins/themes/options)', 'sensitive' => true,
                 'desc' => 'Options, plugins, themes, menus.',
                 'tools' => ['manage_option', 'manage_plugin', 'manage_theme', 'manage_menu'],
             ],
             'updates' => [
-                'label' => 'Updates', 'sensitive' => true, 'tier' => self::TIER_PRO,
+                'label' => 'Updates', 'sensitive' => true,
                 'desc' => 'Update WordPress core, plugins, and themes.',
                 'tools' => ['manage_updates'],
             ],
             'images' => [
-                'label' => 'Images', 'sensitive' => false, 'tier' => self::TIER_FREE,
+                'label' => 'Images', 'sensitive' => false,
                 'desc' => 'Search (Openverse) and generate images.',
                 'tools' => ['image_search', 'image_generate'],
             ],
             'comms' => [
-                'label' => 'Email & notifications', 'sensitive' => true, 'tier' => self::TIER_PRO,
+                'label' => 'Email & notifications', 'sensitive' => true,
                 'desc' => 'Send email and owner notifications.',
                 'tools' => ['send_email', 'notify_owner'],
             ],
             'automation' => [
-                'label' => 'Autonomy (agent & scheduled tasks)', 'sensitive' => true, 'tier' => self::TIER_PRO,
+                'label' => 'Autonomy (agent & scheduled tasks)', 'sensitive' => true,
                 'desc' => 'Run the autonomous agent and create/run scheduled tasks.',
                 'tools' => ['run_agent', 'task_save', 'task_run', 'task_delete', 'agent_runs'],
             ],
             'memory' => [
-                'label' => 'Memory (write)', 'sensitive' => false, 'tier' => self::TIER_FREE,
+                'label' => 'Memory (write)', 'sensitive' => false,
                 'desc' => 'Save/delete cross-session memory.',
                 'tools' => ['memory_save', 'memory_delete'],
             ],
             'skills' => [
-                'label' => 'Skills (write)', 'sensitive' => false, 'tier' => self::TIER_FREE,
+                'label' => 'Skills (write)', 'sensitive' => false,
                 'desc' => 'Create/delete agent skills.',
                 'tools' => ['skill_save', 'skill_delete', 'skill_refresh'],
             ],
             'deploy' => [
-                'label' => 'Deploy to production', 'sensitive' => true, 'tier' => self::TIER_PRO,
+                'label' => 'Deploy to production', 'sensitive' => true,
                 'desc' => 'Export/import bundles and push to the production site.',
                 'tools' => ['export_bundle', 'import_bundle', 'deploy_push'],
             ],
@@ -189,7 +213,7 @@ final class Claudpress_Capabilities
     {
         $caps = Claudpress::instance()->get('capabilities', []);
         if (!is_array($caps) || !array_key_exists($group, $caps)) {
-            return true; // default on
+            return self::default_enabled($group);
         }
         return (bool) $caps[$group];
     }
@@ -197,10 +221,9 @@ final class Claudpress_Capabilities
     /**
      * Whether a tool may run.
      *
-     * Two independent gates, and the order matters. The tier decides whether
-     * this install has the feature at all; the owner's toggle decides whether
-     * they want it switched on. A Pro tool on a free site fails the first gate
-     * no matter what the toggles say.
+     * One gate: the owner's toggle. There used to be a second one in front of
+     * it deciding whether this install had the feature at all; every install
+     * has every feature now.
      *
      * Ungrouped and always-on tools are allowed: third-party plugins register
      * tools through the same registry, and refusing anything unrecognised would
@@ -215,70 +238,32 @@ final class Claudpress_Capabilities
         if ($group === null) {
             return true;
         }
-        return self::tier_allows($group) && self::is_group_enabled($group);
+        return self::is_group_enabled($group);
     }
-    // ------------------------------------------------------------------------
-    // Tiering
-    //
-    // Read this before relying on any of it:  is a USER-EXPERIENCE
-    // gate, not a security boundary, and it must never be mistaken for one.
-    //
-    // The free plugin ships execute_php, execute_sql, the filesystem tools and
-    // the snippet engine. Any one of those gives a connected agent the ability
-    // to run arbitrary PHP on the site - which means it can also flip whatever
-    // option this function reads. Nothing that lives on the user's own disk can
-    // be defended from the user; that is not a flaw in the design, it follows
-    // from what the product is.
-    //
-    // What actually separates the tiers is that Pro code is in a SEPARATE ZIP a
-    // free user never receives, and that the features worth paying for - the
-    // private library, cross-site sync, the Pro skill feed - are answered by our
-    // server, where a local edit has no vote. So: use this to keep honest users
-    // out of broken states, and never put anything in the free zip that would
-    // matter if it were switched on.
-    // ------------------------------------------------------------------------
-
-    /** True when the paid add-on is installed and holds a valid licence. */
-    public static function is_pro(): bool
+    /** Whether a group is on when the owner has never said either way. */
+    public static function default_enabled(string $group): bool
     {
-        /**
-         * The add-on answers this filter. With the add-on absent - the normal
-         * case - nothing hooks it and every Pro group stays off.
-         */
-        return (bool) apply_filters('claudpress_is_pro', false);
-    }
-
-    /** free | pro for a group; unknown groups are treated as free. */
-    public static function group_tier(string $group): string
-    {
-        $groups = self::groups();
-        return (string) ($groups[$group]['tier'] ?? self::TIER_FREE);
-    }
-
-    /** Whether this install may use the group at all, before the owner's toggle. */
-    public static function tier_allows(string $group): bool
-    {
-        return self::group_tier($group) === self::TIER_FREE || self::is_pro();
+        return !in_array($group, self::DISABLED_BY_DEFAULT, true);
     }
 
     /**
-     * Pro groups this site does not have, described for a connected agent.
+     * Groups that are switched off, described for a connected agent.
      *
-     * Handing an agent a factual list of what is missing and why is cheaper for
-     * everyone than letting it discover the same thing by trying: it stops the
-     * retry loops, and it stops the agent telling the owner the site is broken
-     * when it is simply not subscribed.
+     * Handing an agent a factual list of what it cannot do, and the name of the
+     * switch that would fix it, is cheaper for everyone than letting it find
+     * out by trying: it stops the retry loops, and it stops the agent telling
+     * the owner their site is broken when they simply left something off.
+     *
+     * This used to report which features were missing because they were part of
+     * a paid add-on. The reason changed; the courtesy did not.
      *
      * @return array<int, array{name:string,label:string,what_it_does:string}>
      */
-    public static function unavailable_groups(): array
+    public static function disabled_groups(): array
     {
-        if (self::is_pro()) {
-            return [];
-        }
         $out = [];
         foreach (self::groups() as $key => $group) {
-            if (($group['tier'] ?? self::TIER_FREE) !== self::TIER_PRO) {
+            if (self::is_group_enabled($key)) {
                 continue;
             }
             $out[] = [
@@ -289,19 +274,6 @@ final class Claudpress_Capabilities
         }
         return $out;
     }
-
-    /** Every tool belonging to a Pro group, for filtering the registry. */
-    public static function pro_tools(): array
-    {
-        $out = [];
-        foreach (self::groups() as $group) {
-            if (($group['tier'] ?? self::TIER_FREE) === self::TIER_PRO) {
-                $out = array_merge($out, $group['tools']);
-            }
-        }
-        return $out;
-    }
-
 
     /**
      * Tools a strictly read-only actor may use — the `viewer` Telegram role.

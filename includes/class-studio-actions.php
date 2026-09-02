@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Pro_Studio_Actions
+final class Claudpress_Studio_Actions
 {
     public function hooks(): void
     {
@@ -33,17 +33,17 @@ final class Claudpress_Pro_Studio_Actions
     private static function guard(): void
     {
         if (!current_user_can('manage_options')) {
-            wp_die(esc_html__('You do not have permission to manage snippets.', 'claudpress-pro'), '', ['response' => 403]);
+            wp_die(esc_html__('You do not have permission to manage snippets.', 'claudpress'), '', ['response' => 403]);
         }
-        check_admin_referer(Claudpress_Pro_Studio::NONCE);
+        check_admin_referer(Claudpress_Studio::NONCE);
     }
 
     private static function guard_ajax(): void
     {
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => __('You do not have permission to do that.', 'claudpress-pro')], 403);
+            wp_send_json_error(['message' => __('You do not have permission to do that.', 'claudpress')], 403);
         }
-        check_ajax_referer(Claudpress_Pro_Studio::NONCE, 'nonce');
+        check_ajax_referer(Claudpress_Studio::NONCE, 'nonce');
     }
 
     public function handle(): void
@@ -63,49 +63,23 @@ final class Claudpress_Pro_Studio_Actions
             case 'activate':
             case 'deactivate':
                 Claudpress_Snippets::toggle($id, $action === 'activate');
-                Claudpress_Pro_Studio::redirect('all', $action === 'activate' ? 'activated' : 'deactivated');
+                Claudpress_Studio::redirect('all', $action === 'activate' ? 'activated' : 'deactivated');
                 break;
             case 'duplicate':
                 $this->duplicate($id);
                 break;
             case 'delete':
                 Claudpress_Snippets::delete($id);
-                Claudpress_Pro_Studio::redirect('all', 'deleted');
+                Claudpress_Studio::redirect('all', 'deleted');
                 break;
             case 'restore':
                 $this->restore($id, isset($_POST['revision_id']) ? (int) $_POST['revision_id'] : 0);
                 break;
-            case 'cloud_start_pairing':
-                $started = Claudpress_Pro_Cloud::start_pairing();
-                Claudpress_Pro_Studio::redirect('library', empty($started['ok']) ? 'cloud_error' : 'saved', ['lib' => 'private']);
-                break;
-
-            case 'cloud_cancel_pairing':
-                Claudpress_Pro_Cloud::cancel_pairing();
-                Claudpress_Pro_Studio::redirect('library', 'saved', ['lib' => 'private']);
-                break;
-
-            case 'cloud_import':
-                // Lands inactive and goes through the same parse gate as
-                // anything else. Code from elsewhere is exactly the code
-                // somebody should read before it runs.
-                $imported = Claudpress_Pro_Cloud_Library::import(sanitize_text_field(wp_unslash($_POST['cloud_uid'] ?? '')));
-                if (!empty($imported['ok'])) {
-                    Claudpress_Pro_Studio::redirect('edit', 'imported', ['snippet' => (int) $imported['id']]);
-                }
-                Claudpress_Pro_Studio::redirect('library', 'cloud_error', ['lib' => 'private']);
-                break;
-
-            case 'cloud_push':
-                Claudpress_Pro_Cloud_Library::push((int) ($_POST['snippet_id'] ?? 0));
-                Claudpress_Pro_Studio::redirect('library', 'saved', ['lib' => 'private']);
-                break;
-
             case 'use_library':
                 $this->use_library(isset($_POST['library_key']) ? sanitize_key(wp_unslash($_POST['library_key'])) : '');
                 break;
             default:
-                Claudpress_Pro_Studio::redirect('all', 'saved');
+                Claudpress_Studio::redirect('all', 'saved');
         }
     }
 
@@ -138,7 +112,7 @@ final class Claudpress_Pro_Studio_Actions
         // case where the parse refused.
         $blocked = $activate && empty($result['active']);
 
-        Claudpress_Pro_Studio::redirect(
+        Claudpress_Studio::redirect(
             $blocked ? 'edit' : 'all',
             $blocked ? 'lint' : ($activate ? 'activated' : 'saved'),
             $blocked ? ['snippet' => $id] : []
@@ -149,7 +123,7 @@ final class Claudpress_Pro_Studio_Actions
     {
         $prompt = sanitize_textarea_field(wp_unslash($_POST['ai_prompt'] ?? ''));
         $result = Claudpress_Snippets::save([
-            'name'         => sanitize_text_field(wp_unslash($_POST['name'] ?? '')) ?: __('AI snippet', 'claudpress-pro'),
+            'name'         => sanitize_text_field(wp_unslash($_POST['name'] ?? '')) ?: __('AI snippet', 'claudpress'),
             'code'         => wp_unslash($_POST['code'] ?? ''),
             'snippet_type' => sanitize_key(wp_unslash($_POST['snippet_type'] ?? 'php')),
             'source'       => 'ai',
@@ -160,18 +134,18 @@ final class Claudpress_Pro_Studio_Actions
             'active'       => 0,
         ]);
 
-        Claudpress_Pro_Studio::redirect('edit', 'saved', ['snippet' => (int) ($result['id'] ?? 0)]);
+        Claudpress_Studio::redirect('edit', 'saved', ['snippet' => (int) ($result['id'] ?? 0)]);
     }
 
     private function duplicate(int $id): void
     {
         $row = Claudpress_Snippets::get($id);
         if (!$row) {
-            Claudpress_Pro_Studio::redirect('all', 'saved');
+            Claudpress_Studio::redirect('all', 'saved');
         }
         $copy = Claudpress_Snippets::save([
             /* translators: %s: the original snippet's name. */
-            'name'         => sprintf(__('%s (copy)', 'claudpress-pro'), (string) $row['name']),
+            'name'         => sprintf(__('%s (copy)', 'claudpress'), (string) $row['name']),
             'description'  => (string) $row['description'],
             'code'         => (string) $row['code'],
             'snippet_type' => (string) $row['snippet_type'],
@@ -181,7 +155,7 @@ final class Claudpress_Pro_Studio_Actions
             'source'       => (string) ($row['source'] ?? 'manual'),
             'active'       => 0, // A copy never inherits "on".
         ]);
-        Claudpress_Pro_Studio::redirect('edit', 'saved', ['snippet' => (int) ($copy['id'] ?? 0)]);
+        Claudpress_Studio::redirect('edit', 'saved', ['snippet' => (int) ($copy['id'] ?? 0)]);
     }
 
     /**
@@ -196,7 +170,7 @@ final class Claudpress_Pro_Studio_Actions
     {
         $current = Claudpress_Snippets::get($id);
         if (!$current || $revision_id <= 0) {
-            Claudpress_Pro_Studio::redirect('all', 'saved');
+            Claudpress_Studio::redirect('all', 'saved');
         }
 
         $revision = null;
@@ -207,7 +181,7 @@ final class Claudpress_Pro_Studio_Actions
             }
         }
         if (!$revision) {
-            Claudpress_Pro_Studio::redirect('edit', 'saved', ['snippet' => $id]);
+            Claudpress_Studio::redirect('edit', 'saved', ['snippet' => $id]);
         }
 
         Claudpress_Snippets::save([
@@ -215,17 +189,17 @@ final class Claudpress_Pro_Studio_Actions
             'code'   => (string) $revision['code'],
             'active' => 0,
         ]);
-        Claudpress_Pro_Studio::redirect('edit', 'saved', ['snippet' => $id]);
+        Claudpress_Studio::redirect('edit', 'saved', ['snippet' => $id]);
     }
 
     private function use_library(string $key): void
     {
         if ($key === '' || !class_exists('Claudpress_Snippet_Library')) {
-            Claudpress_Pro_Studio::redirect('library', 'saved');
+            Claudpress_Studio::redirect('library', 'saved');
         }
         $item = Claudpress_Snippet_Library::get($key);
         if (!$item) {
-            Claudpress_Pro_Studio::redirect('library', 'saved');
+            Claudpress_Studio::redirect('library', 'saved');
         }
 
         $result = Claudpress_Snippets::save([
@@ -239,7 +213,7 @@ final class Claudpress_Pro_Studio_Actions
             'origin_uid'   => $key,
             'active'       => 0,
         ]);
-        Claudpress_Pro_Studio::redirect('edit', 'imported', ['snippet' => (int) ($result['id'] ?? 0)]);
+        Claudpress_Studio::redirect('edit', 'imported', ['snippet' => (int) ($result['id'] ?? 0)]);
     }
 
     // ---- AJAX ------------------------------------------------------------
@@ -252,17 +226,17 @@ final class Claudpress_Pro_Studio_Actions
         $type = sanitize_key(wp_unslash($_POST['snippet_type'] ?? 'php'));
 
         if (trim($code) === '') {
-            wp_send_json_error(['message' => __('There is no code to look at.', 'claudpress-pro')]);
+            wp_send_json_error(['message' => __('There is no code to look at.', 'claudpress')]);
         }
 
-        $review = Claudpress_Pro_Studio_AI::review($code, $type);
+        $review = Claudpress_Studio_AI::review($code, $type);
         if (is_wp_error($review)) {
             wp_send_json_error(['message' => $review->get_error_message()]);
         }
 
         // The parse result travels with the opinion, so the panel can show both.
         ob_start();
-        Claudpress_Pro_Studio_Edit::review_panel([
+        Claudpress_Studio_Edit::review_panel([
             'ai_review'    => wp_json_encode($review),
             'ai_review_at' => current_time('mysql'),
             'last_error'   => Claudpress_Snippets::lint_php($code, $type),
@@ -276,16 +250,16 @@ final class Claudpress_Pro_Studio_Actions
 
         $prompt = sanitize_textarea_field(wp_unslash($_POST['prompt'] ?? ''));
         if (trim($prompt) === '') {
-            wp_send_json_error(['message' => __('Describe what you want first.', 'claudpress-pro')]);
+            wp_send_json_error(['message' => __('Describe what you want first.', 'claudpress')]);
         }
 
-        $plan = Claudpress_Pro_Studio_AI::plan($prompt);
+        $plan = Claudpress_Studio_AI::plan($prompt);
         if (is_wp_error($plan)) {
             wp_send_json_error(['message' => $plan->get_error_message()]);
         }
 
         wp_send_json_success([
-            'html'      => Claudpress_Pro_Studio_Compose::plan_html($plan),
+            'html'      => Claudpress_Studio_Compose::plan_html($plan),
             'plan_text' => wp_json_encode($plan),
         ]);
     }
@@ -297,13 +271,13 @@ final class Claudpress_Pro_Studio_Actions
         $prompt = sanitize_textarea_field(wp_unslash($_POST['prompt'] ?? ''));
         $plan   = (string) wp_unslash($_POST['plan'] ?? '');
 
-        $built = Claudpress_Pro_Studio_AI::build($prompt, $plan);
+        $built = Claudpress_Studio_AI::build($prompt, $plan);
         if (is_wp_error($built)) {
             wp_send_json_error(['message' => $built->get_error_message()]);
         }
 
         wp_send_json_success([
-            'html' => Claudpress_Pro_Studio_Compose::code_html(
+            'html' => Claudpress_Studio_Compose::code_html(
                 $built['code'],
                 $built['type'],
                 Claudpress_Snippets::lint_php($built['code'], $built['type']),

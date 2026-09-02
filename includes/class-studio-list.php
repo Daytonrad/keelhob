@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Pro_Studio_List
+final class Claudpress_Studio_List
 {
     const PER_PAGE = 20;
 
@@ -47,13 +47,13 @@ final class Claudpress_Pro_Studio_List
         <table class="wp-list-table widefat fixed striped">
             <thead>
                 <tr>
-                    <th scope="col" style="width:28%;"><?php esc_html_e('Name', 'claudpress-pro'); ?></th>
-                    <th scope="col" style="width:8%;"><?php esc_html_e('Type', 'claudpress-pro'); ?></th>
-                    <th scope="col" style="width:14%;"><?php esc_html_e('Runs where', 'claudpress-pro'); ?></th>
-                    <th scope="col" style="width:14%;"><?php esc_html_e('Source', 'claudpress-pro'); ?></th>
-                    <th scope="col" style="width:16%;"><?php esc_html_e('Tags', 'claudpress-pro'); ?></th>
-                    <th scope="col" style="width:10%;"><?php esc_html_e('Status', 'claudpress-pro'); ?></th>
-                    <th scope="col" style="width:10%;"><?php esc_html_e('Updated', 'claudpress-pro'); ?></th>
+                    <th scope="col" style="width:28%;"><?php esc_html_e('Name', 'claudpress'); ?></th>
+                    <th scope="col" style="width:8%;"><?php esc_html_e('Type', 'claudpress'); ?></th>
+                    <th scope="col" style="width:14%;"><?php esc_html_e('Runs where', 'claudpress'); ?></th>
+                    <th scope="col" style="width:14%;"><?php esc_html_e('Source', 'claudpress'); ?></th>
+                    <th scope="col" style="width:16%;"><?php esc_html_e('Tags', 'claudpress'); ?></th>
+                    <th scope="col" style="width:10%;"><?php esc_html_e('Status', 'claudpress'); ?></th>
+                    <th scope="col" style="width:10%;"><?php esc_html_e('Updated', 'claudpress'); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -116,7 +116,7 @@ final class Claudpress_Pro_Studio_List
     private static function type_tabs(array $filters, array $counts): void
     {
         $types = [
-            ''     => __('All', 'claudpress-pro'),
+            ''     => __('All', 'claudpress'),
             'php'  => 'PHP',
             'css'  => 'CSS',
             'js'   => 'JS',
@@ -129,7 +129,7 @@ final class Claudpress_Pro_Studio_List
             if ($slug !== '' && $count === 0) {
                 continue; // Do not advertise a filter that can only return nothing.
             }
-            $url = Claudpress_Pro_Studio::url('all', array_filter([
+            $url = Claudpress_Studio::url('all', array_filter([
                 'type'   => $slug,
                 's'      => $filters['search'],
                 'tag'    => $filters['tag'],
@@ -152,20 +152,20 @@ final class Claudpress_Pro_Studio_List
     {
         ?>
         <form method="get" style="float:right;margin:0 0 8px;">
-            <input type="hidden" name="page" value="<?php echo esc_attr(Claudpress_Pro_Studio::SLUG); ?>">
+            <input type="hidden" name="page" value="<?php echo esc_attr(Claudpress_Studio::SLUG); ?>">
             <input type="hidden" name="tab" value="all">
             <?php if ($filters['type'] !== '') : ?>
                 <input type="hidden" name="type" value="<?php echo esc_attr($filters['type']); ?>">
             <?php endif; ?>
-            <label class="screen-reader-text" for="cp-snippet-search"><?php esc_html_e('Search snippets', 'claudpress-pro'); ?></label>
+            <label class="screen-reader-text" for="cp-snippet-search"><?php esc_html_e('Search snippets', 'claudpress'); ?></label>
             <input type="search" id="cp-snippet-search" name="s" value="<?php echo esc_attr($filters['search']); ?>"
-                   placeholder="<?php esc_attr_e('Search name or code', 'claudpress-pro'); ?>">
+                   placeholder="<?php esc_attr_e('Search name or code', 'claudpress'); ?>">
             <select name="active">
-                <option value=""><?php esc_html_e('Any status', 'claudpress-pro'); ?></option>
-                <option value="1" <?php selected($filters['active'], '1'); ?>><?php esc_html_e('On', 'claudpress-pro'); ?></option>
-                <option value="0" <?php selected($filters['active'], '0'); ?>><?php esc_html_e('Off', 'claudpress-pro'); ?></option>
+                <option value=""><?php esc_html_e('Any status', 'claudpress'); ?></option>
+                <option value="1" <?php selected($filters['active'], '1'); ?>><?php esc_html_e('On', 'claudpress'); ?></option>
+                <option value="0" <?php selected($filters['active'], '0'); ?>><?php esc_html_e('Off', 'claudpress'); ?></option>
             </select>
-            <?php submit_button(__('Filter', 'claudpress-pro'), '', '', false); ?>
+            <?php submit_button(__('Filter', 'claudpress'), '', '', false); ?>
         </form>
         <div style="clear:both;"></div>
         <?php
@@ -176,26 +176,26 @@ final class Claudpress_Pro_Studio_List
         $id     = (int) $row['id'];
         $active = !empty($row['active']);
         $error  = trim((string) ($row['last_error'] ?? ''));
-        $edit   = Claudpress_Pro_Studio::url('edit', ['snippet' => $id]);
+        $edit   = Claudpress_Studio::url('edit', ['snippet' => $id]);
         ?>
         <tr>
             <td>
-                <strong><a href="<?php echo esc_url($edit); ?>"><?php echo esc_html($row['name'] !== '' ? $row['name'] : __('(untitled)', 'claudpress-pro')); ?></a></strong>
+                <strong><a href="<?php echo esc_url($edit); ?>"><?php echo esc_html($row['name'] !== '' ? $row['name'] : __('(untitled)', 'claudpress')); ?></a></strong>
                 <?php if ($error !== '') : ?>
                     <br><span style="color:#d63638;font-size:12px;">⚠ <?php echo esc_html(mb_substr($error, 0, 140)); ?></span>
                 <?php elseif (trim((string) ($row['description'] ?? '')) !== '') : ?>
                     <br><span style="color:#666;font-size:12px;"><?php echo esc_html(wp_trim_words((string) $row['description'], 18)); ?></span>
                 <?php endif; ?>
                 <div class="row-actions">
-                    <span><a href="<?php echo esc_url($edit); ?>"><?php esc_html_e('Edit', 'claudpress-pro'); ?></a> | </span>
-                    <span><?php self::action_button($id, $active ? 'deactivate' : 'activate', $active ? __('Switch off', 'claudpress-pro') : __('Switch on', 'claudpress-pro')); ?> | </span>
-                    <span><?php self::action_button($id, 'duplicate', __('Duplicate', 'claudpress-pro')); ?> | </span>
-                    <span class="trash"><?php self::action_button($id, 'delete', __('Delete', 'claudpress-pro'), __('Delete this snippet? This cannot be undone.', 'claudpress-pro')); ?></span>
+                    <span><a href="<?php echo esc_url($edit); ?>"><?php esc_html_e('Edit', 'claudpress'); ?></a> | </span>
+                    <span><?php self::action_button($id, $active ? 'deactivate' : 'activate', $active ? __('Switch off', 'claudpress') : __('Switch on', 'claudpress')); ?> | </span>
+                    <span><?php self::action_button($id, 'duplicate', __('Duplicate', 'claudpress')); ?> | </span>
+                    <span class="trash"><?php self::action_button($id, 'delete', __('Delete', 'claudpress'), __('Delete this snippet? This cannot be undone.', 'claudpress')); ?></span>
                 </div>
             </td>
             <td><code><?php echo esc_html((string) $row['snippet_type']); ?></code></td>
             <td><?php echo esc_html(str_replace('_', ' ', (string) $row['location'])); ?></td>
-            <td><?php echo wp_kses_post(Claudpress_Pro_Studio::source_badge((string) ($row['source'] ?? 'manual'))); ?></td>
+            <td><?php echo wp_kses_post(Claudpress_Studio::source_badge((string) ($row['source'] ?? 'manual'))); ?></td>
             <td>
                 <?php
                 $tags = Claudpress_Snippets::tags_array($row['tags'] ?? '');
@@ -204,9 +204,9 @@ final class Claudpress_Pro_Studio_List
             </td>
             <td>
                 <?php if ($active) : ?>
-                    <span style="color:#00794b;font-weight:600;"><?php esc_html_e('On', 'claudpress-pro'); ?></span>
+                    <span style="color:#00794b;font-weight:600;"><?php esc_html_e('On', 'claudpress'); ?></span>
                 <?php else : ?>
-                    <span style="color:#777;"><?php esc_html_e('Off', 'claudpress-pro'); ?></span>
+                    <span style="color:#777;"><?php esc_html_e('Off', 'claudpress'); ?></span>
                 <?php endif; ?>
             </td>
             <td><?php echo esc_html(self::ago((string) ($row['updated_at'] ?? ''))); ?></td>
@@ -227,7 +227,7 @@ final class Claudpress_Pro_Studio_List
         ?>
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;"
             <?php if ($confirm !== '') : ?>onsubmit="return confirm('<?php echo esc_js($confirm); ?>');"<?php endif; ?>>
-            <?php wp_nonce_field(Claudpress_Pro_Studio::NONCE); ?>
+            <?php wp_nonce_field(Claudpress_Studio::NONCE); ?>
             <input type="hidden" name="action" value="claudpress_studio">
             <input type="hidden" name="studio_action" value="<?php echo esc_attr($action); ?>">
             <input type="hidden" name="snippet_id" value="<?php echo esc_attr((string) $id); ?>">
@@ -242,15 +242,15 @@ final class Claudpress_Pro_Studio_List
         ?>
         <div class="card" style="max-width:none;padding:20px;margin-top:12px;">
             <?php if ($filtered) : ?>
-                <p><?php esc_html_e('No snippets match that filter.', 'claudpress-pro'); ?>
-                   <a href="<?php echo esc_url(Claudpress_Pro_Studio::url('all')); ?>"><?php esc_html_e('Clear filters', 'claudpress-pro'); ?></a></p>
+                <p><?php esc_html_e('No snippets match that filter.', 'claudpress'); ?>
+                   <a href="<?php echo esc_url(Claudpress_Studio::url('all')); ?>"><?php esc_html_e('Clear filters', 'claudpress'); ?></a></p>
             <?php else : ?>
-                <p><strong><?php esc_html_e('No snippets yet.', 'claudpress-pro'); ?></strong></p>
-                <p><?php esc_html_e('Snippets are small pieces of PHP, CSS, JS or HTML that change how this site works or looks, without editing a theme.', 'claudpress-pro'); ?></p>
+                <p><strong><?php esc_html_e('No snippets yet.', 'claudpress'); ?></strong></p>
+                <p><?php esc_html_e('Snippets are small pieces of PHP, CSS, JS or HTML that change how this site works or looks, without editing a theme.', 'claudpress'); ?></p>
                 <p>
-                    <a class="button button-primary" href="<?php echo esc_url(Claudpress_Pro_Studio::url('compose')); ?>"><?php esc_html_e('Describe one to the AI', 'claudpress-pro'); ?></a>
-                    <a class="button" href="<?php echo esc_url(Claudpress_Pro_Studio::url('edit')); ?>"><?php esc_html_e('Write one yourself', 'claudpress-pro'); ?></a>
-                    <a class="button" href="<?php echo esc_url(Claudpress_Pro_Studio::url('library')); ?>"><?php esc_html_e('Browse the library', 'claudpress-pro'); ?></a>
+                    <a class="button button-primary" href="<?php echo esc_url(Claudpress_Studio::url('compose')); ?>"><?php esc_html_e('Describe one to the AI', 'claudpress'); ?></a>
+                    <a class="button" href="<?php echo esc_url(Claudpress_Studio::url('edit')); ?>"><?php esc_html_e('Write one yourself', 'claudpress'); ?></a>
+                    <a class="button" href="<?php echo esc_url(Claudpress_Studio::url('library')); ?>"><?php esc_html_e('Browse the library', 'claudpress'); ?></a>
                 </p>
             <?php endif; ?>
         </div>
@@ -282,6 +282,6 @@ final class Claudpress_Pro_Studio_List
             return '—';
         }
         /* translators: %s: human-readable time difference, e.g. "3 hours". */
-        return sprintf(__('%s ago', 'claudpress-pro'), human_time_diff($ts, current_time('timestamp')));
+        return sprintf(__('%s ago', 'claudpress'), human_time_diff($ts, current_time('timestamp')));
     }
 }

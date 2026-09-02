@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Pro_Studio_AI
+final class Claudpress_Studio_AI
 {
     /**
      * Ask the model what a snippet does and whether it looks risky.
@@ -50,7 +50,7 @@ final class Claudpress_Pro_Studio_AI
 
         return is_array($parsed) ? $parsed : new WP_Error(
             'claudpress_studio_parse',
-            __('The AI replied, but not in a form this screen could read. Nothing was changed.', 'claudpress-pro')
+            __('The AI replied, but not in a form this screen could read. Nothing was changed.', 'claudpress')
         );
     }
 
@@ -79,7 +79,7 @@ final class Claudpress_Pro_Studio_AI
 
         return is_array($parsed) ? $parsed : new WP_Error(
             'claudpress_studio_parse',
-            __('The AI replied, but not in a form this screen could read. Nothing was changed.', 'claudpress-pro')
+            __('The AI replied, but not in a form this screen could read. Nothing was changed.', 'claudpress')
         );
     }
 
@@ -112,7 +112,7 @@ final class Claudpress_Pro_Studio_AI
         $code = self::strip_php_tags($code, $type);
 
         if (trim($code) === '') {
-            return new WP_Error('claudpress_studio_empty', __('The AI returned nothing usable.', 'claudpress-pro'));
+            return new WP_Error('claudpress_studio_empty', __('The AI returned nothing usable.', 'claudpress'));
         }
         return ['code' => $code, 'type' => $type];
     }
@@ -129,7 +129,7 @@ final class Claudpress_Pro_Studio_AI
         if ($key === '') {
             return new WP_Error(
                 'claudpress_studio_no_key',
-                __('No AI provider is connected. Add a key under Claudpress > Automation.', 'claudpress-pro')
+                __('No AI provider is connected. Add a key under Claudpress > Automation.', 'claudpress')
             );
         }
 
@@ -155,20 +155,20 @@ final class Claudpress_Pro_Studio_AI
         if ($code < 200 || $code >= 300) {
             $message = is_array($data) ? $provider::error_message($data) : '';
             if ($code === 401 || $code === 403) {
-                $message = __('Your API key was rejected. Check it under Claudpress > Automation.', 'claudpress-pro');
+                $message = __('Your API key was rejected. Check it under Claudpress > Automation.', 'claudpress');
             }
             /* translators: %d: HTTP status code. */
-            return new WP_Error('claudpress_studio_api', $message ?: sprintf(__('The AI provider returned HTTP %d.', 'claudpress-pro'), $code));
+            return new WP_Error('claudpress_studio_api', $message ?: sprintf(__('The AI provider returned HTTP %d.', 'claudpress'), $code));
         }
 
         if (!is_array($data)) {
-            return new WP_Error('claudpress_studio_api', __('The AI provider returned something unreadable.', 'claudpress-pro'));
+            return new WP_Error('claudpress_studio_api', __('The AI provider returned something unreadable.', 'claudpress'));
         }
 
         $parsed = $provider::parse($data);
         $text   = trim((string) ($parsed['text'] ?? ''));
 
-        return $text !== '' ? $text : new WP_Error('claudpress_studio_empty', __('The AI returned an empty answer.', 'claudpress-pro'));
+        return $text !== '' ? $text : new WP_Error('claudpress_studio_empty', __('The AI returned an empty answer.', 'claudpress'));
     }
 
     /**

@@ -21,7 +21,7 @@ delete_transient(Claudpress_Pro_Licence::TRANSIENT);
 wp_set_current_user(1);
 set_current_screen('admin');
 
-check('the Studio class loaded', class_exists('Claudpress_Pro_Studio'));
+check('the Studio class loaded', class_exists('Claudpress_Studio'));
 
 // Something to list.
 $made = Claudpress_Snippets::save([
@@ -36,9 +36,9 @@ $made_id = (int) ($made['id'] ?? 0);
 check('a snippet exists to list', $made_id > 0);
 
 $render = static function (string $tab, array $extra = []): string {
-    $_GET = array_merge(['page' => Claudpress_Pro_Studio::SLUG, 'tab' => $tab], $extra);
+    $_GET = array_merge(['page' => Claudpress_Studio::SLUG, 'tab' => $tab], $extra);
     ob_start();
-    (new Claudpress_Pro_Studio())->render();
+    (new Claudpress_Studio())->render();
     return (string) ob_get_clean();
 };
 
@@ -91,7 +91,7 @@ check('the pairing screen has no password field at all', strpos($private, 'type=
 
 // --- the two verdicts, side by side ---
 ob_start();
-Claudpress_Pro_Studio_Edit::review_panel([
+Claudpress_Studio_Edit::review_panel([
     'ai_review'    => wp_json_encode(['verdict' => 'caution', 'summary' => 'Test summary.', 'risks' => ['One risk']]),
     'ai_review_at' => current_time('mysql'),
     'last_error'   => '',
@@ -104,10 +104,10 @@ check('...and says which one decides', strpos($panel, 'decides whether the snipp
 check('...and that the opinion does not', strpos($panel, 'does not gate anything') !== false);
 
 // --- the AI helpers ---
-check('fences are stripped from a model reply', Claudpress_Pro_Studio_AI::strip_fences("```php\n<?php echo 1;\n```") === '<?php echo 1;');
-check('JSON is found inside prose', (Claudpress_Pro_Studio_AI::json('Here you go: {"a":1} hope that helps') ?? [])['a'] === 1);
-check('type comes from the code, not the label', Claudpress_Pro_Studio_AI::guess_type("<?php echo 1;") === 'php');
-check('...css is recognised', Claudpress_Pro_Studio_AI::guess_type(".a { color: red; }") === 'css');
+check('fences are stripped from a model reply', Claudpress_Studio_AI::strip_fences("```php\n<?php echo 1;\n```") === '<?php echo 1;');
+check('JSON is found inside prose', (Claudpress_Studio_AI::json('Here you go: {"a":1} hope that helps') ?? [])['a'] === 1);
+check('type comes from the code, not the label', Claudpress_Studio_AI::guess_type("<?php echo 1;") === 'php');
+check('...css is recognised', Claudpress_Studio_AI::guess_type(".a { color: red; }") === 'css');
 
 Claudpress_Snippets::delete($made_id);
 $_GET = [];

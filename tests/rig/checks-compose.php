@@ -40,7 +40,7 @@ $before = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
 $digest = (string) $wpdb->get_var("SELECT COALESCE(GROUP_CONCAT(id || ':' || updated_at), '') FROM {$table}");
 
 // ---- 1. Plan. Pure. -------------------------------------------------------
-$plan = Claudpress_Pro_Studio_AI::plan('Add a free shipping banner to the cart when the total is over 200.');
+$plan = Claudpress_Studio_AI::plan('Add a free shipping banner to the cart when the total is over 200.');
 
 check('plan() returns a plan', !is_wp_error($plan) && is_array($plan), is_wp_error($plan) ? $plan->get_error_message() : '');
 if (!is_wp_error($plan)) {
@@ -53,7 +53,7 @@ if (!is_wp_error($plan)) {
 check('planning wrote nothing', (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table}") === $before);
 
 // ---- 2. Build. Also pure. -------------------------------------------------
-$built = Claudpress_Pro_Studio_AI::build('Free shipping banner over 200', wp_json_encode($plan));
+$built = Claudpress_Studio_AI::build('Free shipping banner over 200', wp_json_encode($plan));
 
 check('build() returns code', !is_wp_error($built) && !empty($built['code']), is_wp_error($built) ? $built->get_error_message() : '');
 if (!is_wp_error($built)) {
@@ -89,7 +89,7 @@ check('  the prompt is kept with it', trim((string) ($row['ai_prompt'] ?? '')) !
 check('  the model is recorded', ($row['ai_model'] ?? '') === 'mock-model-newest');
 
 // ---- 4. Ask AI. Advisory, and it does not touch the row. ------------------
-$review = Claudpress_Pro_Studio_AI::review((string) $row['code'], 'php');
+$review = Claudpress_Studio_AI::review((string) $row['code'], 'php');
 check('review() returns a verdict', !is_wp_error($review) && !empty($review['verdict']), is_wp_error($review) ? $review->get_error_message() : '');
 if (!is_wp_error($review)) {
     check('  the verdict is one of the three', in_array($review['verdict'], ['safe', 'caution', 'unsafe'], true), (string) $review['verdict']);
@@ -112,7 +112,7 @@ check('  but the work is not thrown away', strpos((string) $bad_row['code'], 'do
 
 // ---- 6. A provider failure is survivable. ---------------------------------
 add_filter('pre_http_request', static fn() => new WP_Error('http_request_failed', 'Simulated outage.'), 1);
-$failed = Claudpress_Pro_Studio_AI::plan('anything at all');
+$failed = Claudpress_Studio_AI::plan('anything at all');
 remove_all_filters('pre_http_request', 1);
 
 check('a provider outage returns an error, not an exception', is_wp_error($failed));

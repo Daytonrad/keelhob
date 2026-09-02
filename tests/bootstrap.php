@@ -325,7 +325,6 @@ function wp_trim_words($text, $num_words = 55, $more = null)
     return implode(' ', array_slice($words, 0, $num_words));
 }
 
-
 function wp_set_current_user($id) { $GLOBALS['cp_test_current_user'] = (int) $id; return true; }
 function get_users($args = []) { return [1]; }
 function user_can($user, $cap) { return true; }
@@ -530,11 +529,7 @@ require_once CLAUDPRESS_DIR . 'includes/class-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/class-skills.php';
 require_once CLAUDPRESS_DIR . 'includes/class-skills-remote.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin.php';
-// The snippets screen moved to the Pro add-on. Loaded from there when present,
-// so the tests can still exercise it without the free plugin pretending to own it.
-if (file_exists(CLAUDPRESS_DIR . 'claudpress-pro/includes/class-admin-snippets.php')) {
-    require_once CLAUDPRESS_DIR . 'claudpress-pro/includes/class-admin-snippets.php';
-}
+require_once CLAUDPRESS_DIR . 'includes/class-admin-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-filesystem.php';
 
 // --- notifier -------------------------------------------------------------
@@ -572,15 +567,8 @@ $GLOBALS['cp_test_mail']  = [];
 $GLOBALS['cp_test_posts'] = [];
 
 require_once CLAUDPRESS_DIR . 'includes/class-notifier.php';
-
-// The Pro add-on lives beside the plugin, not inside it. Loading its classes
-// here lets the tier gate be exercised from both sides in one process.
-if (file_exists(CLAUDPRESS_DIR . 'claudpress-pro/includes/class-claudpress-pro-licence.php')) {
-    require_once CLAUDPRESS_DIR . 'claudpress-pro/includes/class-claudpress-pro-licence.php';
-}
 
-// Studio helpers live in the add-on but are pure functions, so they belong in
-// the fast suite rather than only in the rig.
-if (file_exists(CLAUDPRESS_DIR . 'claudpress-pro/includes/class-studio-ai.php')) {
-    require_once CLAUDPRESS_DIR . 'claudpress-pro/includes/class-studio-ai.php';
-}
+
+// Studio helpers are pure functions, so they belong in the fast suite
+// rather than only in the rig.
+require_once CLAUDPRESS_DIR . 'includes/class-studio-ai.php';

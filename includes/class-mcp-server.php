@@ -141,7 +141,7 @@ final class Claudpress_MCP_Server
             '',
             '8. Report honestly. Say what you actually changed, what you skipped, and what failed — including partial failures. Never describe work you did not verify as done. If you could not finish, say so plainly and say why.',
             '',
-            '9. Definition of done. A build is not finished when it looks right. Before reporting any site or page as done, run the site_readiness tool against your own work and resolve every Blocker and High. If this site has the pre-launch-audit skill, run that too for the judgement layer site_readiness cannot provide; it is part of Claudpress Pro, so on a free site it will simply not be there and skipping it is correct - say so in your report rather than scoring your own design work, which is the exact failure this rule exists to prevent. You may never lower a finding\'s severity to make it pass. If something can only be decided by the owner, say so explicitly and list it - do not silently accept it.',
+            '9. Definition of done. A build is not finished when it looks right. Before reporting any site or page as done, run the site_readiness tool against your own work and resolve every Blocker and High. Then run the pre-launch-audit skill as well, for the judgement layer site_readiness cannot provide - do not score your own design work, which is the exact failure this rule exists to prevent. You may never lower a finding\'s severity to make it pass. If something can only be decided by the owner, say so explicitly and list it - do not silently accept it.',
             '',
             '10. Never invent facts. No statistic, review, testimonial, customer count, credential, award, staff member, or photograph presented as a real person or customer, unless the site can substantiate it. A store with no orders has no customers.',
             '',
@@ -173,12 +173,10 @@ final class Claudpress_MCP_Server
         if ($builder && $builder !== 'auto') {
             $lines[] = 'Configured page builder: ' . $builder . '. Build with this unless told otherwise.';
         }
-        $lines = array_merge($lines, self::tier_notice());
-
         $off = Claudpress_Capabilities::disabled_labels();
         if (!empty($off)) {
             $lines[] = '';
-            $lines[] = 'OFF-LIMITS: the owner has DISABLED these capabilities — their tools are hidden and will be refused. Do not attempt, and do not use execute_php/execute_sql to work around them: ' . implode('; ', $off) . '.';
+            $lines[] = 'OFF-LIMITS: the owner has switched these capabilities OFF — their tools are hidden and will be refused. Do not attempt them, and do not use execute_php/execute_sql/snippets/file writes to work around them. If one is needed, say plainly that the owner can enable it under Claudpress > Settings > Capabilities. Off: ' . implode('; ', $off) . '.';
         }
 
         // Agentic skill catalog: descriptions only (bodies load on demand via prompts/get or skill_get).
@@ -193,50 +191,6 @@ final class Claudpress_MCP_Server
         return implode("\n", $lines);
     }
 
-    /**
-     * Tell a connected agent what this tier does not include, and why.
-     *
-     * An agent that does not know a capability is missing burns tokens finding
-     * out by trial, then often reports the site as broken - or worse, reaches
-     * the same outcome through execute_php, which is entirely possible on the
-     * free tier and squarely against the owner's interest. A short factual
-     * list costs a few dozen tokens once per session and prevents all of it.
-     *
-     * The tone is deliberately flat. An agent quoting marketing copy at the
-     * owner makes the plugin feel like adware, so this names what is absent and
-     * stops. Owners can switch it off in Settings; a developer can remove it
-     * entirely with the filter.
-     *
-     * @return array<int, string>
-     */
-    private static function tier_notice(): array
-    {
-        if (Claudpress_Capabilities::is_pro()) {
-            return [];
-        }
-        if (!Claudpress::instance()->get('disclose_pro', true)) {
-            return [];
-        }
-
-        $missing = Claudpress_Capabilities::unavailable_groups();
-        if (empty($missing)) {
-            return [];
-        }
-
-        $lines   = [''];
-        $lines[] = 'TIER: this site runs the free version of Claudpress. The capabilities below exist in Claudpress Pro and are NOT installed here. Their tools are absent from tools/list and calling them will fail. Do not attempt them, and do not reproduce them by hand through execute_php, execute_sql, snippets or file writes. If the owner asks for one, say plainly that it needs Claudpress Pro.';
-
-        foreach ($missing as $group) {
-            $lines[] = sprintf('- %s: %s', $group['label'], $group['what_it_does']);
-        }
-
-        /**
-         * Filter the tier notice. Return [] to remove it entirely.
-         *
-         * @param array<int, string> $lines
-         */
-        return (array) apply_filters('claudpress_tier_notice', $lines);
-    }
 
     /** tools/list filtered by the owner's capability toggles. */
     private function visible_tools(): array
@@ -271,15 +225,12 @@ final class Claudpress_MCP_Server
         if (!Claudpress_Capabilities::tool_allowed($name)) {
             $group = Claudpress_Capabilities::tool_group($name);
             $label = $group ? (Claudpress_Capabilities::groups()[$group]['label'] ?? $group) : $name;
-            if ($group !== null && !Claudpress_Capabilities::tier_allows($group)) {
-                return $this->tool_error(sprintf(
-                    '"%s" is not available on this site: the "%s" capability is part of Claudpress Pro, which is not installed. This is not a setting the owner can switch on. Do not retry, and do not try to reach the same outcome through execute_php, execute_sql, snippets or file writes - that is working around something the owner has not paid for. Tell the owner plainly that it needs Claudpress Pro.',
-                    $name,
-                    $label
-                ));
-            }
-
-            return $this->tool_error(sprintf('The "%s" capability is turned OFF by the site owner, so this tool is off-limits. Do not attempt tasks in this area.', $label));
+            return $this->tool_error(sprintf(
+                'The "%s" capability is switched OFF for this site, so "%s" is off-limits. Do not retry, and do not reach the same outcome through execute_php, execute_sql, snippets or file writes — that is working around a decision the owner made on purpose. Tell the owner they can enable the "%s" group under Claudpress > Settings > Capabilities.',
+                $label,
+                $name,
+                $group ?? $name
+            ));
         }
 
         // Policy guardrails (interactive context).

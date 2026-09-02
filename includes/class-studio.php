@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Pro_Studio
+final class Claudpress_Studio
 {
     const SLUG  = 'claudpress-studio';
     const NONCE = 'claudpress_studio';
@@ -26,10 +26,10 @@ final class Claudpress_Pro_Studio
     public static function tabs(): array
     {
         return [
-            'all'     => __('All Snippets', 'claudpress-pro'),
-            'edit'    => __('Add Snippet', 'claudpress-pro'),
-            'compose' => __('AI Compose', 'claudpress-pro'),
-            'library' => __('Library', 'claudpress-pro'),
+            'all'     => __('All Snippets', 'claudpress'),
+            'edit'    => __('Add Snippet', 'claudpress'),
+            'compose' => __('AI Compose', 'claudpress'),
+            'library' => __('Library', 'claudpress'),
         ];
     }
 
@@ -64,8 +64,8 @@ final class Claudpress_Pro_Studio
     {
         add_submenu_page(
             'claudpress',
-            __('Snippets', 'claudpress-pro'),
-            __('Snippets', 'claudpress-pro'),
+            __('Snippets', 'claudpress'),
+            __('Snippets', 'claudpress'),
             'manage_options',
             self::SLUG,
             [$this, 'render'],
@@ -76,21 +76,21 @@ final class Claudpress_Pro_Studio
     public function render(): void
     {
         if (!current_user_can('manage_options')) {
-            wp_die(esc_html__('You do not have permission to manage snippets.', 'claudpress-pro'));
+            wp_die(esc_html__('You do not have permission to manage snippets.', 'claudpress'));
         }
 
         $current = self::current_tab();
         ?>
         <div class="wrap">
-            <h1 class="wp-heading-inline"><?php esc_html_e('Snippets Studio', 'claudpress-pro'); ?></h1>
+            <h1 class="wp-heading-inline"><?php esc_html_e('Snippets Studio', 'claudpress'); ?></h1>
             <?php if ($current !== 'edit') : ?>
-                <a href="<?php echo esc_url(self::url('edit')); ?>" class="page-title-action"><?php esc_html_e('Add Snippet', 'claudpress-pro'); ?></a>
+                <a href="<?php echo esc_url(self::url('edit')); ?>" class="page-title-action"><?php esc_html_e('Add Snippet', 'claudpress'); ?></a>
             <?php endif; ?>
             <hr class="wp-header-end">
 
             <?php self::notices(); ?>
 
-            <nav class="nav-tab-wrapper wp-clearfix" aria-label="<?php esc_attr_e('Snippets Studio tabs', 'claudpress-pro'); ?>">
+            <nav class="nav-tab-wrapper wp-clearfix" aria-label="<?php esc_attr_e('Snippets Studio tabs', 'claudpress'); ?>">
                 <?php foreach (self::tabs() as $slug => $label) : ?>
                     <a href="<?php echo esc_url(self::url($slug)); ?>"
                        class="nav-tab <?php echo $slug === $current ? 'nav-tab-active' : ''; ?>"><?php echo esc_html($label); ?></a>
@@ -100,16 +100,16 @@ final class Claudpress_Pro_Studio
             <?php
             switch ($current) {
                 case 'edit':
-                    Claudpress_Pro_Studio_Edit::render();
+                    Claudpress_Studio_Edit::render();
                     break;
                 case 'compose':
-                    Claudpress_Pro_Studio_Compose::render();
+                    Claudpress_Studio_Compose::render();
                     break;
                 case 'library':
-                    Claudpress_Pro_Studio_Library::render();
+                    Claudpress_Studio_Library::render();
                     break;
                 default:
-                    Claudpress_Pro_Studio_List::render();
+                    Claudpress_Studio_List::render();
             }
             ?>
         </div>
@@ -126,13 +126,12 @@ final class Claudpress_Pro_Studio
     private static function notices(): void
     {
         $map = [
-            'saved'      => ['success', __('Snippet saved.', 'claudpress-pro')],
-            'activated'  => ['success', __('Snippet saved and switched on.', 'claudpress-pro')],
-            'deactivated' => ['info', __('Snippet switched off.', 'claudpress-pro')],
-            'deleted'    => ['success', __('Snippet deleted.', 'claudpress-pro')],
-            'imported'   => ['success', __('Added to this site, switched off. Review it, then activate.', 'claudpress-pro')],
-            'lint'       => ['error', __('That code does not parse, so it was saved switched OFF. The error is shown on the snippet.', 'claudpress-pro')],
-            'cloud_error' => ['error', __('That did not work. Your snippets on this site are unaffected.', 'claudpress-pro')],
+            'saved'      => ['success', __('Snippet saved.', 'claudpress')],
+            'activated'  => ['success', __('Snippet saved and switched on.', 'claudpress')],
+            'deactivated' => ['info', __('Snippet switched off.', 'claudpress')],
+            'deleted'    => ['success', __('Snippet deleted.', 'claudpress')],
+            'imported'   => ['success', __('Added to this site, switched off. Review it, then activate.', 'claudpress')],
+            'lint'       => ['error', __('That code does not parse, so it was saved switched OFF. The error is shown on the snippet.', 'claudpress')],
         ];
         $key = isset($_GET['cp_msg']) ? sanitize_key(wp_unslash($_GET['cp_msg'])) : '';
         if ($key === '' || !isset($map[$key])) {
@@ -164,10 +163,14 @@ final class Claudpress_Pro_Studio
     public static function source_badge(string $source): string
     {
         $labels = [
-            'ai'      => ['#8c5e00', '#fff3d6', __('AI-generated', 'claudpress-pro')],
-            'library' => ['#1d4ed8', '#e6edff', __('Library', 'claudpress-pro')],
-            'cloud'   => ['#065f46', '#d9f5ec', __('Private library', 'claudpress-pro')],
-            'manual'  => ['#4b5563', '#f0f0f1', __('Hand-written', 'claudpress-pro')],
+            'ai'      => ['#8c5e00', '#fff3d6', __('AI-generated', 'claudpress')],
+            'library' => ['#1d4ed8', '#e6edff', __('Library', 'claudpress')],
+            // Snippets pulled from the old private library on our server.
+            // Nothing writes this any more, but rows carrying it still
+            // exist and deserve a truthful badge rather than being shown
+            // as hand-written.
+            'cloud'   => ['#065f46', '#d9f5ec', __('Imported', 'claudpress')],
+            'manual'  => ['#4b5563', '#f0f0f1', __('Hand-written', 'claudpress')],
         ];
         [$fg, $bg, $label] = $labels[$source] ?? $labels['manual'];
 

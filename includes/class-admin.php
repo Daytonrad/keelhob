@@ -691,8 +691,6 @@ final class Claudpress_Admin
                 'require_https'       => !empty($_POST['require_https']),
                 'log_calls'           => !empty($_POST['log_calls']),
                 'delete_data_on_uninstall' => !empty($_POST['delete_data_on_uninstall']),
-                'hide_paid_notices'        => !empty($_POST['hide_paid_notices']),
-                'disclose_pro'             => !empty($_POST['disclose_pro']),
 
                 'notify_channels'          => self::channels_from_post(),
                 'fs_base'             => !empty($_POST['fs_base']) ? sanitize_text_field(wp_unslash($_POST['fs_base'])) : ABSPATH,
@@ -987,27 +985,6 @@ final class Claudpress_Admin
                                     <?php esc_html_e('Nothing is selected, so digests and alerts will not be sent anywhere.', 'claudpress'); ?>
                                 </p>
                             <?php endif; ?>
-
-                            <hr>
-                            <p style="margin-bottom:6px;"><strong><?php esc_html_e('Agents and notices', 'claudpress'); ?></strong></p>
-                            <p>
-                                <label>
-                                    <input type="checkbox" name="disclose_pro" value="1" <?php checked(!empty($s['disclose_pro'])); ?>>
-                                    <?php esc_html_e('Tell connected agents which features are part of Claudpress Pro', 'claudpress'); ?>
-                                </label><br>
-                                <span style="color:#666;font-size:12px;margin-left:24px;">
-                                    <?php esc_html_e('An agent that does not know a feature is missing will keep trying, then report your site as broken. This tells it once, factually, at the start of the session.', 'claudpress'); ?>
-                                </span>
-                            </p>
-                            <p>
-                                <label>
-                                    <input type="checkbox" name="hide_paid_notices" value="1" <?php checked(!empty($s['hide_paid_notices'])); ?>>
-                                    <?php esc_html_e('Hide notices about optional paid features', 'claudpress'); ?>
-                                </label><br>
-                                <span style="color:#666;font-size:12px;margin-left:24px;">
-                                    <?php esc_html_e('Claudpress is fully functional without any paid add-on. Tick this and it will stop mentioning them on screen.', 'claudpress'); ?>
-                                </span>
-                            </p>
 
                             <hr>
                             <p style="margin-bottom:6px;"><strong><?php esc_html_e('Uninstall', 'claudpress'); ?></strong></p>

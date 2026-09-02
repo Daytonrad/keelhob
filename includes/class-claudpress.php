@@ -75,15 +75,6 @@ final class Claudpress
             // Off by default on purpose: deleting the plugin must not
             // destroy the owner's snippets, memory and skills. See uninstall.php.
             'delete_data_on_uninstall' => false,
-            // Quietens every mention of the paid add-on, everywhere.
-            'hide_paid_notices'        => false,
-
-            // Whether a connected AGENT is told what Pro includes. Separate
-            // from hide_paid_notices on purpose: that one is about what a
-            // human sees on screen. Someone may reasonably want the agent
-            // informed so it stops trying, while keeping their own admin
-            // quiet.
-            'disclose_pro'             => true,
 
             // Who accepted the AI-abilities warning, when, and which version of
             // it. Kept even after abilities are switched off again: it is a
@@ -237,11 +228,8 @@ final class Claudpress
         Claudpress_Tools_Elementor::register($this->registry);
         Claudpress_Tools_Ops::register($this->registry);
         Claudpress_Tools_Automation::register($this->registry);
-        // Payments (gateways, shipping, tax) and Deploy (staging to production)
-        // are Pro. Their code is not in the free plugin at all - not present and
-        // switched off, but absent - because a licence check sitting in a file
-        // the user already has is a five-minute edit away from being removed.
-        // The add-on registers them through claudpress_register_tools below.
+        Claudpress_Tools_Payments::register($this->registry);
+        Claudpress_Tools_Deploy::register($this->registry);
         Claudpress_Tools_Readiness::register($this->registry);
 
         /**
@@ -250,9 +238,8 @@ final class Claudpress
          * Fires once per request, after every core group has registered and
          * before anything reads the registry, so an add-on or a third-party
          * plugin can contribute tools without this file having to know they
-         * exist. The paid add-on registers its Pro tools here — that is the
-         * whole coupling between the two zips, and keeping it to one action is
-         * what lets them ship and update independently.
+         * exist. Nothing in this plugin uses it any more — it is kept because
+         * an extension point that costs one line is worth more than the line.
          *
          * Add tools with $registry->add(); registration fails soft, so a bad
          * callback costs one tool rather than the request.

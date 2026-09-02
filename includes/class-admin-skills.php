@@ -65,8 +65,6 @@ final class Claudpress_Admin_Skills
         $cache     = Claudpress_Skills_Remote::cache();
         $freshness = Claudpress_Skills_Remote::freshness((int) $cache['fetched_at'], time());
         $history   = Claudpress_Skills_Remote::history();
-        $quiet     = !empty(Claudpress::instance()->get('hide_paid_notices'));
-        $pro       = $quiet ? [] : Claudpress_Skill_Catalog::unavailable();
         ?>
         <div class="wrap">
             <h1><?php esc_html_e('Skills', 'claudpress'); ?></h1>
@@ -130,30 +128,6 @@ final class Claudpress_Admin_Skills
                 <?php endforeach; ?>
                 </tbody>
             </table>
-
-            <?php if ($pro) : ?>
-                <h2 style="margin-top:28px;"><?php esc_html_e('Available in Pro', 'claudpress'); ?></h2>
-                <p style="max-width:820px;color:#50575e;">
-                    <?php esc_html_e('These skills exist but are not installed on this site. Here is exactly what each one does, so you can judge for yourself whether it is worth anything to you.', 'claudpress'); ?>
-                </p>
-                <table class="widefat striped" style="max-width:980px;">
-                    <thead><tr>
-                        <th style="width:240px;"><?php esc_html_e('Skill', 'claudpress'); ?></th>
-                        <th><?php esc_html_e('What it does', 'claudpress'); ?></th>
-                    </tr></thead>
-                    <tbody>
-                    <?php foreach ($pro as $skill) : ?>
-                        <tr>
-                            <td>
-                                <strong><?php echo esc_html($skill['title']); ?></strong>
-                                <div><code><?php echo esc_html($skill['name']); ?></code></div>
-                            </td>
-                            <td><?php echo esc_html($skill['description']); ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
-            <?php endif; ?>
 
             <h2 style="margin-top:28px;"><?php esc_html_e('Recent changes', 'claudpress'); ?></h2>
             <?php if (!$history) : ?>

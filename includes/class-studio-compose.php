@@ -19,31 +19,31 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Pro_Studio_Compose
+final class Claudpress_Studio_Compose
 {
     public static function render(): void
     {
         $ready = Claudpress_Provider_Settings_Ready();
         ?>
-        <h2><?php esc_html_e('Describe what you want', 'claudpress-pro'); ?></h2>
+        <h2><?php esc_html_e('Describe what you want', 'claudpress'); ?></h2>
 
         <?php if (!$ready) : ?>
             <div class="notice notice-warning">
-                <p><strong><?php esc_html_e('No AI provider is connected yet.', 'claudpress-pro'); ?></strong></p>
-                <p><?php esc_html_e('Compose needs a provider key. Everything below still works once one is set — you are not missing a feature, only a connection.', 'claudpress-pro'); ?></p>
-                <p><a class="button" href="<?php echo esc_url(admin_url('admin.php?page=claudpress-automation')); ?>"><?php esc_html_e('Connect a provider', 'claudpress-pro'); ?></a></p>
+                <p><strong><?php esc_html_e('No AI provider is connected yet.', 'claudpress'); ?></strong></p>
+                <p><?php esc_html_e('Compose needs a provider key. Everything below still works once one is set — you are not missing a feature, only a connection.', 'claudpress'); ?></p>
+                <p><a class="button" href="<?php echo esc_url(admin_url('admin.php?page=claudpress-automation')); ?>"><?php esc_html_e('Connect a provider', 'claudpress'); ?></a></p>
             </div>
         <?php endif; ?>
 
         <p class="description" style="max-width:640px;">
-            <?php esc_html_e('Say what you want to happen, not how to code it. "Hide the price on out-of-stock products" is a better prompt than "add a filter to woocommerce_get_price_html".', 'claudpress-pro'); ?>
+            <?php esc_html_e('Say what you want to happen, not how to code it. "Hide the price on out-of-stock products" is a better prompt than "add a filter to woocommerce_get_price_html".', 'claudpress'); ?>
         </p>
 
         <textarea id="cp-compose-prompt" rows="4" class="large-text" style="max-width:640px;"
-                  placeholder="<?php esc_attr_e('e.g. Add a free-shipping banner to the cart page when the total is over 200.', 'claudpress-pro'); ?>"></textarea>
+                  placeholder="<?php esc_attr_e('e.g. Add a free-shipping banner to the cart page when the total is over 200.', 'claudpress'); ?>"></textarea>
 
         <p>
-            <button type="button" class="button button-primary" id="cp-compose-plan"><?php esc_html_e('Plan it', 'claudpress-pro'); ?></button>
+            <button type="button" class="button button-primary" id="cp-compose-plan"><?php esc_html_e('Plan it', 'claudpress'); ?></button>
             <span id="cp-compose-status" style="margin-left:10px;color:#666;"></span>
         </p>
 
@@ -52,7 +52,7 @@ final class Claudpress_Pro_Studio_Compose
 
         <script>
         (function () {
-            var nonce  = <?php echo wp_json_encode(wp_create_nonce(Claudpress_Pro_Studio::NONCE)); ?>;
+            var nonce  = <?php echo wp_json_encode(wp_create_nonce(Claudpress_Studio::NONCE)); ?>;
             var status = document.getElementById('cp-compose-status');
             var planBox = document.getElementById('cp-compose-plan-box');
             var codeBox = document.getElementById('cp-compose-code-box');
@@ -71,8 +71,8 @@ final class Claudpress_Pro_Studio_Compose
 
             document.getElementById('cp-compose-plan').addEventListener('click', function () {
                 var prompt = document.getElementById('cp-compose-prompt').value.trim();
-                if (!prompt) { alert(<?php echo wp_json_encode(__('Describe what you want first.', 'claudpress-pro')); ?>); return; }
-                busy(<?php echo wp_json_encode(__('Thinking…', 'claudpress-pro')); ?>);
+                if (!prompt) { alert(<?php echo wp_json_encode(__('Describe what you want first.', 'claudpress')); ?>); return; }
+                busy(<?php echo wp_json_encode(__('Thinking…', 'claudpress')); ?>);
                 codeBox.style.display = 'none';
                 post('claudpress_studio_plan', { prompt: prompt }).then(function (json) {
                     busy('');
@@ -88,7 +88,7 @@ final class Claudpress_Pro_Studio_Compose
                     var build = document.getElementById('cp-compose-build');
                     if (build) {
                         build.addEventListener('click', function () {
-                            busy(<?php echo wp_json_encode(__('Writing the code…', 'claudpress-pro')); ?>);
+                            busy(<?php echo wp_json_encode(__('Writing the code…', 'claudpress')); ?>);
                             post('claudpress_studio_build', {
                                 prompt: document.getElementById('cp-compose-prompt').value.trim(),
                                 plan: approvedPlan
@@ -115,7 +115,7 @@ final class Claudpress_Pro_Studio_Compose
         ob_start();
         ?>
         <div class="card" style="max-width:none;padding:16px 20px;">
-            <h3 style="margin-top:0;"><?php esc_html_e('Here is the plan', 'claudpress-pro'); ?></h3>
+            <h3 style="margin-top:0;"><?php esc_html_e('Here is the plan', 'claudpress'); ?></h3>
             <p><?php echo esc_html((string) ($plan['summary'] ?? '')); ?></p>
 
             <?php if (!empty($plan['steps']) && is_array($plan['steps'])) : ?>
@@ -127,7 +127,7 @@ final class Claudpress_Pro_Studio_Compose
             <?php endif; ?>
 
             <?php if (!empty($plan['risks']) && is_array($plan['risks'])) : ?>
-                <p style="margin-bottom:4px;"><strong><?php esc_html_e('Worth knowing', 'claudpress-pro'); ?>:</strong></p>
+                <p style="margin-bottom:4px;"><strong><?php esc_html_e('Worth knowing', 'claudpress'); ?>:</strong></p>
                 <ul style="margin:0 0 10px 18px;list-style:disc;">
                     <?php foreach ($plan['risks'] as $risk) : ?>
                         <li><?php echo esc_html((string) $risk); ?></li>
@@ -135,8 +135,8 @@ final class Claudpress_Pro_Studio_Compose
                 </ul>
             <?php endif; ?>
 
-            <p style="color:#666;"><?php esc_html_e('No code has been written and nothing has been saved. Read the plan, then decide.', 'claudpress-pro'); ?></p>
-            <button type="button" class="button button-primary" id="cp-compose-build"><?php esc_html_e('Looks right — write the code', 'claudpress-pro'); ?></button>
+            <p style="color:#666;"><?php esc_html_e('No code has been written and nothing has been saved. Read the plan, then decide.', 'claudpress'); ?></p>
+            <button type="button" class="button button-primary" id="cp-compose-build"><?php esc_html_e('Looks right — write the code', 'claudpress'); ?></button>
         </div>
         <?php
         return (string) ob_get_clean();
@@ -152,21 +152,21 @@ final class Claudpress_Pro_Studio_Compose
         ob_start();
         ?>
         <div class="card" style="max-width:none;padding:16px 20px;">
-            <h3 style="margin-top:0;"><?php esc_html_e('Proposed snippet', 'claudpress-pro'); ?></h3>
+            <h3 style="margin-top:0;"><?php esc_html_e('Proposed snippet', 'claudpress'); ?></h3>
 
             <p>
-                <strong><?php esc_html_e('Syntax check', 'claudpress-pro'); ?>:</strong>
+                <strong><?php esc_html_e('Syntax check', 'claudpress'); ?>:</strong>
                 <?php if ($ok) : ?>
-                    <span style="color:#00794b;"><?php esc_html_e('passed', 'claudpress-pro'); ?></span>
+                    <span style="color:#00794b;"><?php esc_html_e('passed', 'claudpress'); ?></span>
                 <?php else : ?>
-                    <span style="color:#d63638;"><?php esc_html_e('failed', 'claudpress-pro'); ?></span> — <code><?php echo esc_html($lint); ?></code>
+                    <span style="color:#d63638;"><?php esc_html_e('failed', 'claudpress'); ?></span> — <code><?php echo esc_html($lint); ?></code>
                 <?php endif; ?>
             </p>
 
             <textarea rows="14" class="large-text code" readonly style="font-family:monospace;"><?php echo esc_textarea($code); ?></textarea>
 
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:10px;">
-                <?php wp_nonce_field(Claudpress_Pro_Studio::NONCE); ?>
+                <?php wp_nonce_field(Claudpress_Studio::NONCE); ?>
                 <input type="hidden" name="action" value="claudpress_studio">
                 <input type="hidden" name="studio_action" value="save_composed">
                 <input type="hidden" name="code" value="<?php echo esc_attr($code); ?>">
@@ -174,12 +174,12 @@ final class Claudpress_Pro_Studio_Compose
                 <input type="hidden" name="ai_prompt" value="<?php echo esc_attr($prompt); ?>">
                 <input type="text" name="name" class="regular-text" required
                        value="<?php echo esc_attr(wp_trim_words($prompt, 7, '')); ?>"
-                       placeholder="<?php esc_attr_e('Name this snippet', 'claudpress-pro'); ?>">
-                <button class="button button-primary"><?php esc_html_e('Save it (switched off)', 'claudpress-pro'); ?></button>
+                       placeholder="<?php esc_attr_e('Name this snippet', 'claudpress'); ?>">
+                <button class="button button-primary"><?php esc_html_e('Save it (switched off)', 'claudpress'); ?></button>
             </form>
 
             <p style="color:#666;margin-bottom:0;">
-                <?php esc_html_e('It saves switched OFF. Open it, read it, then switch it on when you are happy — code you have not read should never be running on a live site.', 'claudpress-pro'); ?>
+                <?php esc_html_e('It saves switched OFF. Open it, read it, then switch it on when you are happy — code you have not read should never be running on a live site.', 'claudpress'); ?>
             </p>
         </div>
         <?php
