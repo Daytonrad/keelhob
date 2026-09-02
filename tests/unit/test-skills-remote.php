@@ -101,6 +101,59 @@ CP_Test::ok(!Claudpress_Skills_Remote::is_markdown_safe("# Fine\n<% asp %>"), 'a
 CP_Test::ok(!Claudpress_Skills_Remote::is_markdown_safe("bin\0ary"), 'a null byte is refused');
 CP_Test::ok(!Claudpress_Skills_Remote::is_markdown_safe('   '), 'an empty body is refused');
 
+// A PHP tag inside a code span is documentation, not payload. This is not a
+// hypothetical: three of the fifteen bundled skills quote one while explaining
+// it, and the old raw-body search meant the feed could never deliver those
+// three at all.
+CP_Test::ok(
+    Claudpress_Skills_Remote::is_markdown_safe("Do NOT include `<?php` tags."),
+    'a PHP tag inside an inline code span is accepted'
+);
+CP_Test::ok(
+    Claudpress_Skills_Remote::is_markdown_safe("# Skill
+
+```php
+<?php echo 1;
+```
+"),
+    'a PHP tag inside a fenced block is accepted'
+);
+CP_Test::ok(
+    Claudpress_Skills_Remote::is_markdown_safe("Use `<?php ?>` islands sparingly."),
+    'a paired tag inside one code span is accepted'
+);
+
+// Fences are stripped before inline spans for a reason: run the inline pattern
+// first and its backticks pair across a fenced block, swallowing the prose
+// between two unrelated blocks along with anything hiding in it.
+CP_Test::ok(
+    !Claudpress_Skills_Remote::is_markdown_safe("```
+fenced
+```
+<?php system(1); ?>
+```
+more
+```"),
+    'a bare PHP tag between two fenced blocks is still refused'
+);
+CP_Test::ok(
+    !Claudpress_Skills_Remote::is_markdown_safe("Talk about `code` and then <?php system('x'); ?>"),
+    'a bare PHP tag beside a code span is still refused'
+);
+
+// The regression test that matters. Every skill the project actually ships has
+// to survive its own guard, or it is bundled in the zip and then permanently
+// undeliverable by the feed. Nothing else in the suite would have noticed.
+$skill_dir = dirname(__DIR__, 2) . '/skills';
+foreach (glob($skill_dir . '/*.md') as $skill_file) {
+    CP_Test::ok(
+        Claudpress_Skills_Remote::is_markdown_safe(str_replace("
+", "
+", (string) file_get_contents($skill_file))),
+        'bundled skill passes its own safety check: ' . basename($skill_file)
+    );
+}
+
 CP_Test::group('Remote skills — the cache outlives the server');
 
 $now = 1000000000;

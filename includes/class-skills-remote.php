@@ -149,6 +149,19 @@ final class Claudpress_Skills_Remote
      * an admin screen, and inside an agent's context, and a PHP open tag in any
      * of those is a smell that means the payload is not what it claims to be.
      * Refusing the whole bundle is cheaper than reasoning about where it lands.
+     *
+     * Code spans are cut out before that search, because this is a WordPress
+     * plugin whose skills teach WordPress: three of the fifteen bundled ones
+     * quote a PHP open tag while explaining it, and they are documentation, not
+     * payload. Searching the raw body rejected all three, which meant they
+     * could never be delivered by the feed at all. A guard that blocks the
+     * project's own correct content is measuring the wrong thing.
+     *
+     * A hostile payload can of course wrap a tag in backticks to get past this.
+     * That buys it nothing: the body is still never executed, and the Ed25519
+     * signature is what actually keeps strangers' content out. This check earns
+     * its place by catching a file that is honestly the wrong kind of file, not
+     * by holding a line against someone trying.
      */
     public static function is_markdown_safe(string $body): bool
     {
@@ -156,12 +169,43 @@ final class Claudpress_Skills_Remote
             return false;
         }
         foreach (['<?php', '<?=', '<?', '<%'] as $tag) {
-            if (stripos($body, $tag) !== false) {
+            if (stripos(self::without_code_spans($body), $tag) !== false) {
                 return false;
             }
         }
         // A skill is a document. Anything binary arriving here is not one.
         return preg_match('//u', $body) === 1 && strpos($body, "\0") === false;
+    }
+
+    /**
+     * The body with fenced blocks and inline code spans removed.
+     *
+     * Fences go first: an inline pattern run against a document that still
+     * has them matches across their contents and eats prose that was never
+     * inside a code span at all.
+     */
+    private static function without_code_spans(string $body): string
+    {
+        // Windows line endings first. A closing fence on a CRLF line ends in a
+        // carriage return, which sits between the backticks and the end of the
+        // line and stops the fence pattern closing at all - so the block is
+        // never recognised, never stripped, and a skill written on Windows is
+        // judged on its raw source. Cheaper to normalise a copy than to carry
+        // a carriage return through every pattern below.
+        $body = str_replace("\r\n", "\n", $body);
+
+        $patterns = [
+            '/^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$/ms',
+            '/(`+)(?:(?!\1).)*\1/s',
+        ];
+        foreach ($patterns as $pattern) {
+            $stripped = preg_replace($pattern, ' ', $body);
+            // A catastrophic backtrack returns null. Falling back to the raw
+            // body keeps the guard strict rather than quietly switching it
+            // off, which is the right direction for this to fail in.
+            $body = is_string($stripped) ? $stripped : $body;
+        }
+        return $body;
     }
 
     /**
