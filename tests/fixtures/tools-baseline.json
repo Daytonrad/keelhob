@@ -1,0 +1,725 @@
+{
+    "agent_runs": {
+        "required": [],
+        "properties": [
+            "limit"
+        ]
+    },
+    "create_post": {
+        "required": [
+            "title"
+        ],
+        "properties": [
+            "author",
+            "categories",
+            "content",
+            "date",
+            "excerpt",
+            "featured_image",
+            "meta",
+            "parent",
+            "post_type",
+            "slug",
+            "status",
+            "tags",
+            "taxonomies",
+            "template",
+            "title"
+        ]
+    },
+    "delete_file": {
+        "required": [
+            "path"
+        ],
+        "properties": [
+            "path"
+        ]
+    },
+    "delete_post": {
+        "required": [
+            "id"
+        ],
+        "properties": [
+            "force",
+            "id"
+        ]
+    },
+    "deploy_push": {
+        "required": [],
+        "properties": [
+            "target_token",
+            "target_url",
+            "types"
+        ]
+    },
+    "edit_file": {
+        "required": [
+            "path",
+            "old_string",
+            "new_string"
+        ],
+        "properties": [
+            "new_string",
+            "old_string",
+            "path",
+            "replace_all"
+        ]
+    },
+    "elementor_kit": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "settings"
+        ]
+    },
+    "elementor_page": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "data",
+            "post_id",
+            "status",
+            "template_type",
+            "title"
+        ]
+    },
+    "elementor_settings": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "experiment",
+            "state"
+        ]
+    },
+    "execute_php": {
+        "required": [
+            "code"
+        ],
+        "properties": [
+            "code"
+        ]
+    },
+    "execute_sql": {
+        "required": [
+            "query"
+        ],
+        "properties": [
+            "query"
+        ]
+    },
+    "export_bundle": {
+        "required": [],
+        "properties": [
+            "limit",
+            "status",
+            "types"
+        ]
+    },
+    "get_dashboard": {
+        "required": [],
+        "properties": []
+    },
+    "get_post": {
+        "required": [
+            "id"
+        ],
+        "properties": [
+            "id"
+        ]
+    },
+    "get_site_info": {
+        "required": [],
+        "properties": []
+    },
+    "image_generate": {
+        "required": [
+            "prompt"
+        ],
+        "properties": [
+            "attach_to",
+            "filename",
+            "prompt",
+            "set_featured",
+            "size"
+        ]
+    },
+    "image_search": {
+        "required": [
+            "query"
+        ],
+        "properties": [
+            "attach_to",
+            "orientation",
+            "per_page",
+            "query",
+            "set_featured"
+        ]
+    },
+    "import_bundle": {
+        "required": [
+            "bundle"
+        ],
+        "properties": [
+            "bundle",
+            "mode"
+        ]
+    },
+    "list_directory": {
+        "required": [],
+        "properties": [
+            "path"
+        ]
+    },
+    "list_posts": {
+        "required": [],
+        "properties": [
+            "author",
+            "category",
+            "order",
+            "orderby",
+            "page",
+            "per_page",
+            "post_type",
+            "search",
+            "status",
+            "tag"
+        ]
+    },
+    "manage_menu": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "location",
+            "menu",
+            "object",
+            "object_id",
+            "title",
+            "url"
+        ]
+    },
+    "manage_option": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "name",
+            "value"
+        ]
+    },
+    "manage_plugin": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "plugin"
+        ]
+    },
+    "manage_taxonomy": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "description",
+            "name",
+            "parent",
+            "slug",
+            "taxonomy",
+            "term_id"
+        ]
+    },
+    "manage_theme": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "theme"
+        ]
+    },
+    "manage_updates": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "items"
+        ]
+    },
+    "manage_user": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "display_name",
+            "email",
+            "id",
+            "password",
+            "per_page",
+            "reassign",
+            "role",
+            "username"
+        ]
+    },
+    "memory_delete": {
+        "required": [
+            "key"
+        ],
+        "properties": [
+            "key"
+        ]
+    },
+    "memory_get": {
+        "required": [
+            "key"
+        ],
+        "properties": [
+            "key"
+        ]
+    },
+    "memory_list": {
+        "required": [],
+        "properties": []
+    },
+    "memory_save": {
+        "required": [
+            "key",
+            "value"
+        ],
+        "properties": [
+            "category",
+            "key",
+            "value"
+        ]
+    },
+    "notify_owner": {
+        "required": [
+            "subject",
+            "message"
+        ],
+        "properties": [
+            "message",
+            "subject"
+        ]
+    },
+    "pro_status": {
+        "required": [],
+        "properties": []
+    },
+    "read_file": {
+        "required": [
+            "path"
+        ],
+        "properties": [
+            "path"
+        ]
+    },
+    "run_agent": {
+        "required": [
+            "instruction"
+        ],
+        "properties": [
+            "allow_risky",
+            "instruction",
+            "max_steps"
+        ]
+    },
+    "send_email": {
+        "required": [
+            "subject",
+            "message"
+        ],
+        "properties": [
+            "html",
+            "message",
+            "subject",
+            "to"
+        ]
+    },
+    "seo_analyze": {
+        "required": [
+            "post_id"
+        ],
+        "properties": [
+            "focus_keyword",
+            "post_id"
+        ]
+    },
+    "seo_meta": {
+        "required": [
+            "action",
+            "post_id"
+        ],
+        "properties": [
+            "action",
+            "canonical",
+            "description",
+            "focus_keyword",
+            "nofollow",
+            "noindex",
+            "og_description",
+            "og_image",
+            "og_title",
+            "post_id",
+            "title"
+        ]
+    },
+    "seo_redirect": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "from",
+            "id",
+            "to",
+            "type"
+        ]
+    },
+    "seo_schema": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "data",
+            "generate",
+            "post_id",
+            "schema"
+        ]
+    },
+    "seo_sitemap": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "bots",
+            "content"
+        ]
+    },
+    "site_readiness": {
+        "required": [],
+        "properties": [
+            "post_id",
+            "scope",
+            "urls"
+        ]
+    },
+    "skill_delete": {
+        "required": [
+            "name"
+        ],
+        "properties": [
+            "name"
+        ]
+    },
+    "skill_get": {
+        "required": [
+            "name"
+        ],
+        "properties": [
+            "name"
+        ]
+    },
+    "skill_list": {
+        "required": [],
+        "properties": []
+    },
+    "skill_refresh": {
+        "required": [],
+        "properties": [
+            "force"
+        ]
+    },
+    "skill_save": {
+        "required": [],
+        "properties": [
+            "body",
+            "description",
+            "enable_agentic",
+            "enable_prompt",
+            "enabled",
+            "markdown",
+            "name"
+        ]
+    },
+    "snippet_delete": {
+        "required": [
+            "id"
+        ],
+        "properties": [
+            "id"
+        ]
+    },
+    "snippet_get": {
+        "required": [
+            "id"
+        ],
+        "properties": [
+            "id"
+        ]
+    },
+    "snippet_list": {
+        "required": [],
+        "properties": [
+            "active",
+            "search",
+            "snippet_type",
+            "tag"
+        ]
+    },
+    "snippet_save": {
+        "required": [
+            "code"
+        ],
+        "properties": [
+            "active",
+            "code",
+            "conditions",
+            "description",
+            "id",
+            "impact",
+            "location",
+            "name",
+            "origin_site",
+            "origin_uid",
+            "priority",
+            "purpose",
+            "snippet_type",
+            "tags",
+            "target_id",
+            "uid"
+        ]
+    },
+    "snippet_toggle": {
+        "required": [
+            "id",
+            "active"
+        ],
+        "properties": [
+            "active",
+            "id"
+        ]
+    },
+    "task_delete": {
+        "required": [
+            "id"
+        ],
+        "properties": [
+            "id"
+        ]
+    },
+    "task_list": {
+        "required": [],
+        "properties": []
+    },
+    "task_run": {
+        "required": [
+            "id"
+        ],
+        "properties": [
+            "id"
+        ]
+    },
+    "task_save": {
+        "required": [
+            "name",
+            "mode"
+        ],
+        "properties": [
+            "allow_risky",
+            "enabled",
+            "id",
+            "instruction",
+            "mode",
+            "name",
+            "notify",
+            "run_hour",
+            "schedule"
+        ]
+    },
+    "update_post": {
+        "required": [
+            "id"
+        ],
+        "properties": [
+            "categories",
+            "content",
+            "excerpt",
+            "featured_image",
+            "id",
+            "meta",
+            "parent",
+            "slug",
+            "status",
+            "tags",
+            "taxonomies",
+            "template",
+            "title"
+        ]
+    },
+    "upload_media": {
+        "required": [],
+        "properties": [
+            "alt",
+            "attach_to",
+            "data",
+            "filename",
+            "title",
+            "url"
+        ]
+    },
+    "wc_coupon": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "amount",
+            "code",
+            "discount_type",
+            "expiry_date",
+            "free_shipping",
+            "id",
+            "minimum_amount",
+            "usage_limit"
+        ]
+    },
+    "wc_order": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "amount",
+            "customer_id",
+            "id",
+            "line_items",
+            "note",
+            "note_to_customer",
+            "page",
+            "per_page",
+            "status"
+        ]
+    },
+    "wc_payments": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "gateway",
+            "settings"
+        ]
+    },
+    "wc_product": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "attributes",
+            "categories",
+            "description",
+            "featured",
+            "id",
+            "images",
+            "manage_stock",
+            "name",
+            "page",
+            "per_page",
+            "regular_price",
+            "sale_price",
+            "search",
+            "short_description",
+            "sku",
+            "status",
+            "stock_quantity",
+            "stock_status",
+            "tags",
+            "type",
+            "weight"
+        ]
+    },
+    "wc_report": {
+        "required": [],
+        "properties": [
+            "date_from",
+            "date_to",
+            "top_limit"
+        ]
+    },
+    "wc_settings": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "settings"
+        ]
+    },
+    "wc_shipping": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "class_name",
+            "cost",
+            "destination",
+            "instance_id",
+            "items",
+            "method",
+            "regions",
+            "settings",
+            "title",
+            "zone_id",
+            "zone_name"
+        ]
+    },
+    "wc_tax": {
+        "required": [
+            "action"
+        ],
+        "properties": [
+            "action",
+            "country",
+            "name",
+            "rate",
+            "rate_id",
+            "state"
+        ]
+    },
+    "write_file": {
+        "required": [
+            "path",
+            "content"
+        ],
+        "properties": [
+            "content",
+            "path"
+        ]
+    },
+    "write_sandbox_file": {
+        "required": [
+            "filename",
+            "content"
+        ],
+        "properties": [
+            "content",
+            "filename"
+        ]
+    }
+}
