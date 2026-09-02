@@ -95,6 +95,12 @@ final class Claudpress_Studio_Library
     }
 
     /** @return array<string, array> */
+    /** Whether there is anything to show, so the tab can hide itself. */
+    public static function has_items(): bool
+    {
+        return self::bundled_items() !== [];
+    }
+
     private static function bundled_items(): array
     {
         if (class_exists('Claudpress_Snippet_Library') && method_exists('Claudpress_Snippet_Library', 'all')) {

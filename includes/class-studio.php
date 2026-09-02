@@ -25,12 +25,26 @@ final class Claudpress_Studio
     /** Tab slug => label. Order is the order they render in. */
     public static function tabs(): array
     {
-        return [
+        $tabs = [
             'all'     => __('All Snippets', 'claudpress'),
             'edit'    => __('Add Snippet', 'claudpress'),
             'compose' => __('AI Compose', 'claudpress'),
-            'library' => __('Library', 'claudpress'),
         ];
+
+        // The Library tab appears only when there is a library. The bundled
+        // snippet set was never actually built - Claudpress_Snippet_Library
+        // does not exist - so on every install today this tab led to the words
+        // "the bundled library is empty in this build", which is a worse
+        // answer than no tab at all.
+        //
+        // There used to be a second sub-tab here backed by a private library on
+        // our server, and it was removed for exactly this reason when that
+        // server went away. Leaving this one visible would have been the same
+        // mistake with a different cause.
+        if (Claudpress_Studio_Library::has_items()) {
+            $tabs['library'] = __('Library', 'claudpress');
+        }
+        return $tabs;
     }
 
     /**
