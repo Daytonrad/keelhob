@@ -37,7 +37,27 @@ Features:
 
 This plugin can send data to third-party APIs. Nothing is sent until you enter a
 key for that service, and no service is contacted at all if you leave its key blank.
-Claudpress itself has no servers and phones nothing home.
+
+The one exception is the update check, described first below. It is the only
+request Claudpress makes on its own, and you can switch it off without losing
+updates.
+
+**Updates and the public count (on by default, one setting to turn off).**
+Claudpress is not in the WordPress.org directory, so it checks
+https://claudpress.com for new versions the way the directory otherwise would.
+That same request is how the project counts how many sites are running it, which
+is the only measure it has of whether any of this is worth continuing.
+
+What is sent, in full: a random ID generated on your site (not derived from your
+address, domain or email, so it cannot be traced back to you), the Claudpress
+version, and your WordPress and PHP versions. That is the complete list. No site
+address, no domain, no email, no user data, no content, and no record of what
+the AI does. The endpoint does not keep IP addresses, and rows are deleted after
+90 days of silence.
+
+Turn it off under Claudpress > Settings and the update check goes straight to
+GitHub (https://api.github.com) instead — you keep getting every update,
+including security ones, and this site simply is not counted.
 
 **Your MCP client (Claude Code, Claude Desktop, Cursor, Codex, or any other).**
 Whatever client you connect makes the requests; whatever it reads from your site

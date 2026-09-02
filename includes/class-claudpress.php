@@ -72,6 +72,12 @@ final class Claudpress
             'token_expires_at'  => 0,
             'token_last_used'   => 0,
 
+            // The anonymous check-in that produces the public "sites running
+            // now" figure. Off means the updater talks straight to GitHub
+            // instead, so opting out never costs anyone an update. See
+            // class-updater.php for exactly what is sent.
+            'skip_checkin'             => false,
+
             // Off by default on purpose: deleting the plugin must not
             // destroy the owner's snippets, memory and skills. See uninstall.php.
             'delete_data_on_uninstall' => false,

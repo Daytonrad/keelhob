@@ -68,6 +68,7 @@ require_once CLAUDPRESS_DIR . 'includes/class-providers.php';
 require_once CLAUDPRESS_DIR . 'includes/class-agent-runtime.php';
 require_once CLAUDPRESS_DIR . 'includes/class-tasks.php';
 require_once CLAUDPRESS_DIR . 'includes/class-migration.php';
+require_once CLAUDPRESS_DIR . 'includes/class-updater.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin-skills.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin-snippets.php';
@@ -104,6 +105,7 @@ require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-readiness.php';
 add_action('plugins_loaded', static function () {
     load_plugin_textdomain('claudpress', false, dirname(CLAUDPRESS_BASENAME) . '/languages');
     Claudpress::instance()->boot();
+    Claudpress_Updater::init();
 
     $studio = new Claudpress_Studio();
     add_action('admin_menu', [$studio, 'menu'], 20);

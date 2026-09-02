@@ -429,6 +429,19 @@ if (!function_exists('wp_send_json_error')) {
     }
 }
 
+if (!function_exists('wp_generate_uuid4')) {
+    function wp_generate_uuid4() {
+        return sprintf(
+            '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+            mt_rand(0, 0xffff),
+            mt_rand(0, 0x0fff) | 0x4000,
+            mt_rand(0, 0x3fff) | 0x8000,
+            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+        );
+    }
+}
+
 if (!function_exists('_n')) {
     function _n($single, $plural, $number, $domain = null) { return ((int) $number === 1) ? $single : $plural; }
 }
@@ -528,6 +541,7 @@ require_once CLAUDPRESS_DIR . 'includes/class-migration.php';
 require_once CLAUDPRESS_DIR . 'includes/class-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/class-skills.php';
 require_once CLAUDPRESS_DIR . 'includes/class-skills-remote.php';
+require_once CLAUDPRESS_DIR . 'includes/class-updater.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-filesystem.php';

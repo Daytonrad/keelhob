@@ -739,6 +739,7 @@ final class Claudpress_Admin
                 'require_https'       => !empty($_POST['require_https']),
                 'log_calls'           => !empty($_POST['log_calls']),
                 'delete_data_on_uninstall' => !empty($_POST['delete_data_on_uninstall']),
+                'skip_checkin'             => !empty($_POST['skip_checkin']),
 
                 'notify_channels'          => self::channels_from_post(),
                 'fs_base'             => !empty($_POST['fs_base']) ? sanitize_text_field(wp_unslash($_POST['fs_base'])) : ABSPATH,
@@ -1033,6 +1034,18 @@ final class Claudpress_Admin
                                     <?php esc_html_e('Nothing is selected, so digests and alerts will not be sent anywhere.', 'claudpress'); ?>
                                 </p>
                             <?php endif; ?>
+
+                            <hr>
+                            <p style="margin-bottom:6px;"><strong><?php esc_html_e('Updates and the public count', 'claudpress'); ?></strong></p>
+                            <p>
+                                <label>
+                                    <input type="checkbox" name="skip_checkin" value="1" <?php checked(!empty($s['skip_checkin'])); ?>>
+                                    <?php esc_html_e('Do not include this site in the public count', 'claudpress'); ?>
+                                </label><br>
+                                <span style="color:#666;font-size:12px;margin-left:24px;">
+                                    <?php esc_html_e('When Claudpress checks for a new version, it sends a random ID made on this site, the plugin version, and your WordPress and PHP versions. Nothing else — no site address, no email, no content, and the address it talks to does not keep your IP. That count is the only measure of how many people use this, and it decides what gets built next. Tick this and Claudpress checks GitHub directly instead: you still get every update, this site just is not counted.', 'claudpress'); ?>
+                                </span>
+                            </p>
 
                             <hr>
                             <p style="margin-bottom:6px;"><strong><?php esc_html_e('Uninstall', 'claudpress'); ?></strong></p>
