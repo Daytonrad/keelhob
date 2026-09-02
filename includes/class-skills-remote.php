@@ -1,6 +1,6 @@
 <?php
 /**
- * Signed delivery of skills from the Claudpress skills server.
+ * Signed delivery of skills from the project's GitHub releases.
  *
  * Skills are instructions an agent follows on a live customer site. That makes
  * this the highest-consequence network path in the plugin: a breach of the
@@ -34,11 +34,25 @@ if (!defined('ABSPATH')) {
 final class Claudpress_Skills_Remote
 {
     /**
-     * Where the skills live. The server does not exist yet, so this is
-     * deliberately overridable — by constant for a whole install, by filter for
-     * a single site or a test.
+     * Where the skills live: two static assets on the newest GitHub release.
+     *
+     * This used to be a REST API on a server we ran, which answered
+     * /free, /pro and /bundle?names=a,b,c. That server is gone, and static
+     * files cannot answer a query string - so the manifest is fetched whole and
+     * the filtering that used to happen server-side now happens here. For
+     * fifteen markdown files that is cheaper than the API ever was, and it
+     * leaves nothing to pay for, keep alive, or breach.
+     *
+     * Still overridable — by constant for a whole install, by filter for a
+     * single site or a test.
      */
-    const DEFAULT_ENDPOINT = 'https://api.claudpress.com/v1/skills';
+    const DEFAULT_ENDPOINT = 'https://github.com/calflint/claudpress/releases/latest/download';
+
+    /** The manifest: one entry per skill, with a version. */
+    const MANIFEST_FILE = 'skills.json';
+
+    /** Every skill body in one file. Small enough that splitting it costs more than it saves. */
+    const BUNDLE_FILE = 'skills-bundle.json';
 
     /**
      * The Ed25519 public key that every bundle must verify against, base64.
@@ -89,27 +103,6 @@ final class Claudpress_Skills_Remote
         }
         $raw = base64_decode($b64, true);
         return (is_string($raw) && strlen($raw) === 32) ? $raw : '';
-    }
-
-    /**
-     * The Pro bearer token, if this site is paired.
-     *
-     * The tier decision is not made here and cannot be: a free site is free to
-     * ASK for the Pro endpoint, and the server is what answers. Nothing local
-     * decides what a site is entitled to.
-     */
-    private static function token(): string
-    {
-        if (!class_exists('Claudpress')) {
-            return '';
-        }
-        $settings = (array) Claudpress::instance()->settings();
-        return (string) ($settings['skills_token'] ?? '');
-    }
-
-    private static function tier(): string
-    {
-        return self::token() !== '' ? 'pro' : 'free';
     }
 
     private static function store()
@@ -340,7 +333,7 @@ final class Claudpress_Skills_Remote
         ];
 
         try {
-            $manifest = self::get(self::endpoint() . '/' . self::tier());
+            $manifest = self::get(self::endpoint() . '/' . self::MANIFEST_FILE);
             if (!$manifest['ok']) {
                 $result['notice'] = $manifest['error'];
                 return $result;
@@ -355,12 +348,22 @@ final class Claudpress_Skills_Remote
 
             $skills = [];
             if ($wanted) {
-                $bundle = self::get(self::endpoint() . '/' . self::tier() . '/bundle?names=' . rawurlencode(implode(',', $wanted)));
+                $bundle = self::get(self::endpoint() . '/' . self::BUNDLE_FILE);
                 if (!$bundle['ok']) {
                     $result['notice'] = $bundle['error'];
                     return $result;
                 }
-                $skills = isset($bundle['data']['skills']) && is_array($bundle['data']['skills']) ? $bundle['data']['skills'] : [];
+                $all = isset($bundle['data']['skills']) && is_array($bundle['data']['skills']) ? $bundle['data']['skills'] : [];
+                // The bundle carries everything, because a static file cannot be
+                // asked for a subset. Install only what the manifest said was
+                // actually out of date - the rest is already on disk and
+                // rewriting it would churn every row for nothing.
+                $skills = array_values(array_filter(
+                    $all,
+                    static function ($skill) use ($wanted) {
+                        return in_array(sanitize_title((string) ($skill['name'] ?? '')), $wanted, true);
+                    }
+                ));
             }
 
             foreach ($skills as $skill) {
@@ -396,22 +399,22 @@ final class Claudpress_Skills_Remote
     /** One GET, verified. @return array{ok:bool, error:string, data:array} */
     private static function get(string $url): array
     {
+        // GitHub redirects releases/latest/download/<file> to the real asset,
+        // so redirects must be followed. Nothing is trusted on the strength of
+        // where it came from anyway - the signature decides.
         $args = [
-            'timeout' => 15,
-            'headers' => ['Accept' => 'application/json'],
+            'timeout'     => 15,
+            'redirection' => 5,
+            'headers'     => ['Accept' => 'application/json'],
         ];
-        $token = self::token();
-        if ($token !== '') {
-            $args['headers']['Authorization'] = 'Bearer ' . $token;
-        }
 
         $response = wp_remote_get($url, $args);
         if (is_wp_error($response)) {
-            return ['ok' => false, 'error' => 'Could not reach the skills server: ' . $response->get_error_message() . '. Your existing skills are unaffected.', 'data' => []];
+            return ['ok' => false, 'error' => 'Could not reach the skills feed: ' . $response->get_error_message() . '. Your existing skills are unaffected.', 'data' => []];
         }
         $code = (int) wp_remote_retrieve_response_code($response);
         if ($code !== 200) {
-            return ['ok' => false, 'error' => 'The skills server answered ' . $code . '. Your existing skills are unaffected.', 'data' => []];
+            return ['ok' => false, 'error' => 'The skills feed answered ' . $code . '. Your existing skills are unaffected.', 'data' => []];
         }
         return self::open((string) wp_remote_retrieve_body($response));
     }

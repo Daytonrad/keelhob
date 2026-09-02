@@ -90,6 +90,16 @@ is shown to you before anything acts on it.
 **Deploy (optional).** export_bundle/deploy_push send your content bundle only to
 the destination Claudpress site whose URL and token you configure.
 
+**Skill updates (optional).** Claudpress can check GitHub
+(https://github.com/calflint/claudpress/releases - terms:
+https://docs.github.com/site-policy/github-terms/github-terms-of-service -
+privacy: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement)
+for newer versions of the bundled skills. It is a plain download of two public
+files; no key, no account, and nothing about your site is sent. Every skill is
+verified against a signature before it is written, and an unsigned or unverifiable
+skill is discarded rather than installed. Turn it off and the skills that shipped
+in the zip keep working.
+
 == Installation ==
 
 1. Upload the plugin zip via Plugins > Add New > Upload Plugin, then Activate.
