@@ -1,0 +1,46 @@
+name: Skill idea
+description: A playbook the agent should know. No PHP needed to build one.
+labels: ["skill", "good first issue"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Skills are plain markdown playbooks the agent loads when a task matches
+        them. They are the highest-value contribution to this project and they
+        need no PHP at all — if you know how to do something well in WordPress,
+        that knowledge is a pull request.
+
+        Look at `skills/site-safety.md` for the shape.
+
+  - type: input
+    id: name
+    attributes:
+      label: What should the skill be called
+      placeholder: "membership-site-setup"
+    validations:
+      required: true
+
+  - type: textarea
+    id: job
+    attributes:
+      label: What job does it do
+      description: When should the agent reach for this, and what should it produce?
+    validations:
+      required: true
+
+  - type: textarea
+    id: knowledge
+    attributes:
+      label: What does it need to know that an agent would otherwise get wrong
+      description: >
+        This is the valuable part. The order things must happen in, the setting
+        everyone forgets, the thing that silently breaks checkout.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: writing
+    attributes:
+      label: Would you like to write it?
+      options:
+        - label: Yes, I will open a pull request

@@ -17,6 +17,22 @@ final class Claudpress_Tools_Automation
             'type' => 'object', 'properties' => (object) [],
         ], [self::class, 'get_dashboard'], ['readOnlyHint' => true, 'title' => 'Get Dashboard']);
 
+
+        $r->add('task_list', 'List all scheduled automations with mode, schedule, enabled state, and last run status/summary. Read-only.', [
+            'type' => 'object', 'properties' => (object) [],
+        ], [self::class, 'task_list'], ['readOnlyHint' => true]);
+
+
+
+
+        $r->add('agent_runs', 'Review the history of autonomous runs: when each ran, what it was asked, how many steps and tool calls it took, how it ended (ok / capped / truncated / error), and its token usage and estimated USD cost. Also returns the trailing-24h spend against the configured budget caps. Use to answer "what has the site been doing on its own / what is autonomy costing me". Read-only.', [
+            'type' => 'object',
+            'properties' => [
+                'limit' => ['type' => 'integer', 'default' => 20, 'description' => 'How many recent runs to return (max 200).'],
+            ],
+        ], [self::class, 'agent_runs'], ['readOnlyHint' => true, 'title' => 'Agent Run History']);
+
+
         $r->add('task_save', 'Create or update a scheduled automation. mode="digest" emails a status snapshot on a schedule (no API key needed). mode="autonomous" runs a plain-language instruction through the on-site AI agent on a schedule (requires an agent API key in settings) — e.g. "fulfil paid orders, restock flagged items, and publish any due draft posts". schedule: hourly|twicedaily|daily|weekly|monthly, with an optional run_hour (0-23, site time) to pin it to a time of day. Set allow_risky=true only if the task may perform destructive/financial actions (refunds, deletes, updates).', [
             'type' => 'object',
             'properties' => [
@@ -32,10 +48,6 @@ final class Claudpress_Tools_Automation
             ],
             'required' => ['name', 'mode'],
         ], [self::class, 'task_save'], ['destructiveHint' => true]);
-
-        $r->add('task_list', 'List all scheduled automations with mode, schedule, enabled state, and last run status/summary. Read-only.', [
-            'type' => 'object', 'properties' => (object) [],
-        ], [self::class, 'task_list'], ['readOnlyHint' => true]);
 
         $r->add('task_run', 'Run a scheduled task immediately (does not change its schedule). Returns the run result/summary.', [
             'type' => 'object',
@@ -59,13 +71,6 @@ final class Claudpress_Tools_Automation
             'required' => ['instruction'],
         ], [self::class, 'run_agent'], ['destructiveHint' => true]);
 
-        $r->add('agent_runs', 'Review the history of autonomous runs: when each ran, what it was asked, how many steps and tool calls it took, how it ended (ok / capped / truncated / error), and its token usage and estimated USD cost. Also returns the trailing-24h spend against the configured budget caps. Use to answer "what has the site been doing on its own / what is autonomy costing me". Read-only.', [
-            'type' => 'object',
-            'properties' => [
-                'limit' => ['type' => 'integer', 'default' => 20, 'description' => 'How many recent runs to return (max 200).'],
-            ],
-        ], [self::class, 'agent_runs'], ['readOnlyHint' => true, 'title' => 'Agent Run History']);
-
         $r->add('notify_owner', 'Send a notification to the site owner across every configured channel (email, webhook/Slack, Telegram). Use to proactively flag something that needs a human.', [
             'type' => 'object',
             'properties' => [
@@ -81,10 +86,6 @@ final class Claudpress_Tools_Automation
         return ['success' => true, 'dashboard' => Claudpress_Digest::snapshot()];
     }
 
-    public static function task_save(array $a): array
-    {
-        return Claudpress_Tasks::save($a);
-    }
 
     public static function task_list(array $a): array
     {
@@ -98,24 +99,8 @@ final class Claudpress_Tools_Automation
         return ['success' => true, 'tasks' => $tasks];
     }
 
-    public static function task_run(array $a): array
-    {
-        return Claudpress_Tasks::run_task((int) ($a['id'] ?? 0));
-    }
 
-    public static function task_delete(array $a): array
-    {
-        return Claudpress_Tasks::delete((int) ($a['id'] ?? 0));
-    }
 
-    public static function run_agent(array $a): array
-    {
-        return Claudpress_Agent_Runtime::run((string) ($a['instruction'] ?? ''), [
-            'allow_risky' => (bool) ($a['allow_risky'] ?? false),
-            'max_steps'   => (int) ($a['max_steps'] ?? 14),
-            'context'     => 'run_agent',
-        ]);
-    }
 
     public static function agent_runs(array $a): array
     {
@@ -144,9 +129,35 @@ final class Claudpress_Tools_Automation
         ];
     }
 
+
+    public static function task_save(array $a): array
+    {
+        return Claudpress_Tasks::save($a);
+    }
+
+    public static function task_run(array $a): array
+    {
+        return Claudpress_Tasks::run_task((int) ($a['id'] ?? 0));
+    }
+
+    public static function task_delete(array $a): array
+    {
+        return Claudpress_Tasks::delete((int) ($a['id'] ?? 0));
+    }
+
+    public static function run_agent(array $a): array
+    {
+        return Claudpress_Agent_Runtime::run((string) ($a['instruction'] ?? ''), [
+            'allow_risky' => (bool) ($a['allow_risky'] ?? false),
+            'max_steps'   => (int) ($a['max_steps'] ?? 14),
+            'context'     => 'run_agent',
+        ]);
+    }
+
     public static function notify_owner(array $a): array
     {
         $res = Claudpress_Notifier::send((string) ($a['subject'] ?? ''), (string) ($a['message'] ?? ''));
         return ['success' => true, 'channels' => $res];
     }
+
 }

@@ -61,9 +61,19 @@ class CP_Test_Bag
         return $this->rows;
     }
 
-    public function recent($limit = 100): array
+    public function recent($limit = 100, $offset = 0): array
     {
-        return $this->rows;
+        return array_slice($this->rows, (int) $offset, (int) $limit);
+    }
+
+    public function paged($limit, $offset): array
+    {
+        return array_slice($this->rows, (int) $offset, (int) $limit);
+    }
+
+    public function count_all(): int
+    {
+        return count($this->rows);
     }
 }
 
@@ -103,7 +113,6 @@ Claudpress_Admin_Snippets::$source = static function (array $filters): array {
 $admin = new Claudpress_Admin();
 $pages = [
     'render'            => 'Connect',
-    'render_snippets'   => 'Snippets',
     'render_automation' => 'Automation',
     'render_guide'      => 'Guide',
     'render_activity'   => 'Activity',
@@ -111,6 +120,16 @@ $pages = [
 
 /** @var array<string, string> $html Rendered markup per page, for later assertions. */
 $html = [];
+
+// The Snippets screen moved to the Pro add-on, so it is no longer a method on
+// Claudpress_Admin. It is still rendered here - the assertions below are about
+// the markup, and the markup did not move.
+if (class_exists('Claudpress_Admin_Snippets')) {
+    ob_start();
+    (new Claudpress_Admin_Snippets())->render();
+    $html['Snippets'] = (string) ob_get_clean();
+    CP_Test::ok($html['Snippets'] !== '', 'Snippets renders from the add-on');
+}
 
 foreach ($pages as $method => $label) {
     $out    = '';
@@ -210,21 +229,25 @@ ob_start();
 $admin->render_automation();
 $automation = (string) ob_get_clean();
 
+// Changed in 1.10.1 (S2). This block used to assert the opposite - that each
+// key WAS rendered into its input - on the reasoning that a password input is
+// a safe enough home for a secret. It is not: type="password" only hides the
+// value on screen, while the real key still sits in the page source, where
+// admin-side XSS, a browser extension, a screen share or view-source picks it
+// straight back up. The screen now renders a mask instead, and the stored value
+// is only ever replaced when someone types a genuinely new one.
 foreach ([
     'image key on Connect'      => ['sk-SECRETIMAGEKEY', $connect],
     'deploy token on Connect'   => ['cp_SECRETDEPLOYTOKEN', $connect],
     'agent key on Automation'   => ['sk-ant-SECRETAGENTKEY', $automation],
 ] as $what => [$secret, $page]) {
-    $pos = strpos($page, $secret);
-    CP_Test::ok($pos !== false, $what . ' is rendered into its field');
-    if ($pos === false) {
-        continue;
-    }
-    // The only acceptable home for a secret is a password input's value.
-    $context = substr($page, max(0, $pos - 200), 260);
     CP_Test::ok(
-        strpos($context, 'type="password"') !== false,
-        $what . ' appears only inside a password input'
+        strpos($page, $secret) === false,
+        $what . ' never appears in the page source'
+    );
+    CP_Test::ok(
+        strpos($page, substr($secret, -4)) !== false,
+        $what . ' still shows its last four characters, so the owner can tell which key is installed'
     );
 }
 
@@ -243,6 +266,475 @@ CP_Test::contains('name="image_provider"', $connect, 'Connect has the image prov
 foreach (Claudpress_Image_Provider::providers() as $pid => $cls) {
     CP_Test::contains($cls::default_model(), $connect, 'Connect lists the ' . $pid . ' default image model');
 }
+
+
+CP_Test::group('Admin — image and voice pickers swap with the provider');
+
+/**
+ * The bug these cover.
+ *
+ * Both blocks used to render ONE key box, ONE free-text model box and ONE
+ * "get a key" link, all belonging to whichever provider happened to be saved.
+ * Choosing a different provider changed the dropdown and nothing else, so the
+ * screen told a Google user to go and fetch an OpenAI key, and offered them a
+ * placeholder naming an OpenAI model. The model was typed by hand, so a typo
+ * surfaced days later as an opaque 404 inside a scheduled run.
+ *
+ * Now each provider has its own row, and the rows nobody is looking at are
+ * inside a disabled fieldset - which is what stops them posting their empty
+ * key over the one the owner actually filled in.
+ */
+
+/** Pull one provider's row out of a page so assertions cannot match a neighbour. */
+$cp_row = static function (string $html, string $kind, string $pid): string {
+    $block = strpos($html, 'data-kind="' . $kind . '"');
+    CP_Test::ok($block !== false, $kind . ' block is on the page');
+    if ($block === false) {
+        return '';
+    }
+    $from = strpos($html, 'data-provider="' . $pid . '"', $block);
+    if ($from === false) {
+        return '';
+    }
+    $next = strpos($html, '<div class="claudpress-provider-row"', $from);
+    return substr($html, $from, $next === false ? 6000 : $next - $from);
+};
+
+foreach ([
+    ['image', $connect,    Claudpress_Image_Provider::providers(),      'openai'],
+    ['voice', $automation, Claudpress_Transcribe_Provider::providers(), 'openai'],
+] as [$kind, $page, $providers, $current]) {
+
+    foreach ($providers as $pid => $cls) {
+        $row = $cp_row($page, $kind, $pid);
+
+        CP_Test::ok($row !== '', $kind . ': ' . $pid . ' has its own row');
+
+        // The reported bug, directly: the "get a key" link must belong to the
+        // provider whose row it sits in, not to whichever one was saved.
+        CP_Test::contains($cls::key_url(), $row, $kind . ': ' . $pid . " row links to that vendor's key page");
+
+        // ...and the placeholder must be that vendor's key shape.
+        CP_Test::contains('placeholder="' . $cls::key_hint() . '"', $row, $kind . ': ' . $pid . ' row hints that vendor\'s key format');
+
+        // Every model this provider offers is a real option, so nothing is typed.
+        foreach ($cls::models() as $m) {
+            CP_Test::contains('value="' . $m['id'] . '"', $row, $kind . ': ' . $pid . ' offers ' . $m['id']);
+        }
+
+        // No free-text model box anywhere - that was the typo source.
+        CP_Test::ok(
+            strpos($row, 'name="' . ($kind === 'image' ? 'image_api_model' : 'voice_model') . '" class="claudpress-model-select"') !== false
+            || strpos($row, 'claudpress-model-select') !== false,
+            $kind . ': ' . $pid . ' model is a dropdown'
+        );
+        CP_Test::ok(
+            preg_match('/<input[^>]*name="(?:image_api_model|voice_model)"/', $row) === 0,
+            $kind . ': ' . $pid . ' has no typeable model input'
+        );
+
+        // Test connection has to be inside the row, or it would send the wrong
+        // row's key.
+        CP_Test::contains('claudpress-media-test', $row, $kind . ': ' . $pid . ' has a Test connection button');
+
+        // The trap that makes the whole thing work. Without the disabled
+        // fieldset, all three rows post at once and the last one in the
+        // document wins - silently wiping the key that was just entered.
+        $disabled = strpos($row, 'class="claudpress-provider-fields" style="border:0;padding:0;margin:0;" disabled') !== false;
+        if ($pid === $current) {
+            CP_Test::ok(!$disabled, $kind . ': the selected provider\'s fields are live');
+            CP_Test::ok(strpos($row, 'hidden') === false || strpos(substr($row, 0, 60), 'hidden') === false, $kind . ': the selected provider\'s row is visible');
+        } else {
+            CP_Test::ok($disabled, $kind . ': ' . $pid . ' fields are disabled so they cannot overwrite the saved provider');
+        }
+    }
+}
+
+// Each vendor's key page must appear on the page at all - the old code only
+// ever emitted the saved provider's, which is precisely what was reported.
+foreach (Claudpress_Transcribe_Provider::providers() as $pid => $cls) {
+    CP_Test::contains($cls::key_url(), $automation, 'Automation carries the ' . $pid . ' transcription key link');
+}
+
+CP_Test::group('Provider adapters — the test path costs nothing');
+
+/**
+ * Testing an image or transcription key must never generate an image or
+ * transcribe audio. Someone debugging a bad key presses Test repeatedly; if the
+ * button billed them each time, the button would be the bug.
+ */
+foreach ([
+    Claudpress_Image_Provider::providers(),
+    Claudpress_Transcribe_Provider::providers(),
+] as $family) {
+    foreach ($family as $pid => $cls) {
+        $model = $cls::default_model();
+        $url   = $cls::verify_url('', $model);
+
+        CP_Test::ok(strpos($url, 'http') === 0, $pid . ': verify_url is an absolute URL (' . $url . ')');
+        CP_Test::contains(rawurlencode($model), $url, $pid . ': verify_url names the model being tested');
+
+        // The generate/transcribe routes must not be what we call.
+        CP_Test::ok(strpos($url, ':generateContent') === false, $pid . ': verify_url does not call generateContent');
+        CP_Test::ok(strpos($url, '/images/generations') === false, $pid . ': verify_url does not call image generation');
+        CP_Test::ok(strpos($url, '/audio/transcriptions') === false, $pid . ': verify_url does not call transcription');
+
+        // An override has to be honoured, or a gateway user tests the wrong host.
+        $over = $cls::verify_url('https://gw.example.com/v1/images/generations', $model);
+        if (strpos($cls::default_endpoint(), 'openai') !== false) {
+            CP_Test::contains('gw.example.com', $over, $pid . ': an endpoint override is tested at that host');
+        }
+
+        // Auth headers must carry the key and nothing else - a GET has no body,
+        // and a stray Content-Type on a GET trips some gateways.
+        $h = $cls::auth_headers('KEYVALUE');
+        CP_Test::ok(!isset($h['Content-Type']), $pid . ': auth headers carry no Content-Type');
+        CP_Test::ok(in_array('KEYVALUE', array_map(static fn($v) => str_replace('Bearer ', '', (string) $v), $h), true), $pid . ': auth headers carry the key');
+    }
+}
+
+// A double-append bug: an override that is already a full Gemini model URL must
+// not become ".../models/x:generateContent/gemini-3-pro-image".
+$g = Claudpress_Image_Provider_Google::verify_url(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
+    'gemini-3-pro-image'
+);
+CP_Test::same(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image',
+    $g,
+    'a full Gemini generate URL is reduced back to the model being tested'
+);
+
+CP_Test::group('Provider adapters — every model in the list is offerable');
+
+foreach ([
+    'image' => Claudpress_Image_Provider::providers(),
+    'voice' => Claudpress_Transcribe_Provider::providers(),
+] as $kind => $family) {
+    foreach ($family as $pid => $cls) {
+        $models = $cls::models();
+        CP_Test::ok(count($models) >= 2, $kind . '/' . $pid . ' offers more than one model to choose between');
+
+        $ids = array_column($models, 'id');
+        CP_Test::ok(
+            in_array($cls::default_model(), $ids, true),
+            $kind . '/' . $pid . ': the default model is one of the options, so the dropdown opens on a real choice'
+        );
+        CP_Test::same(count($ids), count(array_unique($ids)), $kind . '/' . $pid . ': no duplicate model ids');
+
+        foreach ($models as $m) {
+            CP_Test::ok(trim((string) $m['note']) !== '', $kind . '/' . $pid . ': ' . $m['id'] . ' explains itself in the dropdown');
+        }
+    }
+}
+
+
+CP_Test::group('Admin — Test connection for image and voice keys');
+
+/**
+ * The button people press when something is already wrong.
+ *
+ * Two things it must never do. It must never generate an image or transcribe
+ * audio, because someone debugging a bad key presses it repeatedly and the
+ * button would become the bill. And it must never answer "HTTP 401", which
+ * tells a person staring at a settings screen nothing about which box to go
+ * and look at.
+ */
+
+$cp_admin_test = new Claudpress_Admin();
+
+/**
+ * Drive ajax_test_media() the way admin-ajax does and catch the JSON it sends.
+ *
+ * @return array{success: bool, message: string, url: string, headers: array}
+ */
+$cp_call_test = static function (array $post) use ($cp_admin_test): array {
+    $_POST = $post;
+    $GLOBALS['cp_test_http_last'] = null;
+
+    try {
+        $cp_admin_test->ajax_test_media();
+        $sent = new CP_Test_Json_Sent(false, ['message' => 'nothing was sent'], 0);
+    } catch (CP_Test_Json_Sent $e) {
+        $sent = $e;
+    }
+
+    $last = $GLOBALS['cp_test_http_last'] ?? null;
+    $_POST = [];
+
+    return [
+        'success' => $sent->success,
+        'message' => (string) ($sent->data['message'] ?? ''),
+        'url'     => (string) ($last['url'] ?? ''),
+        'headers' => (array) ($last['args']['headers'] ?? []),
+    ];
+};
+
+cp_test_reset_options([
+    'claudpress_settings' => [
+        'image_provider' => 'openai',
+        'image_api_key'  => 'sk-STOREDIMAGE',
+        'voice_provider' => 'openai',
+        'voice_api_key'  => 'sk-STOREDVOICE',
+    ],
+]);
+
+// ---- the happy path, and what it must NOT have called ----------------------
+
+cp_test_reset_ajax();
+cp_test_http_queue(200, ['id' => 'gpt-image-1', 'object' => 'model']);
+$r = $cp_call_test(['kind' => 'image', 'provider' => 'openai', 'api_key' => 'sk-typed', 'model' => 'gpt-image-1']);
+
+CP_Test::ok($r['success'], 'image: a good key reports success');
+CP_Test::contains('gpt-image-1', $r['message'], 'image: the success message names the model that was tested');
+CP_Test::ok(
+    strpos($r['url'], '/images/generations') === false,
+    'image: testing a key does NOT call the image-generation route, so it cannot bill the owner'
+);
+CP_Test::contains('/models/gpt-image-1', $r['url'], 'image: it asks the vendor to describe the model instead');
+CP_Test::contains('sk-typed', (string) ($r['headers']['Authorization'] ?? ''), 'image: the key typed on screen is the key tested, not the saved one');
+
+cp_test_reset_ajax();
+cp_test_http_queue(200, ['name' => 'models/gemini-flash-latest']);
+$r = $cp_call_test(['kind' => 'voice', 'provider' => 'google', 'api_key' => 'AIza-typed', 'model' => 'gemini-flash-latest']);
+
+CP_Test::ok($r['success'], 'voice: a good Google key reports success');
+CP_Test::ok(
+    strpos($r['url'], ':generateContent') === false,
+    'voice: testing a key does NOT call generateContent, so it transcribes nothing'
+);
+CP_Test::same('AIza-typed', (string) ($r['headers']['x-goog-api-key'] ?? ''), 'voice: Google is tested with its own header, not a bearer token');
+
+// ---- the failures, each of which must say what to do about it --------------
+
+cp_test_reset_ajax();
+cp_test_http_queue(401, ['error' => ['message' => 'Incorrect API key provided']]);
+$r = $cp_call_test(['kind' => 'image', 'provider' => 'openai', 'api_key' => 'sk-bad', 'model' => 'gpt-image-1']);
+CP_Test::ok(!$r['success'], 'image: a rejected key fails');
+CP_Test::contains('rejected', $r['message'], 'image: a 401 says the key was rejected, not "HTTP 401"');
+
+cp_test_reset_ajax();
+cp_test_http_queue(404, ['error' => ['message' => 'model not found']]);
+$r = $cp_call_test(['kind' => 'image', 'provider' => 'openai', 'api_key' => 'sk-good', 'model' => 'gpt-image-1']);
+CP_Test::ok(!$r['success'], 'image: an unreachable model fails');
+CP_Test::contains('gpt-image-1', $r['message'], 'image: a 404 names the model the account cannot reach');
+CP_Test::ok(
+    stripos($r['message'], 'key works') !== false,
+    'image: a 404 says the key is fine, so nobody goes hunting for a new one'
+);
+
+// ---- the mask trap ---------------------------------------------------------
+
+// An untouched password field posts eight bullets back. Sending those to a
+// vendor tests nothing and would report a broken key on a setup that works.
+cp_test_reset_ajax();
+cp_test_http_queue(200, ['id' => 'gpt-image-1']);
+$r = $cp_call_test([
+    'kind' => 'image', 'provider' => 'openai',
+    'api_key' => Claudpress_Secrets::mask('sk-STOREDIMAGE'),
+    'model' => 'gpt-image-1',
+]);
+CP_Test::ok($r['success'], 'image: an untouched key field tests the SAVED key rather than the mask');
+CP_Test::contains('sk-STOREDIMAGE', (string) ($r['headers']['Authorization'] ?? ''), 'image: the mask never reaches the vendor');
+
+// ---- no key at all ---------------------------------------------------------
+
+cp_test_reset_options(['claudpress_settings' => ['image_provider' => 'openai']]);
+cp_test_reset_ajax();
+$r = $cp_call_test(['kind' => 'image', 'provider' => 'openai', 'api_key' => '', 'model' => 'gpt-image-1']);
+CP_Test::ok(!$r['success'], 'image: testing with no key anywhere fails');
+CP_Test::same('', $r['url'], 'image: ...without making a request at all');
+CP_Test::contains('Add an API key', $r['message'], 'image: and it says to add one');
+
+// ---- voice reuses a same-vendor key, and the test has to know that ---------
+
+// Voice deliberately falls back to another key for the same vendor. A test that
+// ignored the fallback would report "no key" on a configuration that works.
+cp_test_reset_options([
+    'claudpress_settings' => [
+        'voice_provider' => 'openai',
+        'voice_api_key'  => '',
+        'image_provider' => 'openai',
+        'image_api_key'  => 'sk-BORROWEDFROMIMAGE',
+    ],
+]);
+cp_test_reset_ajax();
+cp_test_http_queue(200, ['id' => 'whisper-1']);
+$r = $cp_call_test(['kind' => 'voice', 'provider' => 'openai', 'api_key' => '', 'model' => 'whisper-1']);
+CP_Test::ok($r['success'], 'voice: a blank key falls back to the same vendor\'s image key, exactly as transcription itself does');
+CP_Test::contains('sk-BORROWEDFROMIMAGE', (string) ($r['headers']['Authorization'] ?? ''), 'voice: the borrowed key is the one tested');
+
+// ---- the guard -------------------------------------------------------------
+
+// This endpoint accepts an API key in the body so an unsaved one can be tested.
+// That makes it a credential path, not a settings path: capability AND nonce.
+$GLOBALS['cp_test_ajax'] = ['caps' => [], 'nonces' => []];
+cp_test_reset_ajax();
+cp_test_http_queue(200, ['id' => 'gpt-image-1']);
+$cp_call_test(['kind' => 'image', 'provider' => 'openai', 'api_key' => 'sk-x', 'model' => 'gpt-image-1']);
+CP_Test::ok(in_array('manage_options', $GLOBALS['cp_test_ajax']['caps'] ?? [], true), 'the media test checks manage_options');
+CP_Test::ok(!empty($GLOBALS['cp_test_ajax']['nonces']), 'the media test checks a nonce');
+
+// An unknown kind or provider must not fall through to a default and quietly
+// test the wrong vendor with somebody's key.
+cp_test_reset_ajax();
+$r = $cp_call_test(['kind' => 'nonsense', 'provider' => 'openai', 'api_key' => 'sk-x', 'model' => 'm']);
+CP_Test::ok(!$r['success'], 'an unknown provider type is refused');
+CP_Test::same('', $r['url'], '...without sending the key anywhere');
+
+cp_test_reset_ajax();
+$r = $cp_call_test(['kind' => 'image', 'provider' => 'notavendor', 'api_key' => 'sk-x', 'model' => 'm']);
+CP_Test::ok(!$r['success'], 'an unknown provider is refused rather than defaulting to OpenAI');
+CP_Test::same('', $r['url'], '...without sending the key anywhere');
+
+cp_test_reset_ajax();
+cp_test_reset_options();
+
+
+CP_Test::group('Media providers — Refresh adds, never replaces');
+
+/**
+ * A vendor's model list is one flat catalogue of everything the account can
+ * touch, with nothing in it that says which models draw pictures or write down
+ * speech. Picking them out means matching on names, and a name match is a guess
+ * that goes stale.
+ *
+ * So the rule these cover: a refresh may only ADD. If it were allowed to
+ * replace the list, one rename at the vendor would empty the dropdown — or
+ * quietly drop the model a working site is already using.
+ */
+
+// What OpenAI really returns: everything, in one list.
+$openai_catalogue = ['data' => [
+    ['id' => 'gpt-image-2',            'created' => 900],
+    ['id' => 'gpt-image-1',            'created' => 800],
+    ['id' => 'dall-e-3',               'created' => 300],
+    ['id' => 'gpt-5',                  'created' => 950],
+    ['id' => 'gpt-4o-audio-preview',   'created' => 700],
+    ['id' => 'gpt-4o-transcribe',      'created' => 750],
+    ['id' => 'gpt-4o-mini-transcribe', 'created' => 760],
+    ['id' => 'whisper-1',              'created' => 200],
+    ['id' => 'text-embedding-3-large', 'created' => 500],
+    ['id' => 'tts-1',                  'created' => 400],
+    ['id' => 'omni-moderation-latest', 'created' => 600],
+]];
+
+$img = Claudpress_Image_Provider_OpenAI::parse_models($openai_catalogue);
+CP_Test::same(['gpt-image-2', 'gpt-image-1', 'dall-e-3'], $img, 'OpenAI images: only image models, newest first');
+foreach (['gpt-5', 'whisper-1', 'tts-1', 'text-embedding-3-large', 'omni-moderation-latest'] as $wrong) {
+    CP_Test::ok(!in_array($wrong, $img, true), 'OpenAI images: ' . $wrong . ' is not offered as an image model');
+}
+
+$voice = Claudpress_Transcribe_Provider_OpenAI::parse_models($openai_catalogue);
+CP_Test::same(['gpt-4o-mini-transcribe', 'gpt-4o-transcribe', 'whisper-1'], $voice, 'OpenAI voice: only transcription models, newest first');
+
+// The trap worth naming: gpt-4o-audio ACCEPTS audio, and answers in speech. It
+// would return no transcript at all, and the failure would look like a bad key.
+CP_Test::ok(!in_array('gpt-4o-audio-preview', $voice, true), 'OpenAI voice: an audio model that SPEAKS is not offered for transcription');
+CP_Test::ok(!in_array('gpt-5', $voice, true), 'OpenAI voice: a plain chat model is not offered for transcription');
+
+// Gemini's list, with the shapes that actually appear in it.
+$google_catalogue = ['models' => [
+    ['name' => 'models/gemini-3-pro-image',     'supportedGenerationMethods' => ['generateContent']],
+    ['name' => 'models/gemini-2.5-flash-image', 'supportedGenerationMethods' => ['generateContent']],
+    ['name' => 'models/gemini-2.5-flash',       'supportedGenerationMethods' => ['generateContent']],
+    ['name' => 'models/gemini-2.5-pro',         'supportedGenerationMethods' => ['generateContent']],
+    ['name' => 'models/gemini-2.5-flash-tts',   'supportedGenerationMethods' => ['generateContent']],
+    ['name' => 'models/imagen-4.0-generate',    'supportedGenerationMethods' => ['predict']],
+    ['name' => 'models/veo-3.0-generate',       'supportedGenerationMethods' => ['predictLongRunning']],
+    ['name' => 'models/text-embedding-004',     'supportedGenerationMethods' => ['embedContent']],
+]];
+
+$gimg = Claudpress_Image_Provider_Google::parse_models($google_catalogue);
+CP_Test::ok(in_array('gemini-3-pro-image', $gimg, true), 'Gemini images: the image models are found');
+CP_Test::ok(in_array('gemini-2.5-flash-image', $gimg, true), 'Gemini images: both image models are found');
+CP_Test::ok(!in_array('gemini-2.5-flash', $gimg, true), 'Gemini images: a text model is not offered');
+// Imagen and Veo do make pictures and video - through :predict, which this
+// adapter does not speak. Offering one would fail on the first request.
+CP_Test::ok(!in_array('imagen-4.0-generate', $gimg, true), 'Gemini images: imagen is excluded, because this adapter speaks generateContent');
+CP_Test::ok(!in_array('veo-3.0-generate', $gimg, true), 'Gemini images: veo is excluded for the same reason');
+
+$gvoice = Claudpress_Transcribe_Provider_Google::parse_models($google_catalogue);
+CP_Test::ok(in_array('gemini-2.5-flash', $gvoice, true), 'Gemini voice: text models are the transcription candidates');
+CP_Test::ok(!in_array('gemini-3-pro-image', $gvoice, true), 'Gemini voice: an image model is not offered');
+// Every one of these answers generateContent and returns something that is not
+// a transcript, which is why the filter cannot simply trust that method.
+CP_Test::ok(!in_array('gemini-2.5-flash-tts', $gvoice, true), 'Gemini voice: a speech model is not offered, though it answers generateContent');
+CP_Test::ok(!in_array('text-embedding-004', $gvoice, true), 'Gemini voice: an embedding model is not offered');
+
+CP_Test::group('Media providers — the merged dropdown');
+
+cp_test_reset_options();
+cp_test_reset_ajax();
+
+// With no refresh ever run, the dropdown is exactly the curated list.
+$fresh = Claudpress_Media_Check::models(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai');
+CP_Test::same(
+    array_column(Claudpress_Image_Provider_OpenAI::models(), 'id'),
+    array_column($fresh, 'id'),
+    'a site that has never refreshed sees the curated list, so an offline site still has a working dropdown'
+);
+
+// Now a refresh finds a model this release has never heard of.
+cp_test_http_queue(200, $openai_catalogue);
+$after = Claudpress_Media_Check::refresh(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai', 'sk-key', '');
+CP_Test::ok(!is_wp_error($after), 'a refresh with a good key succeeds');
+
+$ids = array_column(is_array($after) ? $after : [], 'id');
+CP_Test::ok(in_array('gpt-image-2', $ids, true), 'the newly discovered model is added to the dropdown');
+foreach (array_column(Claudpress_Image_Provider_OpenAI::models(), 'id') as $curated) {
+    CP_Test::ok(in_array($curated, $ids, true), 'refresh keeps the curated model ' . $curated);
+}
+
+// And the failure that must not happen: a vendor that answers with nothing
+// useful must not be able to empty the list.
+cp_test_reset_ajax();
+cp_test_http_queue(200, ['data' => []]);
+$empty = Claudpress_Media_Check::refresh(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai', 'sk-key', '');
+CP_Test::ok(!is_wp_error($empty), 'a vendor with nothing new is not an error - the key worked');
+CP_Test::ok(
+    count(is_array($empty) ? $empty : []) >= count(Claudpress_Image_Provider_OpenAI::models()),
+    'an empty vendor answer cannot empty the dropdown'
+);
+
+// A model already saved stays offered even when the vendor stops listing it.
+cp_test_reset_ajax();
+cp_test_http_queue(200, ['data' => []]);
+$kept = Claudpress_Media_Check::refresh(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai', 'sk-key', '', 'dall-e-2-retired');
+CP_Test::ok(
+    in_array('dall-e-2-retired', array_column(is_array($kept) ? $kept : [], 'id'), true),
+    'the model this site is USING stays on the list even after the vendor drops it'
+);
+
+// A bad key says so, and does not poison the cache.
+cp_test_reset_ajax();
+cp_test_http_queue(401, ['error' => ['message' => 'Incorrect API key provided']]);
+$bad = Claudpress_Media_Check::refresh(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai', 'sk-bad', '');
+CP_Test::ok(is_wp_error($bad), 'a rejected key fails the refresh');
+CP_Test::contains('rejected', $bad->get_error_message(), 'and says the key was rejected, not "HTTP 401"');
+
+cp_test_reset_ajax();
+$nokey = Claudpress_Media_Check::refresh(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai', '', '');
+CP_Test::ok(is_wp_error($nokey), 'refreshing with no key fails');
+CP_Test::contains('Add an API key', $nokey->get_error_message(), 'and says to add one');
+
+CP_Test::group('Media providers — the refresh URL is the catalogue, not the work');
+
+foreach ([
+    'image' => Claudpress_Image_Provider::providers(),
+    'voice' => Claudpress_Transcribe_Provider::providers(),
+] as $kind => $family) {
+    foreach ($family as $pid => $cls) {
+        $url = $cls::models_list_url($cls::default_endpoint());
+        CP_Test::ok($url !== '', $kind . '/' . $pid . ' publishes a model list');
+        CP_Test::ok(strpos($url, '/images/generations') === false, $kind . '/' . $pid . ': listing models does not call image generation');
+        CP_Test::ok(strpos($url, '/audio/transcriptions') === false, $kind . '/' . $pid . ': listing models does not call transcription');
+        CP_Test::ok(strpos($url, ':generateContent') === false, $kind . '/' . $pid . ': listing models does not call generateContent');
+    }
+}
+
+cp_test_reset_ajax();
+cp_test_reset_options();
 
 CP_Test::group('Admin — strings are internationalized');
 

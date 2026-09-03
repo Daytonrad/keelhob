@@ -11,12 +11,257 @@ if (!defined('ABSPATH')) {
 
 final class Claudpress_Admin
 {
+    /** Bump when what the owner is agreeing to materially changes. */
+    const CONSENT_VERSION = 1;
+
+    /** Nonce action shared by the two provider endpoints. */
+    private const PROVIDER_NONCE = 'claudpress_provider';
+
+    /**
+     * Dropdown value meaning "the model is in the box next to me".
+     *
+     * Vendors ship models faster than a plugin ships releases, so a dropdown on
+     * its own would eventually block the one model someone actually wants. The
+     * sentinel keeps free text reachable without making it the default.
+     */
+    private const MODEL_CUSTOM = '__custom__';
+
+    /**
+     * The gate both provider endpoints go through.
+     *
+     * They accept an API key in the request body so a key that has been typed
+     * but not saved can be tested — which makes them a credential path, not a
+     * settings path: capability AND nonce, both, every time. Capability first,
+     * so an unauthorised caller is refused before the nonce check tells them
+     * anything about whether their nonce was good.
+     */
+    private static function guard_provider_ajax(): void
+    {
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('You do not have permission to change these settings.', 'claudpress')], 403);
+        }
+        check_ajax_referer(self::PROVIDER_NONCE, 'nonce');
+    }
+
+    /**
+     * What the settings form currently shows, for a request that must not save it.
+     *
+     * Reading the form rather than the option is the whole point: someone
+     * pressing Refresh or Test has usually just pasted a key and not saved yet,
+     * and testing the stored values would answer a question nobody asked.
+     */
+    private static function provider_from_post(): array
+    {
+        // phpcs:disable WordPress.Security.NonceVerification.Missing -- guard_provider_ajax() checks it.
+        $pid = sanitize_key(wp_unslash($_POST['provider'] ?? ''));
+        $key = sanitize_text_field(wp_unslash($_POST['api_key'] ?? ''));
+
+        return [
+            'provider' => isset(Claudpress_Provider::providers()[$pid]) ? $pid : '',
+            // An untouched key field posts the mask back. That is not a key, and
+            // sending eight bullets to a vendor tests nothing — blank it, and the
+            // stored key is used instead.
+            'api_key'  => Claudpress_Secrets::is_mask($key) ? '' : $key,
+            'model'    => sanitize_text_field(wp_unslash($_POST['model'] ?? '')),
+            // esc_url_raw rather than a text sanitizer: this is an address the
+            // request will really be sent to, so the scheme is validated, not tidied.
+            'endpoint' => trim(esc_url_raw(wp_unslash($_POST['endpoint'] ?? ''))),
+        ];
+        // phpcs:enable WordPress.Security.NonceVerification.Missing
+    }
+
+    /** Replace a provider's model dropdown with what its key can really use. */
+    public function ajax_fetch_models(): void
+    {
+        self::guard_provider_ajax();
+
+        $models = Claudpress_Provider::fetch_models(self::provider_from_post());
+        if (is_wp_error($models)) {
+            wp_send_json_error(['message' => $models->get_error_message()], 400);
+        }
+
+        wp_send_json_success([
+            'models'  => $models,
+            /* translators: %d: number of models the provider listed. */
+            'message' => sprintf(_n('%d model available.', '%d models available.', count($models), 'claudpress'), count($models)),
+        ]);
+    }
+
+    /** One round trip that says whether the key on screen works. Saves nothing. */
+    public function ajax_test_connection(): void
+    {
+        self::guard_provider_ajax();
+
+        $result = Claudpress_Provider::test_connection(self::provider_from_post());
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()], 400);
+        }
+
+        wp_send_json_success([
+            'message' => sprintf(
+                /* translators: 1: provider name, 2: model id. */
+                __('Connected to %1$s using %2$s.', 'claudpress'),
+                $result['label'],
+                $result['model']
+            ),
+        ]);
+    }
+
+    /**
+     * Test an image or transcription key.
+     *
+     * Separate from ajax_test_connection() because the check is a different
+     * shape: those providers are not chat providers, and testing them the chat
+     * way would mean generating an image or transcribing audio - a real charge,
+     * on every press, for a button people press when something is already wrong.
+     */
+    public function ajax_test_media(): void
+    {
+        self::guard_provider_ajax();
+
+        // phpcs:disable WordPress.Security.NonceVerification.Missing -- guard_provider_ajax() checks it.
+        $kind     = sanitize_key(wp_unslash($_POST['kind'] ?? ''));
+        $pid      = sanitize_key(wp_unslash($_POST['provider'] ?? ''));
+        $key      = sanitize_text_field(wp_unslash($_POST['api_key'] ?? ''));
+        $model    = sanitize_text_field(wp_unslash($_POST['model'] ?? ''));
+        $endpoint = trim(esc_url_raw(wp_unslash($_POST['endpoint'] ?? '')));
+        // phpcs:enable WordPress.Security.NonceVerification.Missing
+
+        [$cls, $key] = self::media_provider_from_post($kind, $pid, $key);
+
+        $model  = $model !== '' ? $model : $cls::default_model();
+        $result = Claudpress_Media_Check::run($cls::verify_url($endpoint, $model), $cls::auth_headers($key), $model);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()], 400);
+        }
+
+        wp_send_json_success([
+            'message' => sprintf(
+                /* translators: 1: provider name, 2: model id. */
+                __('Connected to %1$s using %2$s.', 'claudpress'),
+                $cls::label(),
+                $model
+            ),
+        ]);
+    }
+
+    /**
+     * Which adapter and which key a media request is really about.
+     *
+     * Sends the JSON error and stops the request itself rather than returning a
+     * failure for the caller to remember to check. Both endpoints accept a key
+     * from the form, so a path that carried on with a null adapter would send
+     * somebody's key to whichever vendor happened to be the default.
+     *
+     * @return array{0: class-string, 1: string}
+     */
+    private static function media_provider_from_post(string $kind, string $pid, string $key): array
+    {
+        $s = Claudpress::instance()->settings();
+
+        if ($kind === 'image') {
+            /** @var class-string<Claudpress_Image_Provider>|null $cls */
+            $cls    = Claudpress_Image_Provider::providers()[$pid] ?? null;
+            $stored = (string) ($s['image_api_key'] ?? '');
+        } elseif ($kind === 'voice') {
+            /** @var class-string<Claudpress_Transcribe_Provider>|null $cls */
+            $cls = Claudpress_Transcribe_Provider::providers()[$pid] ?? null;
+            // Voice deliberately falls back to another key for the same vendor,
+            // so an owner who already pasted an OpenAI key is not asked twice.
+            // Both endpoints have to honour that, or they report "no key" for a
+            // setup that works perfectly.
+            $stored = ((string) ($s['voice_provider'] ?? 'openai') === $pid)
+                ? Claudpress_Transcribe_Provider::key()
+                : (string) ($s['voice_api_key'] ?? '');
+        } else {
+            wp_send_json_error(['message' => __('Unknown provider type.', 'claudpress')], 400);
+            exit;
+        }
+
+        if ($cls === null) {
+            wp_send_json_error(['message' => __('Unknown provider.', 'claudpress')], 400);
+            exit;
+        }
+
+        // An untouched key field posts the mask back. Eight bullets are not a
+        // key, and sending them to a vendor tests nothing - fall through to the
+        // stored one rather than report a failure the owner cannot act on.
+        if ($key === '' || Claudpress_Secrets::is_mask($key)) {
+            $key = $stored;
+        }
+        if (trim($key) === '') {
+            wp_send_json_error(['message' => __('Add an API key first, then try again.', 'claudpress')], 400);
+            exit;
+        }
+
+        return [$cls, $key];
+    }
+
+    /**
+     * Replace an image or transcription dropdown with what the key can reach.
+     *
+     * The list that comes back is the curated one PLUS anything new the vendor
+     * advertises - never the vendor's alone. See Claudpress_Media_Check::models()
+     * for why: the catalogue is matched by name, and a name match that misses
+     * would otherwise empty the dropdown or drop the model a site is using.
+     */
+    public function ajax_fetch_media_models(): void
+    {
+        self::guard_provider_ajax();
+
+        // phpcs:disable WordPress.Security.NonceVerification.Missing -- guard_provider_ajax() checks it.
+        $kind     = sanitize_key(wp_unslash($_POST['kind'] ?? ''));
+        $pid      = sanitize_key(wp_unslash($_POST['provider'] ?? ''));
+        $key      = sanitize_text_field(wp_unslash($_POST['api_key'] ?? ''));
+        $keep     = sanitize_text_field(wp_unslash($_POST['model'] ?? ''));
+        $endpoint = trim(esc_url_raw(wp_unslash($_POST['endpoint'] ?? '')));
+        // phpcs:enable WordPress.Security.NonceVerification.Missing
+
+        [$cls, $key] = self::media_provider_from_post($kind, $pid, $key);
+
+        $models = Claudpress_Media_Check::refresh($cls, $kind, $pid, $key, $endpoint, $keep);
+        if (is_wp_error($models)) {
+            wp_send_json_error(['message' => $models->get_error_message()], 400);
+        }
+
+        wp_send_json_success([
+            'models'  => $models,
+            /* translators: %d: number of models on the list. */
+            'message' => sprintf(_n('%d model available.', '%d models available.', count($models), 'claudpress'), count($models)),
+        ]);
+    }
+
+    /**
+     * The model the form actually chose.
+    /**
+     * The model the form actually chose.
+     *
+     * The dropdown carries a sentinel rather than a value for "type your own",
+     * so the free-text box beside it is what gets stored in that case.
+     */
+    private static function model_from_post(): string
+    {
+        $picked = sanitize_text_field(wp_unslash($_POST['agent_model'] ?? ''));
+        if ($picked !== self::MODEL_CUSTOM) {
+            return $picked;
+        }
+        return sanitize_text_field(wp_unslash($_POST['agent_model_custom'] ?? ''));
+    }
+
     public function hooks(): void
     {
         add_action('admin_menu', [$this, 'menu']);
         add_action('admin_post_claudpress_save', [$this, 'handle_save']);
         add_action('admin_bar_menu', [$this, 'admin_bar'], 100);
         add_action('admin_notices', [$this, 'notice']);
+        add_action('admin_notices', [$this, 'upgrade_notice']);
+        // Both of these accept an API key so an unsaved one can be tested;
+        // see guard_provider_ajax() for why that changes what they must check.
+        add_action('wp_ajax_claudpress_fetch_models', [$this, 'ajax_fetch_models']);
+        add_action('wp_ajax_claudpress_test_connection', [$this, 'ajax_test_connection']);
+        add_action('wp_ajax_claudpress_test_media', [$this, 'ajax_test_media']);
+        add_action('wp_ajax_claudpress_fetch_media_models', [$this, 'ajax_fetch_media_models']);
     }
 
     public function menu(): void
@@ -25,10 +270,17 @@ final class Claudpress_Admin
         add_submenu_page('claudpress', __('Connect', 'claudpress'), __('Connect', 'claudpress'), 'manage_options', 'claudpress', [$this, 'render']);
         // Directly after Connect: this is the primary "what has the AI done to
         // my site" surface, and it must be easy to find in a hurry.
-        add_submenu_page('claudpress', __('Snippets', 'claudpress'), __('Snippets', 'claudpress'), 'manage_options', 'claudpress-snippets', [$this, 'render_snippets']);
+        // Skills sit next to Snippets for the same reason: both answer "what is
+        // this agent actually working from?", and the Pro list on that screen is
+        // the only honest place to say what expertise exists but is not here.
+        add_submenu_page('claudpress', __('Skills', 'claudpress'), __('Skills', 'claudpress'), 'manage_options', 'claudpress-skills', [$this, 'render_skills']);
         add_submenu_page('claudpress', __('Automation', 'claudpress'), __('Automation', 'claudpress'), 'manage_options', 'claudpress-automation', [$this, 'render_automation']);
         add_submenu_page('claudpress', __('Guide', 'claudpress'), __('Guide', 'claudpress'), 'manage_options', 'claudpress-guide', [$this, 'render_guide']);
         add_submenu_page('claudpress', __('Activity', 'claudpress'), __('Activity', 'claudpress'), 'manage_options', 'claudpress-activity', [$this, 'render_activity']);
+
+        // Last in the list on purpose: it is an ask, not a feature, and it
+        // should never sit above something someone came here to do.
+        Claudpress_Donate::menu();
     }
 
     public function notice(): void
@@ -44,6 +296,53 @@ final class Claudpress_Admin
                 esc_html__('A connected AI agent can read and modify everything on this site. Use development/staging sites only.', 'claudpress')
             );
         }
+    }
+
+    /**
+     * Tell the owner what 2.0.0 switched off, once, on any admin screen.
+     *
+     * The upgrade forces eight capability groups off, because until 2.0.0 a
+     * paywall was the only thing standing between a connected agent and this
+     * site's users, gateways, outbound email and production deploys. That is
+     * the right default, but doing it silently would mean an owner discovering
+     * by accident that automations they relied on had stopped.
+     *
+     * Deliberately not limited to Claudpress screens, and deliberately not
+     * auto-dismissed on view: someone who never opens the plugin's own pages is
+     * exactly the person who most needs to read this.
+     */
+    public function upgrade_notice(): void
+    {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+        $reset = get_option('claudpress_2_0_0_capabilities_reset', '');
+        if ($reset === '' || $reset === 'dismissed' || $reset === 'none') {
+            return;
+        }
+
+        if (!empty($_GET['claudpress_ack_2_0_0']) && check_admin_referer('claudpress_ack_2_0_0')) {
+            update_option('claudpress_2_0_0_capabilities_reset', 'dismissed');
+            return;
+        }
+
+        $groups = array_filter(array_map('trim', explode(',', (string) $reset)));
+        $labels = [];
+        $all    = Claudpress_Capabilities::groups();
+        foreach ($groups as $group) {
+            $labels[] = (string) ($all[$group]['label'] ?? $group);
+        }
+
+        printf(
+            '<div class="notice notice-warning"><p><strong>%s</strong></p><p>%s</p><p><strong>%s</strong></p><p><a class="button button-primary" href="%s">%s</a> <a class="button" href="%s">%s</a></p></div>',
+            esc_html__('Claudpress 2.0.0: everything is free now, and some capabilities were switched off.', 'claudpress'),
+            esc_html__('Every paid feature is included at no cost. Because the old paid tier was also the only thing keeping the riskiest tools out of reach, these areas now start switched OFF, and you decide which to turn back on:', 'claudpress'),
+            esc_html(implode(' · ', $labels)),
+            esc_url(admin_url('admin.php?page=claudpress&tab=settings')),
+            esc_html__('Review capabilities', 'claudpress'),
+            esc_url(wp_nonce_url(add_query_arg('claudpress_ack_2_0_0', '1'), 'claudpress_ack_2_0_0')),
+            esc_html__('Got it', 'claudpress')
+        );
     }
 
     public function admin_bar($bar): void
@@ -113,6 +412,261 @@ final class Claudpress_Admin
     }
 
     /**
+     * The image / transcription provider block: picker, key, model, Test.
+     *
+     * One renderer for both, because they are the same screen twice and two
+     * copies would drift. The shape mirrors the agent-brain block above: one
+     * row per provider, only the selected one enabled, everything swapping the
+     * moment the picker changes rather than after a save.
+     *
+     * The model is a dropdown with no free-text escape. These lists are short,
+     * curated and vendor-specific, and a typed model id fails as an opaque 404
+     * days later, inside a scheduled run, where nobody connects it back to a
+     * settings screen. An owner who genuinely needs a model that is not listed
+     * has the endpoint override under Advanced.
+     *
+     * @param array{
+     *   kind: string, providers: array<string, class-string>, current: string,
+     *   provider_field: string, key_field: string, model_field: string,
+     *   endpoint_field: string, provider_label: string, key_label: string,
+     *   model_label: string, key_value: string, model_value: string,
+     *   endpoint_value: string, current_key_note?: string
+     * } $a
+     */
+    private static function render_media_provider(array $a): void
+    {
+        $kind = $a['kind'];
+        $note = (string) ($a['current_key_note'] ?? '');
+        // Minted here rather than passed in: the two callers sit on different
+        // admin pages, and a block that mints its own nonce cannot be rendered
+        // with one that was never created.
+        $nonce = wp_create_nonce(self::PROVIDER_NONCE);
+        ?>
+        <div class="claudpress-media-block" id="claudpress-media-<?php echo esc_attr($kind); ?>" data-kind="<?php echo esc_attr($kind); ?>"
+            data-nonce="<?php echo esc_attr($nonce); ?>">
+            <p>
+                <label><strong><?php echo esc_html($a['provider_label']); ?></strong><br>
+                    <select name="<?php echo esc_attr($a['provider_field']); ?>" class="claudpress-media-picker" style="max-width:340px;">
+                        <?php foreach ($a['providers'] as $pid => $cls) : ?>
+                            <option value="<?php echo esc_attr($pid); ?>" <?php selected($a['current'], $pid); ?>><?php echo esc_html($cls::label()); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+            </p>
+
+            <?php foreach ($a['providers'] as $pid => $cls) :
+                // Only the selected provider's row carries the stored key, model
+                // and endpoint. Those belong to it, and pre-filling another
+                // vendor's row with them is how a key ends up at the wrong host.
+                $is_current = ($pid === $a['current']);
+                $chosen     = ($is_current && $a['model_value'] !== '') ? $a['model_value'] : $cls::default_model();
+                // The curated list, plus anything a Refresh has since found, plus
+                // whatever is saved even if neither mentions it any more.
+                $models     = Claudpress_Media_Check::models($cls, $kind, $pid, $is_current ? $chosen : '');
+                ?>
+                <div class="claudpress-provider-row" data-provider="<?php echo esc_attr($pid); ?>" <?php echo $is_current ? '' : 'hidden'; ?>
+                    style="border:1px solid #e2e4e7;border-radius:8px;padding:12px 14px;margin:0 0 12px;background:#fbfbfc;">
+                    <?php
+                    // Disabled fields post nothing. The form stores one key, one
+                    // model and one endpoint, so without this the rows nobody is
+                    // looking at would submit alongside the one they filled in,
+                    // and whichever came last in the document would win.
+                    // Rendered server-side rather than left to the script, so a
+                    // page where the script never ran still saves the right
+                    // provider instead of silently wiping the key.
+                    ?>
+                    <fieldset class="claudpress-provider-fields" style="border:0;padding:0;margin:0;" <?php echo $is_current ? '' : 'disabled'; ?>>
+
+                        <p style="margin-top:0;">
+                            <label><strong><?php echo esc_html($a['key_label']); ?></strong><br>
+                                <input type="password" name="<?php echo esc_attr($a['key_field']); ?>" class="regular-text claudpress-key-input"
+                                    style="width:100%;max-width:520px;" autocomplete="off"
+                                    value="<?php echo $is_current ? esc_attr($a['key_value']) : ''; ?>"
+                                    placeholder="<?php echo esc_attr($cls::key_hint()); ?>">
+                            </label>
+                            <br><span style="color:#888;">
+                                <?php
+                                // The link is per-row and unconditional. Hiding
+                                // it behind the reuse note was the original bug
+                                // in miniature: the one thing somebody without
+                                // a key needs is the link to go and get one.
+                                ?>
+                                <a href="<?php echo esc_url($cls::key_url()); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Get a key from this provider', 'claudpress'); ?></a>
+                                &middot; <?php esc_html_e('Stored on this site and sent only to the provider you select.', 'claudpress'); ?>
+                                <?php if ($is_current && $note !== '') : ?>
+                                    <br><em><?php echo esc_html($note); ?></em>
+                                <?php endif; ?>
+                            </span>
+                        </p>
+
+                        <p>
+                            <label><strong><?php echo esc_html($a['model_label']); ?></strong><br>
+                                <select name="<?php echo esc_attr($a['model_field']); ?>" class="claudpress-model-select" style="max-width:560px;">
+                                    <?php foreach ($models as $m) : ?>
+                                        <option value="<?php echo esc_attr($m['id']); ?>" <?php selected($chosen, $m['id']); ?>>
+                                            <?php echo esc_html($m['id'] . ' - ' . $m['note']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label>
+                            <br>
+                            <?php if ($cls::models_list_url($cls::default_endpoint()) !== '') : ?>
+                                <button type="button" class="button claudpress-media-refresh" data-busy="<?php esc_attr_e('Refreshing...', 'claudpress'); ?>" style="margin-top:8px;">
+                                    <?php esc_html_e('Refresh models', 'claudpress'); ?>
+                                </button>
+                            <?php endif; ?>
+                            <button type="button" class="button claudpress-media-test" data-busy="<?php esc_attr_e('Testing...', 'claudpress'); ?>" style="margin-top:8px;">
+                                <?php esc_html_e('Test connection', 'claudpress'); ?>
+                            </button>
+                            <span class="claudpress-provider-status" role="status" style="margin-left:8px;"></span>
+                            <br><span style="color:#888;"><?php esc_html_e('The test only asks the provider to describe the model, so it costs nothing and generates nothing.', 'claudpress'); ?></span>
+                        </p>
+
+                        <details>
+                            <summary style="cursor:pointer;"><?php esc_html_e('Advanced', 'claudpress'); ?></summary>
+                            <p style="margin:8px 0 0;">
+                                <label><?php esc_html_e('Custom endpoint', 'claudpress'); ?><br>
+                                    <input type="text" name="<?php echo esc_attr($a['endpoint_field']); ?>" class="regular-text claudpress-endpoint-input"
+                                        style="width:100%;max-width:520px;"
+                                        value="<?php echo $is_current ? esc_attr($a['endpoint_value']) : ''; ?>"
+                                        placeholder="<?php echo esc_attr($cls::default_endpoint()); ?>">
+                                </label>
+                                <br><span style="color:#888;">
+                                    <?php esc_html_e('Pointing this at a gateway, proxy or self-hosted deployment sends your data to that host, under that host\'s terms rather than the vendor\'s. Blank uses the provider default.', 'claudpress'); ?>
+                                </span>
+                            </p>
+                        </details>
+                    </fieldset>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <?php
+        self::media_provider_script();
+    }
+
+    /**
+     * One script for every media block on the page.
+     *
+     * Bound at document level rather than per block, so the Connect page's image
+     * block and the Automation page's voice block share it and cannot drift.
+     *
+     * The "only once" guard is in the JavaScript rather than a PHP static on
+     * purpose. A PHP static is scoped to the request, which is correct in
+     * WordPress and quietly wrong everywhere else - it made the second page
+     * rendered in any one process come out with no script at all, and the first
+     * place that bit was the harness written to prove this feature works. A
+     * flag on window is true wherever the page actually runs.
+     */
+    private static function media_provider_script(): void
+    {
+        ?>
+        <script>
+        (function () {
+            if (window.claudpressMediaBound) { return; }
+            window.claudpressMediaBound = true;
+
+            var ajax   = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
+            var FAILED = <?php echo wp_json_encode(__('That did not go through. Check the browser console for details.', 'claudpress')); ?>;
+
+            function each(list, fn) { Array.prototype.forEach.call(list, fn); }
+
+            function show(block, id) {
+                each(block.querySelectorAll('.claudpress-provider-row'), function (row) {
+                    var on = (row.getAttribute('data-provider') === id);
+                    row.hidden = !on;
+                    // One flag for the whole row: a disabled fieldset takes its
+                    // fields out of the form, which is what keeps the rows
+                    // nobody is looking at from overwriting the one they filled
+                    // in when the page is saved.
+                    var fields = row.querySelector('.claudpress-provider-fields');
+                    if (fields) { fields.disabled = !on; }
+                });
+            }
+
+            function valueOf(row, sel) {
+                var el = row.querySelector(sel);
+                return el ? el.value : '';
+            }
+
+            document.addEventListener('change', function (e) {
+                if (!e.target.classList || !e.target.classList.contains('claudpress-media-picker')) { return; }
+                var block = e.target.closest('.claudpress-media-block');
+                if (!block) { return; }
+                show(block, e.target.value);
+                // A provider change invalidates the previous answer. A green
+                // "Connected to OpenAI" sitting beside a Google row is worse
+                // than showing nothing at all.
+                each(block.querySelectorAll('.claudpress-provider-status'), function (st) { st.textContent = ''; });
+            });
+
+            function fill(sel, models) {
+                // The chosen model survives a refresh. Repopulating a dropdown
+                // is not permission to change which model the site uses.
+                var keep = sel.value;
+                sel.innerHTML = '';
+                models.forEach(function (m) {
+                    sel.appendChild(new Option(m.id + ' - ' + m.note, m.id, false, m.id === keep));
+                });
+                if (!sel.value) { sel.selectedIndex = 0; }
+            }
+
+            document.addEventListener('click', function (e) {
+                if (!e.target.closest) { return; }
+                var btn = e.target.closest('.claudpress-media-test, .claudpress-media-refresh');
+                if (!btn) { return; }
+                e.preventDefault();
+
+                var refreshing = btn.classList.contains('claudpress-media-refresh');
+                var block  = btn.closest('.claudpress-media-block');
+                var row    = btn.closest('.claudpress-provider-row');
+                var status = row.querySelector('.claudpress-provider-status');
+
+                var body = new URLSearchParams();
+                body.set('action', refreshing ? 'claudpress_fetch_media_models' : 'claudpress_test_media');
+                body.set('nonce', block.getAttribute('data-nonce'));
+                body.set('kind', block.getAttribute('data-kind'));
+                body.set('provider', row.getAttribute('data-provider'));
+                body.set('api_key', valueOf(row, '.claudpress-key-input'));
+                body.set('model', valueOf(row, '.claudpress-model-select'));
+                body.set('endpoint', valueOf(row, '.claudpress-endpoint-input'));
+
+                status.style.color = '#666';
+                status.textContent = btn.getAttribute('data-busy');
+                btn.disabled = true;
+
+                fetch(ajax, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body.toString()
+                }).then(function (r) {
+                    return r.json();
+                }).then(function (json) {
+                    var ok  = !!(json && json.success);
+                    var msg = (json && json.data && json.data.message) ? json.data.message : FAILED;
+                    status.style.color = ok ? '#16a34a' : '#b91c1c';
+                    status.textContent = msg;
+                    if (ok && refreshing && json.data.models) {
+                        fill(row.querySelector('.claudpress-model-select'), json.data.models);
+                    }
+                })['catch'](function () {
+                    status.style.color = '#b91c1c';
+                    status.textContent = FAILED;
+                })['finally'](function () {
+                    btn.disabled = false;
+                });
+            });
+
+            each(document.querySelectorAll('.claudpress-media-block'), function (block) {
+                var picker = block.querySelector('.claudpress-media-picker');
+                if (picker) { show(block, picker.value); }
+            });
+        })();
+        </script>
+        <?php
+    }
+
+    /**
      * Store an endpoint only when it genuinely overrides the provider default.
      *
      * Without this, switching provider would leave the previous vendor's URL
@@ -159,9 +713,10 @@ final class Claudpress_Admin
         exit;
     }
 
-    public function render_snippets(): void
+
+    public function render_skills(): void
     {
-        (new Claudpress_Admin_Snippets())->render();
+        (new Claudpress_Admin_Skills())->render();
     }
 
     public function handle_save(): void
@@ -172,26 +727,38 @@ final class Claudpress_Admin
         $action = $_POST['claudpress_action'] ?? 'settings';
 
         if ($action === 'regenerate_token') {
-            Claudpress::instance()->update(['token' => Claudpress::generate_token()]);
+            Claudpress::set_token();
         } elseif ($action === 'settings') {
+            // Record WHO accepted and WHEN, not merely that the box is ticked.
+            // If someone later says they never agreed to an AI editing their
+            // live site, a timestamp and a user id is the whole answer, and it
+            // has to be captured at the moment of the click or not at all.
+            $consent = self::consent_from_post();
             Claudpress::instance()->update([
-                'abilities_enabled'   => !empty($_POST['abilities_enabled']),
+                'abilities_enabled'   => $consent['abilities_enabled'],
+                'consent_by'          => $consent['consent_by'],
+                'consent_at'          => $consent['consent_at'],
+                'consent_version'     => $consent['consent_version'],
                 'allow_app_passwords' => !empty($_POST['allow_app_passwords']),
                 'require_https'       => !empty($_POST['require_https']),
                 'log_calls'           => !empty($_POST['log_calls']),
+                'delete_data_on_uninstall' => !empty($_POST['delete_data_on_uninstall']),
+                'skip_checkin'             => !empty($_POST['skip_checkin']),
+
+                'notify_channels'          => self::channels_from_post(),
                 'fs_base'             => !empty($_POST['fs_base']) ? sanitize_text_field(wp_unslash($_POST['fs_base'])) : ABSPATH,
                 'run_snippets'        => !empty($_POST['run_snippets']),
                 'site_label'          => sanitize_text_field(wp_unslash($_POST['site_label'] ?? '')),
                 'builder'             => sanitize_key($_POST['builder'] ?? 'auto'),
                 'image_provider'      => sanitize_key($_POST['image_provider'] ?? 'openai'),
-                'image_api_key'       => sanitize_text_field(wp_unslash($_POST['image_api_key'] ?? '')),
+                'image_api_key'       => self::secret_from_post('image_api_key'),
                 'image_api_endpoint'  => self::endpoint_override(
                     esc_url_raw(wp_unslash($_POST['image_api_endpoint'] ?? '')),
                     Claudpress_Image_Provider::get(sanitize_key($_POST['image_provider'] ?? 'openai'))::default_endpoint()
                 ),
                 'image_api_model'     => sanitize_text_field(wp_unslash($_POST['image_api_model'] ?? '')),
                 'deploy_target_url'   => esc_url_raw(wp_unslash($_POST['deploy_target_url'] ?? '')),
-                'deploy_target_token' => sanitize_text_field(wp_unslash($_POST['deploy_target_token'] ?? '')),
+                'deploy_target_token' => self::secret_from_post('deploy_target_token'),
             ]);
         } elseif ($action === 'clear_memory') {
             Claudpress::instance()->memory->clear();
@@ -205,19 +772,19 @@ final class Claudpress_Admin
         } elseif ($action === 'automation_settings') {
             Claudpress::instance()->update([
                 'agent_provider'        => sanitize_key($_POST['agent_provider'] ?? 'anthropic'),
-                'agent_api_key'         => sanitize_text_field(wp_unslash($_POST['agent_api_key'] ?? '')),
+                'agent_api_key'         => self::secret_from_post('agent_api_key'),
                 'agent_api_endpoint'    => self::endpoint_override(
                     esc_url_raw(wp_unslash($_POST['agent_api_endpoint'] ?? '')),
                     Claudpress_Provider::get(sanitize_key($_POST['agent_provider'] ?? 'anthropic'))::default_endpoint()
                 ),
-                'agent_model'           => sanitize_text_field(wp_unslash($_POST['agent_model'] ?? '')),
+                'agent_model'           => self::model_from_post(),
                 'agent_max_usd_per_run'    => max(0, (float) ($_POST['agent_max_usd_per_run'] ?? 0)),
                 'agent_max_tokens_per_run' => max(0, (int) ($_POST['agent_max_tokens_per_run'] ?? 0)),
                 'agent_max_usd_per_day'    => max(0, (float) ($_POST['agent_max_usd_per_day'] ?? 0)),
                 'agent_max_runs_per_day'   => max(0, (int) ($_POST['agent_max_runs_per_day'] ?? 0)),
                 'notify_email'          => sanitize_text_field(wp_unslash($_POST['notify_email'] ?? '')),
                 'notify_webhook_url'    => esc_url_raw(wp_unslash($_POST['notify_webhook_url'] ?? '')),
-                'notify_telegram_token' => sanitize_text_field(wp_unslash($_POST['notify_telegram_token'] ?? '')),
+                'notify_telegram_token' => self::secret_from_post('notify_telegram_token'),
                 'notify_telegram_chat'  => sanitize_text_field(wp_unslash($_POST['notify_telegram_chat'] ?? '')),
                 'policy' => [
                     'enabled'       => !empty($_POST['policy_enabled']),
@@ -264,7 +831,7 @@ final class Claudpress_Admin
                 'telegram_photos'        => !empty($_POST['telegram_photos']),
                 'telegram_progress'      => !empty($_POST['telegram_progress']),
                 'voice_provider'         => sanitize_key($_POST['voice_provider'] ?? 'openai'),
-                'voice_api_key'          => sanitize_text_field(wp_unslash($_POST['voice_api_key'] ?? '')),
+                'voice_api_key'          => self::secret_from_post('voice_api_key'),
                 'voice_model'            => sanitize_text_field(wp_unslash($_POST['voice_model'] ?? '')),
                 'voice_api_endpoint'     => self::endpoint_override(
                     esc_url_raw(wp_unslash($_POST['voice_api_endpoint'] ?? '')),
@@ -343,7 +910,12 @@ final class Claudpress_Admin
     {
         $s        = Claudpress::instance()->settings();
         $endpoint = rest_url(CLAUDPRESS_REST_NAMESPACE . '/mcp');
-        $token    = (string) $s['token'];
+        // S5: the token is stored hashed, so the plaintext exists only in the
+        // one page load straight after it is minted. After that the screen shows
+        // a placeholder, and the owner regenerates if they need a new one.
+        $token_plain = Claudpress::take_flashed_token();
+        $have_token  = ($token_plain !== '');
+        $token       = $have_token ? $token_plain : 'YOUR_TOKEN_HERE';
         $host     = wp_parse_url(home_url(), PHP_URL_HOST);
         // The MCP server name is the string the agent sees for this site, so it
         // should be the same handle the owner uses — that is what makes
@@ -370,7 +942,7 @@ final class Claudpress_Admin
         $enabled = Claudpress::instance()->abilities_enabled();
         ?>
         <div class="wrap">
-            <h1>Claudpress <span style="font-size:13px;color:#888;">v<?php echo esc_html(CLAUDPRESS_VERSION); ?></span></h1>
+            <h1>Claudpress <span style="font-size:13px;color:#888;">v<?php echo esc_html(CLAUDPRESS_VERSION); ?></span></h1><?php Claudpress_Donate::button(); ?>
             <p style="max-width:760px;"><?php esc_html_e('Give an AI agent full, programmatic control of this WordPress & WooCommerce site over MCP — content, store, SEO, files, PHP — with cross-session memory and a skills engine. Self-contained, no external dependencies.', 'claudpress'); ?></p>
 
             <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:#217296;background:radial-gradient(45% 200% at 100% 50%,#d37355 0%,rgba(211,115,85,.9) 25%,rgba(211,115,85,0) 62%),linear-gradient(104deg,#1b6183 0%,#217296 55%,#2a83aa 100%);color:#fff;padding:14px 20px;border-radius:10px;margin:6px 0 18px;max-width:980px;box-shadow:0 6px 20px rgba(33,114,150,.22);">
@@ -394,17 +966,102 @@ final class Claudpress_Admin
                             <?php wp_nonce_field('claudpress_save'); ?>
                             <input type="hidden" name="action" value="claudpress_save">
                             <input type="hidden" name="claudpress_action" value="settings">
+                            <div style="border:1px solid #dcdcde;border-left:4px solid #d63638;background:#fff;padding:14px 16px;margin-bottom:14px;">
+                                <p style="margin-top:0;font-size:14px;"><strong><?php esc_html_e('Before you switch this on', 'claudpress'); ?></strong></p>
+                                <p><?php esc_html_e('Claudpress lets an AI agent make real changes to this live site. It can write code, edit pages and products, change settings, install plugins, and touch your store. It can be wrong, and wrong changes can break pages, checkout, or the admin area.', 'claudpress'); ?></p>
+                                <p><?php esc_html_e('Your instructions, the content and code involved, and a short description of this site (WordPress and PHP versions, theme, active well-known plugins) are sent to the AI provider you choose, under that provider terms.', 'claudpress'); ?></p>
+                                <p><?php esc_html_e('You pay that provider directly for what you use. Claudpress cannot see or cap that spend — only your provider can. Set a spend limit on your provider account before you switch this on.', 'claudpress'); ?></p>
+                                <p><?php esc_html_e('There are real safeguards. Code is saved switched off, PHP is syntax-checked before it can go live, a snippet that crashes the site is switched back off automatically, recent changes can be undone, and every action is written to the Activity log. These are safeguards, not a guarantee.', 'claudpress'); ?></p>
+                                <p style="margin-bottom:0;"><?php esc_html_e('You stay responsible for reviewing what the agent does, for keeping the capability switches set to what you actually want, and for having a backup.', 'claudpress'); ?></p>
+                            </div>
                             <p>
                                 <label style="font-size:15px;">
                                     <input type="checkbox" name="abilities_enabled" value="1" <?php checked($enabled); ?>>
-                                    <strong><?php esc_html_e('Enable AI abilities', 'claudpress'); ?></strong> <?php esc_html_e('(master switch)', 'claudpress'); ?>
-                                </label>
+                                    <strong><?php esc_html_e('Turn on AI abilities', 'claudpress'); ?></strong>
+                                </label><br>
+                                <span style="color:#555;margin-left:24px;"><?php esc_html_e('I have read the points above and accept that AI-driven changes run on my site at my own risk.', 'claudpress'); ?></span>
                             </p>
-                            <p style="color:#a00;"><?php esc_html_e('While ON, a connected agent can modify everything. Keep this to dev/staging sites with backups.', 'claudpress'); ?></p>
+                            <?php
+                            // Show who accepted and when. If this is ever
+                            // disputed, the answer should be on the screen
+                            // rather than reconstructed from memory.
+                            $consent_at = (int) ($s['consent_at'] ?? 0);
+                            if ($enabled && $consent_at > 0) :
+                                $who = get_userdata((int) ($s['consent_by'] ?? 0));
+                                ?>
+                                <p style="color:#666;font-size:12px;">
+                                    <?php
+                                    echo esc_html(sprintf(
+                                        /* translators: 1: user login, 2: date and time. */
+                                        __('Accepted by %1$s on %2$s.', 'claudpress'),
+                                        $who ? $who->user_login : __('an unknown user', 'claudpress'),
+                                        date_i18n(get_option('date_format') . ' H:i', $consent_at)
+                                    ));
+                                    ?>
+                                </p>
+                            <?php endif; ?>
                             <hr>
                             <p><label><input type="checkbox" name="allow_app_passwords" value="1" <?php checked(!empty($s['allow_app_passwords'])); ?>> <?php esc_html_e('Allow Application Password (Basic) auth in addition to the bearer token', 'claudpress'); ?></label></p>
                             <p><label><input type="checkbox" name="require_https" value="1" <?php checked(!empty($s['require_https'])); ?>> <?php esc_html_e('Require HTTPS (recommended for remote sites)', 'claudpress'); ?></label></p>
                             <p><label><input type="checkbox" name="log_calls" value="1" <?php checked(!empty($s['log_calls'])); ?>> <?php esc_html_e('Log tool calls (Activity tab)', 'claudpress'); ?></label></p>
+                            <hr>
+                            <p style="margin-bottom:6px;"><strong><?php esc_html_e('Notifications', 'claudpress'); ?></strong></p>
+                            <?php
+                            // Preference and connectivity are two different
+                            // things. A disabled checkbox posts nothing, so the
+                            // stored choice must never be derived from this
+                            // form - otherwise losing a Telegram token would
+                            // silently erase the choice and reconnecting would
+                            // not bring it back. See Claudpress_Notifier.
+                            $availability = Claudpress_Notifier::availability();
+                            $chosen       = Claudpress_Notifier::chosen_channels();
+                            foreach (Claudpress_Notifier::labels() as $channel => $label) :
+                                $connected = !empty($availability[$channel]['connected']);
+                                ?>
+                                <p style="margin:4px 0;">
+                                    <label style="<?php echo $connected ? '' : 'color:#888;'; ?>">
+                                        <input type="checkbox" name="notify_channels[]" value="<?php echo esc_attr($channel); ?>"
+                                            <?php checked(in_array($channel, $chosen, true)); ?>
+                                            <?php disabled(!$connected); ?>>
+                                        <?php echo esc_html($label); ?>
+                                    </label>
+                                    <?php if (!$connected) : ?>
+                                        <span style="color:#a00;font-size:12px;">— <?php echo esc_html($availability[$channel]['reason']); ?></span>
+                                    <?php endif; ?>
+                                </p>
+                                <?php
+                            endforeach;
+
+                            if (empty(Claudpress_Notifier::effective_channels())) :
+                                ?>
+                                <p style="color:#a00;font-size:12px;margin-top:2px;">
+                                    <?php esc_html_e('Nothing is selected, so digests and alerts will not be sent anywhere.', 'claudpress'); ?>
+                                </p>
+                            <?php endif; ?>
+
+                            <hr>
+                            <p style="margin-bottom:6px;"><strong><?php esc_html_e('Updates and the public count', 'claudpress'); ?></strong></p>
+                            <p>
+                                <label>
+                                    <input type="checkbox" name="skip_checkin" value="1" <?php checked(!empty($s['skip_checkin'])); ?>>
+                                    <?php esc_html_e('Do not include this site in the public count', 'claudpress'); ?>
+                                </label><br>
+                                <span style="color:#666;font-size:12px;margin-left:24px;">
+                                    <?php esc_html_e('When Claudpress checks for a new version, it sends a random ID made on this site, the plugin version, and your WordPress and PHP versions. Nothing else — no site address, no email, no content, and the address it talks to does not keep your IP. That count is the only measure of how many people use this, and it decides what gets built next. Tick this and Claudpress checks GitHub directly instead: you still get every update, this site just is not counted.', 'claudpress'); ?>
+                                </span>
+                            </p>
+
+                            <hr>
+                            <p style="margin-bottom:6px;"><strong><?php esc_html_e('Uninstall', 'claudpress'); ?></strong></p>
+                            <p>
+                                <label>
+                                    <input type="checkbox" name="delete_data_on_uninstall" value="1" <?php checked(!empty($s['delete_data_on_uninstall'])); ?>>
+                                    <?php esc_html_e('Delete all Claudpress data when the plugin is deleted', 'claudpress'); ?>
+                                </label><br>
+                                <span style="color:#666;font-size:12px;margin-left:24px;">
+                                    <?php esc_html_e('Off by default: deleting the plugin leaves your snippets, memory, skills and history in the database, so reinstalling restores them. There is no undo once this is on.', 'claudpress'); ?>
+                                </span>
+                            </p>
                             <p>
                                 <label><?php esc_html_e('Filesystem base directory (tools are confined at/below this path):', 'claudpress'); ?><br>
                                 <input type="text" name="fs_base" value="<?php echo esc_attr($s['fs_base']); ?>" class="regular-text" style="width:100%;max-width:520px;"></label>
@@ -436,32 +1093,27 @@ final class Claudpress_Admin
                             </p>
                             <?php
                             $img_id = (string) ($s['image_provider'] ?? 'openai');
-                            /** @var class-string<Claudpress_Image_Provider> $img_p */
-                            $img_p  = Claudpress_Image_Provider::get($img_id);
                             ?>
-                            <p style="color:#666;margin-top:16px;"><strong><?php esc_html_e('AI image generation', 'claudpress'); ?></strong> — <?php esc_html_e('optional. Leave the key blank to use free Openverse stock images via image_search instead.', 'claudpress'); ?></p>
-                            <p>
-                                <label><?php esc_html_e('Image provider:', 'claudpress'); ?>
-                                    <select name="image_provider" style="max-width:320px;">
-                                        <?php foreach (Claudpress_Image_Provider::providers() as $pid => $cls) : ?>
-                                            <option value="<?php echo esc_attr($pid); ?>" <?php selected($img_id, $pid); ?>><?php echo esc_html($cls::label()); ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </label>
-                            </p>
-                            <p><label><?php esc_html_e('Image API key:', 'claudpress'); ?> <input type="password" name="image_api_key" value="<?php echo esc_attr($s['image_api_key'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off" placeholder="<?php echo esc_attr($img_p::key_hint()); ?>"></label></p>
-                            <p><label><?php esc_html_e('Image model:', 'claudpress'); ?> <input type="text" name="image_api_model" value="<?php echo esc_attr($s['image_api_model'] ?? ''); ?>" class="regular-text" style="max-width:280px;" placeholder="<?php echo esc_attr($img_p::default_model()); ?>"></label>
-                                <span style="color:#888;margin-left:8px;"><?php esc_html_e('Blank = ', 'claudpress'); ?><code><?php echo esc_html($img_p::default_model()); ?></code></span></p>
-                            <p><label><?php esc_html_e('Image endpoint override (optional):', 'claudpress'); ?> <input type="text" name="image_api_endpoint" value="<?php echo esc_attr($s['image_api_endpoint'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" placeholder="<?php echo esc_attr($img_p::default_endpoint()); ?>"></label></p>
+                            <p style="color:#666;margin-top:22px;"><strong><?php esc_html_e('AI image generation', 'claudpress'); ?></strong> — <?php esc_html_e('optional. Leave the key blank to use free Openverse stock images via image_search instead.', 'claudpress'); ?></p>
+                            <?php self::render_media_provider([
+                                'kind'           => 'image',
+                                'providers'      => Claudpress_Image_Provider::providers(),
+                                'current'        => $img_id,
+                                'provider_field' => 'image_provider',
+                                'key_field'      => 'image_api_key',
+                                'model_field'    => 'image_api_model',
+                                'endpoint_field' => 'image_api_endpoint',
+                                'provider_label' => __('Image provider', 'claudpress'),
+                                'key_label'      => __('Image API key', 'claudpress'),
+                                'model_label'    => __('Image model', 'claudpress'),
+                                'key_value'      => Claudpress_Secrets::mask((string) ($s['image_api_key'] ?? '')),
+                                'model_value'    => (string) ($s['image_api_model'] ?? ''),
+                                'endpoint_value' => (string) ($s['image_api_endpoint'] ?? ''),
+                            ]); ?>
 
-                            <?php self::render_model_guide(
-                                __('Which image model ID do I put in the Image model field?', 'claudpress'),
-                                Claudpress_Image_Provider::providers(),
-                                $img_id
-                            ); ?>
                             <p style="color:#666;margin-top:16px;"><strong><?php esc_html_e('Staging → production deploy', 'claudpress'); ?></strong> <?php esc_html_e('(optional — target for deploy_push: your live site\'s Claudpress endpoint)', 'claudpress'); ?></p>
                             <p><label><?php esc_html_e('Production site URL:', 'claudpress'); ?> <input type="text" name="deploy_target_url" value="<?php echo esc_attr($s['deploy_target_url'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" placeholder="https://your-live-site.com"></label></p>
-                            <p><label><?php esc_html_e('Production bearer token:', 'claudpress'); ?> <input type="password" name="deploy_target_token" value="<?php echo esc_attr($s['deploy_target_token'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off" placeholder="<?php esc_attr_e('cp_... (the live site\'s Claudpress token)', 'claudpress'); ?>"></label></p>
+                            <p><label><?php esc_html_e('Production bearer token:', 'claudpress'); ?> <input type="password" name="deploy_target_token" value="<?php echo esc_attr(Claudpress_Secrets::mask((string) ($s['deploy_target_token'] ?? ''))); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off" placeholder="<?php esc_attr_e('cp_... (the live site\'s Claudpress token)', 'claudpress'); ?>"></label></p>
                             <p><button class="button button-primary"><?php esc_html_e('Save settings', 'claudpress'); ?></button></p>
                         </form>
                     </div>
@@ -475,7 +1127,27 @@ final class Claudpress_Admin
                         <input readonly value="<?php echo esc_attr($endpoint); ?>" class="regular-text" style="width:100%;max-width:520px;font-family:monospace;" onclick="this.select()">
 
                         <p style="margin-top:16px;"><strong><?php esc_html_e('Bearer token', 'claudpress'); ?></strong> <?php esc_html_e('(keep secret — it grants full site access)', 'claudpress'); ?></p>
-                        <input readonly value="<?php echo esc_attr($token); ?>" class="regular-text" style="width:100%;max-width:520px;font-family:monospace;" onclick="this.select()">
+                        <?php if ($have_token) : ?>
+                            <div style="padding:10px 12px;border-left:4px solid #d63638;background:#fcf0f1;margin-bottom:8px;">
+                                <strong><?php esc_html_e('Copy this now, it is not shown again.', 'claudpress'); ?></strong><br>
+                                <span style="color:#555;"><?php esc_html_e('Claudpress stores only a hash of this token, so it cannot be displayed a second time. If you lose it, regenerate below.', 'claudpress'); ?></span>
+                            </div>
+                            <input readonly value="<?php echo esc_attr($token); ?>" class="regular-text" style="width:100%;max-width:520px;font-family:monospace;" onclick="this.select()">
+                        <?php else : ?>
+                            <input readonly value="••••••••••••" class="regular-text" style="width:100%;max-width:520px;font-family:monospace;color:#888;">
+                            <p style="color:#666;margin-top:4px;">
+                                <?php esc_html_e('Stored hashed and cannot be shown again. Regenerate below to get a new one; existing clients will need updating.', 'claudpress'); ?>
+                                <?php
+                                $last_used = (int) Claudpress::instance()->get('token_last_used', 0);
+                                if ($last_used > 0) {
+                                    /* translators: %s: human-readable time difference, e.g. 3 hours. */
+                                    echo '<br>' . esc_html(sprintf(__('Last used %s ago.', 'claudpress'), human_time_diff($last_used, time())));
+                                } else {
+                                    echo '<br>' . esc_html__('Never used yet.', 'claudpress');
+                                }
+                                ?>
+                            </p>
+                        <?php endif; ?>
                         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:8px;" onsubmit="return confirm('<?php echo esc_js(__('Regenerating the token will disconnect existing clients. Continue?', 'claudpress')); ?>');">
                             <?php wp_nonce_field('claudpress_save'); ?>
                             <input type="hidden" name="action" value="claudpress_save">
@@ -570,7 +1242,7 @@ final class Claudpress_Admin
         $has_key = !empty($s['agent_api_key']);
         ?>
         <div class="wrap">
-            <h1><?php esc_html_e('Claudpress · Automation', 'claudpress'); ?></h1>
+            <h1><?php esc_html_e('Claudpress · Automation', 'claudpress'); ?></h1><?php Claudpress_Donate::button(); ?>
             <p style="max-width:760px;"><?php esc_html_e('Let the site run itself. Digest tasks email you a status snapshot on a schedule. Autonomous tasks hand a plain-language instruction to the on-site AI agent, which does the work and reports back — no client open. Add a provider API key below to enable autonomy.', 'claudpress'); ?></p>
             <?php if (isset($_GET['saved'])) : ?><div class="notice notice-success is-dismissible"><p><?php esc_html_e('Saved.', 'claudpress'); ?></p></div><?php endif; ?>
             <?php if (isset($_GET['ran'])) : ?><div class="notice notice-success is-dismissible"><p><?php esc_html_e('Task ran. See its last summary below.', 'claudpress'); ?></p></div><?php endif; ?>
@@ -606,27 +1278,210 @@ final class Claudpress_Admin
                             ?>
                             <h3><?php esc_html_e('Agent brain', 'claudpress'); ?></h3>
                             <p style="color:#666;max-width:620px;">
-                                <?php esc_html_e('Bring your own key. Pick your provider, paste its key, and choose a model. Leave the model and endpoint blank to use the provider\'s recommended defaults.', 'claudpress'); ?>
+                                <?php esc_html_e('Bring your own key. Pick a provider, paste its key and choose a model — the fields below follow whichever provider is selected, with no save in between.', 'claudpress'); ?>
                             </p>
-                            <p>
-                                <label><?php esc_html_e('Provider:', 'claudpress'); ?>
-                                    <select name="agent_provider" style="max-width:280px;">
+                            <?php
+                            $provider_nonce = wp_create_nonce(self::PROVIDER_NONCE);
+                            $stored_model   = (string) ($s['agent_model'] ?? '');
+                            ?>
+                            <div id="claudpress-agent-brain">
+                                <p>
+                                    <label for="claudpress-agent-provider"><strong><?php esc_html_e('Provider', 'claudpress'); ?></strong></label>
+                                    <select name="agent_provider" id="claudpress-agent-provider" style="max-width:280px;">
                                         <?php foreach (Claudpress_Provider::providers() as $pid => $cls) : ?>
                                             <option value="<?php echo esc_attr($pid); ?>" <?php selected($agent_id, $pid); ?>><?php echo esc_html($cls::label()); ?></option>
                                         <?php endforeach; ?>
                                     </select>
-                                </label>
-                                <span style="color:#888;margin-left:8px;"><?php esc_html_e('Save after changing, then check the model guide below.', 'claudpress'); ?></span>
-                            </p>
-                            <p><label><?php esc_html_e('API key:', 'claudpress'); ?> <input type="password" name="agent_api_key" value="<?php echo esc_attr($s['agent_api_key'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off" placeholder="<?php echo esc_attr($agent_p::key_hint()); ?>"></label>
-                                <br><span style="color:#888;"><?php esc_html_e('Get a key:', 'claudpress'); ?> <a href="<?php echo esc_url($agent_p::key_url()); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html($agent_p::key_url()); ?></a></span></p>
-                            <p><label><?php esc_html_e('Model:', 'claudpress'); ?> <input type="text" name="agent_model" value="<?php echo esc_attr($s['agent_model'] ?? ''); ?>" class="regular-text" style="max-width:280px;" placeholder="<?php echo esc_attr($agent_p::default_model()); ?>"></label>
-                                <span style="color:#888;margin-left:8px;"><?php esc_html_e('Blank = ', 'claudpress'); ?><code><?php echo esc_html($agent_p::default_model()); ?></code></span></p>
-                            <p><label><?php esc_html_e('Endpoint override (optional):', 'claudpress'); ?> <input type="text" name="agent_api_endpoint" value="<?php echo esc_attr($s['agent_api_endpoint'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" placeholder="<?php echo esc_attr($agent_p::default_endpoint()); ?>"></label>
-                                <br><span style="color:#888;"><?php esc_html_e('Only needed for a gateway, proxy or self-hosted deployment (Azure, OpenRouter, Ollama…). Blank uses the provider default.', 'claudpress'); ?></span></p>
+                                </p>
+
+                                <?php foreach (Claudpress_Provider::providers() as $pid => $cls) :
+                                    // Only the selected provider's row carries the stored key, model
+                                    // and endpoint: those belong to it, and pre-filling another
+                                    // vendor's row with them is how a key ends up at the wrong host.
+                                    $is_current = ($pid === $agent_id);
+                                    $models     = Claudpress_Provider::cached_models($pid, $is_current ? $stored_model : '');
+                                    $chosen     = ($is_current && $stored_model !== '') ? $stored_model : $cls::default_model();
+                                    $has_list   = ($cls::models_list_url($cls::default_endpoint()) !== '');
+                                    ?>
+                                    <div class="claudpress-provider-row" data-provider="<?php echo esc_attr($pid); ?>" <?php echo $is_current ? '' : 'hidden'; ?>
+                                        style="border:1px solid #e2e4e7;border-radius:8px;padding:12px 14px;margin:0 0 12px;background:#fbfbfc;">
+                                        <?php
+                                        // Disabled fields post nothing. The form stores one key, one
+                                        // model and one endpoint, so without this the two rows nobody
+                                        // is looking at would submit alongside the one they filled in
+                                        // and whichever came last in the document would win. Rendered
+                                        // server-side rather than left to the script, so a page where
+                                        // the script never ran saves the right provider rather than
+                                        // silently wiping the key.
+                                        ?>
+                                        <fieldset class="claudpress-provider-fields" style="border:0;padding:0;margin:0;" <?php echo $is_current ? '' : 'disabled'; ?>>
+
+                                        <p style="margin-top:0;">
+                                            <label for="claudpress-key-<?php echo esc_attr($pid); ?>"><strong><?php esc_html_e('API key', 'claudpress'); ?></strong></label><br>
+                                            <input type="password" name="agent_api_key" id="claudpress-key-<?php echo esc_attr($pid); ?>"
+                                                class="regular-text claudpress-key-input" style="width:100%;max-width:520px;" autocomplete="off"
+                                                value="<?php echo $is_current ? esc_attr(Claudpress_Secrets::mask((string) ($s['agent_api_key'] ?? ''))) : ''; ?>"
+                                                placeholder="<?php echo esc_attr($cls::key_hint()); ?>">
+                                            <br><span style="color:#888;">
+                                                <?php if ($cls::key_url() !== '') : ?>
+                                                    <a href="<?php echo esc_url($cls::key_url()); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Get a key ↗', 'claudpress'); ?></a> &middot;
+                                                <?php endif; ?>
+                                                <?php esc_html_e('Stored on this site and sent only to the provider you select.', 'claudpress'); ?>
+                                            </span>
+                                        </p>
+
+                                        <p>
+                                            <label for="claudpress-model-<?php echo esc_attr($pid); ?>"><strong><?php esc_html_e('Model', 'claudpress'); ?></strong></label><br>
+                                            <?php if ($has_list) : ?>
+                                                <select name="agent_model" id="claudpress-model-<?php echo esc_attr($pid); ?>" class="claudpress-model-select" style="max-width:320px;">
+                                                    <?php foreach ($models as $mid) : ?>
+                                                        <option value="<?php echo esc_attr($mid); ?>" <?php selected($chosen, $mid); ?>><?php echo esc_html($mid); ?></option>
+                                                    <?php endforeach; ?>
+                                                    <option value="<?php echo esc_attr(self::MODEL_CUSTOM); ?>"><?php esc_html_e('Type a custom model…', 'claudpress'); ?></option>
+                                                </select>
+                                                <input type="text" name="agent_model_custom" class="regular-text claudpress-model-custom" style="max-width:280px;"
+                                                    placeholder="<?php echo esc_attr($cls::default_model()); ?>" hidden>
+                                                <button type="button" class="button claudpress-provider-action"
+                                                    data-action="claudpress_fetch_models" data-busy="<?php esc_attr_e('Refreshing…', 'claudpress'); ?>"><?php esc_html_e('Refresh models', 'claudpress'); ?></button>
+                                            <?php else : ?>
+                                                <?php // No catalogue to offer, so the sentinel is fixed and the box is the field. ?>
+                                                <input type="hidden" name="agent_model" value="<?php echo esc_attr(self::MODEL_CUSTOM); ?>">
+                                                <input type="text" name="agent_model_custom" class="regular-text claudpress-model-custom" style="max-width:280px;"
+                                                    value="<?php echo $is_current ? esc_attr($stored_model) : ''; ?>" placeholder="<?php echo esc_attr($cls::default_model()); ?>">
+                                                <br><span style="color:#888;"><?php esc_html_e('This provider does not publish a model list — type the model name your service uses.', 'claudpress'); ?></span><br>
+                                            <?php endif; ?>
+                                            <button type="button" class="button claudpress-provider-action"
+                                                data-action="claudpress_test_connection" data-busy="<?php esc_attr_e('Testing…', 'claudpress'); ?>"><?php esc_html_e('Test connection', 'claudpress'); ?></button>
+                                            <span class="claudpress-provider-status" role="status" style="margin-left:8px;"></span>
+                                        </p>
+
+                                        <details>
+                                            <summary style="cursor:pointer;"><?php esc_html_e('Advanced', 'claudpress'); ?></summary>
+                                            <p style="margin:8px 0 0;">
+                                                <label for="claudpress-endpoint-<?php echo esc_attr($pid); ?>"><?php esc_html_e('Custom endpoint', 'claudpress'); ?></label><br>
+                                                <input type="text" name="agent_api_endpoint" id="claudpress-endpoint-<?php echo esc_attr($pid); ?>"
+                                                    class="regular-text claudpress-endpoint-input" style="width:100%;max-width:520px;"
+                                                    value="<?php echo $is_current ? esc_attr((string) ($s['agent_api_endpoint'] ?? '')) : ''; ?>"
+                                                    placeholder="<?php echo esc_attr($cls::default_endpoint()); ?>">
+                                                <br><span style="color:#888;">
+                                                    <?php esc_html_e('Pointing this at a gateway, proxy or self-hosted deployment sends your site\'s data to that host, under that host\'s terms rather than the vendor\'s. Blank uses the provider default.', 'claudpress'); ?>
+                                                </span>
+                                            </p>
+                                        </details>
+                                        </fieldset>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <script>
+                            (function () {
+                                var root = document.getElementById('claudpress-agent-brain');
+                                if (!root) { return; }
+
+                                var picker = document.getElementById('claudpress-agent-provider');
+                                var rows   = root.querySelectorAll('.claudpress-provider-row');
+                                var ajax   = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
+                                var nonce  = <?php echo wp_json_encode($provider_nonce); ?>;
+                                var CUSTOM = <?php echo wp_json_encode(self::MODEL_CUSTOM); ?>;
+                                var CUSTOM_LABEL = <?php echo wp_json_encode(__('Type a custom model…', 'claudpress')); ?>;
+                                var FAILED = <?php echo wp_json_encode(__('That did not go through. Check the browser console for details.', 'claudpress')); ?>;
+
+                                function each(list, fn) { Array.prototype.forEach.call(list, fn); }
+
+                                function toggleCustom(row) {
+                                    var sel = row.querySelector('.claudpress-model-select');
+                                    var box = row.querySelector('.claudpress-model-custom');
+                                    if (sel && box) { box.hidden = (sel.value !== CUSTOM); }
+                                }
+
+                                function show(id) {
+                                    each(rows, function (row) {
+                                        var on = (row.getAttribute('data-provider') === id);
+                                        row.hidden = !on;
+                                        // One flag for the whole row: a disabled fieldset takes its
+                                        // fields out of the form, which is what keeps the rows nobody
+                                        // is looking at from overwriting the one they filled in.
+                                        var fields = row.querySelector('.claudpress-provider-fields');
+                                        if (fields) { fields.disabled = !on; }
+                                        toggleCustom(row);
+                                    });
+                                }
+
+                                function fill(sel, models) {
+                                    var keep = sel.value;
+                                    sel.innerHTML = '';
+                                    models.forEach(function (id) { sel.appendChild(new Option(id, id, false, id === keep)); });
+                                    sel.appendChild(new Option(CUSTOM_LABEL, CUSTOM, false, keep === CUSTOM));
+                                    if (!sel.value) { sel.selectedIndex = 0; }
+                                }
+
+                                function modelOf(row) {
+                                    var sel = row.querySelector('.claudpress-model-select');
+                                    var box = row.querySelector('.claudpress-model-custom');
+                                    if (sel && sel.value !== CUSTOM) { return sel.value; }
+                                    return box ? box.value : '';
+                                }
+
+                                function valueOf(row, selector) {
+                                    var el = row.querySelector(selector);
+                                    return el ? el.value : '';
+                                }
+
+                                root.addEventListener('change', function (e) {
+                                    if (e.target === picker) { show(picker.value); return; }
+                                    if (e.target.classList.contains('claudpress-model-select')) {
+                                        var row = e.target.closest('.claudpress-provider-row');
+                                        toggleCustom(row);
+                                        if (e.target.value === CUSTOM) { row.querySelector('.claudpress-model-custom').focus(); }
+                                    }
+                                });
+
+                                root.addEventListener('click', function (e) {
+                                    var btn = e.target.closest('.claudpress-provider-action');
+                                    if (!btn) { return; }
+                                    e.preventDefault();
+
+                                    var row    = btn.closest('.claudpress-provider-row');
+                                    var status = row.querySelector('.claudpress-provider-status');
+                                    var sel    = row.querySelector('.claudpress-model-select');
+                                    var body   = new URLSearchParams();
+                                    body.set('action', btn.getAttribute('data-action'));
+                                    body.set('nonce', nonce);
+                                    body.set('provider', row.getAttribute('data-provider'));
+                                    body.set('api_key', valueOf(row, '.claudpress-key-input'));
+                                    body.set('model', modelOf(row));
+                                    body.set('endpoint', valueOf(row, '.claudpress-endpoint-input'));
+
+                                    status.style.color = '#666';
+                                    status.textContent = btn.getAttribute('data-busy');
+                                    btn.disabled = true;
+
+                                    fetch(ajax, {
+                                        method: 'POST',
+                                        credentials: 'same-origin',
+                                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                        body: body.toString()
+                                    }).then(function (r) {
+                                        return r.json();
+                                    }).then(function (json) {
+                                        var ok  = !!(json && json.success);
+                                        var msg = (json && json.data && json.data.message) ? json.data.message : FAILED;
+                                        status.style.color = ok ? '#16a34a' : '#b91c1c';
+                                        status.textContent = msg;
+                                        if (ok && sel && json.data.models) { fill(sel, json.data.models); }
+                                    })['catch'](function () {
+                                        status.style.color = '#b91c1c';
+                                        status.textContent = FAILED;
+                                    })['finally'](function () {
+                                        btn.disabled = false;
+                                    });
+                                });
+
+                                show(picker.value);
+                            })();
+                            </script>
 
                             <?php self::render_model_guide(
-                                __('Which model ID do I put in the Model field?', 'claudpress'),
+                                __('What is each model good for?', 'claudpress'),
                                 Claudpress_Provider::providers(),
                                 $agent_id
                             ); ?>
@@ -663,7 +1518,7 @@ final class Claudpress_Admin
                             <h3><?php esc_html_e('Notifications', 'claudpress'); ?></h3>
                             <p><label><?php esc_html_e('Email(s), comma-separated (blank = admin email):', 'claudpress'); ?> <input type="text" name="notify_email" value="<?php echo esc_attr($s['notify_email'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;"></label></p>
                             <p><label><?php esc_html_e('Webhook URL (Slack/generic, optional):', 'claudpress'); ?> <input type="text" name="notify_webhook_url" value="<?php echo esc_attr($s['notify_webhook_url'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;"></label></p>
-                            <p><label><?php esc_html_e('Telegram bot token:', 'claudpress'); ?> <input type="text" name="notify_telegram_token" value="<?php echo esc_attr($s['notify_telegram_token'] ?? ''); ?>" class="regular-text" style="max-width:340px;"></label>
+                            <p><label><?php esc_html_e('Telegram bot token:', 'claudpress'); ?> <input type="text" name="notify_telegram_token" value="<?php echo esc_attr(Claudpress_Secrets::mask((string) ($s['notify_telegram_token'] ?? ''))); ?>" class="regular-text" style="max-width:340px;"></label>
                                <label style="margin-left:8px;"><?php esc_html_e('chat id:', 'claudpress'); ?> <input type="text" name="notify_telegram_chat" value="<?php echo esc_attr($s['notify_telegram_chat'] ?? ''); ?>" style="max-width:160px;"></label></p>
 
                             <h3><?php esc_html_e('Guardrails (policy)', 'claudpress'); ?></h3>
@@ -997,8 +1852,6 @@ final class Claudpress_Admin
 
                 <?php
                 $voice_id = (string) ($s['voice_provider'] ?? 'openai');
-                /** @var class-string<Claudpress_Transcribe_Provider> $voice_p */
-                $voice_p   = Claudpress_Transcribe_Provider::get($voice_id);
                 $voice_key = Claudpress_Transcribe_Provider::key();
                 ?>
                 <p>
@@ -1015,38 +1868,27 @@ final class Claudpress_Admin
                 <p style="color:#666;max-width:620px;">
                     <?php esc_html_e('Transcription is a separate service from the agent brain: Anthropic has no speech-to-text API, so voice needs an OpenAI or Google key even if Claude is doing the thinking. Leave the key blank to reuse a key you already entered for the same vendor.', 'claudpress'); ?>
                 </p>
-                <p>
-                    <label><?php esc_html_e('Transcription provider:', 'claudpress'); ?>
-                        <select name="voice_provider" style="max-width:320px;">
-                            <?php foreach (Claudpress_Transcribe_Provider::providers() as $vid => $vcls) : ?>
-                                <option value="<?php echo esc_attr($vid); ?>" <?php selected($voice_id, $vid); ?>><?php echo esc_html($vcls::label()); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </label>
-                </p>
-                <p>
-                    <label><?php esc_html_e('Transcription API key:', 'claudpress'); ?>
-                    <input type="password" name="voice_api_key" value="<?php echo esc_attr($s['voice_api_key'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off"></label>
-                    <br><span style="color:#888;">
-                        <?php
-                        if ($voice_key !== '' && trim((string) ($s['voice_api_key'] ?? '')) === '') {
-                            esc_html_e('Blank — currently reusing another key you configured for this vendor.', 'claudpress');
-                        } else {
-                            esc_html_e('Get a key:', 'claudpress');
-                            echo ' <a href="' . esc_url($voice_p::key_url()) . '" target="_blank" rel="noopener noreferrer">' . esc_html($voice_p::key_url()) . '</a>';
-                        }
-                        ?>
-                    </span>
-                </p>
-                <p>
-                    <label><?php esc_html_e('Transcription model:', 'claudpress'); ?>
-                    <input type="text" name="voice_model" value="<?php echo esc_attr($s['voice_model'] ?? ''); ?>" class="regular-text" style="max-width:280px;" placeholder="<?php echo esc_attr($voice_p::default_model()); ?>"></label>
-                    <span style="color:#888;margin-left:8px;"><?php esc_html_e('Blank = ', 'claudpress'); ?><code><?php echo esc_html($voice_p::default_model()); ?></code></span>
-                </p>
-                <p>
-                    <label><?php esc_html_e('Transcription endpoint override (optional):', 'claudpress'); ?>
-                    <input type="text" name="voice_api_endpoint" value="<?php echo esc_attr($s['voice_api_endpoint'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" placeholder="<?php echo esc_attr($voice_p::default_endpoint()); ?>"></label>
-                </p>
+                <?php self::render_media_provider([
+                    'kind'           => 'voice',
+                    'providers'      => Claudpress_Transcribe_Provider::providers(),
+                    'current'        => $voice_id,
+                    'provider_field' => 'voice_provider',
+                    'key_field'      => 'voice_api_key',
+                    'model_field'    => 'voice_model',
+                    'endpoint_field' => 'voice_api_endpoint',
+                    'provider_label' => __('Transcription provider', 'claudpress'),
+                    'key_label'      => __('Transcription API key', 'claudpress'),
+                    'model_label'    => __('Transcription model', 'claudpress'),
+                    'key_value'      => Claudpress_Secrets::mask((string) ($s['voice_api_key'] ?? '')),
+                    'model_value'    => (string) ($s['voice_model'] ?? ''),
+                    'endpoint_value' => (string) ($s['voice_api_endpoint'] ?? ''),
+                    // Only true when the box really is empty and a same-vendor
+                    // key is filling in for it. Saying so beats an empty field
+                    // that looks broken but works.
+                    'current_key_note' => ($voice_key !== '' && trim((string) ($s['voice_api_key'] ?? '')) === '')
+                        ? __('Blank — currently reusing another key you entered for this same vendor.', 'claudpress')
+                        : '',
+                ]); ?>
 
                 <p><button class="button button-primary"><?php esc_html_e('Save chat settings', 'claudpress'); ?></button></p>
             </form>
@@ -1201,7 +2043,7 @@ final class Claudpress_Admin
         $h = 'margin:28px 0 10px;';
         ?>
         <div class="wrap" style="max-width:1000px;">
-            <h1><?php esc_html_e('Claudpress — Master Guide', 'claudpress'); ?></h1>
+            <h1><?php esc_html_e('Claudpress — Master Guide', 'claudpress'); ?></h1><?php Claudpress_Donate::button(); ?>
             <p style="font-size:15px;max-width:800px;"><?php esc_html_e('Everything this plugin lets your AI do, in plain English. Read this once and you\'ll know what to turn on, what to leave off, and how to get the best out of it — no coding required.', 'claudpress'); ?></p>
 
             <div class="notice notice-warning" style="max-width:800px;"><p><strong><?php esc_html_e('Golden rule:', 'claudpress'); ?></strong> <?php esc_html_e('use this on a development or staging site with backups. When AI abilities are ON, a connected agent can change anything. Don\'t point it at a live store you can\'t afford to have edited without review.', 'claudpress'); ?></p></div>
@@ -1215,7 +2057,7 @@ final class Claudpress_Admin
                 printf(
                     /* translators: %s: link to the Snippets page */
                     esc_html__('When your AI writes code onto this site, every piece of it is listed on the %s page — what it is, why it was written, what it changes, and a switch to turn it off. That page is the first place to look if the site starts behaving oddly.', 'claudpress'),
-                    '<a href="' . esc_url(admin_url('admin.php?page=claudpress-snippets')) . '">' . esc_html__('Snippets', 'claudpress') . '</a>'
+                    esc_html__('Snippets', 'claudpress')
                 );
                 ?>
             </p>
@@ -1348,13 +2190,78 @@ final class Claudpress_Admin
         <?php
     }
 
+    /**
+     * The Activity screen: memory, snippet history, tool calls.
+     *
+     * Everything here is free on both tiers. A free site has no Snippets Studio,
+     * but it must still be able to see what the agent did to it — that is the
+     * condition for trusting the plugin at all, not a feature to sell back.
+     *
+     * Three tables, ten rows each, and each one pages on its own query arg so
+     * stepping through the tool log does not throw the reader back to page one
+     * of memory. Before this, the page rendered every memory row and 100 log
+     * rows in one go, which on a site with real history is a wall nobody reads.
+     */
     public function render_activity(): void
     {
-        $log = Claudpress::instance()->logger->recent(100);
+        $per = 10;
+
+        $mem_page  = max(1, (int) ($_GET['mem_page'] ?? 0));
+        $snip_page = max(1, (int) ($_GET['snip_page'] ?? 0));
+        $log_page  = max(1, (int) ($_GET['log_page'] ?? 0));
+
+        $memory = Claudpress::instance()->memory;
+        $logger = Claudpress::instance()->logger;
+
+        $mem_total  = (int) $memory->count_all();
+        $snip_total = Claudpress_Snippet_Log::count_all();
+        $log_total  = (int) $logger->count_all();
+
+        $mem_rows  = $memory->paged($per, ($mem_page - 1) * $per);
+        $snip_rows = Claudpress_Snippet_Log::recent($per, ($snip_page - 1) * $per);
+        $log_rows  = $logger->recent($per, ($log_page - 1) * $per);
+
+        // Each section's links carry the other two sections' current pages, so
+        // following one never silently resets a table the reader was not
+        // touching. That is the whole point of three separate query args.
+        $pager = static function (string $arg, int $total, int $current) use ($per, $mem_page, $snip_page, $log_page): void {
+            if ($total <= $per) {
+                return;
+            }
+            $args       = [
+                'page'      => 'claudpress-activity',
+                'mem_page'  => $mem_page,
+                'snip_page' => $snip_page,
+                'log_page'  => $log_page,
+            ];
+            $args[$arg] = '%#%';
+
+            $links = paginate_links([
+                'base'      => add_query_arg($args, admin_url('admin.php')),
+                'format'    => '',
+                'current'   => $current,
+                'total'     => (int) ceil($total / $per),
+                'prev_text' => '&laquo;',
+                'next_text' => '&raquo;',
+            ]);
+            if (!$links) {
+                return;
+            }
+            echo '<div class="tablenav"><div class="tablenav-pages">';
+            echo '<span class="displaying-num">' . esc_html(sprintf(
+                /* translators: %s: number of rows in this section. */
+                _n('%s entry', '%s entries', $total, 'claudpress'),
+                number_format_i18n($total)
+            )) . '</span> ';
+            echo wp_kses_post((string) $links);
+            echo '</div></div>';
+        };
         ?>
         <div class="wrap">
-            <h1><?php esc_html_e('Claudpress · Activity', 'claudpress'); ?></h1>
+            <h1><?php esc_html_e('Claudpress · Activity', 'claudpress'); ?></h1><?php Claudpress_Donate::button(); ?>
+
             <h2><?php esc_html_e('Memory', 'claudpress'); ?></h2>
+            <p class="description"><?php esc_html_e('What the agent has been told to remember about this site. Kept in full — it is never trimmed automatically.', 'claudpress'); ?></p>
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" onsubmit="return confirm('<?php echo esc_js(__('Wipe all memory?', 'claudpress')); ?>');" style="margin-bottom:8px;">
                 <?php wp_nonce_field('claudpress_save'); ?>
                 <input type="hidden" name="action" value="claudpress_save">
@@ -1367,11 +2274,34 @@ final class Claudpress_Admin
                 <th><?php esc_html_e('Value', 'claudpress'); ?></th>
                 <th><?php esc_html_e('Updated', 'claudpress'); ?></th>
             </tr></thead><tbody>
-                <?php foreach (Claudpress::instance()->memory->all() as $m) : ?>
-                    <tr><td><code><?php echo esc_html($m['key']); ?></code></td><td><?php echo esc_html($m['category']); ?></td><td><?php echo esc_html(wp_trim_words($m['value'], 30)); ?></td><td><?php echo esc_html($m['updated_at']); ?></td></tr>
+                <?php foreach ($mem_rows as $m) : ?>
+                    <tr><td><code><?php echo esc_html((string) $m['key']); ?></code></td><td><?php echo esc_html((string) $m['category']); ?></td><td><?php echo esc_html(wp_trim_words((string) $m['value'], 30)); ?></td><td><?php echo esc_html((string) $m['updated_at']); ?></td></tr>
                 <?php endforeach; ?>
-                <?php if (empty(Claudpress::instance()->memory->all())) : ?><tr><td colspan="4"><em><?php esc_html_e('No memory yet.', 'claudpress'); ?></em></td></tr><?php endif; ?>
+                <?php if (empty($mem_rows)) : ?><tr><td colspan="4"><em><?php esc_html_e('No memory yet.', 'claudpress'); ?></em></td></tr><?php endif; ?>
             </tbody></table>
+            <?php $pager('mem_page', $mem_total, $mem_page); ?>
+
+            <h2 style="margin-top:32px;"><?php esc_html_e('Snippet activity', 'claudpress'); ?></h2>
+            <p class="description"><?php esc_html_e('Every change to the live code running on this site, and whether you or the agent made it.', 'claudpress'); ?></p>
+            <table class="widefat striped"><thead><tr>
+                <th><?php esc_html_e('When', 'claudpress'); ?></th>
+                <th><?php esc_html_e('Snippet', 'claudpress'); ?></th>
+                <th><?php esc_html_e('Event', 'claudpress'); ?></th>
+                <th><?php esc_html_e('By', 'claudpress'); ?></th>
+                <th><?php esc_html_e('Detail', 'claudpress'); ?></th>
+            </tr></thead><tbody>
+                <?php foreach ($snip_rows as $s) : ?>
+                    <tr>
+                        <td><?php echo esc_html((string) $s['created_at']); ?></td>
+                        <td><?php echo esc_html((string) $s['snippet_name']); ?><?php if (!empty($s['snippet_uid'])) : ?><br><code style="font-size:11px;"><?php echo esc_html((string) $s['snippet_uid']); ?></code><?php endif; ?></td>
+                        <td><?php echo esc_html(Claudpress_Snippet_Log::label((string) $s['event'])); ?></td>
+                        <td><?php echo esc_html(($s['actor'] ?? '') === 'agent' ? __('Agent', 'claudpress') : __('You', 'claudpress')); ?></td>
+                        <td style="max-width:360px;"><?php echo esc_html(wp_trim_words((string) ($s['detail'] ?? ''), 25)); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (empty($snip_rows)) : ?><tr><td colspan="5"><em><?php esc_html_e('No snippet changes recorded yet.', 'claudpress'); ?></em></td></tr><?php endif; ?>
+            </tbody></table>
+            <?php $pager('snip_page', $snip_total, $snip_page); ?>
 
             <h2 style="margin-top:32px;"><?php esc_html_e('Recent tool calls', 'claudpress'); ?></h2>
             <table class="widefat striped"><thead><tr>
@@ -1381,18 +2311,129 @@ final class Claudpress_Admin
                 <th><?php esc_html_e('Args', 'claudpress'); ?></th>
                 <th><?php esc_html_e('Note', 'claudpress'); ?></th>
             </tr></thead><tbody>
-                <?php foreach ($log as $row) : ?>
+                <?php foreach ($log_rows as $row) : ?>
                     <tr>
-                        <td><?php echo esc_html($row['created_at']); ?></td>
-                        <td><code><?php echo esc_html($row['tool']); ?></code></td>
+                        <td><?php echo esc_html((string) $row['created_at']); ?></td>
+                        <td><code><?php echo esc_html((string) $row['tool']); ?></code></td>
                         <td><?php echo $row['ok'] ? '✓' : '✗'; ?></td>
                         <td style="max-width:360px;overflow:hidden;"><code style="font-size:11px;"><?php echo esc_html(wp_trim_words((string) $row['args_json'], 30)); ?></code></td>
-                        <td><?php echo esc_html($row['summary']); ?></td>
+                        <td><?php echo esc_html((string) $row['summary']); ?></td>
                     </tr>
                 <?php endforeach; ?>
-                <?php if (empty($log)) : ?><tr><td colspan="5"><em><?php esc_html_e('No activity logged yet.', 'claudpress'); ?></em></td></tr><?php endif; ?>
+                <?php if (empty($log_rows)) : ?><tr><td colspan="5"><em><?php esc_html_e('No activity logged yet.', 'claudpress'); ?></em></td></tr><?php endif; ?>
             </tbody></table>
+            <?php $pager('log_page', $log_total, $log_page); ?>
         </div>
         <?php
+    }
+
+    /**
+     * Read a credential field from $_POST, honouring the mask.
+     *
+     * The form renders a mask rather than the stored key, so an unchanged form
+     * posts that mask straight back. Writing it blindly would replace every
+     * saved credential with a row of dots the first time anyone saved an
+     * unrelated setting on the same screen - which is exactly the sort of
+     * silent, delayed breakage that is miserable to diagnose.
+     *
+     * So: a posted mask means 'leave it alone', an empty string means 'clear it',
+     * and anything else is a genuinely new key.
+     */
+    private static function secret_from_post(string $field): string
+    {
+        $posted = sanitize_text_field(wp_unslash($_POST[$field] ?? ''));
+
+        if (Claudpress_Secrets::is_mask($posted)) {
+            return (string) Claudpress::instance()->get($field, '');
+        }
+        return $posted;
+    }
+
+    /**
+     * Work out the consent fields for a settings save.
+     *
+     * Turning abilities ON records a fresh acceptance. Turning them OFF leaves
+     * the record alone - it is a historical fact, not a current state, and
+     * wiping it would destroy the only evidence that it ever happened.
+     *
+     * CONSENT_VERSION is bumped in code when what the owner is agreeing to
+     * materially changes: a new provider host, a materially wider capability
+     * set. A stored version older than the current one means the site re-asks.
+     *
+     * @return array{abilities_enabled:bool, consent_by:int, consent_at:int, consent_version:int}
+     */
+    private static function consent_from_post(): array
+    {
+        $s       = Claudpress::instance()->settings();
+        $ticked  = !empty($_POST['abilities_enabled']);
+        $was_on  = !empty($s['abilities_enabled']);
+        $current = (int) ($s['consent_version'] ?? 0);
+
+        if ($ticked && (!$was_on || $current < self::CONSENT_VERSION)) {
+            return [
+                'abilities_enabled' => true,
+                'consent_by'        => get_current_user_id(),
+                'consent_at'        => time(),
+                'consent_version'   => self::CONSENT_VERSION,
+            ];
+        }
+
+        return [
+            'abilities_enabled' => $ticked,
+            'consent_by'        => (int) ($s['consent_by'] ?? 0),
+            'consent_at'        => (int) ($s['consent_at'] ?? 0),
+            'consent_version'   => $current,
+        ];
+    }
+
+    /**
+     * True when the owner has not accepted the CURRENT terms.
+     *
+     * Used to re-show the consent block prominently after an upgrade that
+     * widened what the agent may do.
+     */
+    public static function consent_is_stale(): bool
+    {
+        $s = Claudpress::instance()->settings();
+        if (empty($s['abilities_enabled'])) {
+            return false;
+        }
+        return (int) ($s['consent_version'] ?? 0) < self::CONSENT_VERSION;
+    }
+
+    /**
+     * Merge posted notification channels over the stored preference.
+     *
+     * The naive version of this is a straight read of $_POST, and it is wrong
+     * in a way that only shows up later. A DISABLED checkbox submits nothing.
+     * So a channel whose credentials are missing - the very reason its box is
+     * disabled - would be absent from the post, get treated as "unticked", and
+     * be quietly dropped from the preference. Reconnecting Telegram would then
+     * NOT resume the digests, and nothing on screen would explain why.
+     *
+     * So the posted value is only trusted for channels the owner could actually
+     * have touched. For the rest, the stored preference is carried through
+     * untouched.
+     *
+     * @return string[]
+     */
+    private static function channels_from_post(): array
+    {
+        $posted    = array_map('sanitize_key', (array) ($_POST['notify_channels'] ?? []));
+        $stored    = Claudpress_Notifier::chosen_channels();
+        $available = Claudpress_Notifier::availability();
+        $out       = [];
+
+        foreach (Claudpress_Notifier::CHANNELS as $channel) {
+            $editable = !empty($available[$channel]['connected']);
+            $keep     = $editable
+                ? in_array($channel, $posted, true)
+                : in_array($channel, $stored, true);
+
+            if ($keep) {
+                $out[] = $channel;
+            }
+        }
+        return $out;
     }
 }

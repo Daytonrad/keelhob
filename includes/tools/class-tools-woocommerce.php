@@ -46,22 +46,6 @@ final class Claudpress_Tools_WooCommerce
             'required' => ['action'],
         ], [self::class, 'wc_product'], ['destructiveHint' => true]);
 
-        $r->add('wc_order', 'Manage WooCommerce orders. Actions: list, get, update_status, add_note, refund, create. Filter list by status, customer, and date. update_status moves an order (e.g. processing → completed).', [
-            'type' => 'object',
-            'properties' => [
-                'action'      => ['type' => 'string', 'enum' => ['list', 'get', 'update_status', 'add_note', 'refund', 'create'], 'default' => 'list'],
-                'id'          => ['type' => 'integer'],
-                'status'      => ['type' => 'string', 'description' => 'For list: filter. For update_status: new status (pending, processing, on-hold, completed, cancelled, refunded, failed).'],
-                'note'        => ['type' => 'string'],
-                'note_to_customer' => ['type' => 'boolean', 'default' => false],
-                'amount'      => ['type' => 'string', 'description' => 'Refund amount.'],
-                'customer_id' => ['type' => 'integer'],
-                'line_items'  => ['type' => 'array', 'description' => 'For create: [{product_id, quantity}].'],
-                'per_page'    => ['type' => 'integer', 'default' => 20],
-                'page'        => ['type' => 'integer', 'default' => 1],
-            ],
-            'required' => ['action'],
-        ], [self::class, 'wc_order'], ['destructiveHint' => true]);
 
         $r->add('wc_coupon', 'Manage WooCommerce coupons. Actions: list, get, create, update, delete. Supports code, discount_type (percent, fixed_cart, fixed_product), amount, expiry, usage limits, minimum/maximum spend, and product/category restrictions.', [
             'type' => 'object',
@@ -79,14 +63,6 @@ final class Claudpress_Tools_WooCommerce
             'required' => ['action'],
         ], [self::class, 'wc_coupon'], ['destructiveHint' => true]);
 
-        $r->add('wc_report', 'WooCommerce sales analytics. Returns revenue, order counts, average order value, and top sellers for a date range (default last 30 days). Use this to understand how the shop is performing.', [
-            'type' => 'object',
-            'properties' => [
-                'date_from' => ['type' => 'string', 'description' => 'Y-m-d (default 30 days ago).'],
-                'date_to'   => ['type' => 'string', 'description' => 'Y-m-d (default today).'],
-                'top_limit' => ['type' => 'integer', 'default' => 10],
-            ],
-        ], [self::class, 'wc_report'], ['readOnlyHint' => true]);
 
         $r->add('wc_settings', 'Get or update core WooCommerce store settings: currency, country/base location, selling locations, measurement units, tax and shipping toggles, and enabled payment gateways. Actions: get, update.', [
             'type' => 'object',
@@ -96,6 +72,41 @@ final class Claudpress_Tools_WooCommerce
             ],
             'required' => ['action'],
         ], [self::class, 'wc_settings'], ['destructiveHint' => true]);
+
+        // The free class carried this guard and the carve left it behind, so
+        // for a while wc_order and wc_report registered on sites with no
+        // WooCommerce at all - tools an agent could see, call, and get an error
+        // from, for a store that does not exist. Caught by running the add-on
+        // against a real WordPress without WooCommerce installed.
+        if (!class_exists('WooCommerce')) {
+            return;
+        }
+
+        $r->add('wc_order', 'Manage WooCommerce orders. Actions: list, get, update_status, add_note, refund, create. Filter list by status, customer, and date. update_status moves an order (e.g. processing → completed).', [
+            'type' => 'object',
+            'properties' => [
+                'action'      => ['type' => 'string', 'enum' => ['list', 'get', 'update_status', 'add_note', 'refund', 'create'], 'default' => 'list'],
+                'id'          => ['type' => 'integer'],
+                'status'      => ['type' => 'string', 'description' => 'For list: filter. For update_status: new status (pending, processing, on-hold, completed, cancelled, refunded, failed).'],
+                'note'        => ['type' => 'string'],
+                'note_to_customer' => ['type' => 'boolean', 'default' => false],
+                'amount'      => ['type' => 'string', 'description' => 'Refund amount.'],
+                'customer_id' => ['type' => 'integer'],
+                'line_items'  => ['type' => 'array', 'description' => 'For create: [{product_id, quantity}].'],
+                'per_page'    => ['type' => 'integer', 'default' => 20],
+                'page'        => ['type' => 'integer', 'default' => 1],
+            ],
+            'required' => ['action'],
+        ], [self::class, 'wc_order'], ['destructiveHint' => true]);
+
+        $r->add('wc_report', 'WooCommerce sales analytics. Returns revenue, order counts, average order value, and top sellers for a date range (default last 30 days). Use this to understand how the shop is performing.', [
+            'type' => 'object',
+            'properties' => [
+                'date_from' => ['type' => 'string', 'description' => 'Y-m-d (default 30 days ago).'],
+                'date_to'   => ['type' => 'string', 'description' => 'Y-m-d (default today).'],
+                'top_limit' => ['type' => 'integer', 'default' => 10],
+            ],
+        ], [self::class, 'wc_report'], ['readOnlyHint' => true]);
     }
 
     // ---- products ---------------------------------------------------------
@@ -288,6 +299,97 @@ final class Claudpress_Tools_WooCommerce
 
     // ---- orders -----------------------------------------------------------
 
+
+
+    // ---- coupons ----------------------------------------------------------
+
+    public static function wc_coupon(array $args): array
+    {
+        $action = $args['action'] ?? 'list';
+
+        switch ($action) {
+            case 'delete':
+                $c = new WC_Coupon((int) ($args['id'] ?? 0));
+                if (!$c->get_id()) {
+                    return ['success' => false, 'error' => 'Coupon not found.'];
+                }
+                $c->delete(true);
+                return ['success' => true, 'id' => (int) $args['id']];
+
+            case 'get':
+                $c = new WC_Coupon($args['id'] ?? $args['code'] ?? 0);
+                return $c->get_id() ? ['success' => true, 'coupon' => ['id' => $c->get_id(), 'code' => $c->get_code(), 'type' => $c->get_discount_type(), 'amount' => $c->get_amount(), 'usage' => $c->get_usage_count()]] : ['success' => false, 'error' => 'Coupon not found.'];
+
+            case 'create':
+            case 'update':
+                $c = $action === 'update' ? new WC_Coupon((int) ($args['id'] ?? 0)) : new WC_Coupon();
+                if (!empty($args['code'])) {
+                    $c->set_code($args['code']);
+                }
+                if (!empty($args['discount_type'])) {
+                    $c->set_discount_type($args['discount_type']);
+                }
+                if (array_key_exists('amount', $args)) {
+                    $c->set_amount((float) $args['amount']);
+                }
+                if (!empty($args['expiry_date'])) {
+                    $c->set_date_expires($args['expiry_date']);
+                }
+                if (array_key_exists('usage_limit', $args)) {
+                    $c->set_usage_limit((int) $args['usage_limit']);
+                }
+                if (array_key_exists('minimum_amount', $args)) {
+                    $c->set_minimum_amount((string) $args['minimum_amount']);
+                }
+                if (array_key_exists('free_shipping', $args)) {
+                    $c->set_free_shipping((bool) $args['free_shipping']);
+                }
+                $id = $c->save();
+                return ['success' => true, 'id' => $id, 'code' => $c->get_code()];
+
+            case 'list':
+            default:
+                $q = get_posts(['post_type' => 'shop_coupon', 'posts_per_page' => 100, 'post_status' => 'publish']);
+                $out = [];
+                foreach ($q as $post) {
+                    $c = new WC_Coupon($post->ID);
+                    $out[] = ['id' => $c->get_id(), 'code' => $c->get_code(), 'type' => $c->get_discount_type(), 'amount' => $c->get_amount()];
+                }
+                return ['success' => true, 'coupons' => $out];
+        }
+    }
+
+    // ---- reports ----------------------------------------------------------
+
+
+    // ---- settings ---------------------------------------------------------
+
+    public static function wc_settings(array $args): array
+    {
+        $keys = ['woocommerce_currency', 'woocommerce_default_country', 'woocommerce_allowed_countries', 'woocommerce_specific_allowed_countries', 'woocommerce_weight_unit', 'woocommerce_dimension_unit', 'woocommerce_calc_taxes', 'woocommerce_enable_coupons', 'woocommerce_price_num_decimals', 'woocommerce_currency_pos', 'woocommerce_price_thousand_sep', 'woocommerce_price_decimal_sep'];
+
+        if (($args['action'] ?? 'get') === 'update' && !empty($args['settings']) && is_array($args['settings'])) {
+            $changed = [];
+            foreach ($args['settings'] as $k => $v) {
+                if (str_starts_with($k, 'woocommerce_')) {
+                    update_option($k, $v);
+                    $changed[$k] = $v;
+                }
+            }
+            return ['success' => true, 'updated' => $changed];
+        }
+
+        $out = [];
+        foreach ($keys as $k) {
+            $out[$k] = get_option($k);
+        }
+        $gateways = [];
+        foreach (WC()->payment_gateways()->payment_gateways() as $gw) {
+            $gateways[$gw->id] = ['title' => $gw->get_title(), 'enabled' => $gw->enabled === 'yes'];
+        }
+        return ['success' => true, 'settings' => $out, 'payment_gateways' => $gateways];
+    }
+
     public static function wc_order(array $args): array
     {
         $action = $args['action'] ?? 'list';
@@ -358,86 +460,6 @@ final class Claudpress_Tools_WooCommerce
         }
     }
 
-    private static function serialize_order(WC_Order $o): array
-    {
-        $items = [];
-        foreach ($o->get_items() as $item) {
-            $items[] = ['name' => $item->get_name(), 'quantity' => $item->get_quantity(), 'total' => $item->get_total(), 'product_id' => $item->get_product_id()];
-        }
-        return [
-            'id'       => $o->get_id(),
-            'status'   => $o->get_status(),
-            'total'    => $o->get_total(),
-            'currency' => $o->get_currency(),
-            'payment_method' => $o->get_payment_method_title(),
-            'customer' => ['name' => trim($o->get_billing_first_name() . ' ' . $o->get_billing_last_name()), 'email' => $o->get_billing_email(), 'phone' => $o->get_billing_phone()],
-            'shipping_address' => $o->get_formatted_shipping_address(),
-            'items'    => $items,
-            'date'     => $o->get_date_created() ? $o->get_date_created()->date('Y-m-d H:i') : null,
-            'notes'    => wc_get_order_notes(['order_id' => $o->get_id(), 'limit' => 10]),
-        ];
-    }
-
-    // ---- coupons ----------------------------------------------------------
-
-    public static function wc_coupon(array $args): array
-    {
-        $action = $args['action'] ?? 'list';
-
-        switch ($action) {
-            case 'delete':
-                $c = new WC_Coupon((int) ($args['id'] ?? 0));
-                if (!$c->get_id()) {
-                    return ['success' => false, 'error' => 'Coupon not found.'];
-                }
-                $c->delete(true);
-                return ['success' => true, 'id' => (int) $args['id']];
-
-            case 'get':
-                $c = new WC_Coupon($args['id'] ?? $args['code'] ?? 0);
-                return $c->get_id() ? ['success' => true, 'coupon' => ['id' => $c->get_id(), 'code' => $c->get_code(), 'type' => $c->get_discount_type(), 'amount' => $c->get_amount(), 'usage' => $c->get_usage_count()]] : ['success' => false, 'error' => 'Coupon not found.'];
-
-            case 'create':
-            case 'update':
-                $c = $action === 'update' ? new WC_Coupon((int) ($args['id'] ?? 0)) : new WC_Coupon();
-                if (!empty($args['code'])) {
-                    $c->set_code($args['code']);
-                }
-                if (!empty($args['discount_type'])) {
-                    $c->set_discount_type($args['discount_type']);
-                }
-                if (array_key_exists('amount', $args)) {
-                    $c->set_amount((float) $args['amount']);
-                }
-                if (!empty($args['expiry_date'])) {
-                    $c->set_date_expires($args['expiry_date']);
-                }
-                if (array_key_exists('usage_limit', $args)) {
-                    $c->set_usage_limit((int) $args['usage_limit']);
-                }
-                if (array_key_exists('minimum_amount', $args)) {
-                    $c->set_minimum_amount((string) $args['minimum_amount']);
-                }
-                if (array_key_exists('free_shipping', $args)) {
-                    $c->set_free_shipping((bool) $args['free_shipping']);
-                }
-                $id = $c->save();
-                return ['success' => true, 'id' => $id, 'code' => $c->get_code()];
-
-            case 'list':
-            default:
-                $q = get_posts(['post_type' => 'shop_coupon', 'posts_per_page' => 100, 'post_status' => 'publish']);
-                $out = [];
-                foreach ($q as $post) {
-                    $c = new WC_Coupon($post->ID);
-                    $out[] = ['id' => $c->get_id(), 'code' => $c->get_code(), 'type' => $c->get_discount_type(), 'amount' => $c->get_amount()];
-                }
-                return ['success' => true, 'coupons' => $out];
-        }
-    }
-
-    // ---- reports ----------------------------------------------------------
-
     public static function wc_report(array $args): array
     {
         $to   = !empty($args['date_to']) ? $args['date_to'] : date('Y-m-d');
@@ -480,31 +502,24 @@ final class Claudpress_Tools_WooCommerce
         ];
     }
 
-    // ---- settings ---------------------------------------------------------
-
-    public static function wc_settings(array $args): array
+    private static function serialize_order(WC_Order $o): array
     {
-        $keys = ['woocommerce_currency', 'woocommerce_default_country', 'woocommerce_allowed_countries', 'woocommerce_specific_allowed_countries', 'woocommerce_weight_unit', 'woocommerce_dimension_unit', 'woocommerce_calc_taxes', 'woocommerce_enable_coupons', 'woocommerce_price_num_decimals', 'woocommerce_currency_pos', 'woocommerce_price_thousand_sep', 'woocommerce_price_decimal_sep'];
-
-        if (($args['action'] ?? 'get') === 'update' && !empty($args['settings']) && is_array($args['settings'])) {
-            $changed = [];
-            foreach ($args['settings'] as $k => $v) {
-                if (str_starts_with($k, 'woocommerce_')) {
-                    update_option($k, $v);
-                    $changed[$k] = $v;
-                }
-            }
-            return ['success' => true, 'updated' => $changed];
+        $items = [];
+        foreach ($o->get_items() as $item) {
+            $items[] = ['name' => $item->get_name(), 'quantity' => $item->get_quantity(), 'total' => $item->get_total(), 'product_id' => $item->get_product_id()];
         }
-
-        $out = [];
-        foreach ($keys as $k) {
-            $out[$k] = get_option($k);
-        }
-        $gateways = [];
-        foreach (WC()->payment_gateways()->payment_gateways() as $gw) {
-            $gateways[$gw->id] = ['title' => $gw->get_title(), 'enabled' => $gw->enabled === 'yes'];
-        }
-        return ['success' => true, 'settings' => $out, 'payment_gateways' => $gateways];
+        return [
+            'id'       => $o->get_id(),
+            'status'   => $o->get_status(),
+            'total'    => $o->get_total(),
+            'currency' => $o->get_currency(),
+            'payment_method' => $o->get_payment_method_title(),
+            'customer' => ['name' => trim($o->get_billing_first_name() . ' ' . $o->get_billing_last_name()), 'email' => $o->get_billing_email(), 'phone' => $o->get_billing_phone()],
+            'shipping_address' => $o->get_formatted_shipping_address(),
+            'items'    => $items,
+            'date'     => $o->get_date_created() ? $o->get_date_created()->date('Y-m-d H:i') : null,
+            'notes'    => wc_get_order_notes(['order_id' => $o->get_id(), 'limit' => 10]),
+        ];
     }
+
 }

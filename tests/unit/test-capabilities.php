@@ -5,10 +5,33 @@ CP_Test::group('Capabilities — default state');
 
 cp_test_reset_options();
 
-CP_Test::ok(Claudpress_Capabilities::is_group_enabled('content'), 'groups default to enabled when nothing is configured');
+CP_Test::ok(Claudpress_Capabilities::is_group_enabled('content'), 'build groups default to enabled when nothing is configured');
 CP_Test::ok(Claudpress_Capabilities::tool_allowed('create_post'), 'a grouped tool is allowed by default');
 CP_Test::ok(Claudpress_Capabilities::tool_allowed('some_third_party_tool'), 'an ungrouped tool is allowed (plugins can add tools)');
-CP_Test::same([], Claudpress_Capabilities::disabled_labels(), 'nothing is reported disabled by default');
+
+// The eight high-blast-radius groups ship OFF. They used to be unreachable
+// because they were behind a paywall, and that paywall was quietly doing the
+// job of a safety fence. Deleting it without replacing the fence would have
+// handed every install - and every site that merely upgraded - the ability to
+// email customers, edit users, change payment gateways and push to production.
+//
+// So this asserts the fence exists. If it ever goes green by accident, a
+// release has silently switched send_email on for everybody.
+foreach (Claudpress_Capabilities::DISABLED_BY_DEFAULT as $group) {
+    CP_Test::ok(!Claudpress_Capabilities::is_group_enabled($group), $group . ' ships switched off');
+}
+foreach (['content', 'design', 'snippets', 'seo', 'files', 'images', 'memory', 'skills', 'code_exec', 'store'] as $group) {
+    CP_Test::ok(Claudpress_Capabilities::is_group_enabled($group), $group . ' ships switched on - the build journey needs it');
+}
+
+// And the tools inside a default-off group really are refused, not merely
+// described as off somewhere in the settings screen.
+CP_Test::ok(!Claudpress_Capabilities::tool_allowed('send_email'), 'send_email is refused on a fresh install');
+CP_Test::ok(!Claudpress_Capabilities::tool_allowed('deploy_push'), 'deploy_push is refused on a fresh install');
+CP_Test::ok(!Claudpress_Capabilities::tool_allowed('wc_payments'), 'wc_payments is refused on a fresh install');
+
+$off = Claudpress_Capabilities::disabled_labels();
+CP_Test::same(count(Claudpress_Capabilities::DISABLED_BY_DEFAULT), count($off), 'every default-off group is reported to the agent, so it stops rather than retries');
 
 CP_Test::group('Capabilities — turning a group off');
 

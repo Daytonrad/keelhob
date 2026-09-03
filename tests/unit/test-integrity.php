@@ -38,13 +38,21 @@ foreach ($registered as $tool => $file) {
 }
 CP_Test::same([], $ungoverned, 'every registered tool is either in a capability group or explicitly always-on');
 
+// A capability group naming a tool that does not exist is a bug: the plugin is
+// supposed to contain everything it advertises.
+//
+// This assertion used to carve out an exception. Some groups described features
+// whose code shipped in a separate paid zip, so a missing tool there was
+// expected and the test asserted that at least one WAS missing. There is one
+// zip now, so the exception is gone and the rule is the stronger one: every
+// tool every group names must actually exist.
 $phantom = [];
 foreach ($grouped as $tool => $group) {
     if (!isset($registered[$tool])) {
         $phantom[] = $tool . ' (group: ' . $group . ')';
     }
 }
-CP_Test::same([], $phantom, 'no capability group references a tool that no longer exists');
+CP_Test::same([], $phantom, 'no capability group references a tool that does not ship');
 
 $phantom_always = [];
 foreach ($always as $tool) {
@@ -128,3 +136,27 @@ foreach (array_merge(glob($root . '/includes/*.php'), glob($root . '/includes/to
     }
 }
 CP_Test::same([], $unguarded, 'every class file blocks direct web access with an ABSPATH guard');
+
+CP_Test::group('Integrity — always-on tools survive the tier split');
+
+// always_on() is a promise: these tools work no matter what the owner has
+// restricted, so they can always ask "what is going on". Tiering must not be
+// able to break that promise, and it very nearly did - three of them
+// (get_dashboard, task_list, agent_runs) sit in the PRO automation group, so
+// moving that whole file to the add-on would have made always-on tools vanish
+// on a free site.
+//
+// On free, task_list and agent_runs simply return nothing, because nothing can
+// have created a task or a run. Empty is the right answer, and a much better
+// one than a missing tool.
+$always_missing = [];
+foreach (Claudpress_Capabilities::always_on() as $tool) {
+    if (!isset($registered[$tool])) {
+        $always_missing[] = $tool;
+    }
+}
+CP_Test::same([], $always_missing, 'every always-on tool still ships in the FREE plugin');
+
+foreach (Claudpress_Capabilities::always_on() as $tool) {
+    CP_Test::ok(Claudpress_Capabilities::tool_allowed($tool), $tool . ' is allowed on a free install regardless of its group tier');
+}

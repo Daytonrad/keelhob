@@ -141,7 +141,7 @@ final class Claudpress_MCP_Server
             '',
             '8. Report honestly. Say what you actually changed, what you skipped, and what failed — including partial failures. Never describe work you did not verify as done. If you could not finish, say so plainly and say why.',
             '',
-            '9. Definition of done. A build is not finished when it looks right. Before reporting any site or page as done, run the pre-launch-audit skill against your own work and resolve every Blocker and High. You may never lower a finding\'s severity to make it pass. If something can only be decided by the owner, say so explicitly and list it — do not silently accept it.',
+            '9. Definition of done. A build is not finished when it looks right. Before reporting any site or page as done, run the site_readiness tool against your own work and resolve every Blocker and High. Then run the pre-launch-audit skill as well, for the judgement layer site_readiness cannot provide - do not score your own design work, which is the exact failure this rule exists to prevent. You may never lower a finding\'s severity to make it pass. If something can only be decided by the owner, say so explicitly and list it - do not silently accept it.',
             '',
             '10. Never invent facts. No statistic, review, testimonial, customer count, credential, award, staff member, or photograph presented as a real person or customer, unless the site can substantiate it. A store with no orders has no customers.',
             '',
@@ -165,7 +165,7 @@ final class Claudpress_MCP_Server
             : 'AI abilities are DISABLED. Ask the site owner to enable them in WP Admin > Claudpress before making changes. Read-only introspection may still work.';
         $lines[] = '';
         $lines[] = 'The universal escape hatch is execute_php: it runs arbitrary PHP in the full WordPress runtime ($wpdb, WP_Query, WooCommerce, every plugin API). Prefer the dedicated high-level tools for common work, and fall back to execute_php for anything not covered.';
-        $lines[] = 'Powers include: content & blogging (create_post, upload_media), the WooCommerce store (wc_product/order/coupon/report), SEO (seo_meta/analyze/schema), live code that changes the site (snippet_save — PHP/CSS/JS/HTML, incl. pixel-perfect custom page templates), Elementor page building (elementor_page + elementor_settings prepare_for_ai), plugin/theme updates (manage_updates), owner email (send_email), images (image_search free / image_generate), a full status snapshot (get_dashboard — use for "how is the store doing / what needs attention"), scheduled/one-off autonomy (task_save, run_agent) so the site can run itself, checkout setup (wc_payments/wc_shipping/wc_tax), and staging→production deploy (export_bundle/import_bundle/deploy_push).';
+        $lines[] = 'Powers include: content and blogging (create_post, upload_media), the WooCommerce catalogue (wc_product/wc_coupon/wc_settings), SEO (seo_meta/seo_schema/seo_sitemap), live code that changes the site (snippet_save - PHP/CSS/JS/HTML, incl. pixel-perfect custom page templates), Elementor page building (elementor_page + elementor_settings prepare_for_ai), the filesystem (read_file/write_file/edit_file), raw execution (execute_php/execute_sql), images (image_search free / image_generate), a full status snapshot (get_dashboard), and a read-only build grade (site_readiness). Whatever tools/list returns is the whole truth about what you can do here - do not assume a tool exists because it is normal for WordPress.';
         $lines[] = 'START HERE: call memory_list once at the beginning — it holds this site\'s operating context (build mode, builder, conventions). Persist new durable decisions with memory_save. Memory and skills are shared by every connected agent.';
         $lines[] = '';
         $lines[] = self::operating_protocol();
@@ -176,7 +176,7 @@ final class Claudpress_MCP_Server
         $off = Claudpress_Capabilities::disabled_labels();
         if (!empty($off)) {
             $lines[] = '';
-            $lines[] = 'OFF-LIMITS: the owner has DISABLED these capabilities — their tools are hidden and will be refused. Do not attempt, and do not use execute_php/execute_sql to work around them: ' . implode('; ', $off) . '.';
+            $lines[] = 'OFF-LIMITS: the owner has switched these capabilities OFF — their tools are hidden and will be refused. Do not attempt them, and do not use execute_php/execute_sql/snippets/file writes to work around them. If one is needed, say plainly that the owner can enable it under Claudpress > Settings > Capabilities. Off: ' . implode('; ', $off) . '.';
         }
 
         // Agentic skill catalog: descriptions only (bodies load on demand via prompts/get or skill_get).
@@ -190,6 +190,7 @@ final class Claudpress_MCP_Server
         }
         return implode("\n", $lines);
     }
+
 
     /** tools/list filtered by the owner's capability toggles. */
     private function visible_tools(): array
@@ -224,7 +225,12 @@ final class Claudpress_MCP_Server
         if (!Claudpress_Capabilities::tool_allowed($name)) {
             $group = Claudpress_Capabilities::tool_group($name);
             $label = $group ? (Claudpress_Capabilities::groups()[$group]['label'] ?? $group) : $name;
-            return $this->tool_error(sprintf('The "%s" capability is turned OFF by the site owner, so this tool is off-limits. Do not attempt tasks in this area.', $label));
+            return $this->tool_error(sprintf(
+                'The "%s" capability is switched OFF for this site, so "%s" is off-limits. Do not retry, and do not reach the same outcome through execute_php, execute_sql, snippets or file writes — that is working around a decision the owner made on purpose. Tell the owner they can enable the "%s" group under Claudpress > Settings > Capabilities.',
+                $label,
+                $name,
+                $group ?? $name
+            ));
         }
 
         // Policy guardrails (interactive context).

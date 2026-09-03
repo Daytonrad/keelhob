@@ -98,7 +98,31 @@ final class Claudpress_Tools_Filesystem
         return null;
     }
 
-    /** Resolve + confine a path to the configured base directory. */
+    /**
+     * Resolve + confine a path to the configured base directory.
+     *
+     * Three traps here, all of which were live bugs before 1.10.1:
+     *
+     *  1. wp_normalize_path() does NOT resolve '..'. It only fixes slashes, so
+     *     'wp-content/../../etc/cron.d/x' survives normalization completely
+     *     intact and looks, to a naive prefix check, like it is inside the base.
+     *  2. realpath() returns false for a path that does not exist yet — which is
+     *     every file write_file() creates. Falling back to the *unresolved*
+     *     string in that case meant the prefix check passed and the operating
+     *     system resolved the '..' later, at file_put_contents() time, landing
+     *     the file outside the base. Writing PHP outside the base is remote code
+     *     execution, so this was the most serious bug in the plugin.
+     *  3. Comparing against the base without its trailing slash meant a base of
+     *     '/var/www/html' also matched '/var/www/html-backup'.
+     *
+     * The fix: reject '..' outright, walk up to the nearest ancestor that really
+     * exists (write_file is allowed to create missing directories, so neither
+     * the path nor its immediate parent may exist yet), and compare
+     * directory-style against the base *with* its trailing slash.
+     *
+     * Resolving through realpath() also collapses symlinks, so a symlink planted
+     * inside the base that points outside it is rejected too.
+     */
     private static function resolve(string $path): array
     {
         $base = (string) Claudpress::instance()->get('fs_base', ABSPATH);
@@ -113,12 +137,37 @@ final class Claudpress_Tools_Filesystem
             $path = $base . ltrim($path, '/');
         }
 
-        $real = realpath($path);
-        $check = $real !== false ? wp_normalize_path($real) : $path;
+        // No '..' in any position. Cheap, total, and impossible to sneak past.
+        // A legitimate tool call never needs one — callers pass either a path
+        // relative to the base or an absolute path.
+        foreach (explode('/', $path) as $segment) {
+            if ($segment === '..') {
+                return [null, 'Path may not contain "..".'];
+            }
+        }
 
-        if (strpos($check, rtrim($base, '/')) !== 0) {
+        // Walk up until something exists, remembering the not-yet-existing tail.
+        $probe  = $path;
+        $suffix = '';
+        while (($real = realpath($probe)) === false) {
+            $parent = dirname($probe);
+            if ($parent === $probe) {
+                return [null, 'Path could not be resolved: ' . $path];
+            }
+            $suffix = basename($probe) . ('' === $suffix ? '' : '/' . $suffix);
+            $probe  = $parent;
+        }
+
+        $check = rtrim(wp_normalize_path($real), '/');
+        if ('' !== $suffix) {
+            $check .= '/' . $suffix;
+        }
+        $check .= '/'; // Compare directory-style so prefixes cannot straddle a name.
+
+        if (strpos($check, $base) !== 0) {
             return [null, 'Path is outside the allowed filesystem base (' . $base . ').'];
         }
+
         return [$path, null];
     }
 

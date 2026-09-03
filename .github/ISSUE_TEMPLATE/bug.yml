@@ -1,0 +1,70 @@
+name: Bug report
+description: Something behaves wrong. This is the most useful thing you can file.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A reproducible bug report against a real site is worth more to this
+        project than most donations. Thank you for taking the time.
+
+        **If this is a security issue, close this and report it privately:**
+        https://github.com/calflint/claudpress/security/advisories/new
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you ask the agent to do, and what did it do instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce it
+      placeholder: |
+        1. Enable AI abilities
+        2. Ask the agent to "..."
+        3. ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Claudpress version
+      placeholder: "2.0.0 — shown next to the title on the Connect screen"
+    validations:
+      required: true
+
+  - type: input
+    id: wp
+    attributes:
+      label: WordPress and PHP versions
+      placeholder: "WP 6.9, PHP 8.2"
+    validations:
+      required: true
+
+  - type: input
+    id: client
+    attributes:
+      label: Which MCP client
+      placeholder: "Claude Code / Claude Desktop / Cursor / Codex / Telegram / a scheduled task"
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Anything from the Activity log
+      description: >
+        Claudpress > Activity records every tool call. Paste anything relevant.
+        Secrets are redacted there automatically, but do give it a glance before
+        pasting.
+      render: text

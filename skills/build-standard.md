@@ -10,8 +10,11 @@ enable_prompt: true
 ## What this is
 
 A build is not finished when it looks right. The obligation to check that is already in
-your operating protocol — you may not report a site or page done without running
-`pre-launch-audit` against your own work and resolving every Blocker and High. This skill
+your operating protocol — you may not report a site or page done without checking your own
+work and resolving every Blocker and High. **`site_readiness` is the checker on every
+site.** `pre-launch-audit` is the second, deeper pass, and it is part of Claudpress Pro; if
+`skill_get pre-launch-audit` tells you it is unavailable, that is expected, not a fault —
+run the loop on `site_readiness` alone and say so in the completion report. This skill
 is the detail behind that obligation: what "done" actually requires, which skill handles
 each part, and how the fix loop runs so it terminates instead of stalling or gaming itself.
 
@@ -131,7 +134,7 @@ Load the skill for the part of the job you're actually doing, not everything at 
 | Turning on payments/shipping/tax, or deploying staging → production | `store-launch-and-deploy` |
 | Hardening or auditing security, or the intake questionnaire | `security-standard` |
 | Change-safety rules for any create/update/delete/install/PHP/SQL op | `site-safety` |
-| Scoring the finished work, before launch or on request | `pre-launch-audit` |
+| Scoring the finished work, before launch or on request | `site_readiness` (always), then `pre-launch-audit` (Pro) |
 | Building a new repeatable skill | `skill-creator` |
 
 ## Page-level vs site-level gates
@@ -153,12 +156,15 @@ the gate. Reach for the site-level pass only when the scope is "the site" or "la
    fast, machine-checkable, and unarguable — heading order, alt text, meta/OG, JSON-LD,
    dead links, image weight, security headers, and (when WooCommerce is active) tax/stock
    sanity, all checked from the rendered site, not from memory.
-2. Run `pre-launch-audit` on top of it. It is the judgement layer `site_readiness` cannot
-   provide — design, copy quality, hierarchy, trust, conversion, whether the site actually
-   makes sense for its audience. Neither replaces the other; a build is not audited until
-   both have run.
-3. Fix every **Blocker** and every **High** from either source.
-4. Re-run both.
+2. Run `pre-launch-audit` on top of it **if this site has it**. It is the judgement layer
+   `site_readiness` cannot provide — design, copy quality, hierarchy, trust, conversion,
+   whether the site actually makes sense for its audience. Neither replaces the other.
+   It is a Claudpress Pro skill, so on a free site it will not be there: skip it, run the
+   loop on `site_readiness` alone, and record in the completion report that the judgement
+   pass did not run. Do not fake it by scoring your own design work — an agent grading its
+   own taste is the exact failure this whole standard exists to prevent.
+3. Fix every **Blocker** and every **High** from whichever sources ran.
+4. Re-run them.
 5. Repeat steps 3–4 to a maximum of **3 iterations total**.
 6. Anything still failing after 3 iterations goes into the completion report as an
    explicit outstanding item, with the reason it wasn't resolved — never reported as a

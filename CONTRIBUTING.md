@@ -1,0 +1,128 @@
+# Contributing to Claudpress
+
+Claudpress is free, GPL, and community-funded. Contributions of every size are
+wanted and every one is credited in the release notes.
+
+You do not need to be a PHP developer to help. The single most valuable
+contribution to this project is a **skill**, and skills are plain markdown.
+
+---
+
+## Ways to help, roughly by how much they are worth
+
+1. **Report a bug you actually hit.** A reproducible bug report against a real
+   site is worth more than most donations. Include the WordPress version, PHP
+   version, which MCP client, and what you asked the agent to do.
+2. **Write a skill.** A skill is a markdown playbook the agent loads when a task
+   matches it. If you know how to do something well in WordPress — a niche store
+   setup, a membership flow, a migration — that knowledge is a pull request. No
+   PHP required. Start from `skills/site-safety.md` for the shape.
+3. **Improve the docs.** If something took you an hour to work out, that hour is
+   a documentation bug.
+4. **Fix a `good first issue`.** They are genuinely that.
+5. **Translate.** Every user-facing string goes through `__()` with the
+   `claudpress` text domain.
+6. **Tell someone.** There is no marketing budget.
+
+---
+
+## Running the tests — no Docker needed
+
+```bash
+git clone https://github.com/calflint/claudpress.git
+cd claudpress
+php tests/run.php          # the whole unit suite, ~1500 assertions
+php tests/run.php snippets # only files matching "snippets"
+```
+
+That is the entire setup. The suite runs against a hand-written WordPress stub
+in `tests/bootstrap.php`, on purpose: a test suite that needs a database and a
+bootstrap is a test suite nobody runs.
+
+Build the installable zip:
+
+```bash
+bash bin/build-zip.sh      # → build/claudpress.zip
+```
+
+### The live rig (optional, for anything touching real WordPress)
+
+Some things a stub cannot honestly answer — path traversal, WooCommerce
+behaviour, whether a snippet really deactivated. Those live in `tests/rig/`,
+which runs against a real WordPress on SQLite with no Docker and no MySQL.
+`tests/rig/README.md` builds it from scratch.
+
+```bash
+bash tests/rig/run-all.sh /path/to/wordpress
+```
+
+---
+
+## What "done" means here
+
+A pull request is ready when:
+
+- [ ] `php tests/run.php` passes.
+- [ ] `php -l` is clean on every file you touched.
+- [ ] Anything with decision logic has a test. Anything that touches a real site
+      has a rig check.
+- [ ] User-facing strings use `__()` / `esc_html__()` with the `claudpress`
+      text domain.
+- [ ] Output is escaped, input is sanitised, and anything that writes checks a
+      capability and a nonce.
+- [ ] If it changes what leaves the user's server, **`PRIVACY.md` and
+      `readme.txt` are updated in the same pull request.** This one is not
+      negotiable — see below.
+
+You do not need to bump the version; that happens at release.
+
+---
+
+## The rules that are not style preferences
+
+Claudpress hands an AI agent unrestricted control of someone's WordPress site.
+That makes a few things different from an ordinary plugin.
+
+**Never widen what leaves the user's server without saying so.** The update
+check sends exactly four fields and `PRIVACY.md` promises that as a closed list.
+`tests/unit/test-updater.php` asserts it as an exact match, so adding a field
+turns the suite red. That is deliberate. If the test fails because you added
+something, the fix is not the test.
+
+**Never add analytics, error reporting, or a third-party script to the admin.**
+There are none today. Somebody chose to trust this plugin with their whole site.
+
+**A capability group is a safety fence, not a feature flag.** Eight groups ship
+switched off because they can email customers, edit users, change payment
+gateways or deploy to production. If you add a tool, put it in a group — the
+integrity test fails if you do not — and think hard before putting it in a
+default-on one.
+
+**Fail closed.** Signature checks, licence-shaped checks, anything verifying
+anything: an error means no, never a fallback. A fallback is what an attacker
+aims for.
+
+**Never break an owner's stored data.** Renaming a `wp_options` key silently
+wipes somebody's configuration. If a key must change, migrate it in
+`Claudpress::maybe_upgrade()` and say so.
+
+---
+
+## Commit messages and pull requests
+
+Explain **why**, not what — the diff already says what. A message that says
+"fixed the thing" costs the next person an hour of archaeology.
+
+If you are fixing a bug, say what the bug actually did. If you are changing a
+default, say what breaks for someone who upgrades.
+
+---
+
+## Code of conduct
+
+Be decent. [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) has the long version.
+
+## Licence
+
+By contributing you agree your work ships under GPL-2.0-or-later, the same as
+everything else here.

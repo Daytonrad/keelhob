@@ -65,7 +65,29 @@ final class Claudpress
     {
         return [
             'abilities_enabled' => false,
+            // Kept only to carry a pre-1.10.1 plaintext token through the
+            // upgrade; Claudpress_Auth swaps it for a hash on first use.
             'token'             => '',
+            'token_hash'        => '',
+            'token_expires_at'  => 0,
+            'token_last_used'   => 0,
+
+            // The anonymous check-in that produces the public "sites running
+            // now" figure. Off means the updater talks straight to GitHub
+            // instead, so opting out never costs anyone an update. See
+            // class-updater.php for exactly what is sent.
+            'skip_checkin'             => false,
+
+            // Off by default on purpose: deleting the plugin must not
+            // destroy the owner's snippets, memory and skills. See uninstall.php.
+            'delete_data_on_uninstall' => false,
+
+            // Who accepted the AI-abilities warning, when, and which version of
+            // it. Kept even after abilities are switched off again: it is a
+            // historical fact, and it is the only evidence that it happened.
+            'consent_by'               => 0,
+            'consent_at'               => 0,
+            'consent_version'          => 0,
             'allow_app_passwords' => true,
             // Filesystem base: operations are confined at or below this path.
             'fs_base'           => ABSPATH,
@@ -98,6 +120,12 @@ final class Claudpress
             // Notifications.
             'notify_email'          => '',
             'notify_webhook_url'    => '',
+
+            // Which channels a digest goes to. NULL, not [], is the
+            // unconfigured state: an empty array is a real choice meaning
+            // 'send nowhere', and defaulting to it would silently stop
+            // every existing digest the moment this shipped.
+            'notify_channels'       => null,
             'notify_telegram_token' => '',
             'notify_telegram_chat'  => '',
             // Telegram chat front-end (inbound). Off until the owner connects a
@@ -141,7 +169,17 @@ final class Claudpress
         if (!is_array($saved)) {
             $saved = [];
         }
-        return array_merge(self::default_settings(), $saved);
+        $merged = array_merge(self::default_settings(), $saved);
+
+        // Decrypt on the way out so every existing caller keeps working with
+        // plain values and none of them has to know secrets are encrypted at
+        // rest. Values written before 1.10.1 pass through untouched.
+        foreach (Claudpress_Secrets::fields() as $field) {
+            if (isset($merged[$field]) && is_string($merged[$field]) && $merged[$field] !== '') {
+                $merged[$field] = Claudpress_Secrets::decrypt($merged[$field]);
+            }
+        }
+        return $merged;
     }
 
     public function get(string $key, $default = null)
@@ -152,7 +190,20 @@ final class Claudpress
 
     public function update(array $patch): void
     {
-        update_option(self::OPTION_SETTINGS, array_merge($this->settings(), $patch));
+        $all = array_merge($this->settings(), $patch);
+
+        // Encrypt on the way in. settings() decrypted them, so re-encrypting
+        // the whole merged array keeps untouched fields correct too.
+        foreach (Claudpress_Secrets::fields() as $field) {
+            if (isset($all[$field]) && is_string($all[$field]) && $all[$field] !== '') {
+                $all[$field] = Claudpress_Secrets::encrypt($all[$field]);
+            }
+        }
+
+        // autoload=false: this option holds credentials, and there is no reason
+        // for it to be loaded into memory on every single front-end request
+        // where any other plugin could read it out of the options cache.
+        update_option(self::OPTION_SETTINGS, $all, false);
     }
 
     public function abilities_enabled(): bool
@@ -187,6 +238,20 @@ final class Claudpress
         Claudpress_Tools_Deploy::register($this->registry);
         Claudpress_Tools_Readiness::register($this->registry);
 
+        /**
+         * The extension seam for tools that do not live in this plugin.
+         *
+         * Fires once per request, after every core group has registered and
+         * before anything reads the registry, so an add-on or a third-party
+         * plugin can contribute tools without this file having to know they
+         * exist. Nothing in this plugin uses it any more — it is kept because
+         * an extension point that costs one line is worth more than the line.
+         *
+         * Add tools with $registry->add(); registration fails soft, so a bad
+         * callback costs one tool rather than the request.
+         *
+         * @param Claudpress_Tool_Registry $registry
+         */
         do_action('claudpress_register_tools', $this->registry);
 
         // Code-snippets engine — active snippets run on every request.
@@ -231,17 +296,81 @@ final class Claudpress
         Claudpress_Agent_Runs::install_table();
         Claudpress_Telegram::install_table();
         Claudpress_Logger::install_table();
+        Claudpress_Snippet_Log::install_table();
         // After install_table() has added the columns: give pre-1.9 snippets a
         // uid and a created_at so the Snippets page and cross-site copy work.
         Claudpress_Snippets::backfill();
+        // Rows written before the source column existed have to be classified
+        // before anything can refresh them; see Claudpress_Skills::backfill_sources().
+        Claudpress_Skills::backfill_sources();
         Claudpress_Skills::seed_bundled_skills();
         self::seed_default_memory();
+        self::upgrade_to_2_0_0($stored);
         if (!file_exists(CLAUDPRESS_SANDBOX_DIR)) {
             wp_mkdir_p(CLAUDPRESS_SANDBOX_DIR);
             @file_put_contents(CLAUDPRESS_SANDBOX_DIR . '/index.php', "<?php // Silence is golden.\n");
             @file_put_contents(CLAUDPRESS_SANDBOX_DIR . '/.htaccess', "Deny from all\n");
         }
         update_option('claudpress_db_version', CLAUDPRESS_VERSION);
+    }
+
+    /**
+     * The one-time 2.0.0 upgrade, and the reason it is not optional.
+     *
+     * Before 2.0.0 eight capability groups - payments, shipping, tax, orders,
+     * users, updates, comms and deploy - were unreachable because they sat
+     * behind a paywall. Their own on/off toggle was never consulted, so on a
+     * long-running site it may well be sitting at "on", meaning nothing at all.
+     *
+     * 2.0.0 deletes the paywall. Left alone, that would have silently granted
+     * every upgrading site the ability to email its customers, edit its users,
+     * change its payment gateways and push to production - delivered by an
+     * automatic update, to an owner who asked for nothing and was told nothing.
+     *
+     * So these are forced OFF, not defaulted off. "Only if no value is stored"
+     * is exactly the version of this that does not work, because the stored
+     * value is the meaningless leftover. The owner turns back on whatever they
+     * actually want, and an admin notice tells them that is waiting for them -
+     * switching something off silently is its own kind of bug.
+     *
+     * @param string $stored The db version this site is upgrading FROM.
+     */
+    private static function upgrade_to_2_0_0(string $stored): void
+    {
+        // A brand-new install has never had the paywall doing this job for it,
+        // and default_enabled() already covers it. Only sites carrying an older
+        // version need the correction.
+        if ($stored === '' || version_compare($stored, '2.0.0', '>=')) {
+            return;
+        }
+        if (get_option('claudpress_2_0_0_capabilities_reset', '') !== '') {
+            return;
+        }
+
+        $settings = get_option(self::OPTION_SETTINGS, []);
+        if (!is_array($settings)) {
+            $settings = [];
+        }
+        $caps = isset($settings['capabilities']) && is_array($settings['capabilities']) ? $settings['capabilities'] : [];
+
+        $turned_off = [];
+        foreach (Claudpress_Capabilities::DISABLED_BY_DEFAULT as $group) {
+            if (!array_key_exists($group, $caps) || !empty($caps[$group])) {
+                $turned_off[] = $group;
+            }
+            $caps[$group] = false;
+        }
+        $settings['capabilities'] = $caps;
+
+        // Dead keys from the tier that no longer exists. Left behind they are
+        // harmless, but they are also a lie about what the plugin reads.
+        unset($settings['disclose_pro'], $settings['hide_paid_notices'], $settings['skills_token']);
+
+        update_option(self::OPTION_SETTINGS, $settings);
+        delete_option('claudpress_pro_licence');
+        delete_transient('claudpress_pro_licence_valid');
+
+        update_option('claudpress_2_0_0_capabilities_reset', $turned_off ? implode(',', $turned_off) : 'none');
     }
 
     public static function on_activate(): void
@@ -251,8 +380,11 @@ final class Claudpress
             $existing = [];
         }
         // Generate a token on first activation so the user has something to copy.
-        if (empty($existing['token'])) {
-            $existing['token'] = self::generate_token();
+        if (empty($existing['token']) && empty($existing['token_hash'])) {
+            $plain                    = self::generate_token();
+            $existing['token_hash']   = hash('sha256', $plain);
+            $existing['token']        = '';
+            self::flash_token($plain);
         }
         update_option(self::OPTION_SETTINGS, array_merge(self::default_settings(), $existing));
 
@@ -270,7 +402,11 @@ final class Claudpress
         Claudpress_Agent_Runs::install_table();
         Claudpress_Telegram::install_table();
         Claudpress_Logger::install_table();
+        Claudpress_Snippet_Log::install_table();
         Claudpress_Snippets::backfill();
+        // Rows written before the source column existed have to be classified
+        // before anything can refresh them; see Claudpress_Skills::backfill_sources().
+        Claudpress_Skills::backfill_sources();
         Claudpress_Skills::seed_bundled_skills();
         self::seed_default_memory();
         update_option('claudpress_db_version', CLAUDPRESS_VERSION);
@@ -316,5 +452,43 @@ final class Claudpress
     public static function generate_token(): string
     {
         return 'cp_' . bin2hex(random_bytes(24));
+    }
+
+    /**
+     * Mint a new bearer token: store only its hash, hand back the plaintext.
+     *
+     * The plaintext is never written to the options table. It goes into a
+     * short-lived transient purely so the Connect screen can render it once, on
+     * the very next page load, and is deleted the moment it is read. If the
+     * owner misses that window their only option is to regenerate - which is
+     * the correct trade for a credential that grants full administrative
+     * control of the site.
+     */
+    public static function set_token(): string
+    {
+        $plain = self::generate_token();
+        self::instance()->update([
+            'token'            => '',
+            'token_hash'       => hash('sha256', $plain),
+            'token_last_used'  => 0,
+        ]);
+        self::flash_token($plain);
+        return $plain;
+    }
+
+    /** Stash a freshly minted token for one render. */
+    public static function flash_token(string $plain): void
+    {
+        set_transient('claudpress_token_flash', $plain, 5 * MINUTE_IN_SECONDS);
+    }
+
+    /** Read and immediately burn the flashed token. '' when there is none. */
+    public static function take_flashed_token(): string
+    {
+        $plain = (string) get_transient('claudpress_token_flash');
+        if ($plain !== '') {
+            delete_transient('claudpress_token_flash');
+        }
+        return $plain;
     }
 }

@@ -20,6 +20,35 @@ if (!defined('ABSPATH')) {
 final class Claudpress_Capabilities
 {
     /**
+     * Capability groups that ship SWITCHED OFF, and why that list exists.
+     *
+     * These eight used to be unreachable for a different reason: they were
+     * behind a paywall, and the paywall happened to be acting as a safety
+     * fence. Removing the paywall without replacing the fence would have handed
+     * every fresh install - and worse, every site that merely *upgraded* - the
+     * ability to email customers, edit users, change payment gateways and push
+     * to production, silently, on an auto-update.
+     *
+     * So the fence is explicit now, and it is here rather than in the settings
+     * defaults because two lists drift, and the way this one would drift is by
+     * switching send_email on for everybody.
+     *
+     * Everything not named here is on: content, design, snippets, SEO, files,
+     * images, memory, skills and code execution are what "build me a site"
+     * needs, and asking permission for those would make the product pointless.
+     */
+    const DISABLED_BY_DEFAULT = [
+        'store_orders',
+        'payments',
+        'shipping',
+        'tax',
+        'users',
+        'updates',
+        'comms',
+        'deploy',
+    ];
+
+    /**
      * Read-only introspection that is always available regardless of toggles.
      *
      * `site_readiness` belongs here even though it touches SEO/security/store
@@ -44,10 +73,20 @@ final class Claudpress_Capabilities
                 'desc' => 'Create/edit posts, pages, media, taxonomies.',
                 'tools' => ['create_post', 'update_post', 'delete_post', 'get_post', 'list_posts', 'upload_media', 'manage_taxonomy'],
             ],
+            // Building a store and running one are different jobs. Products,
+            // coupons and settings are what the ten-minute build needs, so they
+            // are on. Orders, reports and money are what a live business
+            // depends on, so those start switched off - see
+            // DISABLED_BY_DEFAULT.
             'store' => [
-                'label' => 'Store (products & orders)', 'sensitive' => true,
-                'desc' => 'WooCommerce products, orders (incl. refunds), coupons, reports, settings.',
-                'tools' => ['wc_product', 'wc_order', 'wc_coupon', 'wc_report', 'wc_settings'],
+                'label' => 'Store (products & catalogue)', 'sensitive' => true,
+                'desc' => 'WooCommerce products, coupons and store settings.',
+                'tools' => ['wc_product', 'wc_coupon', 'wc_settings'],
+            ],
+            'store_orders' => [
+                'label' => 'Store (orders & reports)', 'sensitive' => true,
+                'desc' => 'Read and refund orders, and read sales reports.',
+                'tools' => ['wc_order', 'wc_report'],
             ],
             'payments' => [
                 'label' => 'Payments (money)', 'sensitive' => true,
@@ -64,20 +103,43 @@ final class Claudpress_Capabilities
                 'desc' => 'Tax settings and rates.',
                 'tools' => ['wc_tax'],
             ],
+            // Setting a site up to be found and improving it afterwards are two
+            // different jobs. Titles, descriptions, schema and a sitemap are part
+            // of building the site, so they are free - a page nobody can index is
+            // not finished. Scoring a page against a target keyword and managing
+            // redirects is the loop you run forever after launch, which is what a
+            // subscription is actually for.
             'seo' => [
-                'label' => 'SEO', 'sensitive' => false,
-                'desc' => 'Meta, schema, redirects, sitemap, analysis.',
-                'tools' => ['seo_meta', 'seo_analyze', 'seo_schema', 'seo_redirect', 'seo_sitemap'],
+                'label' => 'SEO setup', 'sensitive' => false,
+                'desc' => 'Meta titles and descriptions, JSON-LD schema, and the sitemap.',
+                'tools' => ['seo_meta', 'seo_schema', 'seo_sitemap'],
+            ],
+            'seo_optimize' => [
+                'label' => 'SEO optimization', 'sensitive' => false,
+                'desc' => 'Score pages against a target keyword, and manage redirects when URLs change.',
+                'tools' => ['seo_analyze', 'seo_redirect'],
             ],
             'design' => [
                 'label' => 'Design / Elementor', 'sensitive' => false,
                 'desc' => 'Build and edit Elementor pages, kit, settings.',
                 'tools' => ['elementor_page', 'elementor_settings', 'elementor_kit'],
             ],
-            'code' => [
-                'label' => 'Code execution', 'sensitive' => true,
-                'desc' => 'Run arbitrary PHP/SQL and save live code snippets.',
-                'tools' => ['execute_php', 'execute_sql', 'snippet_save', 'snippet_list', 'snippet_get', 'snippet_toggle', 'snippet_delete'],
+            // Snippets and raw execution used to share one group. They are
+            // different things with different blast radii: a snippet is stored,
+            // named, syntax-checked before it can activate, and switched off
+            // automatically if it fatals, whereas execute_php runs a string
+            // once with none of that around it. An owner who wants the agent
+            // maintaining snippets but never running loose PHP could not
+            // express that before.
+            'snippets' => [
+                'label' => 'Snippets', 'sensitive' => true,
+                'desc' => 'Create and manage live code snippets (PHP, CSS, JS, HTML).',
+                'tools' => ['snippet_save', 'snippet_list', 'snippet_get', 'snippet_toggle', 'snippet_delete'],
+            ],
+            'code_exec' => [
+                'label' => 'Raw code execution', 'sensitive' => true,
+                'desc' => 'Run arbitrary PHP and SQL directly.',
+                'tools' => ['execute_php', 'execute_sql'],
             ],
             'files' => [
                 'label' => 'Filesystem', 'sensitive' => true,
@@ -151,12 +213,22 @@ final class Claudpress_Capabilities
     {
         $caps = Claudpress::instance()->get('capabilities', []);
         if (!is_array($caps) || !array_key_exists($group, $caps)) {
-            return true; // default on
+            return self::default_enabled($group);
         }
         return (bool) $caps[$group];
     }
 
-    /** Whether a tool may run, given its group's toggle. Ungrouped/always-on tools are allowed. */
+    /**
+     * Whether a tool may run.
+     *
+     * One gate: the owner's toggle. There used to be a second one in front of
+     * it deciding whether this install had the feature at all; every install
+     * has every feature now.
+     *
+     * Ungrouped and always-on tools are allowed: third-party plugins register
+     * tools through the same registry, and refusing anything unrecognised would
+     * silently break them.
+     */
     public static function tool_allowed(string $tool): bool
     {
         if (in_array($tool, self::always_on(), true)) {
@@ -167,6 +239,40 @@ final class Claudpress_Capabilities
             return true;
         }
         return self::is_group_enabled($group);
+    }
+    /** Whether a group is on when the owner has never said either way. */
+    public static function default_enabled(string $group): bool
+    {
+        return !in_array($group, self::DISABLED_BY_DEFAULT, true);
+    }
+
+    /**
+     * Groups that are switched off, described for a connected agent.
+     *
+     * Handing an agent a factual list of what it cannot do, and the name of the
+     * switch that would fix it, is cheaper for everyone than letting it find
+     * out by trying: it stops the retry loops, and it stops the agent telling
+     * the owner their site is broken when they simply left something off.
+     *
+     * This used to report which features were missing because they were part of
+     * a paid add-on. The reason changed; the courtesy did not.
+     *
+     * @return array<int, array{name:string,label:string,what_it_does:string}>
+     */
+    public static function disabled_groups(): array
+    {
+        $out = [];
+        foreach (self::groups() as $key => $group) {
+            if (self::is_group_enabled($key)) {
+                continue;
+            }
+            $out[] = [
+                'name'         => $key,
+                'label'        => (string) $group['label'],
+                'what_it_does' => (string) $group['desc'],
+            ];
+        }
+        return $out;
     }
 
     /**

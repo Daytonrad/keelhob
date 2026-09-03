@@ -4,7 +4,8 @@ Tags: mcp, ai, claude, woocommerce, seo, automation
 Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.10.0
+Donate link: https://ko-fi.com/claudpress
+Stable tag: 2.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -33,11 +34,43 @@ Features:
 * Voice notes, photos, one-tap approvals, /undo and per-chat roles for that chat
 * Event alerts: paid orders, low stock, a crashed snippet, available updates
 
+== Support this project ==
+
+Claudpress is free, GPL, and stays that way. There is no paid version, no locked
+feature and no trial. It is built in evenings around a full-time job, and
+donations are the only thing deciding whether it keeps being built.
+
+https://ko-fi.com/claudpress
+
+Other things that help just as much: report a bug you hit, write a skill and
+open a pull request (skills are plain markdown, no PHP needed), star the
+repository, or just tell someone. Nothing here has a marketing budget.
+
 == External services ==
 
 This plugin can send data to third-party APIs. Nothing is sent until you enter a
 key for that service, and no service is contacted at all if you leave its key blank.
-Claudpress itself has no servers and phones nothing home.
+
+The one exception is the update check, described first below. It is the only
+request Claudpress makes on its own, and you can switch it off without losing
+updates.
+
+**Updates and the public count (on by default, one setting to turn off).**
+Claudpress is not in the WordPress.org directory, so it checks
+https://claudpress.com for new versions the way the directory otherwise would.
+That same request is how the project counts how many sites are running it, which
+is the only measure it has of whether any of this is worth continuing.
+
+What is sent, in full: a random ID generated on your site (not derived from your
+address, domain or email, so it cannot be traced back to you), the Claudpress
+version, and your WordPress and PHP versions. That is the complete list. No site
+address, no domain, no email, no user data, no content, and no record of what
+the AI does. The endpoint does not keep IP addresses, and rows are deleted after
+90 days of silence.
+
+Turn it off under Claudpress > Settings and the update check goes straight to
+GitHub (https://api.github.com) instead — you keep getting every update,
+including security ones, and this site simply is not counted.
 
 **Your MCP client (Claude Code, Claude Desktop, Cursor, Codex, or any other).**
 Whatever client you connect makes the requests; whatever it reads from your site
@@ -90,6 +123,16 @@ is shown to you before anything acts on it.
 **Deploy (optional).** export_bundle/deploy_push send your content bundle only to
 the destination Claudpress site whose URL and token you configure.
 
+**Skill updates (optional).** Claudpress can check GitHub
+(https://github.com/calflint/claudpress/releases - terms:
+https://docs.github.com/site-policy/github-terms/github-terms-of-service -
+privacy: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement)
+for newer versions of the bundled skills. It is a plain download of two public
+files; no key, no account, and nothing about your site is sent. Every skill is
+verified against a signature before it is written, and an unsigned or unverifiable
+skill is discarded rather than installed. Turn it off and the skills that shipped
+in the zip keep working.
+
 == Installation ==
 
 1. Upload the plugin zip via Plugins > Add New > Upload Plugin, then Activate.
@@ -102,6 +145,24 @@ Claudpress > Automation. Pick your provider there — the model guide next to th
 field lists the exact model IDs to type for each one.
 
 == Changelog ==
+
+= 2.0.0 - free forever, one plugin =
+* Claudpress is now free, in full, permanently. There is no paid add-on, no licence, no tier and nothing held back. Every feature that was going to be sold - payments, shipping, tax, orders and reports, user management, updates, email and notifications, deploy to production, the Snippets Studio, and all fifteen expert skills - is in this one plugin. The project is funded by donations from people who find it useful.
+* PLEASE READ IF YOU ARE UPGRADING: eight capability groups are switched OFF by this update, and you turn back on the ones you want. Payments, Shipping, Tax, Store orders & reports, Users, Updates, Email & notifications, and Deploy. Until now the paywall was the only thing standing between a connected AI agent and those tools. Removing the paywall without replacing that guard would have silently handed every site the ability to email its customers, edit its users, change its payment gateways and push to production. An admin notice will point you at the setting.
+* Everything the ten-minute build needs stays on: content, design, snippets, SEO, files, images, memory, skills and code execution.
+* Skill updates now come from this project's public GitHub releases instead of a server we ran. No account, no key, and nothing about your site is sent. Every skill is still verified against a signature before it is written, and an unsigned one is discarded rather than installed.
+* The private snippet library and site pairing are gone. They only ever worked by talking to that server. Snippets stored on your own site are untouched, and still listed in the Studio.
+* Nothing you have made is affected by any of this. Snippets, skills, memory, tasks and settings all carry over.
+
+= 1.10.1 - security and a data-loss fix =
+* IMPORTANT: deleting the plugin no longer deletes your data. Until now, uninstalling dropped every snippet, memory, skill and scheduled task, permanently and without warning - which is a disaster if you were only removing the plugin to test for a conflict. Uninstall now keeps everything by default, so reinstalling puts you back where you were. There is a new setting if you genuinely do want everything erased.
+* Fixed a critical file-writing flaw. The write_file tool could be pointed outside its allowed directory using "..", which meant it could write a PHP file anywhere on the server the site can write to. Reading, editing and deleting files were not affected. If you have ever exposed your Claudpress endpoint to anyone you do not trust, update now.
+* API keys are now encrypted in the database instead of stored as plain text, and are no longer printed into the settings page source. The page shows the last four characters so you can still tell which key is installed. Your existing keys are re-encrypted the first time you save.
+* Secrets no longer appear in the Activity log. Payment gateway keys passed to the store tools were being written to the log table in clear text and shown on screen.
+* Failed logins are now rate limited, and the connection endpoint no longer accepts ordinary account passwords - only Application Passwords. Together those closed a way to guess passwords that security plugins and two-factor plugins could not see, because they only watch the normal login page.
+* The connection token is now stored as a hash and shown once, when you create it. Your current token keeps working; it is converted automatically the first time it is used. If you lose it, regenerate it.
+* The public status endpoint no longer reveals the exact plugin version to unauthenticated callers.
+* Fixed a way to bypass the "require HTTPS" setting by sending a forged Host header.
 
 = 1.10.0 — "Done" now means done =
 * The definition of done is no longer optional. Three rules were added to the operating protocol that every connected agent receives — run pre-launch-audit against your own work before reporting anything done, never invent a statistic/review/testimonial/customer/staff member the site cannot substantiate, and load the build-standard skill before building. The protocol is PHP, injected into every interactive session and every unattended run, so a site cannot switch it off.

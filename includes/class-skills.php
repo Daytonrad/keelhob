@@ -14,6 +14,15 @@ if (!defined('ABSPATH')) {
 
 final class Claudpress_Skills
 {
+    /** Shipped in the plugin zip. */
+    const SOURCE_BUNDLED = 'bundled';
+
+    /** Fetched from the skills server. Only these rows may be refreshed. */
+    const SOURCE_REMOTE = 'remote';
+
+    /** Written here — by the owner in wp-admin, or by an agent via skill_save. */
+    const SOURCE_LOCAL = 'local';
+
     public static function table(): string
     {
         global $wpdb;
@@ -26,6 +35,10 @@ final class Claudpress_Skills
         $table   = self::table();
         $charset = $wpdb->get_charset_collate();
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+        // `source` and `version` are additive columns; dbDelta adds them to an
+        // existing table on upgrade without touching the rows. The default is
+        // 'local' because that is the only answer that is safe when wrong: a
+        // row nobody can prove came from us is a row a refresh must not touch.
         dbDelta("CREATE TABLE {$table} (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             name VARCHAR(191) NOT NULL,
@@ -36,10 +49,44 @@ final class Claudpress_Skills
             enabled TINYINT(1) NOT NULL DEFAULT 1,
             is_bundled TINYINT(1) NOT NULL DEFAULT 0,
             bundled_hash VARCHAR(32) NOT NULL DEFAULT '',
+            source VARCHAR(20) NOT NULL DEFAULT 'local',
+            version VARCHAR(32) NOT NULL DEFAULT '',
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             UNIQUE KEY name (name)
         ) {$charset};");
+    }
+
+    /**
+     * Give pre-2.0 rows a source, once, after install_table() has added the column.
+     *
+     * Guessing here is not optional — every row that keeps an empty source would
+     * be treated as unknown forever, and the refresh guard would have nothing to
+     * decide on. `bundled_hash` is the evidence: Claudpress only ever wrote it
+     * when it installed a bundled skill, so a row that has one came from us and
+     * a row that does not was authored on this site.
+     */
+    public static function backfill_sources(): void
+    {
+        global $wpdb;
+        $table = self::table();
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$table} SET source = %s WHERE (source IS NULL OR source = '') AND bundled_hash <> ''",
+            self::SOURCE_BUNDLED
+        ));
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$table} SET source = %s WHERE source IS NULL OR source = ''",
+            self::SOURCE_LOCAL
+        ));
+    }
+
+    /** Anything we do not recognise is treated as the owner's own work. */
+    public static function normalize_source(string $source): string
+    {
+        $source = strtolower(trim($source));
+        return in_array($source, [self::SOURCE_BUNDLED, self::SOURCE_REMOTE, self::SOURCE_LOCAL], true)
+            ? $source
+            : self::SOURCE_LOCAL;
     }
 
     /**
@@ -63,6 +110,8 @@ final class Claudpress_Skills
             return ['success' => false, 'error' => 'Skill needs a name or description.'];
         }
 
+        $exists = $this->get_by_name($name);
+
         $row = [
             'name'           => $name,
             'description'    => (string) ($args['description'] ?? ''),
@@ -76,8 +125,20 @@ final class Claudpress_Skills
         if (array_key_exists('bundled_hash', $args)) {
             $row['bundled_hash'] = (string) $args['bundled_hash'];
         }
+        if (array_key_exists('version', $args)) {
+            $row['version'] = substr((string) $args['version'], 0, 32);
+        }
 
-        $exists = $this->get_by_name($name);
+        // Source is set on creation and only ever changed by a caller that says
+        // so explicitly. An ordinary edit — an agent rewriting a remote skill,
+        // the owner fixing a typo — must not silently reclassify the row, or the
+        // refresh guard starts answering a different question than it was asked.
+        if (array_key_exists('source', $args)) {
+            $row['source'] = self::normalize_source((string) $args['source']);
+        } elseif (!$exists) {
+            $row['source'] = self::SOURCE_LOCAL;
+        }
+
         if ($exists) {
             $wpdb->update(self::table(), $row, ['name' => $name]);
         } else {
@@ -215,6 +276,8 @@ final class Claudpress_Skills
             $parsed['is_bundled']   = 1;
             $parsed['name']         = $name;
             $parsed['bundled_hash'] = md5((string) ($parsed['body'] ?? ''));
+            $parsed['source']       = self::SOURCE_BUNDLED;
+            $parsed['version']      = defined('CLAUDPRESS_VERSION') ? (string) CLAUDPRESS_VERSION : '';
 
             $existing = $skills->get_by_name($name);
             switch (self::bundled_action($existing, $parsed['bundled_hash'], $force)) {

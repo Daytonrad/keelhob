@@ -164,6 +164,30 @@ final class Claudpress_Tools_Core
                 'abilities_enabled' => Claudpress::instance()->abilities_enabled(),
                 'tool_count'        => count(Claudpress::instance()->registry->names()),
                 'fs_base'           => Claudpress::instance()->get('fs_base'),
+
+                // Structured, not prose. An agent can branch on this; it
+                // cannot reliably branch on a paragraph. Enabled groups are
+                // listed alongside the disabled ones so the agent has the whole
+                // shape of the install in one call, rather than inferring it
+                // from what tools/list happens to contain.
+                'available_capabilities' => array_keys(array_filter(
+                    Claudpress_Capabilities::groups(),
+                    static function ($group, $key) {
+                        return Claudpress_Capabilities::is_group_enabled($key);
+                    },
+                    ARRAY_FILTER_USE_BOTH
+                )),
+                'unavailable_capabilities' => array_map(
+                    static function (array $group) {
+                        return [
+                            'name'            => $group['name'],
+                            'what_it_does'    => $group['what_it_does'],
+                            'why_unavailable' => 'The site owner has switched this capability off.',
+                            'how_to_enable'   => 'The owner enables the "' . $group['name'] . '" group under Claudpress > Settings > Capabilities. Ask them; do not work around it.',
+                        ];
+                    },
+                    Claudpress_Capabilities::disabled_groups()
+                ),
             ],
         ];
     }

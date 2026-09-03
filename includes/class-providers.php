@@ -36,6 +36,12 @@ if (!defined('ABSPATH')) {
  */
 abstract class Claudpress_Provider
 {
+    /** Transient prefix for a fetched model list — one entry per provider id. */
+    private const MODELS_CACHE = 'claudpress_models_';
+
+    /** How many models the dropdown offers before it stops being a dropdown. */
+    public const MODELS_SHOWN = 10;
+
     /** Stable identifier stored in settings. */
     abstract public static function id(): string;
 
@@ -134,6 +140,36 @@ abstract class Claudpress_Provider
         return (string) ($data['error']['message'] ?? '');
     }
 
+    /**
+     * Where to ask the vendor which models this key may actually use.
+     *
+     * Derived from the chat endpoint rather than hardcoded, so an owner pointing
+     * Claudpress at a gateway gets that gateway's catalogue rather than the
+     * vendor's — a list has to describe the host the requests actually go to.
+     * '' means the vendor publishes no such endpoint at all.
+     *
+     * Not to be confused with models_url(), which is the human-readable docs
+     * page linked from the admin guide.
+     */
+    public static function models_list_url(string $endpoint): string
+    {
+        return '';
+    }
+
+    /**
+     * Flatten a vendor's model-list response into plain model IDs, newest first.
+     *
+     * IDs only, no labels: the dropdown offers exactly the strings a request may
+     * carry, so nothing on screen can be mistaken for something typeable.
+     *
+     * @param array $data decoded 2xx body from models_list_url()
+     * @return array<int, string>
+     */
+    public static function parse_models(array $data): array
+    {
+        return [];
+    }
+
     // ---------------------------------------------------------------- registry
 
     /** @return array<string, class-string<Claudpress_Provider>> */
@@ -158,6 +194,238 @@ abstract class Claudpress_Provider
     {
         $s = Claudpress::instance()->settings();
         return self::get((string) ($s['agent_provider'] ?? 'anthropic'));
+    }
+
+    // ------------------------------------------------------- settings-screen IO
+
+    /**
+     * The provider, key, endpoint and model a settings-screen request should use.
+     *
+     * $override carries what is typed into the form but not yet saved. Testing
+     * only the stored values meant that choosing OpenAI, pasting an OpenAI key
+     * and pressing Test reported "connected to Anthropic" — a correct answer to
+     * a question nobody asked. Blank override fields fall back to storage.
+     *
+     * @param array $override provider|api_key|endpoint|model, any subset
+     * @return array{id: string, class: class-string<Claudpress_Provider>, key: string, endpoint: string, model: string}
+     */
+    /**
+     * The currently configured provider, resolved.
+     *
+     * resolve() is protected because callers inside this file pass an override
+     * from an unsaved form. Everyone else - the add-on, a third-party plugin -
+     * just wants to know what this site is set up to talk to, so they get a
+     * read-only view of that and no way to smuggle a different key in.
+     *
+     * @return array{id: string, class: class-string<Claudpress_Provider>, key: string, endpoint: string, model: string}
+     */
+    public static function configured(): array
+    {
+        return self::resolve([]);
+    }
+
+    protected static function resolve(array $override): array
+    {
+        $s    = Claudpress::instance()->settings();
+        $pick = static function (string $field, $stored) use ($override): string {
+            $typed = isset($override[$field]) ? trim((string) $override[$field]) : '';
+            return $typed !== '' ? $typed : trim((string) $stored);
+        };
+
+        $id  = $pick('provider', $s['agent_provider'] ?? 'anthropic');
+        $id  = isset(self::providers()[$id]) ? $id : 'anthropic';
+        /** @var class-string<Claudpress_Provider> $cls */
+        $cls = self::get($id);
+
+        // Stored key, endpoint and model belong to the stored provider. Falling
+        // back to them after the picker has been changed would send an Anthropic
+        // credential to OpenAI and report the result as that provider's answer.
+        $same = ($id === (string) ($s['agent_provider'] ?? 'anthropic'));
+
+        return [
+            'id'       => $id,
+            'class'    => $cls,
+            'key'      => $pick('api_key', $same ? ($s['agent_api_key'] ?? '') : ''),
+            'endpoint' => $pick('endpoint', $same ? ($s['agent_api_endpoint'] ?? '') : '') ?: $cls::default_endpoint(),
+            'model'    => $pick('model', $same ? ($s['agent_model'] ?? '') : '') ?: $cls::default_model(),
+        ];
+    }
+
+    /**
+     * Model IDs for the settings dropdown: the vendor's own list once it has been
+     * fetched, the built-in fallback until then.
+     *
+     * Capped, because an account can list a hundred models — most of them years
+     * retired — and a dropdown that long is worse than the text box it replaced.
+     *
+     * @param string $keep A model to keep on the list whatever the vendor says.
+     * @return array<int, string>
+     */
+    public static function cached_models(string $id, string $keep = ''): array
+    {
+        /** @var class-string<Claudpress_Provider> $cls */
+        $cls    = self::get($id);
+        $cached = get_transient(self::MODELS_CACHE . $id);
+        $out    = (is_array($cached) && $cached) ? array_map('strval', $cached) : [];
+
+        if (!$out) {
+            foreach ($cls::models() as $m) {
+                $out[] = (string) $m['id'];
+            }
+        }
+        $out = array_slice(array_values(array_unique(array_filter($out))), 0, self::MODELS_SHOWN);
+
+        // Whatever is already saved stays on the list even when the vendor has
+        // stopped advertising it. A model silently dropping out of the dropdown
+        // would switch the site to a different one on the next save.
+        if ($keep !== '' && !in_array($keep, $out, true)) {
+            array_unshift($out, $keep);
+        }
+        return $out;
+    }
+
+    /** Has this provider's real list ever been fetched, or is it still the fallback? */
+    public static function has_fetched_models(string $id): bool
+    {
+        return is_array(get_transient(self::MODELS_CACHE . $id));
+    }
+
+    /** Drop every cached list, so the next look asks the vendors again. */
+    public static function forget_models(): void
+    {
+        foreach (array_keys(self::providers()) as $id) {
+            delete_transient(self::MODELS_CACHE . $id);
+        }
+    }
+
+    /**
+     * Ask the vendor which models this key may actually use, and remember it.
+     *
+     * A list baked into a release is wrong within months, which is how someone
+     * ends up picking a model their account has never had and reading a "model
+     * not found" error they cannot act on. This asks the vendor instead.
+     *
+     * @param array $override see resolve() — lets an unsaved key be used.
+     * @return array<int, string>|WP_Error
+     */
+    public static function fetch_models(array $override = [])
+    {
+        $r = self::resolve($override);
+        /** @var class-string<Claudpress_Provider> $cls */
+        $cls = $r['class'];
+
+        if ($r['key'] === '') {
+            return new WP_Error('claudpress_no_key', __('Add an API key first, then refresh the model list.', 'claudpress'));
+        }
+
+        $url = $cls::models_list_url($r['endpoint']);
+        if ($url === '') {
+            return new WP_Error(
+                'claudpress_no_model_list',
+                __('This provider does not publish a model list — type the model name your service uses.', 'claudpress')
+            );
+        }
+
+        $resp = wp_remote_get($url, ['timeout' => 20, 'headers' => $cls::headers($r['key'])]);
+        if (is_wp_error($resp)) {
+            return $resp;
+        }
+
+        $code = (int) wp_remote_retrieve_response_code($resp);
+        $data = json_decode((string) wp_remote_retrieve_body($resp), true);
+
+        if ($code < 200 || $code >= 300) {
+            return new WP_Error('claudpress_api', self::http_error($cls, $code, is_array($data) ? $data : []));
+        }
+        if (!is_array($data)) {
+            return new WP_Error('claudpress_parse', __('The model list could not be read.', 'claudpress'));
+        }
+
+        $models = $cls::parse_models($data);
+        if (!$models) {
+            return new WP_Error('claudpress_no_models', __('That provider returned no models this plugin can use.', 'claudpress'));
+        }
+
+        // A week, not an hour: vendors add models occasionally, and the Refresh
+        // button is there for anyone who cannot wait for the cache to lapse.
+        set_transient(self::MODELS_CACHE . $r['id'], $models, WEEK_IN_SECONDS);
+
+        return array_slice($models, 0, self::MODELS_SHOWN);
+    }
+
+    /**
+     * One cheap round trip that answers "is this key going to work?".
+     *
+     * Nothing is written: it tests what is on screen, so a key can be checked
+     * before it is committed. Without it a bad key surfaces days later, as a
+     * scheduled run that quietly did nothing.
+     *
+     * @param array $override see resolve().
+     * @return array{provider: string, label: string, model: string}|WP_Error
+     */
+    public static function test_connection(array $override = [])
+    {
+        $r = self::resolve($override);
+        /** @var class-string<Claudpress_Provider> $cls */
+        $cls = $r['class'];
+
+        if ($r['key'] === '') {
+            return new WP_Error('claudpress_no_key', __('Add an API key first, then test it.', 'claudpress'));
+        }
+
+        $body = $cls::body($r['model'], 'Reply with the single word OK.', [], [$cls::user_message('Say OK.')]);
+        // A ping declares no tools, and both OpenAI and Gemini reject an empty
+        // tools array outright — which would report a broken key that is fine.
+        unset($body['tools']);
+
+        $resp = wp_remote_post($cls::url($r['endpoint'], $r['model']), [
+            'timeout' => 30,
+            'headers' => $cls::headers($r['key']),
+            'body'    => wp_json_encode($body),
+        ]);
+        if (is_wp_error($resp)) {
+            return $resp;
+        }
+
+        $code = (int) wp_remote_retrieve_response_code($resp);
+        $data = json_decode((string) wp_remote_retrieve_body($resp), true);
+
+        if ($code < 200 || $code >= 300) {
+            return new WP_Error('claudpress_api', self::http_error($cls, $code, is_array($data) ? $data : []));
+        }
+        if (!is_array($data)) {
+            return new WP_Error('claudpress_parse', __('The provider answered with something this plugin could not read.', 'claudpress'));
+        }
+
+        return ['provider' => $r['id'], 'label' => $cls::label(), 'model' => $r['model']];
+    }
+
+    /**
+     * A non-2xx turned into something the owner can act on.
+     *
+     * "HTTP 401" tells someone staring at a settings screen nothing; "your key
+     * was rejected" tells them which box to go and look at. The vendor's own
+     * message is preferred where there is one, because it is usually specific.
+     *
+     * @param class-string<Claudpress_Provider> $cls
+     */
+    private static function http_error(string $cls, int $code, array $data): string
+    {
+        if ($code === 401 || $code === 403) {
+            return __('Your API key was rejected. Check it above.', 'claudpress');
+        }
+        $msg = $data ? $cls::error_message($data) : '';
+        if ($msg !== '') {
+            return $msg;
+        }
+        if ($code === 404) {
+            return __('That address returned nothing. Check the endpoint under Advanced.', 'claudpress');
+        }
+        if ($code === 429) {
+            return __('Your provider is rate-limiting this key. Wait a moment and try again.', 'claudpress');
+        }
+        /* translators: %d: HTTP status code. */
+        return sprintf(__('The provider refused the request (HTTP %d).', 'claudpress'), $code);
     }
 
     /**
@@ -218,6 +486,32 @@ final class Claudpress_Provider_Anthropic extends Claudpress_Provider
             ['id' => 'claude-sonnet-5',         'note' => 'Recommended default — strong reasoning at moderate cost.'],
             ['id' => 'claude-haiku-4-5',        'note' => 'Fastest and cheapest. Good for routine scheduled tasks.'],
         ];
+    }
+
+    public static function models_list_url(string $endpoint): string
+    {
+        return str_replace('/v1/messages', '/v1/models', $endpoint) . '?limit=100';
+    }
+
+    /**
+     * `{"data":[{"id":...,"created_at":...}]}`. The list already arrives newest
+     * first, but it is sorted on created_at rather than trusted to stay that way.
+     */
+    public static function parse_models(array $data): array
+    {
+        $rows = (isset($data['data']) && is_array($data['data'])) ? $data['data'] : [];
+        // ISO-8601 timestamps sort correctly as plain strings, so no date parsing.
+        usort($rows, static function ($a, $b) {
+            return strcmp((string) ($b['created_at'] ?? ''), (string) ($a['created_at'] ?? ''));
+        });
+
+        $out = [];
+        foreach ($rows as $m) {
+            if (!empty($m['id'])) {
+                $out[] = (string) $m['id'];
+            }
+        }
+        return array_values(array_unique($out));
     }
 
     public static function headers(string $key): array
@@ -336,6 +630,56 @@ final class Claudpress_Provider_OpenAI extends Claudpress_Provider
         ];
     }
 
+    public static function models_list_url(string $endpoint): string
+    {
+        return str_replace('/chat/completions', '/models', $endpoint);
+    }
+
+    /**
+     * `{"data":[{"id":...,"created":...}]}` — everything on the account, with no
+     * capability flags to sort by: embeddings, speech, images and moderation all
+     * come back alongside the chat models. So the chat families are picked out by
+     * name. Anything genuinely new that this misses is still reachable through
+     * "Type a custom model", which is why the filter can afford to be strict.
+     */
+    public static function parse_models(array $data): array
+    {
+        $families = ['gpt-', 'chatgpt-', 'o1', 'o3', 'o4'];
+        $not_chat = ['embedding', 'audio', 'realtime', 'tts', 'whisper', 'image', 'dall-e', 'moderation', 'transcribe', 'search', 'sora'];
+
+        $rows = (isset($data['data']) && is_array($data['data'])) ? $data['data'] : [];
+        // 'created' is a unix timestamp: newest first, so the model someone wants
+        // is at the top rather than buried under years of retired ones.
+        usort($rows, static function ($a, $b) {
+            return ((int) ($b['created'] ?? 0)) <=> ((int) ($a['created'] ?? 0));
+        });
+
+        $out = [];
+        foreach ($rows as $m) {
+            $id = (string) ($m['id'] ?? '');
+            if ($id === '') {
+                continue;
+            }
+            $chat = false;
+            foreach ($families as $family) {
+                if (strpos($id, $family) === 0) {
+                    $chat = true;
+                    break;
+                }
+            }
+            if (!$chat) {
+                continue;
+            }
+            foreach ($not_chat as $marker) {
+                if (strpos($id, $marker) !== false) {
+                    continue 2;
+                }
+            }
+            $out[] = $id;
+        }
+        return array_values(array_unique($out));
+    }
+
     public static function headers(string $key): array
     {
         return [
@@ -448,6 +792,51 @@ final class Claudpress_Provider_Google extends Claudpress_Provider
             ['id' => 'gemini-3-flash', 'note' => 'Fast and cheap; good for routine scheduled tasks.'],
             ['id' => 'gemini-2.5-pro', 'note' => 'Previous flagship.'],
         ];
+    }
+
+    public static function models_list_url(string $endpoint): string
+    {
+        // The chat endpoint already ends at .../models; the list is that URL as-is.
+        return rtrim((string) preg_replace('#/[^/]*:generateContent$#', '', $endpoint), '/') . '?pageSize=200';
+    }
+
+    /**
+     * Gemini states outright which methods each model supports, so the filter is
+     * the vendor's own answer rather than a guess.
+     *
+     * The rows carry no date, so the ordering is reverse-alphabetical — an
+     * approximation, but one that puts gemini-3 above gemini-2.5, which is the
+     * question anyone reading the top of the list is actually asking.
+     */
+    public static function parse_models(array $data): array
+    {
+        // Gemini's speech and image models answer generateContent too but return
+        // audio or pictures. Picking one fails on the first request with an error
+        // about response modalities that means nothing to a site owner.
+        $not_text = ['-tts', 'image', 'embedding', 'aqa', 'veo-', 'imagen-'];
+        $rows     = (isset($data['models']) && is_array($data['models'])) ? $data['models'] : [];
+
+        $out = [];
+        foreach ($rows as $m) {
+            $methods = isset($m['supportedGenerationMethods']) ? (array) $m['supportedGenerationMethods'] : [];
+            if ($methods && !in_array('generateContent', $methods, true)) {
+                continue;
+            }
+            // The API returns "models/gemini-3-pro"; requests take the bare id.
+            $id = (string) preg_replace('#^models/#', '', (string) ($m['name'] ?? ''));
+            if ($id === '') {
+                continue;
+            }
+            foreach ($not_text as $marker) {
+                if (strpos($id, $marker) !== false) {
+                    continue 2;
+                }
+            }
+            $out[] = $id;
+        }
+        $out = array_values(array_unique($out));
+        rsort($out, SORT_NATURAL);
+        return $out;
     }
 
     public static function url(string $endpoint, string $model): string
@@ -586,6 +975,44 @@ abstract class Claudpress_Image_Provider
 
     abstract public static function headers(string $key): array;
 
+    /** Auth headers only, for a plain GET. No Content-Type: there is no body. */
+    abstract public static function auth_headers(string $key): array;
+
+    /**
+     * A URL that proves the key works WITHOUT generating an image.
+     *
+     * Generating one to test the connection would bill the owner every time
+     * they pressed Test, which is exactly the surprise the budget caps exist to
+     * prevent. Asking the vendor to describe the chosen model costs nothing and
+     * answers two questions at once: is the key good, and does this model exist
+     * for this account.
+     */
+    abstract public static function verify_url(string $endpoint, string $model): string;
+
+    /**
+     * The vendor's own model catalogue, so Refresh can find models newer than
+     * this release. Empty string means the vendor publishes no such list.
+     */
+    public static function models_list_url(string $endpoint): string
+    {
+        return '';
+    }
+
+    /**
+     * Pull the models THIS provider can actually use out of that catalogue.
+     *
+     * Vendors return one flat list of everything the account can touch, with
+     * nothing in it that marks a model as an image model. So this matches on
+     * names, and a name match is a guess — which is exactly why a refresh only
+     * ever adds to the curated list in models() and never replaces it.
+     *
+     * @return array<int, string>
+     */
+    public static function parse_models(array $data): array
+    {
+        return [];
+    }
+
     public static function url(string $endpoint, string $model): string
     {
         return $endpoint;
@@ -653,6 +1080,55 @@ final class Claudpress_Image_Provider_OpenAI extends Claudpress_Image_Provider
         return ['Authorization' => 'Bearer ' . $key, 'Content-Type' => 'application/json'];
     }
 
+    public static function auth_headers(string $key): array
+    {
+        return ['Authorization' => 'Bearer ' . $key];
+    }
+
+    public static function verify_url(string $endpoint, string $model): string
+    {
+        $base = $endpoint !== '' ? $endpoint : self::default_endpoint();
+        // .../v1/images/generations is the generate route; .../v1/models/<id>
+        // is its describe route. Derived rather than hard-coded so a gateway
+        // that mirrors OpenAI under its own host is tested at that host.
+        $base = (string) preg_replace('#/images/generations/?$#', '', $base);
+        return rtrim($base, '/') . '/models/' . rawurlencode($model);
+    }
+
+    public static function models_list_url(string $endpoint): string
+    {
+        $base = $endpoint !== '' ? $endpoint : self::default_endpoint();
+        $base = (string) preg_replace('#/images/generations/?$#', '', $base);
+        return rtrim($base, '/') . '/models';
+    }
+
+    public static function parse_models(array $data): array
+    {
+        // OpenAI's list is every model the account can reach, so the image ones
+        // have to be picked out by name. Both families are prefixes, which is
+        // narrow enough that a chat or audio model cannot slip through.
+        $families = ['gpt-image', 'dall-e'];
+
+        $rows = (isset($data['data']) && is_array($data['data'])) ? $data['data'] : [];
+        // 'created' is a unix timestamp: newest first, so a new model shows up
+        // at the top rather than below three retired ones.
+        usort($rows, static function ($a, $b) {
+            return ((int) ($b['created'] ?? 0)) <=> ((int) ($a['created'] ?? 0));
+        });
+
+        $out = [];
+        foreach ($rows as $m) {
+            $id = (string) ($m['id'] ?? '');
+            foreach ($families as $family) {
+                if ($id !== '' && strpos($id, $family) === 0) {
+                    $out[] = $id;
+                    break;
+                }
+            }
+        }
+        return array_values(array_unique($out));
+    }
+
     public static function body(string $model, string $prompt, string $size): array
     {
         return ['model' => $model, 'prompt' => $prompt, 'size' => $size, 'n' => 1];
@@ -711,6 +1187,52 @@ final class Claudpress_Image_Provider_Google extends Claudpress_Image_Provider
         return ['x-goog-api-key' => $key, 'Content-Type' => 'application/json'];
     }
 
+    public static function auth_headers(string $key): array
+    {
+        return ['x-goog-api-key' => $key];
+    }
+
+    public static function verify_url(string $endpoint, string $model): string
+    {
+        $base = $endpoint !== '' ? $endpoint : self::default_endpoint();
+        // An override may already be a full ".../models/<id>:generateContent".
+        // Strip the action back off rather than appending a second model id.
+        $base = (string) preg_replace('#/[^/]*:generateContent/?$#', '', $base);
+        return rtrim($base, '/') . '/' . rawurlencode($model);
+    }
+
+    public static function models_list_url(string $endpoint): string
+    {
+        // For Gemini the endpoint IS the collection: ".../v1beta/models".
+        $base = $endpoint !== '' ? $endpoint : self::default_endpoint();
+        return (string) preg_replace('#/[^/]*:generateContent/?$#', '', $base);
+    }
+
+    public static function parse_models(array $data): array
+    {
+        $rows = (isset($data['models']) && is_array($data['models'])) ? $data['models'] : [];
+
+        $out = [];
+        foreach ($rows as $m) {
+            $id = (string) preg_replace('#^models/#', '', (string) ($m['name'] ?? ''));
+            if ($id === '' || strpos($id, 'gemini') !== 0 || strpos($id, 'image') === false) {
+                continue;
+            }
+            // Imagen and Veo make pictures and video too, but through :predict,
+            // which this adapter does not speak. They are excluded by the
+            // gemini prefix above rather than by a blocklist that would need
+            // updating every time Google ships another one.
+            $methods = isset($m['supportedGenerationMethods']) ? (array) $m['supportedGenerationMethods'] : [];
+            if ($methods && !in_array('generateContent', $methods, true)) {
+                continue;
+            }
+            $out[] = $id;
+        }
+        $out = array_values(array_unique($out));
+        rsort($out, SORT_NATURAL);
+        return $out;
+    }
+
     public static function body(string $model, string $prompt, string $size): array
     {
         // Gemini has no size parameter; the aspect ratio is expressed in the prompt.
@@ -737,6 +1259,189 @@ final class Claudpress_Image_Provider_Google extends Claudpress_Image_Provider
 }
 
 /**
+ * "Does this key work?" for the image and transcription providers.
+ *
+ * Both families answer it the same way and neither may answer it the way the
+ * chat provider does. A chat test costs a handful of tokens; generating an
+ * image or transcribing audio to test a key would put a real charge on the
+ * owner's account every single time they pressed the button, and the person
+ * pressing it is usually pressing it repeatedly because something is wrong.
+ *
+ * So the test is a GET that asks the vendor to describe the chosen model. It
+ * costs nothing, and it separates the two failures that actually matter: a key
+ * the vendor rejects, and a model this account cannot reach.
+ */
+final class Claudpress_Media_Check
+{
+    /**
+     * @param array<string,string> $headers auth only
+     * @return true|WP_Error
+     */
+    public static function run(string $url, array $headers, string $model)
+    {
+        if ($url === '') {
+            return new WP_Error('claudpress_no_url', __('This provider cannot be tested automatically.', 'claudpress'));
+        }
+
+        $resp = wp_remote_get($url, ['timeout' => 20, 'headers' => $headers]);
+        if (is_wp_error($resp)) {
+            return $resp;
+        }
+
+        $code = (int) wp_remote_retrieve_response_code($resp);
+        if ($code >= 200 && $code < 300) {
+            return true;
+        }
+
+        $data = json_decode((string) wp_remote_retrieve_body($resp), true);
+        $msg  = is_array($data) ? (string) ($data['error']['message'] ?? '') : '';
+
+        if ($code === 401 || $code === 403) {
+            return new WP_Error('claudpress_key', __('Your API key was rejected. Check it above.', 'claudpress'));
+        }
+        if ($code === 404) {
+            return new WP_Error('claudpress_model', sprintf(
+                /* translators: %s: model id. */
+                __('The key works, but your account cannot reach %s. Pick another model, or enable it with your provider.', 'claudpress'),
+                $model
+            ));
+        }
+        if ($code === 429) {
+            return new WP_Error('claudpress_rate', __('The provider is rate-limiting this key. Wait a moment and test again.', 'claudpress'));
+        }
+        if ($msg !== '') {
+            return new WP_Error('claudpress_api', $msg);
+        }
+
+        return new WP_Error('claudpress_api', sprintf(
+            /* translators: %d: HTTP status code. */
+            __('The provider answered with HTTP %d.', 'claudpress'),
+            $code
+        ));
+    }
+    // ---- the model list ---------------------------------------------------
+
+    const MODELS_CACHE = 'claudpress_media_models_';
+    const MODELS_SHOWN = 12;
+
+    /**
+     * What the dropdown offers: the curated list, plus anything new the vendor
+     * is advertising that we have not catalogued yet.
+     *
+     * The curated entries ALWAYS survive. A vendor's model list is one flat
+     * catalogue of everything the account can touch — chat, embeddings, speech,
+     * video — with nothing in it that says "this one draws pictures". Picking
+     * the image models back out of it means matching on names, and a name match
+     * is a guess that goes stale. If a refresh were allowed to replace the list,
+     * one renamed model would empty the dropdown, or worse, quietly drop the
+     * model a working site is using.
+     *
+     * So a refresh only ever ADDS. That is the whole design: the catalogue is
+     * the floor, the vendor is the ceiling.
+     *
+     * @param class-string $cls
+     * @return array<int, array{id: string, note: string}>
+     */
+    public static function models(string $cls, string $kind, string $pid, string $keep = ''): array
+    {
+        $out  = [];
+        $seen = [];
+
+        foreach ($cls::models() as $m) {
+            $out[]  = ['id' => (string) $m['id'], 'note' => (string) $m['note']];
+            $seen[] = (string) $m['id'];
+        }
+
+        $cached = get_transient(self::MODELS_CACHE . $kind . '_' . $pid);
+        if (is_array($cached)) {
+            foreach ($cached as $id) {
+                $id = (string) $id;
+                if ($id === '' || in_array($id, $seen, true)) {
+                    continue;
+                }
+                $out[]  = ['id' => $id, 'note' => __('Newer — offered by your provider, not yet described here.', 'claudpress')];
+                $seen[] = $id;
+            }
+        }
+
+        $out = array_slice($out, 0, self::MODELS_SHOWN);
+
+        // Whatever is already saved stays on the list even when the vendor has
+        // stopped advertising it. A model silently vanishing from the dropdown
+        // would switch the site to a different one on the next save.
+        if ($keep !== '' && !in_array($keep, array_column($out, 'id'), true)) {
+            array_unshift($out, ['id' => $keep, 'note' => __('your saved model', 'claudpress')]);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Ask the vendor what this key can really reach, and remember it for a week.
+     *
+     * @param class-string $cls
+     * @return array<int, array{id: string, note: string}>|WP_Error
+     */
+    public static function refresh(string $cls, string $kind, string $pid, string $key, string $endpoint, string $keep = '')
+    {
+        if (trim($key) === '') {
+            return new WP_Error('claudpress_no_key', __('Add an API key first, then refresh the model list.', 'claudpress'));
+        }
+
+        $url = $cls::models_list_url($endpoint);
+        if ($url === '') {
+            return new WP_Error(
+                'claudpress_no_model_list',
+                __('This provider does not publish a model list. The models above are the ones this plugin supports.', 'claudpress')
+            );
+        }
+
+        $resp = wp_remote_get($url, ['timeout' => 20, 'headers' => $cls::auth_headers($key)]);
+        if (is_wp_error($resp)) {
+            return $resp;
+        }
+
+        $code = (int) wp_remote_retrieve_response_code($resp);
+        $data = json_decode((string) wp_remote_retrieve_body($resp), true);
+
+        if ($code === 401 || $code === 403) {
+            return new WP_Error('claudpress_key', __('Your API key was rejected. Check it above.', 'claudpress'));
+        }
+        if ($code < 200 || $code >= 300 || !is_array($data)) {
+            $msg = is_array($data) ? (string) ($data['error']['message'] ?? '') : '';
+            return new WP_Error('claudpress_api', $msg !== '' ? $msg : sprintf(
+                /* translators: %d: HTTP status code. */
+                __('The model list could not be read (HTTP %d).', 'claudpress'),
+                $code
+            ));
+        }
+
+        $found = $cls::parse_models($data);
+
+        // Not an error. The key works and the vendor answered; it simply had
+        // nothing this plugin has not already got. Saying "no models" here
+        // would read as a failure and send somebody hunting for a broken key.
+        set_transient(self::MODELS_CACHE . $kind . '_' . $pid, $found, WEEK_IN_SECONDS);
+
+        return self::models($cls, $kind, $pid, $keep);
+    }
+
+    /** Drop every cached media list, so the next look asks the vendors again. */
+    public static function forget(): void
+    {
+        foreach (['image', 'voice'] as $kind) {
+            $all = $kind === 'image'
+                ? Claudpress_Image_Provider::providers()
+                : Claudpress_Transcribe_Provider::providers();
+            foreach (array_keys($all) as $pid) {
+                delete_transient(self::MODELS_CACHE . $kind . '_' . $pid);
+            }
+        }
+    }
+
+}
+
+/**
  * Speech-to-text providers, for voice notes sent to the Telegram bot.
  *
  * Separate from the chat adapters for the same reason the image ones are: one
@@ -751,6 +1456,51 @@ abstract class Claudpress_Transcribe_Provider
     abstract public static function default_endpoint(): string;
     abstract public static function default_model(): string;
     abstract public static function key_url(): string;
+    abstract public static function models_url(): string;
+    abstract public static function key_hint(): string;
+
+    /**
+     * The transcription models this vendor offers, newest and best first.
+     *
+     * A short curated list, not the vendor's whole catalogue: a chat model that
+     * happens to accept audio is not the same as one that transcribes well, and
+     * the /models endpoint cannot tell the two apart. Offering the wrong one
+     * produces a confident, wrong transcript rather than an error.
+     *
+     * @return array<int, array{id: string, note: string}>
+     */
+    abstract public static function models(): array;
+
+    /** Auth headers only, for a plain GET. No Content-Type: there is no body. */
+    abstract public static function auth_headers(string $key): array;
+
+    /**
+     * A URL that proves the key works WITHOUT transcribing anything.
+     *
+     * Testing by sending audio would need audio to send and would bill the
+     * owner for every press of Test. Asking the vendor to describe the chosen
+     * model costs nothing and catches both failures worth catching: a rejected
+     * key, and a model this account cannot reach.
+     */
+    abstract public static function verify_url(string $endpoint, string $model): string;
+
+    /** As on the image family: the vendor's catalogue, for the Refresh button. */
+    public static function models_list_url(string $endpoint): string
+    {
+        return '';
+    }
+
+    /**
+     * As on the image family: a name match, which is a guess, which is why
+     * Claudpress_Media_Check::models() adds to the curated list rather than
+     * trusting this to replace it.
+     *
+     * @return array<int, string>
+     */
+    public static function parse_models(array $data): array
+    {
+        return [];
+    }
 
     /**
      * Perform the transcription.
@@ -837,6 +1587,61 @@ final class Claudpress_Transcribe_Provider_OpenAI extends Claudpress_Transcribe_
     public static function default_endpoint(): string { return 'https://api.openai.com/v1/audio/transcriptions'; }
     public static function default_model(): string { return 'gpt-4o-mini-transcribe'; }
     public static function key_url(): string { return 'https://platform.openai.com/api-keys'; }
+    public static function models_url(): string { return 'https://platform.openai.com/docs/guides/speech-to-text'; }
+    public static function key_hint(): string { return 'sk-...'; }
+
+    public static function models(): array
+    {
+        return [
+            ['id' => 'gpt-4o-mini-transcribe', 'note' => 'Recommended. Fast and cheap, and accurate enough for voice notes.'],
+            ['id' => 'gpt-4o-transcribe',      'note' => 'More accurate on accents, noise and technical words. Costs more.'],
+            ['id' => 'whisper-1',              'note' => 'The older Whisper model. Still solid, and the widest language coverage.'],
+        ];
+    }
+
+    public static function auth_headers(string $key): array
+    {
+        return ['Authorization' => 'Bearer ' . $key];
+    }
+
+    public static function verify_url(string $endpoint, string $model): string
+    {
+        $base = $endpoint !== '' ? $endpoint : self::default_endpoint();
+        $base = (string) preg_replace('#/audio/transcriptions/?$#', '', $base);
+        return rtrim($base, '/') . '/models/' . rawurlencode($model);
+    }
+
+    public static function models_list_url(string $endpoint): string
+    {
+        $base = $endpoint !== '' ? $endpoint : self::default_endpoint();
+        $base = (string) preg_replace('#/audio/transcriptions/?$#', '', $base);
+        return rtrim($base, '/') . '/models';
+    }
+
+    public static function parse_models(array $data): array
+    {
+        // A model that merely ACCEPTS audio is not a transcription model:
+        // gpt-4o-audio answers in speech and would return no transcript at all.
+        // Only these two markers name models whose job is writing down words.
+        $markers = ['transcribe', 'whisper'];
+
+        $rows = (isset($data['data']) && is_array($data['data'])) ? $data['data'] : [];
+        usort($rows, static function ($a, $b) {
+            return ((int) ($b['created'] ?? 0)) <=> ((int) ($a['created'] ?? 0));
+        });
+
+        $out = [];
+        foreach ($rows as $m) {
+            $id = (string) ($m['id'] ?? '');
+            foreach ($markers as $marker) {
+                if ($id !== '' && strpos($id, $marker) !== false) {
+                    $out[] = $id;
+                    break;
+                }
+            }
+        }
+        return array_values(array_unique($out));
+    }
 
     public static function transcribe(string $key, string $model, string $endpoint, string $bytes, string $mime, string $filename): array
     {
@@ -875,6 +1680,66 @@ final class Claudpress_Transcribe_Provider_Google extends Claudpress_Transcribe_
     public static function default_endpoint(): string { return 'https://generativelanguage.googleapis.com/v1beta/models'; }
     public static function default_model(): string { return 'gemini-flash-latest'; }
     public static function key_url(): string { return 'https://aistudio.google.com/apikey'; }
+    public static function models_url(): string { return 'https://ai.google.dev/gemini-api/docs/audio'; }
+    public static function key_hint(): string { return 'AIza...'; }
+
+    public static function models(): array
+    {
+        return [
+            ['id' => 'gemini-flash-latest', 'note' => 'Recommended. An alias that always points at the current Flash model.'],
+            ['id' => 'gemini-2.5-flash',    'note' => 'A pinned version, so an upgrade cannot change your results.'],
+            ['id' => 'gemini-2.5-pro',      'note' => 'Slower and dearer. Better on poor audio and unusual vocabulary.'],
+        ];
+    }
+
+    public static function auth_headers(string $key): array
+    {
+        return ['x-goog-api-key' => $key];
+    }
+
+    public static function verify_url(string $endpoint, string $model): string
+    {
+        $base = $endpoint !== '' ? $endpoint : self::default_endpoint();
+        $base = (string) preg_replace('#/[^/]*:generateContent/?$#', '', $base);
+        return rtrim($base, '/') . '/' . rawurlencode($model);
+    }
+
+    public static function models_list_url(string $endpoint): string
+    {
+        $base = $endpoint !== '' ? $endpoint : self::default_endpoint();
+        return (string) preg_replace('#/[^/]*:generateContent/?$#', '', $base);
+    }
+
+    public static function parse_models(array $data): array
+    {
+        // Gemini transcribes as a side effect of generateContent, so the
+        // candidates are the ordinary text models. Everything excluded here
+        // still answers generateContent - and returns speech, or a picture, or
+        // a vector - which is why the filter cannot simply trust that method.
+        $not_text = ['-tts', 'image', 'embedding', 'aqa', 'veo-', 'imagen-'];
+        $rows     = (isset($data['models']) && is_array($data['models'])) ? $data['models'] : [];
+
+        $out = [];
+        foreach ($rows as $m) {
+            $id = (string) preg_replace('#^models/#', '', (string) ($m['name'] ?? ''));
+            if ($id === '' || strpos($id, 'gemini') !== 0) {
+                continue;
+            }
+            $methods = isset($m['supportedGenerationMethods']) ? (array) $m['supportedGenerationMethods'] : [];
+            if ($methods && !in_array('generateContent', $methods, true)) {
+                continue;
+            }
+            foreach ($not_text as $marker) {
+                if (strpos($id, $marker) !== false) {
+                    continue 2;
+                }
+            }
+            $out[] = $id;
+        }
+        $out = array_values(array_unique($out));
+        rsort($out, SORT_NATURAL);
+        return $out;
+    }
 
     public static function transcribe(string $key, string $model, string $endpoint, string $bytes, string $mime, string $filename): array
     {
