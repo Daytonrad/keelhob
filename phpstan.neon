@@ -18,10 +18,15 @@ parameters:
 
     excludePaths:
         analyseAndScan:
-            - vendor
-            - build
+            # (?) marks a path as optional. vendor/ and build/ are both
+            # gitignored and absent from a fresh checkout, and PHPStan treats
+            # a missing exclude path as a configuration error rather than as
+            # nothing to exclude. Without these, CI fails on a clean clone
+            # while passing on any machine that has ever run a build.
+            - vendor (?)
+            - build (?)
             - tests/fake-wp
-            - tests/fake-wp-backup
+            - tests/fake-wp-backup (?)
 
     # The plugin header declares "Requires PHP: 8.0" and CI genuinely tests that
     # floor. Analysing as 8.0 means PHPStan flags anything that would only work
