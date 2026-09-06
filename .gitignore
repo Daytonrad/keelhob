@@ -2,6 +2,24 @@
 claudpress.zip
 build/
 
+# Composer is DEV TOOLING ONLY here (PHPStan). The plugin itself has no runtime
+# dependencies: `require` in composer.json is deliberately empty, no Composer
+# autoloader is registered, and bin/build-zip.sh never copies this directory
+# into the zip. Nothing under vendor/ ships, so nothing under vendor/ is tracked.
+vendor/
+
+# composer.lock IS committed on purpose — do not add it here.
+#
+# The only dependency is the analyser, and the analyser has a committed
+# baseline. Floating the analyser against a fixed baseline is how CI goes red on
+# a commit that changed no code: PHPStan routinely adds rules in patch releases,
+# and every new rule becomes an unbaselined error. The lock pins it, so
+# upgrading PHPStan is a deliberate `composer update` that regenerates the
+# baseline in the same commit. It also makes the CI cache key mean something.
+
+# PHPStan's result cache
+.phpstan-cache/
+
 # Code index (local only)
 .codegraph/
 

@@ -56,6 +56,36 @@ jobs:
       - name: Run the test suite
         run: php tests/run.php
 
+  analyse:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # PHPStan only has to RUN here. It ANALYSES as PHP 8.0 — the plugin's
+      # declared floor — because phpstan.neon pins phpVersion: 80000. So this
+      # job deliberately does not repeat the version matrix above.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      # Dev tooling only. The plugin itself has no runtime dependencies and no
+      # vendor/ ever reaches the shipped zip — see bin/build-zip.sh.
+      - name: Install dev dependencies
+        run: composer install --no-interaction --no-progress
+
+      - name: Run PHPStan
+        run: composer analyse
+
   package:
     name: Build the installable zip
     runs-on: ubuntu-latest

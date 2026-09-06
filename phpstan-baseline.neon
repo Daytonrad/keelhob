@@ -1,0 +1,214 @@
+# PHPStan baseline — 50 findings at level 1, none of them bugs.
+#
+# What is in here, and why each group is noise rather than substance:
+#
+#   44  WooCommerce classes and functions PHPStan cannot see. Every call site is
+#       already behind class_exists('WooCommerce') or function_exists(). Adding
+#       php-stubs/woocommerce-stubs would remove all 44 and is a reasonable
+#       future change; it was left out to keep the dev dependency list at two.
+#
+#    5  CLAUDPRESS_DIR / CLAUDPRESS_BASENAME "not found". PHPStan does not carry
+#       define() across files. Both are defined unconditionally in claudpress.php
+#       before anything that uses them loads.
+#
+#    1  a style rule about DOING_CRON.
+#
+# Three findings that WERE real bugs are not in this list, because they were
+# fixed rather than baselined:
+#
+#   - class-tools-seo.php called Claudpress_Tools_Seo; the class is declared
+#     Claudpress_Tools_SEO. PHP does not care. A case-sensitive class map does,
+#     and the autoloader added in the same change is one.
+#   - Claudpress_Studio::redirect() ends in exit, which made the code after
+#     every guard clause look reachable. Now documented as @phpstan-return never.
+#
+# If you are adding to this file, stop and ask whether the finding is real. The
+# point of a baseline is to stop old noise blocking new work, not to be somewhere
+# to put things you do not want to think about.
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Function get_woocommerce_currency not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: includes/class-digest.php
+
+		-
+			message: '#^Function wc_get_orders not found\.$#'
+			identifier: function.notFound
+			count: 2
+			path: includes/class-digest.php
+
+		-
+			message: '#^Function wc_get_products not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: includes/class-digest.php
+
+		-
+			message: '#^Constant CLAUDPRESS_BASENAME not found\.$#'
+			identifier: constant.notFound
+			count: 2
+			path: includes/class-donate.php
+
+		-
+			message: '#^Instantiated class WC_Product_Simple not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: includes/class-migration.php
+
+		-
+			message: '#^Constant CLAUDPRESS_DIR not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: includes/class-skills.php
+
+		-
+			message: '#^Found usage of constant DOING_CRON\. Use wp_doing_cron\(\) instead\.$#'
+			identifier: phpstanWP.wpConstant.fetch
+			count: 1
+			path: includes/class-snippet-log.php
+
+		-
+			message: '#^Constant CLAUDPRESS_BASENAME not found\.$#'
+			identifier: constant.notFound
+			count: 2
+			path: includes/class-updater.php
+
+		-
+			message: '#^Call to static method _delete_tax_rate\(\) on an unknown class WC_Tax\.$#'
+			identifier: class.notFound
+			count: 1
+			path: includes/tools/class-tools-payments.php
+
+		-
+			message: '#^Call to static method _insert_tax_rate\(\) on an unknown class WC_Tax\.$#'
+			identifier: class.notFound
+			count: 1
+			path: includes/tools/class-tools-payments.php
+
+		-
+			message: '#^Call to static method get_zone_matching_package\(\) on an unknown class WC_Shipping_Zones\.$#'
+			identifier: class.notFound
+			count: 1
+			path: includes/tools/class-tools-payments.php
+
+		-
+			message: '#^Call to static method get_zones\(\) on an unknown class WC_Shipping_Zones\.$#'
+			identifier: class.notFound
+			count: 1
+			path: includes/tools/class-tools-payments.php
+
+		-
+			message: '#^Function WC not found\.$#'
+			identifier: function.notFound
+			count: 3
+			path: includes/tools/class-tools-payments.php
+
+		-
+			message: '#^Function get_woocommerce_currency not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: includes/tools/class-tools-payments.php
+
+		-
+			message: '#^Function wc_get_product not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: includes/tools/class-tools-payments.php
+
+		-
+			message: '#^Instantiated class WC_Shipping_Zone not found\.$#'
+			identifier: class.notFound
+			count: 4
+			path: includes/tools/class-tools-payments.php
+
+		-
+			message: '#^Function WC not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: includes/tools/class-tools-woocommerce.php
+
+		-
+			message: '#^Function get_woocommerce_currency not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: includes/tools/class-tools-woocommerce.php
+
+		-
+			message: '#^Function wc_create_order not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: includes/tools/class-tools-woocommerce.php
+
+		-
+			message: '#^Function wc_create_refund not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: includes/tools/class-tools-woocommerce.php
+
+		-
+			message: '#^Function wc_get_order not found\.$#'
+			identifier: function.notFound
+			count: 4
+			path: includes/tools/class-tools-woocommerce.php
+
+		-
+			message: '#^Function wc_get_order_notes not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: includes/tools/class-tools-woocommerce.php
+
+		-
+			message: '#^Function wc_get_order_statuses not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: includes/tools/class-tools-woocommerce.php
+
+		-
+			message: '#^Function wc_get_orders not found\.$#'
+			identifier: function.notFound
+			count: 2
+			path: includes/tools/class-tools-woocommerce.php
+
+		-
+			message: '#^Function wc_get_product not found\.$#'
+			identifier: function.notFound
+			count: 4
+			path: includes/tools/class-tools-woocommerce.php
+
+		-
+			message: '#^Instantiated class WC_Coupon not found\.$#'
+			identifier: class.notFound
+			count: 5
+			path: includes/tools/class-tools-woocommerce.php
+
+		-
+			message: '#^Instantiated class WC_Product_Attribute not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: includes/tools/class-tools-woocommerce.php
+
+		-
+			message: '#^Instantiated class WC_Product_Query not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: includes/tools/class-tools-woocommerce.php
+
+		-
+			message: '#^Instantiated class WC_Product_Simple not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: includes/tools/class-tools-woocommerce.php
+
+		-
+			message: '#^Parameter \$o of method Claudpress_Tools_WooCommerce\:\:serialize_order\(\) has invalid type WC_Order\.$#'
+			identifier: class.notFound
+			count: 1
+			path: includes/tools/class-tools-woocommerce.php
+
+		-
+			message: '#^Parameter \$p of method Claudpress_Tools_WooCommerce\:\:serialize_product\(\) has invalid type WC_Product\.$#'
+			identifier: class.notFound
+			count: 1
+			path: includes/tools/class-tools-woocommerce.php

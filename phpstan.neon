@@ -1,0 +1,31 @@
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+    - phpstan-baseline.neon
+
+parameters:
+    # Level 1 on purpose. This is ~26,500 lines that have never been statically
+    # analysed; a high level buries the handful of real findings under thousands
+    # of "missing iterable value type" notices. Level 1 catches undefined
+    # variables, unknown classes/methods/functions and wrong argument counts —
+    # the things that are bugs rather than style.
+    level: 1
+
+    paths:
+        - includes
+        - claudpress.php
+        - uninstall.php
+        - bin
+
+    excludePaths:
+        analyseAndScan:
+            - vendor
+            - build
+            - tests/fake-wp
+            - tests/fake-wp-backup
+
+    # The plugin header declares "Requires PHP: 8.0" and CI genuinely tests that
+    # floor. Analysing as 8.0 means PHPStan flags anything that would only work
+    # on a newer runtime, even though the developer running this is on 8.5.
+    phpVersion: 80000
+
+    treatPhpDocTypesAsCertain: false

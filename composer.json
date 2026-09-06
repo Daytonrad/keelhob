@@ -1,0 +1,37 @@
+{
+    "name": "calflint/claudpress",
+    "description": "Development toolchain for the Claudpress WordPress plugin. The plugin itself has NO runtime dependencies — `require` below is deliberately empty and no vendor/ directory is ever shipped. Composer is used here only to install static-analysis tooling for developers and CI.",
+    "type": "project",
+    "license": "GPL-2.0-or-later",
+    "homepage": "https://github.com/calflint/claudpress",
+    "authors": [
+        {
+            "name": "Caleb Arthur-Flints",
+            "homepage": "https://github.com/calflint"
+        }
+    ],
+    "require": {},
+    "require-dev": {
+        "phpstan/phpstan": "^2.2",
+        "szepeviktor/phpstan-wordpress": "^2.0"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": false,
+        "allow-plugins": {
+            "phpstan/extension-installer": false
+        }
+    },
+    "scripts": {
+        "test": "php tests/run.php",
+        "analyse": "phpstan analyse --memory-limit=2G",
+        "lint": "php bin/lint.php"
+    },
+    "scripts-descriptions": {
+        "test": "Run the custom unit suite (tests/run.php). No PHPUnit, no database.",
+        "analyse": "Run PHPStan level 1 over the plugin against the committed baseline.",
+        "lint": "Run `php -l` over every PHP file in the repo, excluding vendor/."
+    }
+}
