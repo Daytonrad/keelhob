@@ -45,6 +45,26 @@ Build the installable zip:
 bash bin/build-zip.sh      # → build/claudpress.zip
 ```
 
+### Static analysis, if you want it
+
+Optional. The suite above needs nothing installed; this needs Composer.
+
+```bash
+composer install           # dev tooling only
+composer analyse           # PHPStan, level 1
+composer lint              # php -l over every file
+```
+
+The plugin itself has **no** runtime dependencies and that is deliberate — `require` in
+`composer.json` is empty on purpose and `vendor/` never reaches the shipped zip. Composer is
+here for the analyser and nothing else.
+
+PHPStan runs at level 1 with a committed baseline, and it analyses against the **PHP 8.0**
+floor rather than whatever you happen to be running. If your change adds a finding, fix it
+rather than adding a baseline entry — the header of `phpstan-baseline.neon` explains what is
+already in there and why. Raising the level one rule class at a time is a genuinely useful
+contribution.
+
 ### The live rig (optional, for anything touching real WordPress)
 
 Some things a stub cannot honestly answer — path traversal, WooCommerce
