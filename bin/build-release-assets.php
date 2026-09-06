@@ -15,8 +15,14 @@
  *   php bin/build-release-assets.php
  *
  * The private key is read from SKILLS_SIGNING_SECRET_B64, taken from the
- * environment first (so CI can inject it) and from .env only as a fallback.
- * It is never printed, and it never reaches the output files.
+ * environment first (so CI can inject it) and from a .env file only as a
+ * fallback. It is never printed, and it never reaches the output files.
+ *
+ * That .env lives OUTSIDE this repository, in the sibling claudpress-vital/
+ * directory. It holds a live Ed25519 signing key, and a secret sitting next to
+ * public source is one `git add -A -f` away from being published forever. The
+ * path is resolved relative to the repository rather than hardcoded, so a
+ * checkout anywhere still finds it as long as the sibling is beside it.
  */
 
 declare(strict_types=1);
@@ -31,16 +37,43 @@ if (!extension_loaded('sodium')) {
 
 // ---- the key ------------------------------------------------------------
 
-$secret_b64 = (string) getenv('SKILLS_SIGNING_SECRET_B64');
-if ($secret_b64 === '' && is_file($root . '/.env')) {
-    foreach (file($root . '/.env', FILE_IGNORE_NEW_LINES) as $line) {
+// Resolved relative to the repo, never as an absolute path: this has to work
+// on a machine that is not the one it was written on.
+$vault_env  = dirname($root) . '/claudpress-vital/.env';
+$legacy_env = $root . '/.env';
+
+$read_env = static function (string $path): string {
+    if (!is_file($path)) {
+        return '';
+    }
+    $found = '';
+    foreach (file($path, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
         if (preg_match('/^SKILLS_SIGNING_SECRET_B64=(.*)$/', trim($line), $m)) {
-            $secret_b64 = trim($m[1], "\"' ");
+            $found = trim($m[1], "\"' ");
         }
     }
+    return $found;
+};
+
+$secret_b64 = (string) getenv('SKILLS_SIGNING_SECRET_B64');
+if ($secret_b64 === '') {
+    $secret_b64 = $read_env($vault_env);
+}
+// Legacy: the key used to live inside the repo. Still honoured so an older
+// checkout keeps building, but it should be moved out — see the note above.
+if ($secret_b64 === '') {
+    $secret_b64 = $read_env($legacy_env);
 }
 if ($secret_b64 === '') {
-    $fail('No SKILLS_SIGNING_SECRET_B64 in the environment or .env. Cannot sign.');
+    $fail(
+        "No SKILLS_SIGNING_SECRET_B64 found, so nothing can be signed.\n"
+        . "       Looked in, in order:\n"
+        . "         1. the environment variable SKILLS_SIGNING_SECRET_B64\n"
+        . '         2. ' . $vault_env . "   (the expected home)\n"
+        . '         3. ' . $legacy_env . "   (legacy, in-repo)\n\n"
+        . "       Put the line SKILLS_SIGNING_SECRET_B64=\"<base64 secret key>\" in\n"
+        . '       ' . $vault_env . ', or export it before running this.'
+    );
 }
 
 $secret = base64_decode($secret_b64, true);
