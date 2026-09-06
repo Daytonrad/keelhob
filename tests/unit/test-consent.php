@@ -15,7 +15,9 @@
 
 CP_Test::group('Consent — the warning is actually on the screen');
 
-$src = file_get_contents(CLAUDPRESS_DIR . 'includes/class-admin.php');
+// The consent block is part of the Connect screen, which is where it moved
+// when the admin UI was split up.
+$src = file_get_contents(CLAUDPRESS_DIR . 'includes/class-admin-screens.php');
 
 foreach ([
     'Before you switch this on'                => 'the block is headed as a warning, not a setting',
@@ -39,7 +41,7 @@ CP_Test::ok(strpos(substr($src, $block, $box - $block), '<details') === false, '
 
 CP_Test::group('Consent — it is recorded');
 
-$from_post = new ReflectionMethod('Claudpress_Admin', 'consent_from_post');
+$from_post = new ReflectionMethod('Claudpress_Admin_Settings', 'consent_from_post');
 @$from_post->setAccessible(true); // no-op (and deprecated) on PHP 8.1+, still required on the 8.0 floor
 
 $GLOBALS['cp_test_current_user'] = 7;

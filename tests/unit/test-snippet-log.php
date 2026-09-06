@@ -178,9 +178,10 @@ CP_Test::group('Snippet log — the table ships on both tiers');
 // Free sites have no Snippets Studio but must still be able to see what the
 // agent did to their site. A Pro gate on this page would be a trust problem.
 $log_src   = file_get_contents(CLAUDPRESS_DIR . 'includes/class-snippet-log.php');
-$admin_src = file_get_contents(CLAUDPRESS_DIR . 'includes/class-admin.php');
+$admin_src = file_get_contents(CLAUDPRESS_DIR . 'includes/class-admin-screens.php');
+// render_activity() is the last method on the screens class, so the page runs
+// from its declaration to the end of the file.
 $activity  = substr($admin_src, (int) strpos($admin_src, 'public function render_activity'));
-$activity  = substr($activity, 0, (int) strpos($activity, 'private static function secret_from_post'));
 CP_Test::ok(strpos($log_src, 'is_pro') === false, 'the snippet log has no licence check');
 CP_Test::ok(strpos($activity, 'is_pro') === false, 'the Activity page has no licence check');
 foreach (['mem_page', 'snip_page', 'log_page'] as $arg) {

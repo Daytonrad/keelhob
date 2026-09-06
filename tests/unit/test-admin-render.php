@@ -739,7 +739,10 @@ cp_test_reset_options();
 CP_Test::group('Admin — strings are internationalized');
 
 // Catch a future edit that drops a raw English string back into a template.
-$src   = file_get_contents(CLAUDPRESS_DIR . 'includes/class-admin.php');
+$src   = '';
+foreach (['class-admin.php', 'class-admin-screens.php', 'class-admin-automation.php', 'class-admin-providers.php', 'class-admin-settings.php'] as $cp_admin_file) {
+    $src .= (string) file_get_contents(CLAUDPRESS_DIR . 'includes/' . $cp_admin_file);
+}
 $raw   = preg_match_all('/<(?:p|h2|h3|li|th|strong|em|label|summary|button)[^>]*>[A-Z][a-z]+ [a-z]+/', $src, $m);
 CP_Test::same(0, $raw, 'no untranslated sentence-like strings left in admin templates');
 CP_Test::ok(

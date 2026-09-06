@@ -75,30 +75,19 @@ if (!defined('CLAUDPRESS_MAX_EXECUTION_TIME')) {
  * case-insensitive, so `Claudpress_Tools_Seo` must find `Claudpress_Tools_SEO`),
  * and includes/ is tried before includes/tools/.
  *
- * $map holds the classes the convention cannot reach. includes/class-providers.php
- * declares eleven of them in one file, and that file is NOT split up: renaming or
- * moving a file would break `claudpress_register_tools` for anyone who has
- * already hooked it. The map keeps the seam stable and keeps loading lazy.
+ * $map is the escape hatch for a class the convention cannot reach — a file
+ * holding more than one class, or a name that does not follow the rule. It is
+ * empty, and the intention is that it stays that way: every class under
+ * includes/ is named so the convention finds it. tests/unit/test-integrity.php
+ * proves that from the source, so a stale entry here cannot go unnoticed.
  */
 spl_autoload_register(static function ($class) {
     if (strncasecmp((string) $class, 'Claudpress', 10) !== 0 || strpos((string) $class, '\\') !== false) {
         return;
     }
 
-    static $map = [
-        // includes/class-providers.php — eleven classes, one file.
-        'claudpress_provider'                  => 'includes/class-providers.php',
-        'claudpress_provider_anthropic'        => 'includes/class-providers.php',
-        'claudpress_provider_openai'           => 'includes/class-providers.php',
-        'claudpress_provider_google'           => 'includes/class-providers.php',
-        'claudpress_image_provider'            => 'includes/class-providers.php',
-        'claudpress_image_provider_openai'     => 'includes/class-providers.php',
-        'claudpress_image_provider_google'     => 'includes/class-providers.php',
-        'claudpress_media_check'               => 'includes/class-providers.php',
-        'claudpress_transcribe_provider'       => 'includes/class-providers.php',
-        'claudpress_transcribe_provider_openai' => 'includes/class-providers.php',
-        'claudpress_transcribe_provider_google' => 'includes/class-providers.php',
-    ];
+    /** @var array<string,string> lowercased class name => path relative to CLAUDPRESS_DIR. */
+    static $map = [];
 
     $lc = strtolower((string) $class);
 

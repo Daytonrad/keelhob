@@ -13,7 +13,8 @@ CP_Test::group('Donate — the button is on every Claudpress screen');
 // Every admin screen this plugin renders. If a new one is added without the
 // button, this list is where you find that out.
 $screens = [
-    'includes/class-admin.php'         => 4,  // Connect, Automation, Guide, Activity
+    'includes/class-admin-screens.php' => 3,  // Connect, Guide, Activity
+    'includes/class-admin-automation.php' => 1,
     'includes/class-admin-skills.php'  => 1,
     'includes/class-admin-snippets.php' => 1,
     'includes/class-studio.php'        => 1,

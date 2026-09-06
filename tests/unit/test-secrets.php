@@ -51,7 +51,12 @@ CP_Test::same($key, Claudpress::instance()->get('agent_api_key'), 'saving an unr
 
 CP_Test::group('Secrets - the admin template');
 
-$admin = file_get_contents(CLAUDPRESS_DIR . 'includes/class-admin.php');
+// Every file the admin UI was split into: a raw echo of a secret is just as
+// bad on one screen as on another.
+$admin = '';
+foreach (['class-admin.php', 'class-admin-screens.php', 'class-admin-automation.php', 'class-admin-providers.php', 'class-admin-settings.php'] as $cp_admin_file) {
+    $admin .= (string) file_get_contents(CLAUDPRESS_DIR . 'includes/' . $cp_admin_file);
+}
 foreach (['agent_api_key', 'image_api_key', 'voice_api_key', 'notify_telegram_token', 'deploy_target_token'] as $field) {
     $raw_echo = 'value="<?php echo esc_attr($s[' . chr(39) . $field . chr(39) . '] ?? ' . chr(39) . chr(39) . '); ?>"';
     CP_Test::ok(strpos($admin, $raw_echo) === false, $field . ' is never echoed into the page');
