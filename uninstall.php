@@ -51,6 +51,7 @@ $options = [
     'claudpress_robots_extra',
     'claudpress_db_version',
     'claudpress_undo_stack',
+    'claudpress_paid_tier_reset',
     // claudpress_settings is deliberately absent here and deleted last, below.
 ];
 foreach ($options as $opt) {

@@ -1,25 +1,30 @@
 <?php
 /**
- * The 2.0.0 upgrade: eight capability groups are forced OFF.
+ * The one-time paid-tier upgrade: eight capability groups are forced OFF.
  *
- * This is the most consequential few lines in the 2.0.0 release, so it gets a
+ * This is the most consequential few lines in the free/paid merge, so it gets a
  * test that states the failure in full rather than a happy path.
  *
- * Until 2.0.0, payments/shipping/tax/orders/users/updates/comms/deploy were
+ * Until the merge, payments/shipping/tax/orders/users/updates/comms/deploy were
  * unreachable because they sat behind a paywall. Their own on/off toggle was
  * never consulted, so on a real site it can be sitting at "on" and mean
- * nothing. 2.0.0 removes the paywall. If the upgrade only set defaults for
+ * nothing. The merge removes the paywall. If the upgrade only set defaults for
  * groups with NO stored value, every one of those sites would silently gain the
  * ability to email its customers, edit its users, change its payment gateways
  * and deploy to production - shipped by an automatic update.
  *
  * So: forced off, regardless of what is stored. If this test ever goes green
  * after being weakened to "only if unset", that is the bug it exists to stop.
+ *
+ * The second half of this file guards the other direction, which a version
+ * check got wrong: the migration must fire ONLY at sites carrying pre-merge
+ * paid-tier settings. It is guarded on that evidence, not on a version number,
+ * because version numbers get renumbered and evidence does not.
  */
 
-CP_Test::group('Upgrade to 2.0.0 — the paywall was a safety fence');
+CP_Test::group('Paid-tier upgrade — the paywall was a safety fence');
 
-$upgrade = new ReflectionMethod('Claudpress', 'upgrade_to_2_0_0');
+$upgrade = new ReflectionMethod('Claudpress', 'upgrade_from_paid_tier');
 $upgrade->setAccessible(true);
 
 // A site that had every one of them explicitly stored as ENABLED. This is the
@@ -40,7 +45,7 @@ cp_test_reset_options([
     'claudpress_pro_licence' => ['key' => 'CP-LIVE-0001', 'status' => 'valid'],
 ]);
 
-$upgrade->invoke(null, '1.10.1');
+$upgrade->invoke(null);
 
 $after = get_option(Claudpress::OPTION_SETTINGS, []);
 $caps  = $after['capabilities'];
@@ -61,24 +66,97 @@ CP_Test::ok(!array_key_exists('skills_token', $after), 'skills_token is deleted'
 CP_Test::ok(get_option('claudpress_pro_licence', null) === null, 'the stored licence is deleted');
 
 // The owner must be told. A silent switch-off is its own kind of bug.
-$flag = get_option('claudpress_2_0_0_capabilities_reset', '');
+$flag = get_option('claudpress_paid_tier_reset', '');
 CP_Test::ok($flag !== '' && $flag !== 'none', 'the admin notice is armed, naming what was switched off');
 CP_Test::ok(strpos($flag, 'payments') !== false, 'the notice names payments among them');
 
-CP_Test::group('Upgrade to 2.0.0 — it runs once, and not on a new install');
+CP_Test::group('Paid-tier upgrade — it runs once, and not on a new install');
 
 // Running twice must not re-disable something the owner has since turned on.
 // An upgrade that fights the owner every time the version option is touched is
 // worse than no upgrade at all.
 $after['capabilities']['payments'] = true;
 update_option(Claudpress::OPTION_SETTINGS, $after);
-$upgrade->invoke(null, '1.10.1');
+$upgrade->invoke(null);
 $twice = get_option(Claudpress::OPTION_SETTINGS, []);
 CP_Test::ok($twice['capabilities']['payments'] === true, 'a second run leaves the owner\'s later choice alone');
 
-// A fresh install has no old version to upgrade from, and default_enabled()
+// Even if the dead keys somehow came back — a restored backup, a half-finished
+// import — the run-once flag still stands between the migration and the
+// owner's settings.
+$twice['disclose_pro'] = true;
+update_option(Claudpress::OPTION_SETTINGS, $twice);
+$upgrade->invoke(null);
+$thrice = get_option(Claudpress::OPTION_SETTINGS, []);
+CP_Test::ok($thrice['capabilities']['payments'] === true, 'the run-once flag holds even if a dead key reappears');
+
+// A fresh install has no paid tier to upgrade from, and default_enabled()
 // already covers it.
 cp_test_reset_options();
-$upgrade->invoke(null, '');
+$upgrade->invoke(null);
 CP_Test::same([], get_option(Claudpress::OPTION_SETTINGS, []), 'a brand-new install is not touched');
-CP_Test::same('', get_option('claudpress_2_0_0_capabilities_reset', ''), 'and gets no upgrade notice');
+CP_Test::same('', get_option('claudpress_paid_tier_reset', ''), 'and gets no upgrade notice');
+
+CP_Test::group('Paid-tier upgrade — a fresh install that later updates keeps its own choices');
+
+/*
+ * The bug this exists to stop, in full.
+ *
+ * The old guard was `$stored === '' || version_compare($stored, '2.0.0', '>=')`.
+ * Renumber the plugin down and that guard inverts:
+ *
+ *   1. Fresh install. $stored is '', so the migration returned early and the
+ *      run-once flag was NEVER written.
+ *   2. The owner deliberately switches on a risky group — comms, say.
+ *   3. First update. $stored is now a real version BELOW the old milestone, so
+ *      the version guard no longer catches it, and the flag is still empty so
+ *      neither does the run-once guard.
+ *   4. The migration runs and force-disables all eight groups, on a site that
+ *      never had a paywall and never had anything to correct.
+ *
+ * Every user silently loses their capability configuration on their first
+ * update. Guarding on the pre-merge evidence instead of on a version number is
+ * what makes that impossible, and this asserts it directly: no pre-merge keys
+ * means nothing is touched, whatever the version numbers say.
+ */
+
+// 1. A fresh install: real settings, none of them from the paid tier.
+cp_test_reset_options([
+    Claudpress::OPTION_SETTINGS => array_merge(
+        Claudpress::default_settings(),
+        ['token_hash' => 'fresh-install', 'abilities_enabled' => true]
+    ),
+    'claudpress_db_version' => '1.0.0',
+]);
+
+// 2. The owner deliberately turns on a DISABLED_BY_DEFAULT group.
+$settings                            = get_option(Claudpress::OPTION_SETTINGS, []);
+$settings['capabilities']['comms']   = true;
+$settings['capabilities']['content'] = true;
+update_option(Claudpress::OPTION_SETTINGS, $settings);
+
+// 3. The site updates. maybe_upgrade() runs the boot-time migrations with
+//    claudpress_db_version still at 1.0.0 — below every old milestone, which is
+//    precisely the case the version guard let through. The rest of
+//    maybe_upgrade() is table installs that need a real $wpdb, so this drives
+//    the one migration under test the same way maybe_upgrade() does.
+CP_Test::same(
+    0,
+    (new ReflectionMethod('Claudpress', 'upgrade_from_paid_tier'))->getNumberOfParameters(),
+    'the migration takes no version argument, so no numbering change can reach it'
+);
+$upgrade->invoke(null);
+
+// 4. Nothing the owner chose may have moved.
+$post = get_option(Claudpress::OPTION_SETTINGS, []);
+CP_Test::ok(
+    ($post['capabilities']['comms'] ?? null) === true,
+    'a group the owner deliberately switched ON is STILL on after an update'
+);
+CP_Test::ok(($post['capabilities']['content'] ?? null) === true, 'and so is every other capability choice');
+CP_Test::ok(($post['token_hash'] ?? '') === 'fresh-install', 'unrelated settings are untouched by the update');
+CP_Test::same(
+    '',
+    get_option('claudpress_paid_tier_reset', ''),
+    'and no upgrade notice is armed — there was nothing to switch off'
+);

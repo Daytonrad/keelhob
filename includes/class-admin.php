@@ -299,9 +299,10 @@ final class Claudpress_Admin
     }
 
     /**
-     * Tell the owner what 2.0.0 switched off, once, on any admin screen.
+     * Tell the owner what the paid-tier merge switched off, once, on any
+     * admin screen.
      *
-     * The upgrade forces eight capability groups off, because until 2.0.0 a
+     * The upgrade forces eight capability groups off, because until the merge a
      * paywall was the only thing standing between a connected agent and this
      * site's users, gateways, outbound email and production deploys. That is
      * the right default, but doing it silently would mean an owner discovering
@@ -316,13 +317,13 @@ final class Claudpress_Admin
         if (!current_user_can('manage_options')) {
             return;
         }
-        $reset = get_option('claudpress_2_0_0_capabilities_reset', '');
+        $reset = get_option('claudpress_paid_tier_reset', '');
         if ($reset === '' || $reset === 'dismissed' || $reset === 'none') {
             return;
         }
 
-        if (!empty($_GET['claudpress_ack_2_0_0']) && check_admin_referer('claudpress_ack_2_0_0')) {
-            update_option('claudpress_2_0_0_capabilities_reset', 'dismissed');
+        if (!empty($_GET['claudpress_ack_paid_tier']) && check_admin_referer('claudpress_ack_paid_tier')) {
+            update_option('claudpress_paid_tier_reset', 'dismissed');
             return;
         }
 
@@ -335,12 +336,12 @@ final class Claudpress_Admin
 
         printf(
             '<div class="notice notice-warning"><p><strong>%s</strong></p><p>%s</p><p><strong>%s</strong></p><p><a class="button button-primary" href="%s">%s</a> <a class="button" href="%s">%s</a></p></div>',
-            esc_html__('Claudpress 2.0.0: everything is free now, and some capabilities were switched off.', 'claudpress'),
+            esc_html__('Claudpress is free now, and some capabilities were switched off.', 'claudpress'),
             esc_html__('Every paid feature is included at no cost. Because the old paid tier was also the only thing keeping the riskiest tools out of reach, these areas now start switched OFF, and you decide which to turn back on:', 'claudpress'),
             esc_html(implode(' · ', $labels)),
             esc_url(admin_url('admin.php?page=claudpress&tab=settings')),
             esc_html__('Review capabilities', 'claudpress'),
-            esc_url(wp_nonce_url(add_query_arg('claudpress_ack_2_0_0', '1'), 'claudpress_ack_2_0_0')),
+            esc_url(wp_nonce_url(add_query_arg('claudpress_ack_paid_tier', '1'), 'claudpress_ack_paid_tier')),
             esc_html__('Got it', 'claudpress')
         );
     }

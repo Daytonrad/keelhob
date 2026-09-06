@@ -305,7 +305,7 @@ final class Claudpress
         Claudpress_Skills::backfill_sources();
         Claudpress_Skills::seed_bundled_skills();
         self::seed_default_memory();
-        self::upgrade_to_2_0_0($stored);
+        self::upgrade_from_paid_tier();
         if (!file_exists(CLAUDPRESS_SANDBOX_DIR)) {
             wp_mkdir_p(CLAUDPRESS_SANDBOX_DIR);
             @file_put_contents(CLAUDPRESS_SANDBOX_DIR . '/index.php', "<?php // Silence is golden.\n");
@@ -315,17 +315,19 @@ final class Claudpress
     }
 
     /**
-     * The one-time 2.0.0 upgrade, and the reason it is not optional.
+     * The one-time paid-tier upgrade, and the reason it is not optional.
      *
-     * Before 2.0.0 eight capability groups - payments, shipping, tax, orders,
-     * users, updates, comms and deploy - were unreachable because they sat
-     * behind a paywall. Their own on/off toggle was never consulted, so on a
-     * long-running site it may well be sitting at "on", meaning nothing at all.
+     * Before the free/paid merge, eight capability groups - payments, shipping,
+     * tax, orders, users, updates, comms and deploy - were unreachable because
+     * they sat behind a paywall. Their own on/off toggle was never consulted,
+     * so on a long-running site it may well be sitting at "on", meaning nothing
+     * at all.
      *
-     * 2.0.0 deletes the paywall. Left alone, that would have silently granted
-     * every upgrading site the ability to email its customers, edit its users,
-     * change its payment gateways and push to production - delivered by an
-     * automatic update, to an owner who asked for nothing and was told nothing.
+     * The merge deletes the paywall. Left alone, that would have silently
+     * granted every upgrading site the ability to email its customers, edit its
+     * users, change its payment gateways and push to production - delivered by
+     * an automatic update, to an owner who asked for nothing and was told
+     * nothing.
      *
      * So these are forced OFF, not defaulted off. "Only if no value is stored"
      * is exactly the version of this that does not work, because the stored
@@ -333,24 +335,38 @@ final class Claudpress
      * actually want, and an admin notice tells them that is waiting for them -
      * switching something off silently is its own kind of bug.
      *
-     * @param string $stored The db version this site is upgrading FROM.
+     * This guards on EVIDENCE, not on a version number. A version guard says
+     * "older than X" and is therefore only ever true relative to whatever the
+     * numbering happens to be that week; renumber the plugin and the same code
+     * starts firing at brand-new installs, wiping capability choices the owner
+     * made deliberately. The population that needs this migration is not "old
+     * versions" - it is "sites still carrying pre-merge free/paid settings",
+     * and those sites are identifiable by what they hold. Renumbering cannot
+     * change that, so neither can it break this.
      */
-    private static function upgrade_to_2_0_0(string $stored): void
+    private static function upgrade_from_paid_tier(): void
     {
-        // A brand-new install has never had the paywall doing this job for it,
-        // and default_enabled() already covers it. Only sites carrying an older
-        // version need the correction.
-        if ($stored === '' || version_compare($stored, '2.0.0', '>=')) {
-            return;
-        }
-        if (get_option('claudpress_2_0_0_capabilities_reset', '') !== '') {
-            return;
-        }
-
         $settings = get_option(self::OPTION_SETTINGS, []);
         if (!is_array($settings)) {
             $settings = [];
         }
+
+        // The evidence: any leftover of the tier that no longer exists. A site
+        // that has none of these never had a paywall standing in for a safety
+        // fence, so there is nothing here to correct and nothing to announce.
+        $is_pre_merge = array_key_exists('disclose_pro', $settings)
+            || array_key_exists('hide_paid_notices', $settings)
+            || array_key_exists('skills_token', $settings)
+            || get_option('claudpress_pro_licence', null) !== null;
+
+        if (!$is_pre_merge) {
+            return;
+        }
+        // Run once. Having run, it must never fight the owner's later choices.
+        if (get_option('claudpress_paid_tier_reset', '') !== '') {
+            return;
+        }
+
         $caps = isset($settings['capabilities']) && is_array($settings['capabilities']) ? $settings['capabilities'] : [];
 
         $turned_off = [];
@@ -370,7 +386,7 @@ final class Claudpress
         delete_option('claudpress_pro_licence');
         delete_transient('claudpress_pro_licence_valid');
 
-        update_option('claudpress_2_0_0_capabilities_reset', $turned_off ? implode(',', $turned_off) : 'none');
+        update_option('claudpress_paid_tier_reset', $turned_off ? implode(',', $turned_off) : 'none');
     }
 
     public static function on_activate(): void
