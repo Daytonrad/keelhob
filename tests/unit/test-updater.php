@@ -25,7 +25,8 @@ $GLOBALS['cp_test_http'] = [
 Claudpress_Updater::latest(true);
 
 $url = (string) ($GLOBALS['cp_test_http_last']['url'] ?? '');
-CP_Test::contains('claudpress.com', $url, 'the check-in goes to the project endpoint');
+CP_Test::contains('api.claudpress.com/v1/version', $url, 'the check-in goes to the project endpoint');
+CP_Test::ok(strpos($url, '/wp-json/') === false, 'and not to the marketing site, which never had this route');
 
 $query = [];
 parse_str((string) parse_url($url, PHP_URL_QUERY), $query);

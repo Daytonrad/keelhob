@@ -41,7 +41,7 @@ if (!defined('ABSPATH')) {
 final class Claudpress_Updater
 {
     /** Answers with the latest release, and records the check-in. */
-    const CHECKIN_ENDPOINT = 'https://claudpress.com/wp-json/claudpress/v1/version';
+    const CHECKIN_ENDPOINT = 'https://api.claudpress.com/v1/version';
 
     /** The same answer, without the check-in, for anyone who opted out. */
     const DIRECT_ENDPOINT = 'https://api.github.com/repos/calflint/claudpress/releases/latest';

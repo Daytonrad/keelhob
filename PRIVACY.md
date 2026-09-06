@@ -19,7 +19,7 @@ no advertising, and no third-party scripts anywhere in the admin.
 ## The update check, and the public count
 
 **Code:** [`includes/class-updater.php`](includes/class-updater.php)
-**Endpoint:** `https://claudpress.com/wp-json/claudpress/v1/version`
+**Endpoint:** `https://api.claudpress.com/v1/version`
 **Frequency:** at most twice a day, cached in between.
 
 Claudpress is not in the WordPress.org plugin directory, so nothing tells you
