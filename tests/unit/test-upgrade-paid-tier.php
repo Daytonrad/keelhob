@@ -160,3 +160,63 @@ CP_Test::same(
     get_option('claudpress_paid_tier_reset', ''),
     'and no upgrade notice is armed — there was nothing to switch off'
 );
+
+CP_Test::group('Paid-tier upgrade — driven through the real maybe_upgrade()');
+
+/*
+ * Everything above calls the private upgrade_from_paid_tier() directly, which
+ * proves the migration but not the wiring: maybe_upgrade() is what actually
+ * runs on a live site, and until now it could not be called here at all.
+ *
+ * It fatalled for two reasons, both in the harness rather than the plugin.
+ * Each install_table() does the WordPress-standard `require_once ABSPATH .
+ * 'wp-admin/includes/upgrade.php'` before calling dbDelta(), and neither the
+ * file nor the function existed in the fake WordPress — a missing require is a
+ * fatal, so a dbDelta() stub alone would not have been enough. On top of that,
+ * test-uninstall-preserves.php sorts before this file and used to leave its
+ * minimal CP_Fake_Wpdb in $GLOBALS['wpdb'], so get_charset_collate() was gone
+ * by the time this file ran. Both are fixed; this is the test that was waiting
+ * for them.
+ */
+
+cp_test_reset_options([
+    Claudpress::OPTION_SETTINGS => array_merge(
+        Claudpress::default_settings(),
+        ['token_hash' => 'real-upgrade', 'abilities_enabled' => true]
+    ),
+    'claudpress_db_version' => '1.0.0',
+]);
+
+// The owner deliberately switches on a risky group.
+$live                          = get_option(Claudpress::OPTION_SETTINGS, []);
+$live['capabilities']['comms'] = true;
+update_option(Claudpress::OPTION_SETTINGS, $live);
+
+cp_test_reset_dbdelta();
+
+$boot_upgrade = new ReflectionMethod('Claudpress', 'maybe_upgrade');
+$boot_upgrade->invoke(Claudpress::instance());
+
+$live_after = get_option(Claudpress::OPTION_SETTINGS, []);
+
+CP_Test::ok(
+    ($live_after['capabilities']['comms'] ?? null) === true,
+    'comms survives a real maybe_upgrade() run, not just a direct call to the migration'
+);
+CP_Test::same(
+    '',
+    get_option('claudpress_paid_tier_reset', ''),
+    'and maybe_upgrade() arms no upgrade notice on a site with no paid-tier evidence'
+);
+CP_Test::same(
+    CLAUDPRESS_VERSION,
+    get_option('claudpress_db_version', ''),
+    'maybe_upgrade() records the version it upgraded to, so it does not run again next request'
+);
+
+// The table installs really ran; they were not skipped past on the way to the
+// migration. Without this the test above would still pass if maybe_upgrade()
+// silently returned early.
+$schema = implode("\n", $GLOBALS['cp_test_dbdelta']);
+CP_Test::contains('wp_claudpress_memory', $schema, 'the memory table is installed on the way through');
+CP_Test::contains('utf8mb4', $schema, 'and the CREATE TABLE carries the charset from $wpdb->get_charset_collate()');

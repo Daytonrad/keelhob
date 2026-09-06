@@ -22,18 +22,34 @@ if (!class_exists('CP_Fake_Wpdb')) {
 /**
  * uninstall.php returns early, so it can be required more than once only if the
  * include cache is bypassed. Reading and eval-ing keeps each run independent.
+ *
+ * CP_Fake_Wpdb is deliberately minimal — uninstall.php only ever calls
+ * query() — so it must not outlive this file. The suite runs every test in one
+ * process, and files are required in alphabetical order: leaving the fake in
+ * $GLOBALS['wpdb'] silently handed a crippled database object to every test
+ * sorted after "uninstall". That is exactly what happened to
+ * test-upgrade-paid-tier.php, whose install_table() calls fatalled on the
+ * get_charset_collate() this fake does not have. So the real $wpdb goes back
+ * before each run returns, the same way test-snippet-log.php does it.
  */
 $run_uninstall = function ($settings) {
     cp_test_reset_options($settings === null ? [] : ['claudpress_settings' => $settings]);
     $GLOBALS['cp_test_transients'] = [];
-    $GLOBALS['wpdb'] = new CP_Fake_Wpdb();
 
-    $src = file_get_contents(CLAUDPRESS_DIR . 'uninstall.php');
-    $src = preg_replace('/^<\?php/', '', $src, 1);
-    $src = str_replace('return;', 'return true;', $src);
-    (static function () use ($src) { eval($src); })();
+    $real_wpdb       = $GLOBALS['wpdb'];
+    $fake            = new CP_Fake_Wpdb();
+    $GLOBALS['wpdb'] = $fake;
 
-    return $GLOBALS['wpdb'];
+    try {
+        $src = file_get_contents(CLAUDPRESS_DIR . 'uninstall.php');
+        $src = preg_replace('/^<\?php/', '', $src, 1);
+        $src = str_replace('return;', 'return true;', $src);
+        (static function () use ($src) { eval($src); })();
+    } finally {
+        $GLOBALS['wpdb'] = $real_wpdb;
+    }
+
+    return $fake;
 };
 
 if (!defined('WP_UNINSTALL_PLUGIN')) { define('WP_UNINSTALL_PLUGIN', true); }

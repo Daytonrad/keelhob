@@ -231,7 +231,9 @@ class CP_Test_WPDB
 
     public function get_charset_collate(): string
     {
-        return '';
+        // What a modern WordPress install actually returns. Returning '' would
+        // let a CREATE TABLE that forgot the charset still look correct here.
+        return 'DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci';
     }
 
     public function prepare(string $query, ...$args): string
@@ -290,6 +292,87 @@ $GLOBALS['wpdb'] = new CP_Test_WPDB();
 if (!defined('ARRAY_A')) {
     define('ARRAY_A', 'ARRAY_A');
 }
+
+// ---- Schema installation: dbDelta() ----------------------------------------
+// Every install_table() in the plugin does the WordPress-standard two-step:
+//
+//     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+//     dbDelta("CREATE TABLE ...");
+//
+// Both halves have to be answered here or Claudpress::maybe_upgrade() — the
+// real production upgrade entry point — cannot be called at all, which is why
+// it went untested for so long. The require_once is the harder half: a missing
+// file is a fatal error, not a warning, so defining dbDelta() alone is not
+// enough. The stub file below is written into the fake ABSPATH at the exact
+// path WordPress uses, and removed again at shutdown so a test run never
+// leaves anything behind in the working tree.
+
+/** @var array<int, string> Every CREATE TABLE dbDelta() was handed, in order. */
+$GLOBALS['cp_test_dbdelta'] = [];
+
+function cp_test_reset_dbdelta(): void
+{
+    $GLOBALS['cp_test_dbdelta'] = [];
+}
+
+if (!function_exists('dbDelta')) {
+    /**
+     * Record the schema instead of applying it.
+     *
+     * The real dbDelta() returns a map of "what I changed" keyed by table or
+     * column; nothing in this plugin reads the return value, so an empty array
+     * is a faithful "nothing needed changing". The recorded queries are the
+     * useful part: a test can assert that maybe_upgrade() installed the table
+     * it claims to, without a database.
+     *
+     * @return array<string, string>
+     */
+    function dbDelta($queries = '', $execute = true): array
+    {
+        foreach ((array) $queries as $query) {
+            $GLOBALS['cp_test_dbdelta'][] = (string) $query;
+        }
+        return [];
+    }
+}
+
+/**
+ * Paths this bootstrap (or a test that runs maybe_upgrade()) materialises
+ * inside the fake WordPress tree. Removed at shutdown, deepest first, so
+ * `git status` is as clean after a test run as it was before one.
+ */
+$GLOBALS['cp_test_scratch_paths'] = [
+    ABSPATH . 'wp-admin/includes/upgrade.php',
+    ABSPATH . 'wp-admin/includes',
+    ABSPATH . 'wp-admin',
+    CLAUDPRESS_SANDBOX_DIR . '/index.php',
+    CLAUDPRESS_SANDBOX_DIR . '/.htaccess',
+    CLAUDPRESS_SANDBOX_DIR,
+];
+
+if (!is_dir(ABSPATH . 'wp-admin/includes')) {
+    @mkdir(ABSPATH . 'wp-admin/includes', 0777, true);
+}
+// Written unconditionally, so a stub left behind by a run that died before its
+// shutdown handler cannot poison the next one.
+@file_put_contents(
+    ABSPATH . 'wp-admin/includes/upgrade.php',
+    "<?php\n"
+    . "// Test scratch file, rewritten by tests/bootstrap.php on every run and\n"
+    . "// removed at shutdown. dbDelta() itself is defined in the bootstrap; this\n"
+    . "// exists only so the plugin's require_once of this path resolves.\n"
+);
+
+register_shutdown_function(static function (): void {
+    foreach ($GLOBALS['cp_test_scratch_paths'] as $path) {
+        if (is_file($path)) {
+            @unlink($path);
+        } elseif (is_dir($path)) {
+            // Fails harmlessly if a test left something else in there.
+            @rmdir($path);
+        }
+    }
+});
 
 // ---- Admin-render helpers --------------------------------------------------
 // Enough of the admin surface for the settings pages to render end to end.
