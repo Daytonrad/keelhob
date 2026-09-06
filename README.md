@@ -124,9 +124,11 @@ you assume works; a staging copy for the first build, so you can watch what it d
 groups the job in front of you needs; and the endpoint token treated like a root password, because it
 is one — stored hashed and shown once, so regenerate it the moment it leaks.
 
-**Zero external dependencies at runtime.** No Composer, no npm, no vendored libraries, no bundled SDK —
-the plugin runs from its own source, so there is no supply chain underneath it to compromise. For
-software with this much reach that is worth more than any feature. [SECURITY.md](SECURITY.md) covers
+**Zero external dependencies at runtime.** No npm, no vendored libraries, no bundled SDK, and nothing
+from Composer — the plugin runs from its own source, so there is no supply chain underneath it to
+compromise. For software with this much reach that is worth more than any feature. There *is* a
+`composer.json`, and it exists only for the test and analysis tooling: its `require` block is empty
+on purpose and `vendor/` is not in the shipped zip. [SECURITY.md](SECURITY.md) covers
 what is in scope and how to report something.
 
 ## About `eval()`
@@ -160,6 +162,10 @@ The plugin runs from source; there is nothing to build.
 ```bash
 php tests/run.php                 # unit suite, ~1,500 assertions, no composer, no WP install
 bash bin/build-zip.sh             # → build/claudpress.zip
+
+composer install                  # dev tooling only — the plugin itself needs none of it
+composer analyse                  # PHPStan, level 1, analysed against the PHP 8.0 floor
+composer lint                     # php -l across every file, Windows included
 ```
 
 CI lints every PHP file on 8.0–8.4, runs the suite on 8.0/8.3/8.4, then builds the zip and asserts

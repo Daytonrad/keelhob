@@ -120,12 +120,15 @@ Unglamorous, and the reason the project is still moving. Contributors are
 welcome here especially — these are well-defined problems with an obvious
 "done".
 
-- **An autoloader**, replacing 40+ manual `require_once` lines in
-  `claudpress.php`.
-- **Split `class-admin.php`.** It is a 2,000-line god class rendering four
-  screens.
-- **Static analysis in CI** — PHPStan or Psalm, starting permissive, tightening
-  each release.
+- ~~**An autoloader**, replacing the manual `require_once` lines in
+  `claudpress.php`.~~ Done in 1.0.1.
+- ~~**Split `class-admin.php`.**~~ Done in 1.0.1, along with
+  `class-providers.php` and `class-telegram.php`. The largest file in
+  `includes/` is now 818 lines, down from 2,440.
+- ~~**Static analysis in CI**~~ Done in 1.0.1 — PHPStan at level 1 with a
+  baseline. **Raising the level** is the open work, and it is a genuinely good
+  contribution: pick one rule class, fix what it finds, remove those baseline
+  entries.
 - **Coverage targets** for the tool layer, which is thinner than the decision
   layer deserves.
 - **PHP 8.4 and 8.5 readiness**, ahead of hosts moving.

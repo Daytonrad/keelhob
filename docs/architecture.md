@@ -27,18 +27,29 @@ includes/
   class-sandbox.php         persistent AI PHP with crash recovery
   class-snippets.php        the live snippet engine: lint, execute, crash guard
   class-snippet-log.php     snippet lifecycle log (installed, edited, fatal-deactivated)
-  class-providers.php       Anthropic / OpenAI / Google adapters
+  class-provider.php        Text-model adapter base + registry
+  class-provider-*.php      Anthropic / OpenAI / Google text adapters
+  class-image-provider*.php Image-model adapters
+  class-transcribe-*.php    Speech-to-text adapters
+  class-media-check.php     Media-provider readiness probe
   class-agent-runtime.php   on-site agentic loop (retries, backoff, budget caps)
   class-agent-runs.php      autonomous run history + spend accounting
   class-tasks.php           WP-Cron scheduler (cadence + hour of day)
   class-digest.php          status snapshot
   class-notifier.php        email / webhook / Telegram (outbound)
-  class-telegram.php        Telegram chat front-end (inbound): webhook, commands,
+  class-telegram.php        Telegram facade: the callables hooks and tools bind to
+  class-telegram-router.php Command routing, roles, approvals, media absorption
+  class-telegram-api.php    Outbound Bot API calls and webhook management
+  (was one file: webhook, commands,
                             conversation history, roles, voice, photos, approvals
   class-events.php          push alerts (orders, stock, crashed snippet, updates)
   class-undo.php            one-step undo of a turn's content changes
   class-migration.php       portable bundles (products, menus, widgets)
-  class-admin.php           connect / automation / guide / activity UI
+  class-admin.php           Menu, hooks, notices, and delegates to the four below
+  class-admin-screens.php   Connect, Guide and Activity screens
+  class-admin-automation.php  The Automation screen and its cards
+  class-admin-providers.php   Provider pickers, model fetch, connection tests
+  class-admin-settings.php    Saving, secrets, consent, channels
   class-admin-snippets.php  the Snippets page: what the AI installed, and its off switch
   class-admin-skills.php    the Skills page
   class-studio*.php         the Snippets Studio: list, edit, compose, actions, library, AI
@@ -112,9 +123,23 @@ node tests/live-smoke.mjs --url https://your-site.com --token cp_xxx --write
 the zip and asserts its layout (one top-level `claudpress/`, no dev files). The live smoke test runs
 on manual dispatch when the `CLAUDPRESS_URL` / `CLAUDPRESS_TOKEN` secrets are configured.
 
-## Known shape problems
+## Shape problems, and what was done about them
 
-Named here rather than discovered: `claudpress.php` carries 40+ manual `require_once` lines where
-an autoloader belongs, and `class-admin.php` is a ~2,000-line god class rendering four screens.
-Both are on the code-health list in [ROADMAP.md](../ROADMAP.md), and both are good first
-contributions — the behaviour is pinned by tests, so the refactor has an obvious "done".
+Both of the things previously named here are fixed, and it is worth saying how, because the
+method matters more than the result.
+
+`claudpress.php` carried 52 manual `require_once` lines. It now has a small autoloader mapping
+class name to file path — no namespaces, no renaming, because a rename would break the
+`claudpress_register_tools` seam for anyone who has used it. `tests/unit/test-integrity.php`
+asserts every class declared under `includes/` resolves through it to the file that declares it,
+so a new file cannot be silently unreachable.
+
+`class-admin.php` was a 2,440-line class rendering four screens; `class-providers.php` held
+eleven classes in one file; `class-telegram.php` was 1,322 lines. All three are split. The
+largest file in `includes/` is now 818 lines.
+
+The split is deliberately behaviour-neutral. Every method registered as a WordPress hook is
+still a method on the original class, delegating to the new one — because what WordPress stores
+is a callable, and repointing it would silently break any third-party
+`remove_action([$admin, 'ajax_test_media'])`. The new classes are callable directly; nothing has
+to go through the facade.
