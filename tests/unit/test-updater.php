@@ -108,3 +108,76 @@ $GLOBALS['cp_test_http'] = [
 Claudpress_Updater::latest(true);
 $out = Claudpress_Updater::inject((object) ['response' => []]);
 CP_Test::same([], (array) $out->response, 'a release older than what is installed is ignored');
+
+CP_Test::group('Updater — a dead counting endpoint never costs you an update');
+
+// The failure this guards against was real: claudpress.com answered 404 for
+// the version route, so every site that had NOT opted out silently received no
+// updates at all. Failure in this file is deliberately silent, which is correct
+// for a counter and catastrophic for a security fix. The counter is the
+// project's convenience; the update is the site owner's due.
+
+cp_test_reset_options();
+delete_transient(Claudpress_Updater::TRANSIENT);
+$GLOBALS['cp_test_http'] = [
+    ['code' => 404, 'body' => '{"code":"rest_no_route"}', 'headers' => []],
+    ['code' => 200, 'body' => '{"tag_name":"v2.1.0","html_url":"https://example.test/rel","assets":[{"name":"claudpress.zip","browser_download_url":"https://example.test/claudpress.zip"}]}', 'headers' => []],
+];
+
+$latest = Claudpress_Updater::latest(true);
+
+CP_Test::same('2.1.0', $latest['version'] ?? '', 'a 404 from the counting endpoint falls through to GitHub');
+CP_Test::same('https://example.test/claudpress.zip', $latest['package'] ?? '', 'and the download link still arrives');
+CP_Test::contains('api.github.com', (string) ($GLOBALS['cp_test_http_last']['url'] ?? ''), 'the second request went to GitHub');
+
+CP_Test::group('Updater — the count is still tried first');
+
+cp_test_reset_options();
+delete_transient(Claudpress_Updater::TRANSIENT);
+$seen = [];
+$GLOBALS['cp_test_http'] = [
+    ['code' => 500, 'body' => 'boom', 'headers' => []],
+    ['code' => 200, 'body' => '{"tag_name":"v2.1.0","assets":[{"name":"claudpress.zip","browser_download_url":"https://example.test/c.zip"}]}', 'headers' => []],
+];
+Claudpress_Updater::latest(true);
+// Only the fallback's URL survives in _last, so the proof that the count was
+// attempted is that TWO responses were consumed from a queue of two.
+CP_Test::same(0, count($GLOBALS['cp_test_http']), 'both endpoints were called, so the check-in was attempted before the fallback');
+
+CP_Test::group('Updater — an unreadable 200 also falls through');
+
+// The nastier shape of the same bug: the endpoint is alive and returns 200,
+// but with a body that carries no release. Treating that as "no update
+// available" would be indistinguishable from being up to date.
+cp_test_reset_options();
+delete_transient(Claudpress_Updater::TRANSIENT);
+$GLOBALS['cp_test_http'] = [
+    ['code' => 200, 'body' => '{"nonsense":true}', 'headers' => []],
+    ['code' => 200, 'body' => '{"version":"2.1.0","package":"https://example.test/c.zip"}', 'headers' => []],
+];
+CP_Test::same('2.1.0', Claudpress_Updater::latest(true)['version'] ?? '', 'a 200 with no release in it is treated as a failure, not as "up to date"');
+
+CP_Test::group('Updater — when both are down, it is still silent');
+
+cp_test_reset_options();
+delete_transient(Claudpress_Updater::TRANSIENT);
+$GLOBALS['cp_test_http'] = [
+    ['code' => 503, 'body' => 'down', 'headers' => []],
+    ['code' => 503, 'body' => 'down', 'headers' => []],
+];
+CP_Test::same(null, Claudpress_Updater::latest(true), 'two dead endpoints return nothing rather than throwing');
+CP_Test::same([], (array) Claudpress_Updater::inject((object) ['response' => []])->response, 'and offer no phantom update');
+
+CP_Test::group('Updater — opting out makes exactly one request');
+
+// An opted-out site must not be quietly re-counted by a fallback that runs the
+// other way round.
+cp_test_reset_options();
+Claudpress::instance()->update(['skip_checkin' => true]);
+delete_transient(Claudpress_Updater::TRANSIENT);
+$GLOBALS['cp_test_http'] = [
+    ['code' => 200, 'body' => '{"tag_name":"v2.1.0","assets":[{"name":"c.zip","browser_download_url":"https://example.test/c.zip"}]}', 'headers' => []],
+    ['code' => 200, 'body' => '{"version":"9.9.9","package":"https://example.test/x.zip"}', 'headers' => []],
+];
+Claudpress_Updater::latest(true);
+CP_Test::same(1, count($GLOBALS['cp_test_http']), 'only one request was made, so an opted-out site is never sent to the counter');

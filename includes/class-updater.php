@@ -28,6 +28,10 @@
  * And the opt-out costs nothing: switch it off and the updater talks straight
  * to GitHub instead, so you still get updates. An opt-out that quietly stops
  * your security updates is not an opt-out, it is a punishment.
+ *
+ * The same reasoning applies when the counting endpoint itself is down: it
+ * falls through to GitHub rather than reporting no update. A counter must
+ * never be able to leave a site unpatched.
  */
 
 if (!defined('ABSPATH')) {
@@ -96,32 +100,60 @@ final class Claudpress_Updater
             }
         }
 
-        $args = ['timeout' => 10, 'redirection' => 5, 'headers' => ['Accept' => 'application/json']];
+        $out = null;
 
         if (self::counts_itself()) {
-            $url = add_query_arg([
+            $out = self::ask(add_query_arg([
                 'site_id' => self::site_id(),
                 'version' => CLAUDPRESS_VERSION,
                 'wp'      => get_bloginfo('version'),
                 'php'     => PHP_VERSION,
-            ], self::CHECKIN_ENDPOINT);
-        } else {
-            $url = self::DIRECT_ENDPOINT;
+            ], self::CHECKIN_ENDPOINT));
         }
 
-        $response = wp_remote_get($url, $args);
-        if (is_wp_error($response) || (int) wp_remote_retrieve_response_code($response) !== 200) {
+        // If the counting endpoint is unreachable, not yet built, or answers
+        // with something unreadable, fall through to GitHub.
+        //
+        // The count is a convenience for the project. The update is what the
+        // site owner is owed, and it may include a security fix. Letting the
+        // first quietly cost the second would be the worst bug in this file:
+        // silent by design, and invisible until somebody is unpatched.
+        if ($out === null) {
+            $out = self::ask(self::DIRECT_ENDPOINT);
+        }
+
+        if ($out === null) {
             // Cache the failure briefly so a dead network does not mean a
             // request on every single admin page load.
             set_transient(self::TRANSIENT, [], 900);
             return null;
         }
 
-        $body = json_decode((string) wp_remote_retrieve_body($response), true);
-        $out  = self::parse(is_array($body) ? $body : []);
-
-        set_transient(self::TRANSIENT, $out ?: [], self::TTL);
+        set_transient(self::TRANSIENT, $out, self::TTL);
         return $out;
+    }
+
+    /**
+     * One request, read into our shape, or null if it did not work.
+     *
+     * Null covers every failure the same way — no network, a non-200, an
+     * unparseable body, a 200 that carries no release. The caller only needs
+     * to know whether to try somewhere else.
+     *
+     * @return array{version:string, url:string, package:string}|null
+     */
+    private static function ask(string $url): ?array
+    {
+        $response = wp_remote_get($url, [
+            'timeout'     => 10,
+            'redirection' => 5,
+            'headers'     => ['Accept' => 'application/json'],
+        ]);
+        if (is_wp_error($response) || (int) wp_remote_retrieve_response_code($response) !== 200) {
+            return null;
+        }
+        $body = json_decode((string) wp_remote_retrieve_body($response), true);
+        return self::parse(is_array($body) ? $body : []);
     }
 
     /**
