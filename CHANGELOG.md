@@ -14,6 +14,58 @@ public. When the two disagree, this file is correct.
 
 Nothing yet.
 
+## [1.0.1] - 2026-09-06
+
+Contributor-facing, plus one fix that matters to every install.
+
+### Fixed
+
+- **The update check pointed at a route that has never existed.**
+  `CHECKIN_ENDPOINT` named `claudpress.com/wp-json/claudpress/v1/version`; that
+  route was never written and returns 404. It now points at
+  `api.claudpress.com/v1/version`, which is a real service. Combined with the
+  GitHub fallback added in 1.0.0, updates work whether or not that service is
+  reachable.
+- **`class-tools-seo.php` called `Claudpress_Tools_Seo`**, but the class is
+  declared `Claudpress_Tools_SEO`. PHP resolves class names case-insensitively
+  so this always worked — right up until something mapped class names to
+  filenames, which is exactly what the new autoloader does.
+- **A capability toggle described its own scope wrongly.** `agent_runs` was
+  listed as always-on *and* inside the Autonomy group, so switching Autonomy
+  off did not refuse it while the dashboard said it did.
+
+### Changed
+
+- **The three largest files are split.** `class-admin.php` went from 2,440
+  lines to 212, `class-providers.php` from 1,781 to eleven files, and
+  `class-telegram.php` from 1,322 to 637. The largest file in `includes/` is
+  now 818 lines.
+
+  Every method registered as a WordPress hook is still a method on the original
+  class, delegating to the new one. What WordPress stores is a callable, so
+  repointing a hook would silently break a third party's
+  `remove_action([$admin, 'ajax_test_media'])`. **No behaviour changed**, and
+  that was verified by diffing every method body byte-for-byte against the
+  previous release rather than by trusting a green suite.
+- **`claudpress.php` no longer lists 52 `require_once` lines.** A small
+  autoloader maps class name to file path. No namespaces and no renaming — a
+  rename would break the `claudpress_register_tools` extension seam.
+
+### Added
+
+- **`composer.json`, for tooling only.** Its `require` block is empty on
+  purpose. The plugin still ships zero runtime dependencies and `vendor/` is
+  not in the zip.
+- **PHPStan in CI**, at level 1 with a committed baseline, analysing against
+  the PHP 8.0 floor rather than whatever the runner happens to be.
+- **Five `good first issue` tickets**, because `CONTRIBUTING.md` had been
+  pointing at that label since before any issue carried it.
+
+### Security
+
+- The updater fix above is filed here too. An install that silently never
+  updates never receives a security patch either.
+
 ## [1.0.0] - 2026-09-06
 
 The first public release.

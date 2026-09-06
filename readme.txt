@@ -5,7 +5,7 @@ Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
 Donate link: https://ko-fi.com/claudpress
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -222,6 +222,21 @@ under Claudpress > Automation. Pick your provider there — the model guide next
 the exact model IDs to type for each one.
 
 == Changelog ==
+
+= 1.0.1 =
+* Fixed: the update check pointed at a route that never existed, so it always failed. It now
+  calls api.claudpress.com. Updates already worked via the GitHub fallback added in 1.0.0; this
+  makes the anonymous install count work too.
+* Fixed: switching the Autonomy capability off did not actually refuse the agent_runs tool,
+  although the dashboard said it did.
+* Fixed: a class was referenced under the wrong capitalisation. Harmless in PHP, but a trap for
+  the autoloader added in this release.
+* Changed: the three largest source files are split, the biggest dropping from 2,440 lines to
+  212. No behaviour changed - every hooked method is still on its original class, verified by
+  diffing every method body against the previous release.
+* Changed: 52 manual require lines replaced by an autoloader.
+* Added: PHPStan in CI, and a composer.json for tooling only. The plugin still ships with zero
+  runtime dependencies and no vendor directory.
 
 = 1.0.0 - first public release =
 * The first public release of Claudpress. Everything is in this one GPL plugin: content, design,
