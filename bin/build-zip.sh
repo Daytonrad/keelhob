@@ -33,7 +33,12 @@ VERSION="$(grep -oP "define\('CLAUDPRESS_VERSION',\s*'\K[^']+" "$ROOT/claudpress
 
 echo "Building Claudpress $VERSION"
 
-rm -rf "$BUILD"
+# Only what this script owns. "rm -rf $BUILD" would also delete skills.json
+# and skills-bundle.json, which bin/build-release-assets.php writes into the
+# same directory — and it did, silently, between signing them and uploading
+# them to a release.
+rm -rf "$STAGE"
+rm -f  "$ZIP"
 mkdir -p "$STAGE"
 
 # ---- stage ------------------------------------------------------------------
