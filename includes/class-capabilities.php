@@ -174,7 +174,7 @@ final class Claudpress_Capabilities
             'automation' => [
                 'label' => 'Autonomy (agent & scheduled tasks)', 'sensitive' => true,
                 'desc' => 'Run the autonomous agent and create/run scheduled tasks.',
-                'tools' => ['run_agent', 'task_save', 'task_run', 'task_delete', 'agent_runs'],
+                'tools' => ['run_agent', 'task_save', 'task_run', 'task_delete'],
             ],
             'memory' => [
                 'label' => 'Memory (write)', 'sensitive' => false,

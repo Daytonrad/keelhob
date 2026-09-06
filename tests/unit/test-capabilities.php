@@ -71,4 +71,29 @@ foreach (Claudpress_Capabilities::groups() as $key => $group) {
 }
 CP_Test::same([], $dupes, 'no tool belongs to two capability groups (the reverse map would be ambiguous)');
 
+// The same ambiguity one level up, and the one that actually misleads a site
+// owner. tool_allowed() checks always_on() FIRST and returns true before it
+// ever looks at the group, so a tool listed in both is permanently on while
+// the Dashboard files it under a toggle and tells the owner that switching
+// that toggle off means it is "refused if it tries". agent_runs was in both.
+//
+// Whichever way a future tool is meant to go, it cannot go both: either it is
+// read-only introspection that survives every restriction, or it belongs to a
+// group the owner can switch off. Listing it twice promises a switch that does
+// nothing.
+$overlap = [];
+foreach (Claudpress_Capabilities::groups() as $key => $group) {
+    foreach ((array) ($group['tools'] ?? []) as $tool) {
+        if (in_array($tool, Claudpress_Capabilities::always_on(), true)) {
+            $overlap[] = $tool . ' (in group ' . $key . ')';
+        }
+    }
+}
+CP_Test::same([], $overlap, 'no always-on tool is also filed under a capability group');
+
+// And the behaviour that assertion protects, stated directly.
+Claudpress::instance()->update(['cap_automation' => false]);
+CP_Test::ok(!Claudpress_Capabilities::tool_allowed('run_agent'), 'switching automation off refuses run_agent');
+
+
 cp_test_reset_options();
