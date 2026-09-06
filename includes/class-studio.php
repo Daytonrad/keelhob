@@ -159,7 +159,16 @@ final class Claudpress_Studio
         );
     }
 
-    /** Where to send the browser after a write, with a message to show. */
+    /**
+     * Where to send the browser after a write, with a message to show.
+     *
+     * This never returns — it ends in exit. That matters at the call sites,
+     * where a guard clause calls it instead of returning and the code below
+     * is unreachable by design. A native never type would say so, but that is
+     * PHP 8.1 and the floor here is 8.0, so it is said in a docblock instead.
+     *
+     * @phpstan-return never
+     */
     public static function redirect(string $tab, string $msg, array $extra = []): void
     {
         wp_safe_redirect(self::url($tab, array_merge($extra, ['cp_msg' => $msg])));

@@ -567,7 +567,7 @@ final class Claudpress_Tools_SEO
         $words = str_word_count($body);
         $slug  = $post->post_name;
 
-        $meta   = Claudpress_Tools_Seo::seo_meta(['action' => 'get', 'post_id' => $post->ID]);
+        $meta   = Claudpress_Tools_SEO::seo_meta(['action' => 'get', 'post_id' => $post->ID]);
         $seo_title = $meta['meta']['title'] ?? '';
         $seo_desc  = $meta['meta']['description'] ?? '';
 
@@ -631,7 +631,7 @@ final class Claudpress_Tools_SEO
         $has_list_or_table = (bool) preg_match('/<(ul|ol|table)[\s>]/i', $post->post_content);
         $geo_checks[] = ['check' => 'List/table structuring present', 'ok' => $has_list_or_table, 'note' => 'Lists and tables are the most extractable/citable content shape for LLM answer engines.'];
 
-        $schema = Claudpress_Tools_Seo::seo_schema(['action' => 'get', 'post_id' => $post->ID]);
+        $schema = Claudpress_Tools_SEO::seo_schema(['action' => 'get', 'post_id' => $post->ID]);
         $has_schema = !empty($schema['schema']);
         $geo_checks[] = ['check' => 'JSON-LD schema attached', 'ok' => $has_schema, 'note' => 'Use seo_schema to attach Article/FAQPage/HowTo/Product schema — AI engines weight structured data heavily for attribution.'];
 
