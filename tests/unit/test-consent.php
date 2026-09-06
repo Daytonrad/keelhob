@@ -40,6 +40,7 @@ CP_Test::ok(strpos(substr($src, $block, $box - $block), '<details') === false, '
 CP_Test::group('Consent — it is recorded');
 
 $from_post = new ReflectionMethod('Claudpress_Admin', 'consent_from_post');
+@$from_post->setAccessible(true); // no-op (and deprecated) on PHP 8.1+, still required on the 8.0 floor
 
 $GLOBALS['cp_test_current_user'] = 7;
 cp_test_reset_options(['claudpress_settings' => []]);

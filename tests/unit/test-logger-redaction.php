@@ -14,6 +14,7 @@
 CP_Test::group('Logger - secrets never reach the database');
 
 $redact = new ReflectionMethod('Claudpress_Logger', 'redact');
+@$redact->setAccessible(true); // no-op (and deprecated) on PHP 8.1+, still required on the 8.0 floor
 $run = function (array $args) use ($redact) { return json_encode($redact->invoke(null, $args, 0)); };
 
 $leaks = [

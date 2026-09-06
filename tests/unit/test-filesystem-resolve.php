@@ -21,6 +21,7 @@ if (!is_dir($base . '-backup'))     { @mkdir($base . '-backup', 0777, true); }
 @file_put_contents($base . '-backup/secret.txt', 'x');
 
 $resolve = new ReflectionMethod('Claudpress_Tools_Filesystem', 'resolve');
+@$resolve->setAccessible(true); // no-op (and deprecated) on PHP 8.1+, still required on the 8.0 floor
 $allowed = function ($path) use ($resolve) {
     $out = $resolve->invoke(null, $path);
     return $out[1] === null;

@@ -19,6 +19,7 @@
 CP_Test::group('Notify channels — a connected channel obeys the form');
 
 $save = new ReflectionMethod('Claudpress_Admin', 'channels_from_post');
+@$save->setAccessible(true); // no-op (and deprecated) on PHP 8.1+, still required on the 8.0 floor
 
 $connected = [
     'admin_email'          => 'owner@example.test',

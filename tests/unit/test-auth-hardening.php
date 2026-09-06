@@ -18,7 +18,9 @@ $source = file_get_contents(CLAUDPRESS_DIR . 'includes/class-auth.php');
 CP_Test::ok(strpos($source, 'wp_authenticate($username') === false, 'the wp_authenticate() fallback is gone; Application Passwords only');
 
 $record = new ReflectionMethod('Claudpress_Auth', 'record_failure');
+@$record->setAccessible(true); // no-op (and deprecated) on PHP 8.1+, still required on the 8.0 floor
 $clear  = new ReflectionMethod('Claudpress_Auth', 'clear_failures');
+@$clear->setAccessible(true); // no-op (and deprecated) on PHP 8.1+, still required on the 8.0 floor
 
 $GLOBALS['cp_test_transients'] = [];
 $_SERVER['REMOTE_ADDR'] = '203.0.113.9';
@@ -48,6 +50,7 @@ CP_Test::ok(!Claudpress_Auth::is_locked_out(), 'a successful login clears that I
 CP_Test::group('Auth - the bearer token is stored hashed (S5)');
 
 $match = new ReflectionMethod('Claudpress_Auth', 'token_matches');
+@$match->setAccessible(true); // no-op (and deprecated) on PHP 8.1+, still required on the 8.0 floor
 $plain = 'cp_deadbeefdeadbeefdeadbeef';
 $hash  = ['token_hash' => hash('sha256', $plain)];
 
@@ -63,6 +66,7 @@ CP_Test::same(hash('sha256', $plain), $after['token_hash'] ?? '', '...and is upg
 CP_Test::same('', $after['token'] ?? 'x', '...with the plaintext copy cleared');
 
 $expired = new ReflectionMethod('Claudpress_Auth', 'token_expired');
+@$expired->setAccessible(true); // no-op (and deprecated) on PHP 8.1+, still required on the 8.0 floor
 CP_Test::ok(!$expired->invoke(null, []), 'no expiry set means the token does not expire');
 CP_Test::ok(!$expired->invoke(null, ['token_expires_at' => time() + 3600]), 'a future expiry is still valid');
 CP_Test::ok($expired->invoke(null, ['token_expires_at' => time() - 1]), 'a past expiry is refused');
@@ -70,6 +74,7 @@ CP_Test::ok($expired->invoke(null, ['token_expires_at' => time() - 1]), 'a past 
 CP_Test::group('Auth - a spoofed Host cannot disable HTTPS (S7)');
 
 $is_local = new ReflectionMethod('Claudpress_Auth', 'is_local');
+@$is_local->setAccessible(true); // no-op (and deprecated) on PHP 8.1+, still required on the 8.0 floor
 $_SERVER['HTTP_HOST'] = 'attacker.local';
 
 $GLOBALS['cp_test_home_url'] = 'https://shop.example.com';
