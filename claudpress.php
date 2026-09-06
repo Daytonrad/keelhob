@@ -57,68 +57,83 @@ if (!defined('CLAUDPRESS_MAX_EXECUTION_TIME')) {
 }
 
 /**
- * Manual, dependency-free loader. Every class lives under includes/.
+ * Dependency-free autoloader. Every class lives under includes/.
+ *
+ * There is no Composer autoloader here on purpose. The plugin executes
+ * arbitrary PHP for a living, so having no supply chain at all — no vendor/,
+ * nothing to audit, no second autoloader racing another plugin's — is worth
+ * more than the convenience. Composer is used in this repository for developer
+ * tooling only (PHPStan); nothing it installs is ever shipped.
+ *
+ * The mapping is the file-naming convention the plugin already follows:
+ *
+ *   Claudpress                ->  includes/class-claudpress.php
+ *   Claudpress_Skills_Remote  ->  includes/class-skills-remote.php
+ *   Claudpress_Tools_Core     ->  includes/tools/class-tools-core.php
+ *
+ * Underscores become hyphens, the name is lowercased (PHP class names are
+ * case-insensitive, so `Claudpress_Tools_Seo` must find `Claudpress_Tools_SEO`),
+ * and includes/ is tried before includes/tools/.
+ *
+ * $map holds the classes the convention cannot reach. includes/class-providers.php
+ * declares eleven of them in one file, and that file is NOT split up: renaming or
+ * moving a file would break `claudpress_register_tools` for anyone who has
+ * already hooked it. The map keeps the seam stable and keeps loading lazy.
  */
-require_once CLAUDPRESS_DIR . 'includes/class-secrets.php';
-require_once CLAUDPRESS_DIR . 'includes/class-claudpress.php';
-require_once CLAUDPRESS_DIR . 'includes/class-auth.php';
-require_once CLAUDPRESS_DIR . 'includes/class-tool-registry.php';
-require_once CLAUDPRESS_DIR . 'includes/class-capabilities.php';
-require_once CLAUDPRESS_DIR . 'includes/class-skill-catalog.php';
-require_once CLAUDPRESS_DIR . 'includes/class-mcp-server.php';
-require_once CLAUDPRESS_DIR . 'includes/class-rest.php';
-require_once CLAUDPRESS_DIR . 'includes/class-memory.php';
-require_once CLAUDPRESS_DIR . 'includes/class-skills.php';
-require_once CLAUDPRESS_DIR . 'includes/class-skills-remote.php';
-require_once CLAUDPRESS_DIR . 'includes/class-snippets.php';
-require_once CLAUDPRESS_DIR . 'includes/class-sandbox.php';
-require_once CLAUDPRESS_DIR . 'includes/class-logger.php';
-require_once CLAUDPRESS_DIR . 'includes/class-snippet-log.php';
-require_once CLAUDPRESS_DIR . 'includes/class-policy.php';
-require_once CLAUDPRESS_DIR . 'includes/class-digest.php';
-require_once CLAUDPRESS_DIR . 'includes/class-notifier.php';
-require_once CLAUDPRESS_DIR . 'includes/class-telegram.php';
-require_once CLAUDPRESS_DIR . 'includes/class-events.php';
-require_once CLAUDPRESS_DIR . 'includes/class-undo.php';
-require_once CLAUDPRESS_DIR . 'includes/class-agent-runs.php';
-require_once CLAUDPRESS_DIR . 'includes/class-providers.php';
-require_once CLAUDPRESS_DIR . 'includes/class-agent-runtime.php';
-require_once CLAUDPRESS_DIR . 'includes/class-tasks.php';
-require_once CLAUDPRESS_DIR . 'includes/class-migration.php';
-require_once CLAUDPRESS_DIR . 'includes/class-updater.php';
-require_once CLAUDPRESS_DIR . 'includes/class-donate.php';
-require_once CLAUDPRESS_DIR . 'includes/class-admin.php';
-require_once CLAUDPRESS_DIR . 'includes/class-admin-skills.php';
-require_once CLAUDPRESS_DIR . 'includes/class-admin-snippets.php';
+spl_autoload_register(static function ($class) {
+    if (strncasecmp((string) $class, 'Claudpress', 10) !== 0 || strpos((string) $class, '\\') !== false) {
+        return;
+    }
 
-// The Snippets Studio. These used to live in a separate paid add-on; they are
-// part of the plugin now, like everything else.
-require_once CLAUDPRESS_DIR . 'includes/class-studio.php';
-require_once CLAUDPRESS_DIR . 'includes/class-studio-actions.php';
-require_once CLAUDPRESS_DIR . 'includes/class-studio-ai.php';
-require_once CLAUDPRESS_DIR . 'includes/class-studio-compose.php';
-require_once CLAUDPRESS_DIR . 'includes/class-studio-edit.php';
-require_once CLAUDPRESS_DIR . 'includes/class-studio-library.php';
-require_once CLAUDPRESS_DIR . 'includes/class-studio-list.php';
+    static $map = [
+        // includes/class-providers.php — eleven classes, one file.
+        'claudpress_provider'                  => 'includes/class-providers.php',
+        'claudpress_provider_anthropic'        => 'includes/class-providers.php',
+        'claudpress_provider_openai'           => 'includes/class-providers.php',
+        'claudpress_provider_google'           => 'includes/class-providers.php',
+        'claudpress_image_provider'            => 'includes/class-providers.php',
+        'claudpress_image_provider_openai'     => 'includes/class-providers.php',
+        'claudpress_image_provider_google'     => 'includes/class-providers.php',
+        'claudpress_media_check'               => 'includes/class-providers.php',
+        'claudpress_transcribe_provider'       => 'includes/class-providers.php',
+        'claudpress_transcribe_provider_openai' => 'includes/class-providers.php',
+        'claudpress_transcribe_provider_google' => 'includes/class-providers.php',
+    ];
 
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-core.php';
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-filesystem.php';
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-content.php';
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-site.php';
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-woocommerce.php';
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-seo.php';
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-memory.php';
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-skills.php';
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-snippets.php';
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-elementor.php';
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-ops.php';
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-automation.php';
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-payments.php';
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-deploy.php';
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-readiness.php';
+    $lc = strtolower((string) $class);
+
+    if (isset($map[$lc])) {
+        require_once CLAUDPRESS_DIR . $map[$lc];
+        return;
+    }
+
+    if ($lc === 'claudpress') {
+        $slug = 'claudpress';
+    } elseif (strncmp($lc, 'claudpress_', 11) === 0) {
+        $slug = str_replace('_', '-', substr($lc, 11));
+    } else {
+        return;
+    }
+
+    if ($slug === '' || !preg_match('/^[a-z0-9-]+$/', $slug)) {
+        return;
+    }
+
+    foreach (['includes/class-', 'includes/tools/class-'] as $dir) {
+        $file = CLAUDPRESS_DIR . $dir . $slug . '.php';
+        if (is_readable($file)) {
+            require_once $file;
+            return;
+        }
+    }
+});
 
 /**
  * Boot the plugin once all plugins are loaded (so WooCommerce detection works).
+ *
+ * Nothing above this line loads a class file. The autoloader pulls each one in
+ * the first time it is named, which is why the boot order below is the only
+ * order that now matters.
  */
 add_action('plugins_loaded', static function () {
     load_plugin_textdomain('claudpress', false, dirname(CLAUDPRESS_BASENAME) . '/languages');

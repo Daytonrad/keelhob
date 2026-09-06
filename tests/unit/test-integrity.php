@@ -75,24 +75,80 @@ foreach ($must_be_sensitive as $tool) {
 
 CP_Test::group('Integrity — every include resolves');
 
+// claudpress.php used to carry a hand-maintained require_once list, and this
+// group read that list back to prove no class file had been added to includes/
+// and then forgotten. The list is an autoloader now, so the same guarantee is
+// checked the other way round: start from the classes that actually ship, and
+// prove the autoloader can find every one of them.
+//
+// The explicit map is read out of claudpress.php rather than restated here, so
+// this test cannot drift into agreeing with a copy of itself.
 $bootstrap = (string) file_get_contents($root . '/claudpress.php');
-preg_match_all("/require_once CLAUDPRESS_DIR \. '([^']+)'/", $bootstrap, $m);
-CP_Test::ok(count($m[1]) > 25, 'found the require_once list (' . count($m[1]) . ' files)');
 
-$missing = [];
-foreach ($m[1] as $rel) {
-    if (!file_exists($root . '/' . $rel)) {
-        $missing[] = $rel;
+preg_match_all("/'(claudpress[a-z0-9_]*)'\s*=>\s*'(includes\/[^']+)'/", $bootstrap, $mm, PREG_SET_ORDER);
+$map = [];
+foreach ($mm as $pair) {
+    $map[$pair[1]] = $pair[2];
+}
+CP_Test::ok(
+    strpos($bootstrap, 'spl_autoload_register') !== false,
+    'claudpress.php registers an autoloader (' . count($map) . ' classes also mapped explicitly)'
+);
+
+// The shipped resolution rule: lowercase, underscores to hyphens, includes/
+// before includes/tools/, with the explicit map taking precedence.
+$resolve = static function (string $class) use ($map, $root): ?string {
+    $lc = strtolower($class);
+    if (isset($map[$lc])) {
+        return $map[$lc];
+    }
+    if ($lc === 'claudpress') {
+        $slug = 'claudpress';
+    } elseif (strncmp($lc, 'claudpress_', 11) === 0) {
+        $slug = str_replace('_', '-', substr($lc, 11));
+    } else {
+        return null;
+    }
+    foreach (['includes/class-', 'includes/tools/class-'] as $dir) {
+        if (is_readable($root . '/' . $dir . $slug . '.php')) {
+            return $dir . $slug . '.php';
+        }
+    }
+    return null;
+};
+
+// Every class/interface/trait declared anywhere under includes/, read from source.
+$declared = [];
+foreach (array_merge(glob($root . '/includes/*.php'), glob($root . '/includes/tools/*.php')) as $file) {
+    $rel  = str_replace('\\', '/', substr($file, strlen($root) + 1));
+    $toks = token_get_all((string) file_get_contents($file));
+    for ($i = 0, $n = count($toks); $i < $n; $i++) {
+        if (!is_array($toks[$i]) || !in_array($toks[$i][0], [T_CLASS, T_INTERFACE, T_TRAIT], true)) {
+            continue;
+        }
+        // Skip the ::class constant.
+        for ($p = $i - 1; $p >= 0 && is_array($toks[$p]) && $toks[$p][0] === T_WHITESPACE; $p--) {
+        }
+        if (isset($toks[$p]) && is_array($toks[$p]) && $toks[$p][0] === T_DOUBLE_COLON) {
+            continue;
+        }
+        for ($j = $i + 1; $j < $n; $j++) {
+            if (is_array($toks[$j]) && $toks[$j][0] === T_WHITESPACE) {
+                continue;
+            }
+            if (is_array($toks[$j]) && $toks[$j][0] === T_STRING) {
+                $declared[$toks[$j][1]] = $rel;
+            }
+            break;
+        }
     }
 }
-CP_Test::same([], $missing, 'every required file exists');
+CP_Test::ok(count($declared) > 25, 'found the classes the plugin ships (' . count($declared) . ' classes)');
 
-$required = array_flip($m[1]);
-$orphans  = [];
-foreach (array_merge(glob($root . '/includes/*.php'), glob($root . '/includes/tools/*.php')) as $file) {
-    $rel = str_replace('\\', '/', substr($file, strlen($root) + 1));
-    if (!isset($required[$rel])) {
-        $orphans[] = $rel;
+$orphans = [];
+foreach ($declared as $class => $rel) {
+    if ($resolve($class) !== $rel) {
+        $orphans[] = $class . ' (declared in ' . $rel . ', autoloader looks in ' . var_export($resolve($class), true) . ')';
     }
 }
 CP_Test::same([], $orphans, 'no class file sits in includes/ without being loaded');
