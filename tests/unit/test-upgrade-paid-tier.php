@@ -195,6 +195,7 @@ update_option(Claudpress::OPTION_SETTINGS, $live);
 cp_test_reset_dbdelta();
 
 $boot_upgrade = new ReflectionMethod('Claudpress', 'maybe_upgrade');
+@$boot_upgrade->setAccessible(true); // no-op (and deprecated) on PHP 8.1+, still required on the 8.0 floor
 $boot_upgrade->invoke(Claudpress::instance());
 
 $live_after = get_option(Claudpress::OPTION_SETTINGS, []);

@@ -160,3 +160,31 @@ CP_Test::same([], $always_missing, 'every always-on tool still ships in the FREE
 foreach (Claudpress_Capabilities::always_on() as $tool) {
     CP_Test::ok(Claudpress_Capabilities::tool_allowed($tool), $tool . ' is allowed on a free install regardless of its group tier');
 }
+
+CP_Test::group('Integrity — reflection in tests works on the PHP floor');
+
+// PHP 8.0 refuses to invoke a private method through reflection unless
+// setAccessible(true) was called first; 8.1 made the call unnecessary. So a test
+// that reaches into a private method passes on a modern dev machine and fatals
+// on the version readme.txt names as the minimum — and because the runner dies
+// at the first fatal, everything after it silently stops running too.
+//
+// This has now happened twice. It is invisible locally and only CI catches it,
+// which is a slow and confusing way to find out. So the suite checks itself.
+
+$unguarded = [];
+foreach (glob(dirname(__DIR__) . '/unit/*.php') as $file) {
+    $lines = preg_split('/\R/', (string) file_get_contents($file));
+    foreach ($lines as $i => $line) {
+        // Only the assign-then-invoke form. The inline
+        // (new ReflectionMethod(...))->getNumberOfParameters() form reads
+        // metadata rather than invoking, and needs no accessibility.
+        if (!preg_match('/^\s*(\$\w+)\s*=\s*new\s+ReflectionMethod\(/', $line)) {
+            continue;
+        }
+        if (strpos($lines[$i + 1] ?? '', 'setAccessible') === false) {
+            $unguarded[] = basename($file) . ':' . ($i + 1);
+        }
+    }
+}
+CP_Test::same([], $unguarded, 'every ReflectionMethod assigned in a test calls setAccessible(true) on the next line');
