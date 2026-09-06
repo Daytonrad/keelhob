@@ -1,0 +1,367 @@
+# Changelog
+
+All notable changes to Claudpress are documented here.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+`readme.txt` carries a changelog too, because WordPress requires one there. This
+file is the one written for developers: it names files, says what broke and why,
+and keeps the pre-release history that `readme.txt` presents as if it were
+public. When the two disagree, this file is correct.
+
+## [Unreleased]
+
+Nothing yet.
+
+## [1.0.0] - 2026-09-06
+
+The first public release.
+
+### About this version number
+
+The repository contains tags reading `v1.10.1-pro-final` and `v2.0.0`, and the
+history below goes up to 2.0.0. None of those versions was ever published. The
+project was developed privately for its whole life, shipped to exactly one live
+site, and numbered as though it had users.
+
+Rather than open with 2.0.1 and imply two major versions of public history that
+nobody could have installed, the first release anyone can actually get is
+numbered 1.0.0. The old numbers are kept in [Pre-release
+history](#pre-release-history) for the record, and because deleting them would
+be a worse kind of dishonest than explaining them.
+
+The practical consequence: **1.0.0 below is not the same release as 1.0.0 in the
+pre-release section**, and 1.0.0 is newer than the 2.0.0 listed there. Version
+comparisons across that boundary are meaningless, which is why nothing in the
+plugin does one any more — see the migration fix under _Fixed_.
+
+### Added
+
+Everything, in the sense that none of it has been public before. In summary:
+
+- A self-contained MCP server inside a WordPress plugin. No external service,
+  no account, no proxy — the site itself is the server, reachable at
+  `/wp-json/claudpress/v1/`.
+- Around 60 tools across content, design, media, SEO, files, PHP/SQL execution,
+  code snippets, Elementor, WooCommerce (products, orders, payments, shipping,
+  tax), site operations, updates, memory and skills.
+- Capability groups, so the owner decides which of those an agent may reach.
+  Eight risky groups — payments, shipping, tax, orders, users, updates, comms
+  and deploy — are off by default and stay off until switched on deliberately.
+- An on-site autonomous agent runtime with policy guardrails, budget caps
+  (per-run and per-day, in spend, tokens and runs), retry with backoff, and a
+  recorded run history.
+- Bring-your-own-model: Anthropic, OpenAI or Google, with real per-vendor
+  adapters rather than a URL swap, plus OpenAI-compatible gateways.
+- A Telegram front-end: chat to the site from a phone, with voice notes, image
+  input, one-tap approvals for guarded actions, `/undo`, and per-chat roles.
+- Skills — versioned playbooks the agent loads on demand — installed from this
+  project's signed GitHub releases. Nothing about the site is transmitted.
+- `FUNDING.md`, which states what sponsorship money buys, starting with an
+  independent security review of `execute_php` and the snippet engine. It also
+  states what continues at zero funding: security fixes, compatibility, triage
+  and data safety.
+
+### Changed
+
+- `ROADMAP.md` is a product roadmap again. Every milestone used to be gated on
+  an install count and denominated in the maintainer's employment status, with
+  a monthly figure beside it. All of that was true and none of it belonged in a
+  document a stranger reads before deciding whether to depend on the plugin, or
+  to spend a weekend contributing to it. The roadmap is now Now / Next / Later,
+  keyed to versions; the funding side moved to `FUNDING.md`.
+- The paid-tier migration is named for what it does — `upgrade_from_paid_tier()`
+  rather than `upgrade_to_2_0_0()` — and takes no version argument, so no future
+  renumbering can reach it.
+
+### Fixed
+
+- **Updates now actually arrive.** The updater checked a version endpoint on
+  `claudpress.com` that returns 404 and was never built. Because that check-in
+  is the default path rather than an opt-in, and because failures in
+  `includes/class-updater.php` are deliberately silent, a default install
+  received no plugin updates at all, indefinitely, with nothing on screen to
+  say so. Only sites that had opted out of the counter were being offered
+  updates. `latest()` now falls through to GitHub releases whenever the
+  check-in returns nothing usable: transport error, non-200, or a 200 whose
+  body carries no release. That last case is the nastiest, because a live
+  endpoint answering with something unreadable is otherwise indistinguishable
+  from "you are up to date". An opted-out site still makes exactly one request
+  and is never sent to the counter.
+- **The paid-tier migration no longer fires on sites that never had a paid
+  tier.** It was guarded on `version_compare()` against `2.0.0`, and the guard
+  returned early on an empty stored version — so a fresh install never wrote the
+  run-once flag. Renumbering to 1.0.0 would then have made every user's *first
+  update* compare 1.0.0 against 2.0.0, find it lower, and force-disable all
+  eight risky capability groups. The migration that exists to stop capabilities
+  being silently switched on would have been silently switching them off, for
+  everybody, on day two. It is now guarded on stored evidence of pre-merge
+  free/paid settings (`disclose_pro`, `hide_paid_notices`, `skills_token`, a
+  stored licence), which identifies the population it is actually for and which
+  no renumbering can alter.
+- `uninstall.php` deletes the migration's run-once flag. It had been leaving an
+  orphan option row behind since the flag was introduced.
+- The test suite runs to completion on PHP 8.0, the floor `readme.txt` claims.
+  Nine reflection calls were missing `setAccessible(true)`, which 8.0 requires
+  and 8.1 made unnecessary, so the 8.0 CI leg had been dying at its first fatal
+  since 3 September. "1521 assertions pass" was only ever true of 8.1 and above.
+
+### Security
+
+- **An install that never updates never receives a security patch.** The
+  updater bug above is listed here as well as under _Fixed_ because that is its
+  real severity: for the whole time it was live, the delivery path for every
+  future security fix was broken by default, silently, on every site that had
+  not opted out of the download counter.
+- The Ed25519 release signing key no longer lives in the repository. It was
+  gitignored and the history is clean, but one `git add -A -f` publishes it, and
+  the blast radius of that is every signed skill anyone has ever installed. The
+  build script now looks in the environment first, then at a path outside the
+  repository resolved relative to the repo root, then at the old in-repo
+  location so an existing checkout keeps working; if none of the three has it,
+  the error names all three. The check that refuses to build unless the private
+  key derives to the public key embedded in the plugin is unchanged.
+
+---
+
+## Pre-release history
+
+Everything below happened before the project was public. These versions were
+never published to wordpress.org, never tagged on a public remote, and could not
+be installed by anyone. They are kept because the code they describe is the code
+in 1.0.0, and because a reader who finds `v1.10.1-pro-final` in the tag list
+deserves to know what it was.
+
+Read these as development notes, not as releases.
+
+### 2.0.0 — free forever, one plugin
+
+- Claudpress became free in full and permanently: no paid add-on, no licence, no
+  tier. Payments, shipping, tax, orders and reports, user management, updates,
+  email and notifications, deploy to production, the Snippets Studio and all
+  fifteen skills were folded into the one plugin.
+- Eight capability groups (payments, shipping, tax, orders, users, updates,
+  comms, deploy) are force-disabled on upgrade, with an admin notice naming
+  them. The paywall had been the only thing standing between a connected agent
+  and those tools; removing it without replacing the guard would have handed
+  every site the ability to email its customers, edit its users, change its
+  payment gateways and push to production, delivered by an automatic update.
+- Skill updates come from signed public GitHub releases instead of a
+  project-operated server. No account, no key, nothing about the site
+  transmitted; an unsigned skill is discarded rather than installed.
+- Removed: the private snippet library and site pairing, both of which only ever
+  worked by talking to that server. Snippets stored on the site are untouched.
+
+### 1.10.1 — security and a data-loss fix
+
+- Fixed: deleting the plugin dropped every snippet, memory, skill and scheduled
+  task, permanently and without warning. Uninstall now preserves everything by
+  default, with an opt-in setting for owners who genuinely want it all erased.
+- Fixed: `write_file` could be pointed outside its allowed directory with `..`,
+  which meant it could write a PHP file anywhere the site could write. Reading,
+  editing and deleting were unaffected.
+- API keys are encrypted at rest instead of stored as plain text, and are no
+  longer printed into the settings page source; the last four characters are
+  shown so a key is still identifiable.
+- Secrets no longer reach the activity log. Payment gateway keys passed to the
+  store tools had been written to the log table in clear text.
+- Failed logins are rate limited, and the connection endpoint accepts only
+  Application Passwords, not account passwords — closing a password-guessing
+  path that security and 2FA plugins could not see, because they watch the login
+  page and this was not the login page.
+- The connection token is stored as a hash and shown once, at creation. Existing
+  tokens convert on first use.
+- The unauthenticated status endpoint no longer reveals the exact version.
+- Fixed a "require HTTPS" bypass via a forged `Host` header.
+
+### 1.10.0 — "done" means done
+
+- Three rules added to the operating protocol every connected agent receives:
+  run `pre-launch-audit` against your own work before reporting anything done;
+  never invent a statistic, review, testimonial, customer or staff member the
+  site cannot substantiate; load the `build-standard` skill before building. The
+  protocol is PHP, injected into every session, and cannot be switched off.
+- New skills `build-standard` (the definition of done, with real numbers) and
+  `security-standard` (threat model, twenty hardening checks, owner intake,
+  WooCommerce card-skimming addendum, compromise-detection sweep).
+- New tool `site_readiness`: read-only, always registered, reports `pass` and
+  `complete` separately so a skipped check is never counted as a pass.
+- Seven skills became blocking gates rather than advice.
+- 836 assertions.
+
+### 1.9.1 — SEO head injection fixes
+
+- Fixed: `og:description` never rendered — the injector read
+  `_claudpress_seo_og_description` while `seo_meta` wrote
+  `_claudpress_seo_og_desc`.
+- Fixed: `/llms.txt` was served with a 404 status, so the AI crawlers that are
+  its only readers discarded it.
+- Fixed: the SEO title never reached `<title>`; nothing read
+  `_claudpress_seo_title` back. Now applied via `pre_get_document_title`.
+- Fixed: non-`is_singular()` views (shop archive, blog index, static front page)
+  got no meta at all.
+- Added `og:url`, `og:type`, `og:site_name`, `twitter:card`.
+- 672 assertions.
+
+### 1.9.0 — snippets control page
+
+- New Claudpress → Snippets admin page: every installed snippet with per-row
+  activate/deactivate, an explanation panel, in-browser editing and deletion.
+- Fixed: `snippet_save` rebuilt the whole row on update, so saving one field
+  (adding a tag, say) silently wiped the snippet's code. It merges now.
+- PHP snippets are parse-checked before storage. Code that does not parse is
+  still saved — the work is not lost — but forced inactive with the error
+  attached, rather than fataling the site and relying on the crash guard.
+- Portable snippet uids and per-site labels, so a snippet can be copied between
+  connected sites and re-copied without duplicating.
+- Bundle export/import is idempotent for snippets. Bundle version 2 → 3;
+  version 2 bundles still import.
+- New skill `pre-launch-audit`. Bundled skills now update when the plugin does,
+  without overwriting skills edited on the site; new tool `skill_refresh`.
+- 648 assertions.
+
+### 1.8.0 — SEO/GEO, site-build kickoff
+
+- `seo_analyze` returns `geo_score` alongside the classical on-page score,
+  covering the signals AI answer engines weight when deciding what to cite.
+- `seo_schema` generates valid JSON-LD (article, faq, howto, local_business,
+  person) and layers multiple schemas into one `@graph`.
+- `seo_sitemap` gained `llms.txt` management and per-AI-crawler access control.
+  Sitemap ping targets Bing only; Google retired theirs in 2023.
+- New skills `site-build-kickoff` and `solace-header-footer`.
+- 583 assertions.
+
+### 1.7.1 — filesystem safety hotfix
+
+- `write_file`, `edit_file` and `write_sandbox_file` refuse to write broken PHP
+  to disk, naming the reason. Previously nothing checked a `.php` write to a
+  live plugin file — only the sandbox had crash recovery — so a bad write
+  fataled the whole site on the next request, recoverable only with direct
+  server access.
+- 583 assertions.
+
+### 1.7.0 — voice, photos, approvals, undo, roles
+
+- Voice notes are transcribed (OpenAI Whisper/`gpt-4o-transcribe`, or Gemini
+  audio) and shown before being acted on.
+- Real vision input in each vendor's own format; the image is also filed in the
+  media library and its attachment ID handed to the agent.
+- One-tap approvals for guarded actions: single-use, chat-bound, one-hour
+  expiry, instruction stored server-side. Approving re-runs against current
+  state rather than replaying a minute-old plan.
+- Progress is edited into one message rather than 40 seconds of silence.
+- `/undo` restores content changed in the last turn — including changes made via
+  `execute_php`, because recording hooks WordPress core rather than the tool
+  layer. It says plainly what it could not undo.
+- Chat roles: `viewer` and `editor`. A viewer cannot call `read_file`,
+  `list_directory` or `export_bundle`, because "read-only" and "can read your
+  database password" are not the same claim.
+- Event notifications: paid orders above a floor, low stock, a snippet that
+  crashed and auto-disabled itself, available updates. Nothing announced twice.
+- 573 assertions.
+
+### 1.6.0 — Telegram
+
+- Message a Telegram bot and the on-site agent does the work: no MCP client, no
+  terminal, no laptop.
+- Multi-turn memory with configurable depth, `/clear`, automatic pruning at 30
+  days.
+- Built-in commands answered without an API call: `/status`, `/usage`,
+  `/tasks`, `/model`, `/history`, `/whoami`, `/help`.
+- Access control: allowlisted chat IDs only (an unconfigured allowlist refuses
+  everyone, including the owner), constant-time secret comparison, rotatable
+  secret. An unrecognised chat is told nothing but its own chat ID.
+- Destructive and financial tools stay locked for chat; the owner arms them, the
+  chat opts in with `/risky on`, and the opt-in lapses after 30 minutes.
+- Deduplicated by `update_id` and acked before the run, so Telegram's retries
+  cannot run the same instruction twice; a per-chat lock stops overlapping runs.
+- 468 assertions.
+
+### 1.5.0 — bring your own model, and guardrails
+
+- Anthropic, OpenAI or Google, each with a real adapter for its request format,
+  tool-calling schema and response shape. OpenAI-compatible gateways (Azure,
+  OpenRouter, Groq, Ollama) via the endpoint override.
+- Multi-provider image generation.
+- Operating protocol: explicit working rules for every connected agent —
+  read before write, minimal changes, prefer specific tools over `execute_php`
+  and `execute_sql`, verify by reading back, treat live snippets as the
+  highest-risk action, report honestly. Extendable via the
+  `claudpress_operating_protocol` filter.
+- Security: the unauthenticated `/status` check no longer advertises whether AI
+  abilities are on or how many tools are exposed.
+- Full i18n pass across all four admin screens.
+- Budget caps state plainly that costs are estimates from built-in list prices.
+- 370 assertions, including a render suite that asserts balanced markup, a nonce
+  on every form, and that keys and tokens only ever appear inside password
+  inputs.
+
+### 1.4.0 — reliability, budgets, migration depth
+
+- The agent loop retries transient API failures (429/408/5xx, network errors)
+  with exponential backoff and jitter, honouring `Retry-After`. Permanent
+  failures still fail fast.
+- Budget caps: per-run and per-day spend, token and run limits. A capped run
+  halts cleanly and reports what it finished.
+- Agent run history, plus a read-only `agent_runs` tool.
+- Bundles carry nav menus (relinked by slug) and widgets/sidebars. Variable
+  products migrate as content only, and say so.
+- `wc_shipping` gained `list_available_methods`, `get_method`,
+  `configure_method` and `quote`, the last running WooCommerce's real shipping
+  engine including live carrier API rates.
+- The dependency-free test suite, the live MCP smoke test, and CI on PHP
+  8.0–8.4.
+
+### 1.3.3 — autonomy hotfix
+
+- Fixed autonomous runs failing when the model called a tool with no arguments:
+  `tool_use.input` serialised as `[]` instead of `{}`, which the Anthropic API
+  rejects.
+
+### 1.3.2 — guidance
+
+- New auto-generated Guide admin page, and hover explanations on every
+  capability toggle covering what it does, which tools it covers, and the risk.
+
+### 1.3.1 — capability toggles
+
+- Capabilities panel. Disabled capabilities are hidden from the tool list,
+  refused if called, and named as off-limits in the session instructions, for
+  both interactive and autonomous runs. Read-only status tools stay available.
+
+### 1.3.0 — commerce and deploy
+
+- `wc_payments`, `wc_shipping`, `wc_tax`.
+- `export_bundle` / `import_bundle` — portable, idempotent JSON; secrets are
+  never exported — and `deploy_push`.
+- New authenticated `/import` endpoint, and the `store-launch-and-deploy` skill.
+
+### 1.2.0 — autonomy
+
+- Autonomous agent runtime over the internal tools, with policy guardrails.
+- Scheduled automations via WP-Cron: digest tasks (no API key needed) and
+  autonomous tasks.
+- `get_dashboard`, multi-channel notifications (email, webhook/Slack, Telegram),
+  financial caps, destructive-tool opt-in for unattended runs, always-block
+  list.
+
+### 1.1.1
+
+- New `web-design-master` skill.
+- Memory keys keep dots and colons, so `brand.accent` survives.
+
+### 1.1.0
+
+- Code snippets engine (PHP/CSS/JS/HTML) with locations, conditions, custom page
+  templates and crash auto-deactivation.
+- Elementor tools, ops tools (`manage_updates`, `send_email`, `image_search`,
+  `image_generate`).
+- Auto-upgrade routine: updating creates new tables without reactivation.
+
+### 1.0.0
+
+- Initial private release.
+
+[Unreleased]: https://github.com/calflint/claudpress/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/calflint/claudpress/releases/tag/v1.0.0

@@ -1,0 +1,73 @@
+# Line endings, decided once, for everyone.
+#
+# Before this file existed the repository held 94 CRLF files and 34 LF ones with
+# nothing enforcing either, because it was written on Windows and has never had
+# a second contributor. The first Linux contributor whose editor normalises a
+# file on save would have opened a pull request touching every line of it, and
+# nobody could have reviewed that.
+#
+# It has already cost this project once: bundled skills are parsed by a
+# front-matter regex anchored on "\n" (Claudpress_Skills::parse_markdown, in
+# includes/class-skills.php), and a CRLF skill file simply did not match. There
+# is a str_replace() normalising newlines in front of that regex now. This file
+# is the fix one level up.
+
+# Baseline: normalise every text file to LF inside the repository. Git decides
+# what is text; anything it decides is binary is left alone.
+* text=auto
+
+# --- Files that must be LF to work, not merely to be tidy -------------------
+
+# Shebang scripts. A CRLF shell script fails with "bad interpreter: no such
+# file or directory", which is one of the least helpful error messages in
+# computing. bin/build-zip.sh is CRLF in the index today.
+*.sh    text eol=lf
+
+# GitHub Actions workflows and issue forms are parsed on GitHub's Linux runners.
+*.yml   text eol=lf
+*.yaml  text eol=lf
+
+# bin/build-zip.sh assembles the release zip by copying files straight out of
+# the working tree, so whatever line endings are checked out here are the ones
+# every user installs — on a Linux host, from a Windows checkout. Everything
+# that goes into that zip is therefore pinned to LF rather than left to the
+# platform.
+*.php   text eol=lf
+*.txt   text eol=lf
+
+# Skills are shipped in that zip, parsed by the front-matter regex above, and
+# signed byte-for-byte for the release feed. Two contributors on two platforms
+# must produce identical bytes or the signature is meaningless.
+skills/*.md text eol=lf
+
+# Node and JSON tooling. Not strictly required, but there is no reason for the
+# test runner's files to differ by platform.
+*.mjs   text eol=lf
+*.js    text eol=lf
+*.json  text eol=lf
+
+# --- Binary: never diff, never munge line endings ---------------------------
+# Listed ahead of need. Screenshots for the plugin listing and demo video
+# captures are coming, and the moment one lands without a rule here Git may
+# guess wrong and corrupt it on checkout.
+
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.zip   binary
+*.mp4   binary
+*.mov   binary
+*.pdf   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+
+# --- Diff quality -----------------------------------------------------------
+# Puts the enclosing function or class in the @@ hunk header, which is the
+# difference between reviewing a diff and hunting for where you are in it.
+*.php   diff=php
+*.md    diff=markdown
