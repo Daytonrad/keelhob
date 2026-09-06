@@ -86,6 +86,82 @@ jobs:
       - name: Run PHPStan
         run: composer analyse
 
+  rig:
+    name: Live rig
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      # ONE PHP version, on purpose. This job asks whether the plugin is right
+      # IN SITU - against a real $wpdb, real hooks, real option autoloading -
+      # not whether it runs on five interpreters; `lint` and `test` above
+      # already answer that, on 8.0 through 8.4. A matrix here would download
+      # WordPress five times to re-answer a question nobody asked.
+      #
+      # 8.3 because the Static analysis job already standardises on it, because
+      # it is inside WordPress's own supported range, and because it is quiet:
+      # WordPress core and WP-CLI both still emit deprecation noise on 8.4+,
+      # and run-all.sh filters those lines rather than reading them.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite, sqlite3, sodium, openssl
+          coverage: none
+          tools: wp-cli:2.12.0
+        env:
+          # setup-php resolves pinned tools through the GitHub API. Without a
+          # token that is an anonymous, rate-limited call, and a rate limit
+          # would look exactly like a broken rig.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # WordPress and the SQLite integration are pinned inside build-rig.sh, so
+      # this key only moves when someone deliberately bumps a version there.
+      # Without it every push re-downloads ~37MB of WordPress.
+      - name: Cache the rig downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/claudpress-rig
+          key: rig-downloads-${{ hashFiles('tests/rig/build-rig.sh') }}
+          restore-keys: rig-downloads-
+
+      # Builds a throwaway WordPress on SQLite and copies the plugin in. Copies
+      # rather than symlinks: PHP resolves symlinks in __FILE__, which would put
+      # CLAUDPRESS_DIR outside wp-content/plugins and make the rig test a shape
+      # no real install has. build-rig.sh explains it at more length.
+      - name: Build the rig
+        run: CP_RIG_CACHE="$HOME/.cache/claudpress-rig" bash tests/rig/build-rig.sh "$RUNNER_TEMP/rig"
+
+      - name: Run the live checks
+        run: |
+          set -euo pipefail
+          bash tests/rig/run-all.sh "$RUNNER_TEMP/rig/wordpress" | tee rig.log
+          # run-all.sh already exits non-zero when a check fails, and that is
+          # the gate. These two lines cover the other way a rig job goes wrong:
+          # the checks never run at all - a path that moved, an eval-file that
+          # loaded nothing - and the job goes green having verified nothing,
+          # which is worse than having no job at all. The number is a tripwire
+          # for "did anything run", not an exact count to keep updated.
+          passes=$(grep -c '^PASS' rig.log || true)
+          if [ "$passes" -lt 100 ]; then
+            echo "::error::only $passes PASS lines in the rig output - the checks did not really run"
+            exit 1
+          fi
+          grep -q 'All 3 check files passed.' rig.log
+          echo "Live rig: $passes checks passed against real WordPress."
+
+      # The rig needs no secrets: tests/rig/ai-mock.php replaces the provider
+      # network hop, so the whole agent loop runs for real with no API key and
+      # no spend. If that ever stops being true, the check that needs a key must
+      # skip loudly rather than fail - a rig nobody can run is a rig nobody runs.
+      - name: Upload the rig log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rig-log
+          path: rig.log
+          if-no-files-found: warn
+
   package:
     name: Build the installable zip
     runs-on: ubuntu-latest

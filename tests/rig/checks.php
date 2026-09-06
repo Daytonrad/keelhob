@@ -107,7 +107,15 @@ foreach ($all as $name) {
 // The eight high-blast-radius groups ship OFF. On a fresh rig that means these
 // are present but refused - which is the whole safety story of 2.0.0, and the
 // thing most likely to be broken by a careless default.
-foreach (['deploy_push', 'send_email', 'manage_updates', 'wc_payments'] as $tool) {
+$fenced = ['deploy_push', 'send_email', 'manage_updates'];
+if (class_exists('WooCommerce')) {
+    // Same guard as the two lists around this one. Without WooCommerce the
+    // tool is never registered, so an unguarded assertion here fails on every
+    // rig that does not happen to have WooCommerce installed - which is every
+    // CI runner, and was the rig's only red check on 1.0.1.
+    $fenced[] = 'wc_payments';
+}
+foreach ($fenced as $tool) {
     check('  ' . $tool . ' is present but refused by default', $present($tool) && !$usable($tool));
 }
 

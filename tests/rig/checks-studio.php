@@ -78,14 +78,24 @@ check('compose renders with no key configured', strpos($compose, 'cp-compose-pro
 check('...and says so rather than hiding', strpos($compose, 'No AI provider is connected') !== false || trim((string) Claudpress::instance()->get('agent_api_key')) !== '');
 
 // --- library ---
+// These four checks used to assert a device-code pairing screen for a private
+// library held on our server. That server went away, the sub-tab navigation
+// went with it, and Claudpress_Studio::tabs() now hides the tab entirely while
+// the bundled library has no items - see the comment there. The rig asserts
+// whichever of those two states is really true instead of a screen that no
+// longer exists.
 $library = $render('library');
-check('library shows both sub-tabs', strpos($library, 'Private library') !== false && strpos($library, 'Claudpress library') !== false);
-$private = $render('library', ['lib' => 'private']);
-check('an unlinked site is offered pairing, not an error', strpos($private, 'Link this site') !== false);
-// The reassurance is the point of the whole flow: a device code exists so that
-// nobody types their claudpress.com password into a WordPress install.
-check('...and told their password stays out of WordPress', strpos($private, 'never typed into WordPress') !== false);
-check('the pairing screen has no password field at all', strpos($private, 'type="password"') === false);
+if (Claudpress_Studio_Library::has_items()) {
+    check('the Library tab is offered', array_key_exists('library', Claudpress_Studio::tabs()));
+    check('...and lists the bundled snippets', strpos($library, 'wp-list-table') !== false);
+} else {
+    check('an empty library is not advertised as a tab', !array_key_exists('library', Claudpress_Studio::tabs()));
+    check('...and ?tab=library falls back to the list, not an error',
+        strpos($library, 'Studio rig snippet') !== false && stripos($library, 'Fatal') === false);
+}
+// The pairing flow made this promise in words. It is gone; the promise is not.
+check('no Studio screen asks for a password',
+    strpos($all . $edit . $compose . $library, 'type="password"') === false);
 
 // --- the two verdicts, side by side ---
 ob_start();

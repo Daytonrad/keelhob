@@ -13,6 +13,18 @@ No Docker and no MySQL required. It runs on this machine.
 
 ## Build it
 
+```bash
+bash tests/rig/build-rig.sh /c/tmp/wprig
+bash tests/rig/run-all.sh  /c/tmp/wprig/wordpress
+```
+
+`build-rig.sh` is this section, automated, so the rig you build by hand and the
+rig CI builds are the same rig. WordPress and the SQLite integration are pinned
+inside it: with `latest`, a WordPress release could turn CI red on a morning
+nobody touched the plugin. Everything below is what it does, and why.
+
+## Building it by hand
+
 Needs: PHP with `pdo_sqlite`, `sodium` and `openssl` (`php -m` to check),
 WP-CLI, and `curl`/`unzip`.
 
@@ -30,6 +42,10 @@ Then edit `wordpress/wp-content/db.php` and replace the two placeholders:
 `{SQLITE_IMPLEMENTATION_FOLDER_PATH}` with the absolute path of
 `wp-content/plugins/sqlite-database-integration`, and `{SQLITE_PLUGIN}` with
 `sqlite-database-integration/load.php`.
+
+As of the integration plugin 3.0.1 the folder placeholder self-heals - `db.copy`
+falls back to `realpath(__DIR__ . "/plugins/sqlite-database-integration")` when
+the path does not exist. `{SQLITE_PLUGIN}` does not, so replace both.
 
 Write `wordpress/wp-config.php` as normal, but with **real salts** — the
 encryption in `Claudpress_Secrets` derives its key from `AUTH_KEY`,
@@ -52,6 +68,14 @@ New-Item -ItemType Junction `
 ```
 
 On macOS/Linux a symlink does the same job.
+
+CI copies the plugin instead. PHP resolves symlinks in `__FILE__`, so
+`plugin_dir_path(__FILE__)` - and therefore `CLAUDPRESS_DIR` - points at the
+checkout, outside `wp-content/plugins`; only `plugin_basename()` and
+`plugins_url()` are symlink-aware, through the `$wp_plugin_paths` map WordPress
+keeps for this case. A copy puts every path where a real install puts it. On a
+development machine the live-edit trade is worth it, and `CP_RIG_LINK=1 bash
+tests/rig/build-rig.sh` links instead.
 
 ```bash
 wp plugin activate claudpress
@@ -76,7 +100,10 @@ wp eval-file <repo>/Claudpress/tests/rig/checks-studio.php   # the Studio screen
 wp eval-file <repo>/Claudpress/tests/rig/checks-compose.php  # the AI Compose flow
 ```
 
-Exits non-zero if anything fails, so it can go in CI once there is CI.
+Exits non-zero if anything fails. The `Live rig` job in
+`.github/workflows/ci.yml` builds a rig from scratch and runs exactly this on
+every push - one PHP version, because this layer tests the plugin in situ and
+not its version compatibility, which `lint` and `test` already cover.
 
 It covers the things stubs cannot honestly answer:
 
