@@ -36,8 +36,25 @@ Read an existing page first with `elementor_page action=get` to learn the exact 
 ## Global design (brand kit)
 Apply site-wide colors/fonts once with `elementor_kit action=set` (merges into the active kit's `_elementor_page_settings`: `system_colors`, `custom_colors`, `system_typography`). Every Elementor page inherits it.
 
+- **GOTCHA: the kit's global link color beats a bare class selector.** The kit emits `.elementor a { color: … }`, which outranks a plain class like `.cp-btn` — a copper button can end up with teal underlined text inside it. Prefix such selectors with the parent: `.elementor a.cp-btn`, not `.cp-btn`.
+
+## Widget settings — read `get_controls()` first
+Wrong setting keys are written, saved, and reported successful, then do nothing — Elementor validates none of it. Before setting a widget's `settings`, read an existing instance of that widget with `action=get` (or check the widget's controls) rather than guessing names from the label in the editor UI. Real example from a live build: the `xpro-horizontal-menu` widget's controls are `nav_menu` and `menu_text_color` — the obvious guesses `menu` and `menu_color` are accepted and produce a menu with default dark-on-light colors on a near-black header, with nothing in the response to say so.
+
+## Page title
+Disable a page's title through Elementor's own `hide_title` page setting, not with CSS. Hiding an `<h1>` with CSS leaves it in the rendered document ahead of your real headline — two H1s on the page, and the wrong one first.
+
+## Xpro Theme Builder (headers & footers)
+Xpro Theme Builder layouts are their own post type (`xpro-themer`) with display-rule meta. Three of its settings fail silently if you get them wrong, because Xpro publishes the layout either way — it just never finds or renders it.
+
+- **The template-type meta must match the SETTING name, not the label shown in the editor.** `xpro_theme_builder_template_type` must be stored as `type_header` or `type_footer` — not `header` or `footer`. Xpro looks it up with `Xpro_Theme_Builder_Main::get_settings('type_header')`, which compares the stored meta against that exact string. A layout stored as `header` is published, has a valid display rule, and is never found by anything. This is the single most expensive trap in Xpro — if a header/footer layout "does nothing," check this meta value first.
+- **`xpro_theme_builder_target_include_locations` must be `['basic-global']`** for a layout meant to appear site-wide.
+- **Xpro needs a classic theme.** It hooks into `get_header()`/`get_footer()` — a block theme (Twenty Twenty-Five, and every default WordPress theme since Twenty Twenty-Two) never calls either function, so a correctly-built header/footer layout simply never renders. Check the active theme with `get_site_info` before building one; **Hello Elementor** is the safe choice.
+- **`xpro-site-logo` can render nothing even with correct settings and a custom logo set.** If it does, use Elementor's core `image` widget instead — it works reliably. The rule in general: the *layout* has to be an Xpro Theme Builder layout, but the widgets placed inside it can be any Elementor widget, and a core widget is often more predictable than an Xpro one.
+- **Xpro renders the FIRST published layout matching a template type**, not the most recent or most specific. A duplicate header layout isn't just untidy — it's a coin toss which one actually shows up. When rebuilding a header or footer, update the existing `xpro-themer` post in place rather than creating a new one.
+
 ## Guardrails
 - Always `action=get` before `action=set` so you don't wipe a page you meant to extend.
 - Keep element `id`s unique; duplicate ids break the editor.
-- Verify by loading the page link after building; if the layout is empty, the JSON was malformed — re-read and fix.
+- **Verify by rendering, never by reading the JSON back.** A malformed-JSON check alone isn't enough — every trap above produces a tree that looks completely correct in `_elementor_data`. Load the page and check the actual computed result (does the menu have the right colors? does the header appear at all? is there one H1?).
 - Save the site's chosen builder and any recurring section patterns with `memory_save`.

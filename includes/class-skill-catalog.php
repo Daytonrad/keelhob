@@ -37,7 +37,7 @@ final class Claudpress_Skill_Catalog
             ],
             'elementor-page-building' => [
                 'title'       => 'Elementor page building',
-                'description' => 'Build or edit fully editable pages, headers, and footers with Elementor (free or Pro, incl.',
+                'description' => 'Build or edit fully editable pages, headers, and footers with Elementor (free or Pro, incl. Xpro Addons).',
             ],
             'pre-launch-audit' => [
                 'title'       => 'Pre-launch audit',
