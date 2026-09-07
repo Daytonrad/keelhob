@@ -12,7 +12,60 @@ public. When the two disagree, this file is correct.
 
 ## [Unreleased]
 
-Nothing yet.
+### Security
+
+- **A snippet can no longer silently take a site off the internet.** After
+  activating a snippet an anonymous visitor could execute, the plugin now loads
+  the home page with no cookies and checks the site still answers. If it does
+  not, the snippet is switched back off and the reason is returned to whoever
+  saved it.
+
+  The failure this exists for: a coming-soon snippet returned `503` from the
+  front end. That is the textbook status for "temporarily unavailable" and
+  WordPress core uses it for maintenance mode — but managed and containerised
+  hosts poll the home page to decide whether a site is alive, read the `503` as
+  *this server is dead*, and stop routing to it. `wp-admin` and the REST API go
+  down with the front end, so the agent that installed the snippet cannot remove
+  it. Nothing errored, so the existing crash guard never fired: it catches a
+  snippet that **crashes**, and this one ran exactly as written.
+
+  Two things the check refuses to conclude, because a wrong deactivation
+  disables working code and hides the real cause. A failing probe is followed by
+  a **control** — switch the snippet off, probe again — so a site that was
+  already broken does not get blamed on whatever was saved next. And a
+  **transport error is not a failure**: plenty of hosts block loopback requests,
+  and treating that as proof would disable working snippets on every one of
+  them.
+
+  `admin_only` and `shortcode` snippets are not checked; they cannot reach an
+  anonymous visitor.
+
+- **A kill switch that does not need a working site.** Adding
+  `define('CLAUDPRESS_SNIPPETS_OFF', true);` to `wp-config.php` stops every
+  snippet, whatever the admin page says. Nothing is deleted; remove the line to
+  switch them back on.
+
+  The existing `run_snippets` setting is useless in the scenario that matters,
+  because reaching it means reaching `wp-admin`. `wp-config.php` can be edited
+  over FTP or a host's file manager with no working site and no database client.
+  An admin notice says why snippets are inert, so nobody debugs a switch they
+  set themselves during an emergency.
+
+### Changed
+
+- **Agents are now told about both**, in the two places they read before acting:
+  the operating protocol gains rules 6a and 6b, and the `snippet_save`
+  description carries the same warning. Never send `4xx`/`5xx` from the front
+  end — serve the page at `200` with a `noindex` meta tag, which achieves the
+  same thing and cannot take the site off the internet. Never gate
+  `wp-login.php`, `/wp-admin`, `/wp-json`, `wp-cron.php` or `xmlrpc.php`.
+
+### Fixed
+
+- **`snippet_save` was throwing away the reachability verdict.** It assigned its
+  generic "Active PHP snippet…" note straight over `$res['note']`, which is
+  where the verdict travels, so a response could report `front_end_status: 503`
+  with no explanation at all — the one message the caller needed. Now appended.
 
 ## [1.0.2] - 2026-09-07
 
