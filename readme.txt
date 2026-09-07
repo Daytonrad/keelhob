@@ -5,7 +5,7 @@ Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
 Donate link: https://ko-fi.com/claudpress
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -264,6 +264,29 @@ under Claudpress > Automation. Pick your provider there — the model guide next
 the exact model IDs to type for each one.
 
 == Changelog ==
+
+= 1.0.3 =
+* Security: the plugin now checks that your site still loads for a logged-out visitor after any
+  change that could break it — saving or switching on a snippet, running PHP or a write query,
+  writing, editing or deleting a file, and activating a plugin or a theme. If the site stops
+  answering, the change is undone where it can be: a plugin is deactivated again, a theme is
+  switched back, a file is restored from a copy taken before the write. Running PHP or SQL cannot be
+  undone automatically, so those are reported instead, in the response the AI reads before it tells
+  you it finished.
+* Security: file writes now keep a copy of the previous version of the file, so a change that breaks
+  your site can be put back. One copy per file, most recent only, stored where the web cannot reach
+  it.
+* Security: a site that was already broken before your change is no longer reported as "passed". It
+  now says the site is down, and that this change was not the cause.
+* Fixed: a CSS, JavaScript or HTML snippet saved at a location that cannot run it — "everywhere",
+  "admin only", "front end only" or "page template" — used to be stored, listed as active, and
+  silently do nothing. Those four only run PHP. Saving another type there is now refused, with the
+  locations that would work named in the error. In the Snippets editor it is moved somewhere it runs
+  and you are told, so nothing you typed is lost.
+* Fixed: building an Elementor page with a wrong widget setting name used to save and report success
+  while doing nothing. Unrecognised setting names are now named in the response.
+* Improved: the Elementor skill now carries the traps that cost real time on a real build, including
+  the Xpro Theme Builder header and footer settings and the classic-theme requirement.
 
 = 1.0.2 =
 * Security: the key used to sign skill updates has been replaced. The old one was never published

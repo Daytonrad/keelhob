@@ -10,7 +10,7 @@ file is the one written for developers: it names files, says what broke and why,
 and keeps the pre-release history that `readme.txt` presents as if it were
 public. When the two disagree, this file is correct.
 
-## [Unreleased]
+## [1.0.3] - 2026-09-07
 
 ### Security
 
@@ -68,6 +68,58 @@ public. When the two disagree, this file is correct.
   the check runs against the resolved, already-stored location, not a missing
   one.
 
+- **Every other way of taking a site down is now checked too.** The reachability
+  check was wired to exactly one caller. `execute_php`, a write query through
+  `execute_sql`, `write_file`, `edit_file`, `delete_file`, `write_sandbox_file`
+  and plugin/theme activation can all cause the identical failure — by
+  succeeding — and none of them looked. All of them now do, through a shared
+  `Claudpress_Health::guard()`.
+
+  **The response differs by whether the action can be undone**, and that
+  distinction is the design. Auto-reverting something that cannot actually be
+  reverted would be worse than doing nothing:
+
+  | Tool | On failure |
+  |---|---|
+  | `manage_plugin action=activate` | deactivated again |
+  | `manage_theme action=activate` | switched back |
+  | `write_file`, `edit_file`, `delete_file`, `write_sandbox_file` | restored from the backup |
+  | `execute_php`, `execute_sql` | reported, and nothing else — but reported loudly, because the agent is about to tell a human it succeeded |
+
+  Reads never probe: a `SELECT`, `read_file`, `list_directory`,
+  `manage_plugin action=list`. Neither does `install`, which writes files but
+  activates nothing.
+
+- **File writes now keep the previous bytes**, so a change that breaks the site
+  can be undone. One backup per path, most recent only, under
+  `wp-content/uploads/claudpress-backups` with a hashed filename and the same
+  `index.php` + `.htaccess` hardening as the sandbox — a backup can hold a live
+  plugin file. Capped at 5MB per file and 50MB in total; a skipped backup means
+  no automatic revert for that write, never that the write is refused.
+
+  The restore is byte-exact, which is the whole value of it. A file that loses
+  its trailing newline or gains a stray `` is not the file the owner had.
+
+  A **new** file's revert is deleting it, not restoring empty content. A 0-byte
+  file left behind is still there, still loaded, and now looks deliberate.
+
+  The sandbox is guarded despite already having a quarantine, because the two
+  catch different failures: quarantine fires when a file **fatals**, and this
+  fires when it runs exactly as written and takes the site down anyway.
+
+- **`front_end_check: "passed"` no longer reads as all clear when it is not.**
+  It means *not your fault* — and the control probe only ever runs because the
+  front page was already failing. An agent skimming for that field would read it
+  as fine and move on, which is the exact shape of the bug this whole feature
+  exists to catch, so a plain `site_down: true` now says the other half.
+
+- **Operating protocol rule 6c** tells agents these checks exist and how to read
+  them: `front_end_check: "FAILED"` means undone, `site_down: true` means stop
+  and tell the owner, and neither present means it passed or the host blocks
+  loopback requests — in which case the check proved nothing and rule 5 still
+  applies. Rule 6 now also carries the snippet location matrix, so a refused
+  `css` save is avoidable rather than merely explained.
+
 ### Changed
 
 - **Agents are now told about both**, in the two places they read before acting:
@@ -78,6 +130,23 @@ public. When the two disagree, this file is correct.
   `wp-login.php`, `/wp-admin`, `/wp-json`, `wp-cron.php` or `xmlrpc.php`.
 
 ### Fixed
+
+- **`elementor_page` accepted any settings key without looking at it.** A wrong
+  control name was written into `_elementor_data`, saved, reported successful,
+  and did nothing. On a real build an `xpro-horizontal-menu` was given `menu`
+  and `menu_color`; the real controls are `nav_menu` and `menu_text_color`, and
+  the result was a menu with default dark-on-light colours on a near-black
+  header with nothing anywhere to say why. `set` and `create` now walk the tree
+  against each element's real `get_controls()` and return `settings_warnings`.
+
+  A warning, never a refusal, and only when there is something to say.
+  Elementor's control stacks are not a closed set — third-party widgets, dynamic
+  tags and global references all put legitimate keys where `get_controls()` does
+  not list them — so a gate here would block correct work. Responsive suffixes
+  are stripped before comparing and every `_`-prefixed key is allowed through,
+  because the common and advanced controls come from a stack a widget's own
+  `get_controls()` never returns. Verified against a real 42-element page: zero
+  warnings. A check that flags a correct page is worse than no check at all.
 
 - **`snippet_save` was throwing away the reachability verdict.** It assigned its
   generic "Active PHP snippet…" note straight over `$res['note']`, which is
