@@ -75,7 +75,7 @@ final class Claudpress_Tools_Core
         $output = ob_get_clean();
         restore_error_handler();
 
-        return [
+        $result = [
             'success'            => $error === null,
             'return_value'       => self::sanitize_value($return_value),
             'output'             => $output,
@@ -84,6 +84,22 @@ final class Claudpress_Tools_Core
             'error_class'        => $error['class'] ?? null,
             'execution_time_ms'  => round((microtime(true) - $started) * 1000, 1),
         ];
+
+        // Only when the code actually ran: a fatal inside eval() is caught above
+        // as success:false, and there is nothing to attribute or revert either
+        // way, so checking would just be a wasted request. Code that ran and
+        // then broke the site is exactly the success:true case, and nothing
+        // here is undoable, so this is detection and reporting only — but that
+        // report is the whole point, since the agent is about to tell a human
+        // it succeeded and move on. This costs one extra HTTP request per call
+        // (execute_php runs a lot during a site build); that trade is deliberate
+        // given the outage this exists for, and guard() already honours the
+        // claudpress_verify_health filter for anyone who needs it off.
+        if ($result['success']) {
+            $result = Claudpress_Health::guard($result, 'running that PHP');
+        }
+
+        return $result;
     }
 
     public static function execute_sql(array $args): array
@@ -112,7 +128,14 @@ final class Claudpress_Tools_Core
         if ($err) {
             return ['success' => false, 'error' => $err];
         }
-        return ['success' => true, 'rows_affected' => (int) $affected, 'insert_id' => $wpdb->insert_id ?: null];
+        $result = ['success' => true, 'rows_affected' => (int) $affected, 'insert_id' => $wpdb->insert_id ?: null];
+
+        // Only the write branch gets probed: a SELECT/SHOW/DESCRIBE/EXPLAIN/
+        // PRAGMA can't take the front end down and returned above already, and
+        // an errored query did nothing. This adds one extra HTTP request per
+        // write query — the same deliberate trade as execute_php above, and the
+        // same claudpress_verify_health filter turns it off if needed.
+        return Claudpress_Health::guard($result, 'running that SQL');
     }
 
     public static function get_site_info(array $args): array
