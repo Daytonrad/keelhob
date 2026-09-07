@@ -65,7 +65,7 @@ final class Claudpress_Skills_Remote
      * that has been seen is a signing key that has to be rotated, and rotating
      * it means every installed copy stops trusting new skills until it updates.
      */
-    const PUBLIC_KEY_B64 = '6KkHV/Jyjig271bsvkV08eOoHT/R3mqTpbgcVd9EHnY=';
+    const PUBLIC_KEY_B64 = 'lbZ4WzEnv0/vwEx+OGBgXJcSdgTvpLdRWmUiLM9K620=';
 
     /** How long a cached manifest counts as current. */
     const TTL = 604800; // 7 days

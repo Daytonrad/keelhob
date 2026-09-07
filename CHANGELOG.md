@@ -12,6 +12,34 @@ public. When the two disagree, this file is correct.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.0.2] - 2026-09-07
+
+### Security
+
+- **The skill-signing key has been rotated.** The previous Ed25519 keypair was
+  retired and a fresh one generated; `PUBLIC_KEY_B64` in
+  `includes/class-skills-remote.php` now carries the new public half, and the
+  release assets are re-signed with the new private half.
+
+  The old private key was never committed, never in a zip and never on GitHub —
+  it was confirmed absent from every tracked file and from the whole of git
+  history before rotating. It was nonetheless exposed somewhere it should not
+  have been, and a signing key whose exposure you cannot fully account for is a
+  signing key to replace.
+
+  Doing it now costs nothing: the repository is still private, the v1.0.1 assets
+  had zero downloads, and no install has ever verified against the old key. The
+  same rotation after launch would break skill updates on every site until each
+  one updated. **A stale copy of the key was also deleted from
+  `claudpress-api/.env`**, where it had been left behind after that service
+  stopped signing anything.
+
+  If you somehow have 1.0.1 installed, update to 1.0.2 before skill updates will
+  verify again. The plugin update itself is unaffected — it is a zip download
+  and is not gated on this signature.
+
 ### Fixed
 
 - **`readme.txt` named the wrong update endpoint.** The External services

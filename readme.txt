@@ -5,7 +5,7 @@ Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
 Donate link: https://ko-fi.com/claudpress
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -232,6 +232,17 @@ under Claudpress > Automation. Pick your provider there — the model guide next
 the exact model IDs to type for each one.
 
 == Changelog ==
+
+= 1.0.2 =
+* Security: the key used to sign skill updates has been replaced. The old one was never published
+  anywhere, but it was exposed somewhere it should not have been, so it was retired rather than
+  trusted. Nothing you have installed is affected, and the plugin still updates normally.
+* Fixed: the "External services" section above named the wrong address for the update check. It
+  said claudpress.com; the real address is api.claudpress.com/v1/version, which is what PRIVACY.md
+  and the code have always used. Wrong wording in the one section that tells you where your data
+  goes, so it is called out here rather than fixed quietly.
+* Changed: the three safety sections of this file are now generated from README.md, so the two can
+  no longer disagree. They already had: one limitation was listed in one file and not the other.
 
 = 1.0.1 =
 * Fixed: the update check pointed at a route that never existed, so it always failed. It now
