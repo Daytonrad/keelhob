@@ -259,7 +259,15 @@ final class Claudpress_Migration
             if (!empty($bundle['source'])) {
                 $s['origin_site'] = (string) $bundle['source'];
             }
-            Claudpress_Snippets::save($s);
+            // A bundle can carry a snippet whose type and location cannot work
+            // together — exported from a site that predates the check. Saving
+            // it is refused, so recording it as updated would be a lie in the
+            // one report the owner reads to find out what arrived.
+            $saved = Claudpress_Snippets::save($s);
+            if (empty($saved['success'])) {
+                $report['skipped'][] = 'snippet:' . ($s['name'] ?? '') . ' — ' . (string) ($saved['error'] ?? 'refused');
+                continue;
+            }
             $report['updated'][] = 'snippet:' . ($s['name'] ?? '');
         }
         foreach (($e['skills'] ?? []) as $s) {

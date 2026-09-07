@@ -87,12 +87,24 @@ final class Claudpress_Studio_Actions
     {
         $activate = !empty($_POST['and_activate']);
 
+        // The form's location dropdown defaults to "everywhere", which is
+        // silently wrong for css/js/html — nothing emits them there. save()
+        // refuses that pair, and a refusal here would redirect away with the
+        // code the owner just typed still in the POST and nowhere else. So the
+        // form corrects it and says so; only the tool layer refuses.
+        $type     = sanitize_key(wp_unslash($_POST['snippet_type'] ?? 'php'));
+        $location = sanitize_key(wp_unslash($_POST['location'] ?? 'everywhere'));
+        $moved    = $type !== 'php' && !in_array($location, Claudpress_Snippets::EMITTING_LOCATIONS, true);
+        if ($moved) {
+            $location = Claudpress_Snippets::default_location_for_type($type);
+        }
+
         $result = Claudpress_Snippets::save([
             'id'           => $id ?: null,
             'name'         => sanitize_text_field(wp_unslash($_POST['name'] ?? '')),
             'description'  => sanitize_textarea_field(wp_unslash($_POST['description'] ?? '')),
-            'snippet_type' => sanitize_key(wp_unslash($_POST['snippet_type'] ?? 'php')),
-            'location'     => sanitize_key(wp_unslash($_POST['location'] ?? 'everywhere')),
+            'snippet_type' => $type,
+            'location'     => $location,
             'priority'     => (int) ($_POST['priority'] ?? 10),
             'tags'         => sanitize_text_field(wp_unslash($_POST['tags'] ?? '')),
             'source'       => sanitize_key(wp_unslash($_POST['source'] ?? 'manual')),
@@ -112,20 +124,29 @@ final class Claudpress_Studio_Actions
         // case where the parse refused.
         $blocked = $activate && empty($result['active']);
 
+        // "Moved" outranks "saved" but not "does not parse": a snippet that was
+        // both relocated and broken has a bigger problem than its location.
+        $message = $blocked ? 'lint' : ($moved ? 'moved' : ($activate ? 'activated' : 'saved'));
+
         Claudpress_Studio::redirect(
-            $blocked ? 'edit' : 'all',
-            $blocked ? 'lint' : ($activate ? 'activated' : 'saved'),
-            $blocked ? ['snippet' => $id] : []
+            ($blocked || $moved) ? 'edit' : 'all',
+            $message,
+            ($blocked || $moved) ? ['snippet' => $id] : []
         );
     }
 
     private function save_composed(): void
     {
         $prompt = sanitize_textarea_field(wp_unslash($_POST['ai_prompt'] ?? ''));
+        $type   = sanitize_key(wp_unslash($_POST['snippet_type'] ?? 'php'));
         $result = Claudpress_Snippets::save([
             'name'         => sanitize_text_field(wp_unslash($_POST['name'] ?? '')) ?: __('AI snippet', 'claudpress'),
             'code'         => wp_unslash($_POST['code'] ?? ''),
-            'snippet_type' => sanitize_key(wp_unslash($_POST['snippet_type'] ?? 'php')),
+            'snippet_type' => $type,
+            // Compose asks for a type and never a location, so without this a
+            // composed css snippet would land at the default "everywhere" and
+            // be refused — throwing away code the model just wrote.
+            'location'     => Claudpress_Snippets::default_location_for_type($type),
             'source'       => 'ai',
             'ai_prompt'    => $prompt,
             'ai_model'     => (string) Claudpress::instance()->get('agent_model', ''),
@@ -143,13 +164,22 @@ final class Claudpress_Studio_Actions
         if (!$row) {
             Claudpress_Studio::redirect('all', 'saved');
         }
+        // A row saved before the location check existed may be a css snippet at
+        // a location that cannot emit it. Copying it verbatim would be refused,
+        // so the copy is put somewhere it can actually run.
+        $copy_type     = (string) $row['snippet_type'];
+        $copy_location = (string) $row['location'];
+        if ($copy_type !== 'php' && !in_array($copy_location, Claudpress_Snippets::EMITTING_LOCATIONS, true)) {
+            $copy_location = Claudpress_Snippets::default_location_for_type($copy_type);
+        }
+
         $copy = Claudpress_Snippets::save([
             /* translators: %s: the original snippet's name. */
             'name'         => sprintf(__('%s (copy)', 'claudpress'), (string) $row['name']),
             'description'  => (string) $row['description'],
             'code'         => (string) $row['code'],
-            'snippet_type' => (string) $row['snippet_type'],
-            'location'     => (string) $row['location'],
+            'snippet_type' => $copy_type,
+            'location'     => $copy_location,
             'priority'     => (int) $row['priority'],
             'tags'         => (string) $row['tags'],
             'source'       => (string) ($row['source'] ?? 'manual'),
@@ -202,12 +232,21 @@ final class Claudpress_Studio_Actions
             Claudpress_Studio::redirect('library', 'saved');
         }
 
+        // Library items carry their own location, which for a css item may
+        // predate the check. Same treatment as a duplicate: land it somewhere
+        // it runs rather than refuse an import the owner asked for.
+        $item_type     = (string) ($item['type'] ?? 'php');
+        $item_location = (string) ($item['location'] ?? Claudpress_Snippets::default_location_for_type($item_type));
+        if ($item_type !== 'php' && !in_array($item_location, Claudpress_Snippets::EMITTING_LOCATIONS, true)) {
+            $item_location = Claudpress_Snippets::default_location_for_type($item_type);
+        }
+
         $result = Claudpress_Snippets::save([
             'name'         => (string) ($item['title'] ?? $key),
             'description'  => (string) ($item['description'] ?? ''),
             'code'         => (string) ($item['code'] ?? ''),
-            'snippet_type' => (string) ($item['type'] ?? 'php'),
-            'location'     => (string) ($item['location'] ?? 'everywhere'),
+            'snippet_type' => $item_type,
+            'location'     => $item_location,
             'tags'         => (string) ($item['tags'] ?? ''),
             'source'       => 'library',
             'origin_uid'   => $key,

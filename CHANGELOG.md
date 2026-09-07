@@ -51,6 +51,23 @@ public. When the two disagree, this file is correct.
   An admin notice says why snippets are inert, so nobody debugs a switch they
   set themselves during an emergency.
 
+- **A css/js/html snippet saved at a location that cannot emit it is now
+  refused, not silently stored.** `everywhere`, `admin_only`, `frontend_only`
+  and `page_template` only ever run PHP — `run_php_everywhere()` skips any
+  snippet whose type is not `php`, and `page_template` `eval()`s PHP but echoes
+  anything else raw as the whole page body. `snippet_save()` now checks the
+  resolved type and location before writing anything, and returns an error
+  naming the type, the location it was given, and the locations that would
+  work (`header`, `footer`, `before_content`, `after_content`, `shortcode`).
+
+  The failure this exists for: site CSS was saved at `frontend_only`, reported
+  `success: true` and active, and rendered nothing — the page shipped
+  unstyled. A warning next to `success: true` gets ignored by an agent that has
+  already reported success to a human; a refusal is the only outcome it can
+  act on. A metadata-only update (`snippet_save({id, tags})`) is unaffected —
+  the check runs against the resolved, already-stored location, not a missing
+  one.
+
 ### Changed
 
 - **Agents are now told about both**, in the two places they read before acting:

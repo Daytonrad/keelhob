@@ -20,7 +20,7 @@ final class Claudpress_Tools_Snippets
                 'description'  => ['type' => 'string'],
                 'code'         => ['type' => 'string', 'description' => 'The snippet code. For php, do NOT include <?php tags (except page_template, where inline HTML with <?php islands is allowed).'],
                 'snippet_type' => ['type' => 'string', 'enum' => ['php', 'css', 'js', 'html'], 'default' => 'php'],
-                'location'     => ['type' => 'string', 'enum' => ['everywhere', 'admin_only', 'frontend_only', 'header', 'footer', 'before_content', 'after_content', 'shortcode', 'page_template'], 'default' => 'everywhere'],
+                'location'     => ['type' => 'string', 'enum' => ['everywhere', 'admin_only', 'frontend_only', 'header', 'footer', 'before_content', 'after_content', 'shortcode', 'page_template'], 'default' => 'everywhere', 'description' => 'css, js and html only run from header, footer, before_content, after_content or shortcode — everywhere/admin_only/frontend_only/page_template only execute php, so a css/js/html snippet saved there is refused.'],
                 'target_id'    => ['type' => 'integer', 'description' => 'For page_template: the page/post ID this template serves.'],
                 'priority'     => ['type' => 'integer', 'default' => 10],
                 'active'       => ['type' => 'boolean', 'default' => false],

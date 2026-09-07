@@ -273,3 +273,139 @@ CP_Test::ok(
     strpos($block, '$generic . \' \' . $res[\'note\']') !== false,
     'and it appends the existing note rather than replacing it'
 );
+
+CP_Test::group('Snippets — save() refuses css/js/html at a location that cannot emit them');
+
+// The bug this exists for: a css snippet saved at frontend_only is stored,
+// marked active, listed as active in the admin, and never runs — because
+// run_php_everywhere() skips anything that is not snippet_type php. Nobody is
+// warned. save() must refuse the write outright rather than store dead code.
+
+/** A $wpdb that remembers whether it was ever asked to write a row. */
+class CP_Save_Guard_WPDB extends CP_Test_WPDB
+{
+    /** @var array<string, mixed>|null Row returned for the next get_row()/get_var() lookup. */
+    public ?array $existing = null;
+    public int $inserts     = 0;
+    public int $updates     = 0;
+
+    public function get_var($query, $column = 0, $row = 0)
+    {
+        return $this->existing['id'] ?? null;
+    }
+
+    public function get_row($query, $output = null)
+    {
+        return $this->existing;
+    }
+
+    public function insert($table, $data)
+    {
+        if ($table === $this->prefix . 'claudpress_snippets') {
+            $this->inserts++;
+        }
+        return 1;
+    }
+
+    public function update($table, $data, $where)
+    {
+        if ($table === $this->prefix . 'claudpress_snippets') {
+            $this->updates++;
+        }
+        return 1;
+    }
+}
+
+$real_wpdb = $GLOBALS['wpdb'];
+$guard     = new CP_Save_Guard_WPDB();
+$GLOBALS['wpdb'] = $guard;
+
+// 1. css at frontend_only is refused, and nothing is written.
+$res = Claudpress_Snippets::save(['name' => 'Site CSS', 'code' => '.a{color:red}', 'snippet_type' => 'css', 'location' => 'frontend_only']);
+CP_Test::same(false, $res['success'], 'a css snippet at frontend_only is refused');
+CP_Test::contains('header', (string) ($res['error'] ?? ''), 'the error names a location that would work');
+CP_Test::contains('frontend_only', (string) ($res['error'] ?? ''), 'the error names the location it was given');
+CP_Test::contains('css', (string) ($res['error'] ?? ''), 'the error names the type');
+CP_Test::same(0, $guard->inserts, 'nothing was inserted into the snippets table');
+CP_Test::same(0, $guard->updates, 'nothing was updated in the snippets table either');
+
+// 2. css at header saves fine.
+$guard->inserts = 0;
+$res = Claudpress_Snippets::save(['name' => 'Site CSS', 'code' => '.a{color:red}', 'snippet_type' => 'css', 'location' => 'header']);
+CP_Test::same(true, $res['success'], 'a css snippet at header saves fine');
+CP_Test::same(1, $guard->inserts, 'and is actually written');
+
+// 3. js at everywhere is refused.
+$guard->inserts = 0;
+$res = Claudpress_Snippets::save(['name' => 'Tracker', 'code' => 'console.log(1)', 'snippet_type' => 'js', 'location' => 'everywhere']);
+CP_Test::same(false, $res['success'], 'a js snippet at everywhere is refused');
+CP_Test::same(0, $guard->inserts, 'nothing was inserted for it');
+
+// 4. php at frontend_only still saves — the common case must not regress.
+$guard->inserts = 0;
+$res = Claudpress_Snippets::save(['name' => 'Redirect', 'code' => 'add_action("init", function () {});', 'snippet_type' => 'php', 'location' => 'frontend_only']);
+CP_Test::same(true, $res['success'], 'a php snippet at frontend_only still saves fine');
+CP_Test::same(1, $guard->inserts, 'and is actually written');
+
+// 5. A metadata-only update on an existing css/header snippet still succeeds:
+// the merge path must resolve the STORED location (header), not treat a
+// missing `location` key in $a as unset-and-therefore-invalid.
+$guard->existing = [
+    'id'              => 5,
+    'uid'             => 'cps_existing01234',
+    'name'            => 'Site CSS',
+    'description'     => '',
+    'code'            => '.a{color:red}',
+    'snippet_type'    => 'css',
+    'location'        => 'header',
+    'target_id'       => 0,
+    'priority'        => 10,
+    'active'          => 0,
+    'tags'            => '',
+    'purpose'         => '',
+    'impact'          => '',
+    'origin_site'     => '',
+    'origin_uid'      => '',
+    'source'          => 'manual',
+    'ai_prompt'       => null,
+    'ai_model'        => '',
+    'conditions_json' => null,
+    'last_error'      => null,
+    'created_at'      => '2026-01-01 00:00:00',
+    'updated_at'      => '2026-01-01 00:00:00',
+];
+$guard->inserts = 0;
+$guard->updates = 0;
+$res = Claudpress_Snippets::save(['id' => 5, 'tags' => 'x']);
+CP_Test::same(true, $res['success'], 'a metadata-only update on an existing css/header snippet still succeeds');
+CP_Test::same(1, $guard->updates, 'and it updates the existing row rather than being refused');
+
+// 6. A LEGACY row — css already stored at a location that cannot emit it,
+// saved before this check existed — must stay editable. Refusing an edit that
+// supplies neither snippet_type nor location would lock the owner out of the
+// one snippet they are trying to rescue, which is a worse bug than the dead
+// snippet it is trying to prevent.
+$guard->existing['location'] = 'frontend_only';
+$guard->updates = 0;
+$res = Claudpress_Snippets::save(['id' => 5, 'name' => 'Site CSS (renamed)']);
+CP_Test::same(true, $res['success'], 'a legacy css@frontend_only row can still be renamed');
+CP_Test::same(1, $guard->updates, 'and the rename actually reaches the database');
+
+$guard->updates = 0;
+$res = Claudpress_Snippets::save(['id' => 5, 'code' => '.a{color:blue}']);
+CP_Test::same(true, $res['success'], 'and its code can still be fixed');
+CP_Test::same(1, $guard->updates, 'and that write lands too');
+
+// But asking for the broken pair again IS refused, even on that same row —
+// the exemption is for edits that never mention type or location, not for the
+// row itself.
+$guard->updates = 0;
+$res = Claudpress_Snippets::save(['id' => 5, 'location' => 'everywhere']);
+CP_Test::same(false, $res['success'], 'moving that same row to another dead location is still refused');
+CP_Test::same(0, $guard->updates, 'and nothing is written when it is');
+
+CP_Test::same('header', Claudpress_Snippets::default_location_for_type('css'), 'css defaults to header');
+CP_Test::same('header', Claudpress_Snippets::default_location_for_type('js'), 'so does js');
+CP_Test::same('everywhere', Claudpress_Snippets::default_location_for_type('php'), 'php still defaults to everywhere');
+
+$GLOBALS['wpdb'] = $real_wpdb;

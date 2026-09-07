@@ -92,6 +92,13 @@ tool list and are refused if called anyway. Snippets already saved keep running 
 by then they are site code — the separate **Run code snippets** setting is the kill switch that
 stops every one of them at once.
 
+== Snippet locations ==
+
+Not every location can run every type. `everywhere`, `admin_only`, `frontend_only` and
+`page_template` only execute PHP — css/js/html saved there would never be emitted, so saving one
+there is refused with the locations that do work. `header`, `footer`, `before_content`,
+`after_content` and `shortcode` accept php, css, js and html.
+
 == What it cannot do yet ==
 
 * **No onboarding wizard.** Activation drops you on an admin page; connecting an agent is a

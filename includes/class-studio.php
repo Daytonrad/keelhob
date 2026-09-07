@@ -146,6 +146,7 @@ final class Claudpress_Studio
             'deleted'    => ['success', __('Snippet deleted.', 'claudpress')],
             'imported'   => ['success', __('Added to this site, switched off. Review it, then activate.', 'claudpress')],
             'lint'       => ['error', __('That code does not parse, so it was saved switched OFF. The error is shown on the snippet.', 'claudpress')],
+            'moved'      => ['warning', __('Saved, but moved to a location that can run it. CSS, JS and HTML are only output in the header, the footer, before or after content, or from a shortcode — at "everywhere", "admin only", "front end only" or "page template" nothing would have printed them.', 'claudpress')],
         ];
         $key = isset($_GET['cp_msg']) ? sanitize_key(wp_unslash($_GET['cp_msg'])) : '';
         if ($key === '' || !isset($map[$key])) {

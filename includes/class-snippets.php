@@ -723,6 +723,33 @@ final class Claudpress_Snippets
             ? (in_array($a['location'], $locations, true) ? $a['location'] : 'everywhere')
             : (string) ($existing['location'] ?? 'everywhere');
 
+        // css/js/html are only ever emitted from EMITTING_LOCATIONS
+        // (output_assets() and render_snippet_value()); everywhere/admin_only/
+        // frontend_only only run php (run_php_everywhere() skips anything else),
+        // and page_template eval()s php but echoes anything else raw as the
+        // whole page. Refusing here — before anything is written — is the only
+        // outcome an agent can act on: a warning next to success:true gets
+        // ignored, which is exactly how a CSS snippet came to sit "active" on
+        // claudpress.com doing nothing.
+        //
+        // Only when the caller ASKED for the combination, though. A site that
+        // already carries a dead css@frontend_only row from before this check
+        // must stay editable: renaming it, or fixing its code, supplies neither
+        // key and merges the stored pair straight back in. Refusing that would
+        // lock the owner out of the very snippet they are trying to rescue.
+        $chose_shape = array_key_exists('snippet_type', $a) || array_key_exists('location', $a);
+        if ($chose_shape && $type !== 'php' && !in_array($location, self::EMITTING_LOCATIONS, true)) {
+            return [
+                'success' => false,
+                'error'   => sprintf(
+                    'A %s snippet cannot run at location "%s" — only php runs there. Use one of: %s.',
+                    $type,
+                    $location,
+                    implode(', ', self::EMITTING_LOCATIONS)
+                ),
+            ];
+        }
+
         $row = [
             'name'         => array_key_exists('name', $a) ? sanitize_text_field((string) $a['name']) : (string) ($existing['name'] ?? 'Untitled snippet'),
             'description'  => array_key_exists('description', $a) ? (string) $a['description'] : (string) ($existing['description'] ?? ''),
@@ -968,6 +995,28 @@ final class Claudpress_Snippets
             Claudpress_Snippet_Log::record((string) ($snip['uid'] ?? ''), (string) ($snip['name'] ?? ''), 'deleted');
         }
         return ['success' => (bool) $deleted, 'id' => $id];
+    }
+
+    /**
+     * The only locations that emit css, js or html.
+     *
+     * Everywhere else either runs php and skips the rest (run_php_everywhere)
+     * or echoes it raw as an entire page (run_php_template). php runs at all
+     * nine locations, so this list constrains nothing else.
+     */
+    const EMITTING_LOCATIONS = ['header', 'footer', 'before_content', 'after_content', 'shortcode'];
+
+    /**
+     * Where a snippet of this type belongs when the caller has not said.
+     *
+     * Used by the Studio, which is a human form with a location dropdown that
+     * defaults to "everywhere" — a reasonable-sounding choice that is silently
+     * wrong for css. The tool layer gets a refusal instead: an agent can retry
+     * and lose nothing, whereas a redirect throws away code somebody just typed.
+     */
+    public static function default_location_for_type(string $type): string
+    {
+        return $type === 'php' ? 'everywhere' : 'header';
     }
 
     /** How a snippet came to exist. Anything unrecognised is treated as hand-written. */
