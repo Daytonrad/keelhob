@@ -472,6 +472,176 @@ final class Claudpress_Snippets
         }
     }
 
+    /**
+     * After activating a snippet, load the front page as a logged-out visitor
+     * and make sure the site still answers. Auto-deactivate if it does not.
+     *
+     * WHY THIS EXISTS, and why on_shutdown() above is not enough.
+     *
+     * on_shutdown() catches a snippet that CRASHES. It cannot catch a snippet
+     * that runs exactly as written and takes the site down anyway. The way that
+     * happened here: a coming-soon snippet returned HTTP 503 from the front end,
+     * which is the textbook status for "temporarily unavailable" and is what
+     * WordPress core uses for maintenance mode. The host polls the home page to
+     * decide whether the site is alive, read the 503 as "this server is dead",
+     * and stopped routing to it — taking wp-admin and the REST API down with the
+     * front end. Nothing errored. Nothing noticed. And every way of undoing it
+     * was HTTP, so the agent that installed it could not remove it.
+     *
+     * A real request is the only thing that catches that class of bug, because
+     * the snippet is not wrong in any way a parser or an error handler can see.
+     * It is only wrong in what it returns.
+     *
+     * ATTRIBUTION. A failing probe does not prove this snippet did it — the site
+     * may have been broken already, by another snippet, a plugin conflict, or an
+     * outage that has nothing to do with us. Deactivating on that evidence would
+     * disable innocent code and hide the real cause. So a failure is followed by
+     * a CONTROL: switch this snippet off, probe again, and compare.
+     *
+     *   still broken -> not this snippet. Put it back, report the site is down.
+     *   now healthy  -> this snippet. Leave it off, report why.
+     *
+     * INCONCLUSIVE IS NOT BROKEN. Plenty of hosts block loopback requests
+     * outright, and a site behind HTTP auth or a firewall answers a self-request
+     * differently from a real visitor. A transport error means we learned
+     * nothing, so nothing is deactivated — the alternative is disabling working
+     * snippets on every host with a strict egress policy, which is a worse bug
+     * than the one this is here to catch.
+     *
+     * @return array{checked:bool, ok:bool, status?:int, reason?:string, note?:string}
+     */
+    public static function verify_front_end(int $id): array
+    {
+        if (!apply_filters('claudpress_verify_snippet_reachability', true, $id)) {
+            return ['checked' => false, 'ok' => true, 'note' => 'Reachability check disabled by filter.'];
+        }
+
+        $probe = self::probe_home();
+        $verdict = self::reachability_verdict($probe, null);
+
+        // Only a failing first probe is worth a control request.
+        if ($verdict['needs_control']) {
+            global $wpdb;
+            $wpdb->update(self::table(), ['active' => 0], ['id' => $id]);
+            $control = self::probe_home();
+            $verdict = self::reachability_verdict($probe, $control);
+
+            if ($verdict['ok']) {
+                // Not this snippet's doing. Put it back exactly as asked.
+                $wpdb->update(self::table(), ['active' => 1], ['id' => $id]);
+            }
+        }
+
+        if (!$verdict['ok']) {
+            self::deactivate_with_error($id, (string) $verdict['reason']);
+            @error_log('[Claudpress] ' . $verdict['reason'] . ' (snippet #' . $id . ')');
+        }
+
+        unset($verdict['needs_control']);
+        return $verdict;
+    }
+
+    /**
+     * The whole decision, with no I/O in it.
+     *
+     * Separated from probe_home() so the rules can be tested directly. The
+     * interesting cases are all about what we are NOT allowed to conclude:
+     * a transport error means we learned nothing, and a site that is broken
+     * with the snippet switched off was not broken by the snippet.
+     *
+     * @param array{status:int, transport_error:string}      $probe   with the snippet active
+     * @param array{status:int, transport_error:string}|null $control with it deactivated, or null if not run yet
+     * @return array{checked:bool, ok:bool, needs_control:bool, status?:int, reason?:string, note?:string}
+     */
+    public static function reachability_verdict(array $probe, ?array $control): array
+    {
+        if ($probe['transport_error'] !== '') {
+            return [
+                'checked'       => true,
+                'ok'            => true,
+                'needs_control' => false,
+                'note'          => 'Could not reach this site from itself (' . $probe['transport_error']
+                    . '). Many hosts block loopback requests, so this proves nothing and nothing was'
+                    . ' deactivated. Load the site in a logged-out browser to be sure.',
+            ];
+        }
+
+        if (self::healthy_status($probe['status'])) {
+            return ['checked' => true, 'ok' => true, 'needs_control' => false, 'status' => $probe['status']];
+        }
+
+        if ($control === null) {
+            return ['checked' => true, 'ok' => false, 'needs_control' => true, 'status' => $probe['status']];
+        }
+
+        // Broken with it off too — so it was already broken. Innocent.
+        if ($control['transport_error'] === '' && !self::healthy_status($control['status'])) {
+            return [
+                'checked'       => true,
+                'ok'            => true,
+                'needs_control' => false,
+                'status'        => $probe['status'],
+                'note'          => 'The front page returns HTTP ' . $probe['status'] . ', but it does so'
+                    . ' with this snippet switched off as well, so this snippet is not the cause. It was'
+                    . ' left active. Something else is breaking the site.',
+            ];
+        }
+
+        $reason = 'Auto-deactivated: with this snippet active the front page returned HTTP '
+            . $probe['status'] . ' to a logged-out visitor, and returned '
+            . ($control['transport_error'] === '' ? 'HTTP ' . $control['status'] : 'normally')
+            . ' with it switched off.'
+            . ($probe['status'] >= 500
+                ? ' A 5xx on the home page makes managed and containerised hosts treat the whole site as'
+                . ' dead and stop routing to it, including wp-admin. Serve alternative pages with'
+                . ' status 200 and a noindex meta tag instead.'
+                : ' A logged-out visitor could not load the site.');
+
+        return [
+            'checked'       => true,
+            'ok'            => false,
+            'needs_control' => false,
+            'status'        => $probe['status'],
+            'reason'        => $reason,
+        ];
+    }
+
+    /** 2xx and 3xx are a working site. A redirect to https or a trailing slash is not a fault. */
+    private static function healthy_status(int $status): bool
+    {
+        return $status >= 200 && $status < 400;
+    }
+
+    /**
+     * One anonymous GET of the home page.
+     *
+     * No cookies, so this is what the public sees rather than what the logged-in
+     * owner sees — the whole point, since the snippet that caused this let
+     * logged-in users straight through.
+     *
+     * @return array{status:int, transport_error:string}
+     */
+    private static function probe_home(): array
+    {
+        $url = add_query_arg('claudpress_probe', (string) time(), home_url('/'));
+
+        $res = wp_remote_get($url, [
+            'timeout'     => 10,
+            'redirection' => 3,
+            // Self-signed and staging certificates are common and are not what
+            // this check is about.
+            'sslverify'   => false,
+            'cookies'     => [],
+            'headers'     => ['Cache-Control' => 'no-cache', 'X-Claudpress-Probe' => '1'],
+            'user-agent'  => 'Claudpress/' . CLAUDPRESS_VERSION . ' (snippet reachability check)',
+        ]);
+
+        if (is_wp_error($res)) {
+            return ['status' => 0, 'transport_error' => $res->get_error_message()];
+        }
+        return ['status' => (int) wp_remote_retrieve_response_code($res), 'transport_error' => ''];
+    }
+
     private static function deactivate_with_error(int $id, string $message): void
     {
         global $wpdb;
@@ -628,6 +798,51 @@ final class Claudpress_Snippets
             $res['lint_error'] = $lint;
             $res['note']       = 'Saved but forced inactive: the PHP does not parse.';
         }
+
+        // Only a snippet that is live and reaches the front end can take the
+        // site off the internet, so only those are worth two HTTP requests.
+        // admin_only and shortcode snippets cannot affect an anonymous visitor.
+        if ($row['active'] && self::affects_front_end($location)) {
+            $check = self::verify_front_end($id);
+            $res   = self::merge_check($res, $check);
+        }
+
+        return $res;
+    }
+
+    /** Locations an anonymous visitor to the home page can actually execute. */
+    private static function affects_front_end(string $location): bool
+    {
+        return !in_array($location, ['admin_only', 'shortcode'], true);
+    }
+
+    /**
+     * Fold a reachability result into a tool response.
+     *
+     * The agent has to be told in the response itself. It has just reported
+     * success to a human and is about to move on; a note in a log nobody reads
+     * changes nothing.
+     *
+     * @param array<string,mixed> $res
+     * @param array<string,mixed> $check
+     * @return array<string,mixed>
+     */
+    private static function merge_check(array $res, array $check): array
+    {
+        if (empty($check['checked'])) {
+            return $res;
+        }
+        $res['front_end_check'] = $check['ok'] ? 'passed' : 'FAILED';
+        if (!empty($check['status'])) {
+            $res['front_end_status'] = $check['status'];
+        }
+        if (!$check['ok']) {
+            $res['active']            = false;
+            $res['auto_deactivated']  = true;
+            $res['note']              = (string) $check['reason'];
+        } elseif (!empty($check['note'])) {
+            $res['note'] = trim((string) (($res['note'] ?? '') . ' ' . $check['note']));
+        }
         return $res;
     }
 
@@ -730,7 +945,16 @@ final class Claudpress_Snippets
             (string) ($snip['name'] ?? ''),
             $active ? 'activated' : 'deactivated'
         );
-        return ['success' => true, 'id' => $id, 'active' => $active];
+
+        $res = ['success' => true, 'id' => $id, 'active' => $active];
+
+        // Switching one ON is exactly as dangerous as saving it on. Switching
+        // one OFF cannot break the front end, so it is not checked.
+        if ($active && self::affects_front_end((string) ($snip['location'] ?? 'everywhere'))) {
+            $res = self::merge_check($res, self::verify_front_end($id));
+        }
+
+        return $res;
     }
 
     public static function delete(int $id): array

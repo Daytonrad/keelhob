@@ -169,3 +169,107 @@ foreach ([['operating protocol', $protocol], ['snippet_save description', $toolD
         $where . ' says a front-end gate must let wp-login through'
     );
 }
+
+CP_Test::group('Snippets — front-end reachability check');
+
+// The bug this exists for: a snippet returned 503 from the front end. It parsed,
+// it ran, it never errored, and it took the site off the internet because the
+// host reads a 5xx on the home page as "this server is dead". The fatal-error
+// guard cannot see that. Only a real request can.
+//
+// These test the decision, not the request. The interesting cases are all about
+// what the check is NOT allowed to conclude — a wrong deactivation disables
+// working code and hides the real cause, which is worse than the bug it catches.
+
+$ok   = fn(int $s) => ['status' => $s, 'transport_error' => ''];
+$dead = fn(string $e) => ['status' => 0, 'transport_error' => $e];
+
+// --- a healthy site needs no control request -----------------------------
+
+foreach ([200, 201, 301, 302, 308, 399] as $status) {
+    $v = Claudpress_Snippets::reachability_verdict($ok($status), null);
+    CP_Test::ok($v['ok'], "HTTP $status is a working site");
+    CP_Test::ok(!$v['needs_control'], "HTTP $status needs no second request");
+}
+
+// A redirect is not a fault. Sites redirect to https, to a trailing slash, to a
+// locale. Treating 301 as broken would deactivate a snippet on most of them.
+$v = Claudpress_Snippets::reachability_verdict($ok(301), null);
+CP_Test::ok($v['ok'], 'a redirect is not treated as a broken site');
+
+// --- a broken site asks for a control before blaming anyone ---------------
+
+foreach ([500, 502, 503, 401, 403, 404] as $status) {
+    $v = Claudpress_Snippets::reachability_verdict($ok($status), null);
+    CP_Test::ok(!$v['ok'], "HTTP $status is not a working site");
+    CP_Test::ok($v['needs_control'], "HTTP $status triggers a control request before deactivating");
+}
+
+// --- attribution: the snippet is only blamed when switching it off helps --
+
+$guilty = Claudpress_Snippets::reachability_verdict($ok(503), $ok(200));
+CP_Test::ok(!$guilty['ok'], 'broken with it on, fine with it off -> the snippet is the cause');
+CP_Test::contains('Auto-deactivated', (string) $guilty['reason'], 'and the reason says so');
+CP_Test::contains('503', (string) $guilty['reason'], 'the reason names the status it actually saw');
+CP_Test::contains('noindex', (string) $guilty['reason'], 'and tells the agent what to do instead');
+
+$innocent = Claudpress_Snippets::reachability_verdict($ok(503), $ok(503));
+CP_Test::ok($innocent['ok'], 'broken with it off TOO -> the snippet is not the cause, leave it alone');
+CP_Test::ok(empty($innocent['reason']), 'an innocent snippet gets no deactivation reason');
+CP_Test::contains('not the cause', (string) $innocent['note'], 'and the note says the site is broken by something else');
+
+// The site being down for an unrelated reason is the case that would otherwise
+// disable every snippet saved during an outage, one at a time.
+$outage = Claudpress_Snippets::reachability_verdict($ok(502), $ok(502));
+CP_Test::ok($outage['ok'], 'a site down for an unrelated reason does not get its snippets disabled');
+
+// --- inconclusive is not broken -------------------------------------------
+
+// Plenty of hosts block loopback requests outright. If that counted as failure,
+// this check would disable working snippets on every one of them — a far worse
+// bug than the one it is here to catch.
+$v = Claudpress_Snippets::reachability_verdict($dead('cURL error 7: Failed to connect'), null);
+CP_Test::ok($v['ok'], 'a transport error does NOT deactivate the snippet');
+CP_Test::ok(!$v['needs_control'], 'and does not waste a second request');
+CP_Test::contains('proves nothing', (string) $v['note'], 'and says plainly that it proved nothing');
+CP_Test::contains('loopback', (string) $v['note'], 'naming the usual cause so the owner can judge it');
+
+// A control that itself cannot connect still leaves the first failure standing:
+// we saw a real 503 with the snippet on, and learned nothing with it off.
+$v = Claudpress_Snippets::reachability_verdict($ok(503), $dead('timed out'));
+CP_Test::ok(!$v['ok'], 'a 503 with the snippet on is still acted on when the control cannot connect');
+
+// --- only front-end locations are worth checking --------------------------
+
+$affects = new ReflectionMethod('Claudpress_Snippets', 'affects_front_end');
+$affects->setAccessible(true);
+foreach (['everywhere', 'frontend_only', 'header', 'footer', 'page_template'] as $loc) {
+    CP_Test::ok($affects->invoke(null, $loc), "$loc can reach an anonymous visitor, so it is checked");
+}
+foreach (['admin_only', 'shortcode'] as $loc) {
+    CP_Test::ok(!$affects->invoke(null, $loc), "$loc cannot break the home page, so it is not checked");
+}
+
+CP_Test::group('Snippets — the reachability verdict survives the tool layer');
+
+// Found by running it: snippet_save's generic "Active PHP snippet..." note was
+// assigned over the top of save()'s note, which is where the reachability
+// verdict travels. The live response said front_end_status 503 with no
+// explanation whatsoever — the one message the agent needed was the one thrown
+// away. Assignment vs concatenation, and it is invisible in every unit test
+// that does not go through the tool.
+$tool = (string) file_get_contents(dirname(__DIR__, 2) . '/includes/tools/class-tools-snippets.php');
+
+preg_match('/\$res = Claudpress_Snippets::save\(\$a\);(.*?)return \$res;/s', $tool, $m);
+$block = (string) ($m[1] ?? '');
+CP_Test::ok($block !== '', 'found the snippet_save note block');
+
+CP_Test::ok(
+    strpos($block, "\$res['note'] = 'Active PHP snippet") === false,
+    'the generic note is not assigned straight over $res[note]'
+);
+CP_Test::contains('$res[\'note\']', $block, 'it still sets a note');
+CP_Test::ok(
+    strpos($block, '$generic . \' \' . $res[\'note\']') !== false,
+    'and it appends the existing note rather than replacing it'
+);

@@ -74,8 +74,18 @@ final class Claudpress_Tools_Snippets
             return ['success' => false, 'error' => 'page_template snippets require target_id (the page ID to serve).'];
         }
         $res = Claudpress_Snippets::save($a);
+
+        // Append, never overwrite. save() puts the reachability verdict in
+        // `note`, and that is the one message the agent must not miss: it is
+        // either why the snippet was switched back off, or the fact that the
+        // site is already returning an error for some other reason. Clobbering
+        // it with this generic sentence lost exactly that, and the symptom was
+        // a response reporting front_end_status 503 and no explanation at all.
         if ($res['success'] && !empty($a['active']) && ($a['snippet_type'] ?? 'php') === 'php') {
-            $res['note'] = 'Active PHP snippet. If it triggers a fatal error it will auto-deactivate; check snippet_get last_error afterwards.';
+            $generic = 'Active PHP snippet. If it triggers a fatal error it will auto-deactivate; check snippet_get last_error afterwards.';
+            $res['note'] = isset($res['note']) && $res['note'] !== ''
+                ? $generic . ' ' . $res['note']
+                : $generic;
         }
         return $res;
     }
