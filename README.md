@@ -90,6 +90,29 @@ Run it, start a new session, and the tools appear. Try *"list the plugins on thi
 same page outputs a JSON `mcpServers` block for Claude Desktop, Cursor and Codex; authenticate
 with the bearer token or a WordPress Application Password.
 
+### If a snippet breaks your site
+
+Put this in `wp-config.php`, above the *"That's all, stop editing"* line:
+
+```php
+define('CLAUDPRESS_SNIPPETS_OFF', true);
+```
+
+Every snippet stops running immediately, whatever the admin page says. Remove the line to switch
+them back on; nothing is deleted. Edit the file however you normally would — FTP, your host's file
+manager, a shell. None of that needs a working site or a database client, which is the point: the
+case this exists for is a site you cannot load.
+
+**Why a constant and not a button.** A snippet can take a site offline without ever erroring, and
+the commonest way is returning a `503` from the front end — for a coming-soon page, say. Managed
+and containerised hosts poll the home page to decide whether the site is alive, read that `503` as
+*this server is dead*, and stop routing to it. `wp-admin` goes with it, and so does the MCP
+endpoint an agent would need to undo its own change. Every switch inside WordPress is unreachable
+at that point, so the switch has to live outside it.
+
+The plugin already auto-deactivates a snippet that causes a **fatal error**. This covers the other
+case: one that runs exactly as written and breaks the site anyway.
+
 ## How risky this is, honestly
 
 A connected agent can write PHP, read your database and change your files. That is the product,

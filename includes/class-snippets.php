@@ -216,6 +216,31 @@ final class Claudpress_Snippets
 
     public static function init(): void
     {
+        // The emergency kill switch, and the reason it is a CONSTANT rather than
+        // a setting.
+        //
+        // A snippet can take a site down without ever erroring: return a 5xx
+        // from the front end and a container host reads it as "this server is
+        // dead" and stops routing to it, including to wp-admin and the REST API.
+        // The crash guard below never fires, because nothing crashed. The site
+        // is simply gone, and so is every way of switching the snippet off,
+        // because all of them are HTTP.
+        //
+        // The `run_snippets` setting cannot help there: reaching it means
+        // reaching wp-admin. wp-config.php can be edited over FTP, a host's file
+        // manager, or a shell — with no working site and no database client. So
+        // the recovery path deliberately does not depend on the thing that broke.
+        //
+        //     define('CLAUDPRESS_SNIPPETS_OFF', true);   // in wp-config.php
+        //
+        // Checked FIRST so it wins over everything, and documented in readme.txt
+        // under "If a snippet breaks your site" — a kill switch nobody can find
+        // is not a kill switch.
+        if (defined('CLAUDPRESS_SNIPPETS_OFF') && CLAUDPRESS_SNIPPETS_OFF) {
+            add_action('admin_notices', [self::class, 'kill_switch_notice']);
+            return;
+        }
+
         // Snippet execution is independent of the AI abilities master switch —
         // once saved, snippets are site code and must run for real visitors,
         // exactly like any snippet plugin. A separate kill-switch can disable all.
@@ -229,6 +254,26 @@ final class Claudpress_Snippets
         add_filter('the_content', [self::class, 'wrap_content'], 20);
         add_shortcode('claudpress_snippet', [self::class, 'shortcode']);
         add_filter('template_include', [self::class, 'maybe_page_template'], 99);
+    }
+
+    /**
+     * Tell the owner why none of their snippets are running.
+     *
+     * Without this the kill switch is indistinguishable from the feature being
+     * broken: snippets are listed, marked active, and do nothing. Somebody who
+     * added the constant during an emergency at 2am should not have to remember
+     * they did it.
+     */
+    public static function kill_switch_notice(): void
+    {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+        echo '<div class="notice notice-warning"><p><strong>'
+            . esc_html__('Claudpress: all code snippets are switched off.', 'claudpress')
+            . '</strong> '
+            . esc_html__('CLAUDPRESS_SNIPPETS_OFF is defined in wp-config.php, so no snippet runs, whatever its status says here. Remove that line to switch them back on.', 'claudpress')
+            . '</p></div>';
     }
 
     private static function register_shutdown(): void

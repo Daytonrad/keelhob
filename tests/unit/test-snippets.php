@@ -86,3 +86,86 @@ CP_Test::ok(Claudpress_Snippets::lint_php('<h1>Hi</h1><?php echo (;', 'php', 'pa
 CP_Test::same('', Claudpress_Snippets::lint_php('.a { color: red; }', 'css'), 'CSS is not linted as PHP');
 CP_Test::same('', Claudpress_Snippets::lint_php('if (x) { y(); }', 'js'), 'JS is not linted as PHP');
 CP_Test::same('', Claudpress_Snippets::lint_php('', 'php'), 'an empty body is not an error');
+
+CP_Test::group('Snippets — the wp-config kill switch');
+
+// The guard this covers is not a code path a unit test can execute: init()
+// registers WordPress hooks, and the constant has to be undefined for the rest
+// of the suite. So this asserts the SHAPE of the guard in the source instead,
+// which is what would actually rot: someone reorders init() and the kill switch
+// silently stops being first, or the constant gets renamed in one of the four
+// places it is documented and not the others.
+//
+// Why it matters enough to test at all: an active snippet can take a site
+// offline WITHOUT erroring — return a 503 from the front end and a container
+// host stops routing to the site, wp-admin included. The fatal-error guard
+// never fires, because nothing was fatal. Every in-WordPress switch is then
+// unreachable, so this constant is the only way back. It has to keep working
+// and it has to stay findable.
+
+$src = (string) file_get_contents(dirname(__DIR__, 2) . '/includes/class-snippets.php');
+
+preg_match('/function init\(\): void\s*\{(.*?)\n    \}/s', $src, $m);
+$init = (string) ($m[1] ?? '');
+CP_Test::ok($init !== '', 'found Claudpress_Snippets::init()');
+
+CP_Test::contains(
+    "defined('CLAUDPRESS_SNIPPETS_OFF')",
+    $init,
+    'init() checks the CLAUDPRESS_SNIPPETS_OFF constant'
+);
+
+// Order is the whole point. A kill switch that runs after the settings lookup
+// still works, but one that runs after the hooks are added does not.
+$killPos = strpos($init, "CLAUDPRESS_SNIPPETS_OFF");
+$hookPos = strpos($init, 'add_action');
+CP_Test::ok(
+    $killPos !== false && $hookPos !== false && $killPos < $hookPos,
+    'the kill switch is checked BEFORE any snippet hook is registered'
+);
+
+$settingPos = strpos($init, "get('run_snippets'");
+CP_Test::ok(
+    $killPos !== false && $settingPos !== false && $killPos < $settingPos,
+    'and before the run_snippets setting, so it wins over the database'
+);
+
+// A kill switch nobody can find is not a kill switch. These are the two places
+// an owner with a broken site actually looks.
+$root = dirname(__DIR__, 2);
+foreach (['readme.txt', 'README.md'] as $doc) {
+    CP_Test::contains(
+        'CLAUDPRESS_SNIPPETS_OFF',
+        (string) file_get_contents($root . '/' . $doc),
+        $doc . ' documents the kill switch'
+    );
+}
+
+// And the agent has to know it exists, or it cannot tell the owner how to
+// recover from something the agent itself installed.
+CP_Test::contains(
+    'CLAUDPRESS_SNIPPETS_OFF',
+    (string) file_get_contents($root . '/includes/class-mcp-server.php'),
+    'the operating protocol tells the agent about the kill switch'
+);
+
+CP_Test::group('Snippets — agents are warned about front-end status codes');
+
+// The failure that prompted all of the above: an agent building a coming-soon
+// page reaches for 503, because 503 is the textbook-correct status for
+// "temporarily unavailable" and WordPress core itself uses it for maintenance
+// mode. On a containerised host that takes the whole site off the internet.
+// The only cheap fix is telling the agent before it acts.
+$protocol = (string) file_get_contents($root . '/includes/class-mcp-server.php');
+$toolDesc = (string) file_get_contents($root . '/includes/tools/class-tools-snippets.php');
+
+foreach ([['operating protocol', $protocol], ['snippet_save description', $toolDesc]] as [$where, $text]) {
+    CP_Test::ok(
+        stripos($text, '5xx') !== false || stripos($text, '503') !== false,
+        $where . ' warns about 5xx status codes from the front end'
+    );
+    CP_Test::ok(
+        stripos($text, 'wp-login') !== false,
+        $where . ' says a front-end gate must let wp-login through'
+    );
+}

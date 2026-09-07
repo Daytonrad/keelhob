@@ -217,6 +217,31 @@ files; no key, no account, and nothing about your site is sent. Every skill is
 verified against a signature before it is written, and an unsigned or unverifiable
 skill is discarded rather than installed.
 
+== If a snippet breaks your site ==
+
+Add this line to wp-config.php, above the "That's all, stop editing" comment:
+
+define('CLAUDPRESS_SNIPPETS_OFF', true);
+
+Every snippet stops running immediately, whatever the admin page says about it.
+Remove the line to switch them back on. Nothing is deleted.
+
+Edit wp-config.php however you normally would: FTP, your host's file manager, or
+a terminal. Deliberately none of that needs a working site or a database client,
+because the case this exists for is a site you cannot load.
+
+Why this is a constant and not a button: an active snippet can take a site
+offline without ever erroring. The commonest way is returning a 503 from the
+front end — for a coming-soon or maintenance page, say. Managed and containerised
+hosts poll your home page to decide whether the site is alive, read that 503 as
+"this server is dead", and stop routing traffic to it. wp-admin goes with it. At
+that point every switch inside WordPress is unreachable, so the switch has to
+live outside it.
+
+The plugin already auto-deactivates a snippet that causes a FATAL error. This
+covers the other case: a snippet that works exactly as written and still breaks
+the site.
+
 == Installation ==
 
 1. Download claudpress.zip from https://github.com/calflint/claudpress/releases
