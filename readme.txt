@@ -38,9 +38,9 @@ Features:
 == How risky this is, honestly ==
 
 A connected agent can write PHP, read your database and change your files. That is the product, not
-a defect. So the position is not "staging only" — it is graded.
+a defect. So the answer is not "staging only" — it is graded, and this is the grading.
 
-Eight capability groups ship SWITCHED OFF, and are forced off once on any site still carrying
+**Eight capability groups ship switched off**, and are forced off once on any site still carrying
 settings from the old free/paid split, so an automatic update cannot quietly hand them over:
 
 * store_orders — read and refund real orders, and read sales reports
@@ -52,62 +52,71 @@ settings from the old free/paid split, so an automatic update cannot quietly han
 * comms — send email to real addresses, including your customers
 * deploy — export a bundle and push it to your production site
 
-What stays on is what a build needs, and none of it is harmless: content writes posts, pages and
-media; store creates products, coupons and store settings; seo and seo_optimize write meta, schema,
-sitemap and redirects; design builds Elementor pages; snippets installs code that runs on every page
-load; code_exec runs arbitrary PHP and SQL; files reads and writes under a configurable base;
-site_admin changes options and activates plugins and themes; images searches and generates media;
-automation runs unattended agent loops; memory and skills write what the agent remembers and
-follows. Above all of them is one master switch: with AI abilities off, the endpoint authenticates
-but exposes only read-only introspection. Every tool call is written to the Activity log.
+**What stays on** is what a build needs, and none of it is harmless: content writes posts, pages and
+media · store creates products, coupons and store settings · seo and seo_optimize write meta,
+schema, sitemap and redirects · design builds Elementor pages · snippets installs code that runs
+on every page load · code_exec runs arbitrary PHP and SQL · files reads and writes under a
+configurable base · site_admin changes options and activates plugins and themes · images searches
+and generates media · automation runs unattended agent loops · memory and skills write what the
+agent remembers and follows. Above all of them sits one master switch: with **AI abilities** off the
+endpoint authenticates but exposes only read-only introspection. Every call is written to the
+Activity log.
 
-Before pointing this at anything you care about: a backup you have actually restored once; a staging
-copy for the first build; only the capability groups the job needs; and the endpoint token treated
-like a root password, because it is one — it is stored hashed and shown once, so regenerate it the
-moment it leaks.
+**Before pointing this at anything you care about:** a backup you have actually restored once, not
+one you assume works; a staging copy for the first build, so you can watch what it does; only the
+capability groups the job in front of you needs; and the endpoint token treated like a root
+password, because it is one — stored hashed and shown once, so regenerate it the moment it leaks.
 
-Zero external dependencies at runtime. No Composer, no npm, no vendored libraries, no bundled SDK —
-the plugin runs from its own source, so there is no supply chain underneath it to compromise.
+**Zero external dependencies at runtime.** No npm, no vendored libraries, no bundled SDK, and
+nothing from Composer — the plugin runs from its own source, so there is no supply chain
+underneath it to compromise. For software with this much reach that is worth more than any feature.
+There is a composer.json, and it exists only for the test and analysis tooling: its require block is
+empty on purpose and vendor/ is not in the shipped zip. SECURITY.md
+(https://github.com/calflint/claudpress/blob/main/SECURITY.md) covers what is in scope and how to
+report something.
 
 == About eval() ==
 
-Claudpress uses eval() in three places: includes/class-snippets.php (lines 391 and 407) and
-includes/tools/class-tools-core.php (line 71). That is the product working as designed, not an
-oversight — execute_php is the escape hatch that lets an agent do anything WordPress can do, and the
-snippet engine is how AI-written code becomes site code that runs for real visitors.
-
-What is built around it: a PHP snippet is parse-checked with token_get_all(TOKEN_PARSE) before it
-can ever be active, and code that fails the check is still saved — you do not lose the work — but is
-forced inactive with the parse error attached. A snippet that fatals at runtime is switched off by a
-shutdown handler that knows which snippet was executing, with the error written to its row, to the
-snippet log and to the PHP error log, and an event fired so the site can tell you.
-
-The snippet tools sit in the "snippets" capability group and execute_php/execute_sql in "code_exec":
-switch either off and those tools disappear from the agent's tool list and are refused if called
-anyway. Snippets already saved keep running regardless, because by then they are site code — the
-separate "Run code snippets" setting in Claudpress > Settings is the kill switch that stops every
-one of them at once.
+Grep this repository and you will find eval() three times: includes/class-snippets.php (lines 391
+and 407) and includes/tools/class-tools-core.php (line 71). That is the product working as designed,
+not an oversight — execute_php is the escape hatch that lets an agent do anything WordPress can do
+without waiting for a dedicated tool, and the snippet engine is how AI-written code becomes site
+code that runs for real visitors. What is built around it: a PHP snippet is parse-checked with
+token_get_all(TOKEN_PARSE) before it can ever be active, and code that fails the check is still
+saved — you do not lose the work — but is forced inactive with the parse error attached. A
+snippet that fatals at runtime is switched off by a shutdown handler that knows which snippet was
+executing, with the error written to its row, to the snippet log and to the PHP error log, and an
+event fired so the site can tell you. The snippet tools sit in the snippets capability group and
+execute_php/execute_sql in code_exec: switch either off and those tools disappear from the agent's
+tool list and are refused if called anyway. Snippets already saved keep running regardless, because
+by then they are site code — the separate **Run code snippets** setting is the kill switch that
+stops every one of them at once.
 
 == What it cannot do yet ==
 
-* No onboarding wizard — connecting an agent is a copy-paste step you do yourself.
-* No independent security audit. There are ~1,500 unit assertions and a live rig against real
-  WordPress, and nobody outside this project has read the code.
-* Permissions are coarse: capability groups, on or off. No per-tool approval, and no queue that asks
-  before a destructive action runs.
-* No rollback. /undo reverses one turn and only content (posts, pages, products) — not settings,
-  plugins, files or live snippets. Nothing snapshots the site, so backups are yours to keep.
-* Block themes and full site editing are not supported. Pages are built with Gutenberg, Elementor,
-  or custom-coded page templates.
-* Nothing migrates in — no Shopify, Wix or Squarespace import. Going the other way, a variable
-  product only half-migrates between Claudpress sites: the page moves, its attributes and variations
-  do not, and the import says so.
-* One agent at a time, and no background job queue.
-* Not translated. Strings are wrapped for translation; no translation ships.
-* Telegram needs a publicly reachable HTTPS URL with a valid certificate.
+* **No onboarding wizard.** Activation drops you on an admin page; connecting an agent is a
+  copy-paste step you do yourself.
+* **No independent security audit.** ~1,500 unit assertions and a live rig against real WordPress,
+  and nobody outside this project has read the code. Commissioning that is the top line in
+  FUNDING.md (https://github.com/calflint/claudpress/blob/main/FUNDING.md).
+* **Permissions are coarse.** Capability groups, on or off — no per-tool approval and no queue
+  that asks before a destructive action runs.
+* **No rollback.** /undo reverses one turn and only content: posts, pages, products. Not settings,
+  plugins, files or live snippets. Nothing snapshots the site, so backups are yours.
+* **Block themes and full site editing are not supported.** Pages are built with Gutenberg,
+  Elementor, or custom-coded page templates.
+* **Nothing migrates in** — no Shopify, Wix or Squarespace import. Going the other way, a
+  variable product only half-migrates between Claudpress sites: the page moves, its attributes and
+  variations do not, and the import says so.
+* **One agent at a time**, no background job queue: a long interactive build lives inside the
+  session that started it. **Not translated**, either — strings are wrapped, no translation ships.
+* **Telegram needs a public HTTPS URL** with a valid certificate — a localhost or self-signed
+  staging site cannot receive messages.
+* **Not on WordPress.org**, and it will not be: the directory does not allow a plugin that
+  executes arbitrary PHP. Install the zip; it updates itself from GitHub releases.
 
-The roadmap says which of these are being fixed, and in what order:
-https://github.com/calflint/claudpress/blob/main/ROADMAP.md
+ROADMAP.md (https://github.com/calflint/claudpress/blob/main/ROADMAP.md) says which of these are
+being fixed, and in what order.
 
 == Support this project ==
 
@@ -132,9 +141,10 @@ updates.
 
 **Updates and the public count (on by default, one setting to turn off).**
 Claudpress is not in the WordPress.org directory, so it checks
-https://claudpress.com for new versions the way the directory otherwise would.
-That same request is how the project counts how many sites are running it, which
-is the only measure it has of whether any of this is worth continuing.
+https://api.claudpress.com/v1/version for new versions the way the directory
+otherwise would. That same request is how the project counts how many sites are
+running it, which is the only measure it has of whether any of this is worth
+continuing.
 
 What is sent, in full: a random ID generated on your site (not derived from your
 address, domain or email, so it cannot be traced back to you), the Claudpress

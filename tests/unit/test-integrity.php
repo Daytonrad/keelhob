@@ -165,6 +165,49 @@ CP_Test::same($header[1] ?? 'a', $constant[1] ?? 'b', 'the plugin header and CLA
 CP_Test::same($header[1] ?? 'a', $stable[1] ?? 'b', 'readme.txt Stable tag matches the plugin version');
 CP_Test::contains('= ' . ($header[1] ?? '?'), $readme, 'readme.txt has a changelog entry for this version');
 
+CP_Test::group('Integrity — readme.txt has not drifted from README.md');
+
+// Three sections say the same thing in both files: what this plugin can do to a
+// site, what eval() is doing in the source, and what it cannot do yet. They are
+// what a careful person reads before trusting it, and they HAD already drifted —
+// README.md grew an eleventh limitation that readme.txt never got, and nothing
+// noticed, because nothing was looking.
+//
+// bin/build-readme-txt.php generates them from README.md. This is the half that
+// makes that stick: edit README.md, forget to regenerate, and CI says so.
+//
+// It is included rather than shelled out to. Nothing in that file touches
+// WordPress, so including it costs nothing, and a subprocess would be the only
+// one in this suite.
+require_once $root . '/bin/build-readme-txt.php';
+
+// Compared line by line rather than whole-string. A failing same() on two
+// 280-line documents prints both of them, which buries the one line that
+// actually differs — and a failure nobody can read is a failure nobody fixes.
+try {
+    [$current, $expected] = readme_txt_expected($root);
+
+    $a = explode("\n", $current);
+    $b = explode("\n", $expected);
+    $firstDiff = null;
+    for ($i = 0, $n = max(count($a), count($b)); $i < $n; $i++) {
+        if (($a[$i] ?? null) !== ($b[$i] ?? null)) {
+            $firstDiff = 'readme.txt line ' . ($i + 1) . " differs.\n"
+                . '      readme.txt says: ' . var_export($a[$i] ?? '(end of file)', true) . "\n"
+                . '      README.md gives: ' . var_export($b[$i] ?? '(end of file)', true) . "\n"
+                . '      Fix by running:  php bin/build-readme-txt.php';
+            break;
+        }
+    }
+    CP_Test::same(
+        null,
+        $firstDiff,
+        'readme.txt matches what bin/build-readme-txt.php generates from README.md'
+    );
+} catch (RuntimeException $e) {
+    CP_Test::ok(false, 'the readme generator ran: ' . $e->getMessage());
+}
+
 CP_Test::group('Integrity — no secrets leak through the migration bundle');
 
 $migration = (string) file_get_contents($root . '/includes/class-migration.php');

@@ -12,7 +12,29 @@ public. When the two disagree, this file is correct.
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- **`readme.txt` named the wrong update endpoint.** The External services
+  section — the privacy disclosure people read before installing — said the
+  update check goes to `https://claudpress.com`. It goes to
+  `https://api.claudpress.com/v1/version`, which is what `PRIVACY.md` and the
+  code have said since 1.0.1. A wrong URL in the one section whose entire job is
+  telling people where their data goes.
+
+### Changed
+
+- **`readme.txt`'s three shared sections are now generated from `README.md`.**
+  "How risky this is, honestly", "About `eval()`" and "What it cannot do yet"
+  say the same thing in both files, and they had already drifted: `README.md`
+  grew an eleventh limitation ("not on WordPress.org, and it will not be") that
+  `readme.txt` never received.
+
+  `bin/build-readme-txt.php` converts them, and `tests/unit/test-integrity.php`
+  fails — naming the line — if `readme.txt` is stale. Everything else in
+  `readme.txt` stays hand-written, including its changelog: that one is aimed at
+  the person clicking update, while this file is aimed at developers, and
+  collapsing the two would lose a deliberate distinction rather than a
+  duplication.
 
 ## [1.0.1] - 2026-09-06
 

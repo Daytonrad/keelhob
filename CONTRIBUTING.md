@@ -45,6 +45,23 @@ Build the installable zip:
 bash bin/build-zip.sh      # → build/claudpress.zip
 ```
 
+### If you edit README.md
+
+Three sections are shared with `readme.txt`: **How risky this is, honestly**,
+**About `eval()`**, and **What it cannot do yet**. `README.md` is the source and
+`readme.txt` is generated from it, so after editing any of those three:
+
+```bash
+php bin/build-readme-txt.php
+```
+
+Commit both files. `php tests/run.php` fails if you forget, and names the line.
+
+Everything else in `readme.txt` — the Description, External services,
+Installation, the changelog — is hand-written and belongs only there. The two
+changelogs are deliberately different: `CHANGELOG.md` is for developers and
+names files, `readme.txt`'s is for the person clicking update.
+
 ### Static analysis, if you want it
 
 Optional. The suite above needs nothing installed; this needs Composer.

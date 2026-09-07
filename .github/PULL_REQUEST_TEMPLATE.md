@@ -16,6 +16,8 @@
 - [ ] User-facing strings go through `__()` with the `claudpress` text domain
 - [ ] Output escaped, input sanitised, writes check a capability and a nonce
 - [ ] No stored `wp_options` key was renamed without a migration
+- [ ] If you edited a shared README section, `php bin/build-readme-txt.php` was
+      run and `readme.txt` is committed with it
 
 ## If this changes what leaves the user's server
 
