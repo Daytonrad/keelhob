@@ -144,21 +144,50 @@ final class Claudpress_Tools_Site
         switch ($action) {
             case 'activate':
                 $res = activate_plugin($plugin);
-                return is_wp_error($res) ? ['success' => false, 'error' => $res->get_error_message()] : ['success' => true, 'plugin' => $plugin, 'active' => true];
+                if (is_wp_error($res)) {
+                    return ['success' => false, 'error' => $res->get_error_message()];
+                }
+                $result = ['success' => true, 'plugin' => $plugin, 'active' => true];
+                $result = Claudpress_Health::guard($result, 'activating this plugin', static function () use ($plugin) {
+                    deactivate_plugins($plugin);
+                });
+                // guard() ran the revert (deactivate) at most once, as its own
+                // control probe — see the CONTRACT in class-health.php. Decide
+                // what that means for THIS field, because guard() won't:
+                if (($result['front_end_check'] ?? null) === 'FAILED') {
+                    // Deactivating fixed the site, so it stays deactivated —
+                    // and the result must say so, not claim active:true next
+                    // to a note saying it was switched off.
+                    $result['active'] = false;
+                } elseif (($result['front_end_check'] ?? null) === 'passed') {
+                    // The revert ran and did NOT help — this plugin was not
+                    // the cause, so re-activate it or an innocent activation
+                    // is left reverted while claiming success (same shape as
+                    // Claudpress_Snippets::verify_front_end() restoring active=1).
+                    activate_plugin($plugin);
+                }
+                return $result;
 
             case 'deactivate':
+                // A deactivation cannot break a working front end — nothing to guard.
                 deactivate_plugins($plugin);
                 return ['success' => true, 'plugin' => $plugin, 'active' => false];
 
             case 'install':
+                // Writes files but activates nothing, so it cannot break a running site.
                 return self::install_package('plugin', $plugin);
 
             case 'delete':
+                // WordPress refuses to delete an active plugin (delete_plugins()
+                // errors out rather than removing its files), so the case a
+                // guard would exist for — deleting an ACTIVE plugin's files and
+                // fataling the site — is not reachable through this branch.
                 $res = delete_plugins([$plugin]);
                 return is_wp_error($res) ? ['success' => false, 'error' => $res->get_error_message()] : ['success' => true, 'deleted' => $plugin];
 
             case 'list':
             default:
+                // No write, nothing to guard.
                 $all    = get_plugins();
                 $active = (array) get_option('active_plugins', []);
                 $out = [];
@@ -174,12 +203,35 @@ final class Claudpress_Tools_Site
         $action = $args['action'] ?? 'list';
         switch ($action) {
             case 'activate':
+                // MUST be captured before switch_theme() runs. Capturing it
+                // after gives the NEW theme, so the revert below would switch
+                // to the broken theme again — a revert that does nothing,
+                // silently, in exactly the situation where it matters.
+                $previous = get_stylesheet();
                 switch_theme((string) ($args['theme'] ?? ''));
-                return ['success' => true, 'active_theme' => get_stylesheet()];
+                $result = ['success' => true, 'active_theme' => get_stylesheet()];
+                $result = Claudpress_Health::guard($result, 'activating this theme', static function () use ($previous) {
+                    switch_theme($previous);
+                });
+                // Same decision as manage_plugin's activate branch — see the
+                // comments there and the CONTRACT in class-health.php.
+                if (($result['front_end_check'] ?? null) === 'FAILED') {
+                    // Switching back fixed the site; reflect the reverted theme.
+                    $result['active_theme'] = get_stylesheet();
+                } elseif (($result['front_end_check'] ?? null) === 'passed') {
+                    // The revert ran and did NOT help — this theme was not the
+                    // cause, so switch back to it rather than leaving an
+                    // innocent activation reverted.
+                    switch_theme((string) ($args['theme'] ?? ''));
+                    $result['active_theme'] = get_stylesheet();
+                }
+                return $result;
             case 'install':
+                // Writes files but activates nothing, so it cannot break a running site.
                 return self::install_package('theme', (string) ($args['theme'] ?? ''));
             case 'list':
             default:
+                // No write, nothing to guard.
                 $themes = wp_get_themes();
                 $out = [];
                 foreach ($themes as $slug => $t) {
