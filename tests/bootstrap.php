@@ -633,6 +633,7 @@ require_once CLAUDPRESS_DIR . 'includes/class-telegram-router.php';
 require_once CLAUDPRESS_DIR . 'includes/class-rest.php';
 require_once CLAUDPRESS_DIR . 'includes/class-tasks.php';
 require_once CLAUDPRESS_DIR . 'includes/class-migration.php';
+require_once CLAUDPRESS_DIR . 'includes/class-health.php';
 require_once CLAUDPRESS_DIR . 'includes/class-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/class-skills.php';
 require_once CLAUDPRESS_DIR . 'includes/class-skills-remote.php';
