@@ -77,20 +77,20 @@ report something.
 
 == About eval() ==
 
-Grep this repository and you will find eval() three times: includes/class-snippets.php (lines 391
-and 407) and includes/tools/class-tools-core.php (line 71). That is the product working as designed,
-not an oversight — execute_php is the escape hatch that lets an agent do anything WordPress can do
-without waiting for a dedicated tool, and the snippet engine is how AI-written code becomes site
-code that runs for real visitors. What is built around it: a PHP snippet is parse-checked with
-token_get_all(TOKEN_PARSE) before it can ever be active, and code that fails the check is still
-saved — you do not lose the work — but is forced inactive with the parse error attached. A
-snippet that fatals at runtime is switched off by a shutdown handler that knows which snippet was
-executing, with the error written to its row, to the snippet log and to the PHP error log, and an
-event fired so the site can tell you. The snippet tools sit in the snippets capability group and
-execute_php/execute_sql in code_exec: switch either off and those tools disappear from the agent's
-tool list and are refused if called anyway. Snippets already saved keep running regardless, because
-by then they are site code — the separate **Run code snippets** setting is the kill switch that
-stops every one of them at once.
+Grep this repository and you will find eval() three times: twice in includes/class-snippets.php (in
+run_php() and run_php_template()) and once in includes/tools/class-tools-core.php (in
+execute_php()). That is the product working as designed, not an oversight — execute_php is the
+escape hatch that lets an agent do anything WordPress can do without waiting for a dedicated tool,
+and the snippet engine is how AI-written code becomes site code that runs for real visitors. What is
+built around it: a PHP snippet is parse-checked with token_get_all(TOKEN_PARSE) before it can ever
+be active, and code that fails the check is still saved — you do not lose the work — but is
+forced inactive with the parse error attached. A snippet that fatals at runtime is switched off by a
+shutdown handler that knows which snippet was executing, with the error written to its row, to the
+snippet log and to the PHP error log, and an event fired so the site can tell you. The snippet tools
+sit in the snippets capability group and execute_php/execute_sql in code_exec: switch either off and
+those tools disappear from the agent's tool list and are refused if called anyway. Snippets already
+saved keep running regardless, because by then they are site code — the separate **Run code
+snippets** setting is the kill switch that stops every one of them at once.
 
 == Snippet locations ==
 

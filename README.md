@@ -156,8 +156,9 @@ what is in scope and how to report something.
 
 ## About `eval()`
 
-Grep this repository and you will find `eval()` three times: `includes/class-snippets.php` (lines
-391 and 407) and `includes/tools/class-tools-core.php` (line 71). That is the product working as
+Grep this repository and you will find `eval()` three times: twice in `includes/class-snippets.php`
+(in `run_php()` and `run_php_template()`) and once in `includes/tools/class-tools-core.php` (in
+`execute_php()`). That is the product working as
 designed, not an oversight — `execute_php` is the escape hatch that lets an agent do anything
 WordPress can do without waiting for a dedicated tool, and the snippet engine is how AI-written
 code becomes site code that runs for real visitors. What is built around it: a PHP snippet is
