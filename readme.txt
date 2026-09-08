@@ -5,7 +5,7 @@ Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
 Donate link: https://ko-fi.com/claudpress
-Stable tag: 1.0.3
+Stable tag: 1.0.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -264,6 +264,13 @@ under Claudpress > Automation. Pick your provider there — the model guide next
 the exact model IDs to type for each one.
 
 == Changelog ==
+
+= 1.0.4 =
+* Fixed: the launch readiness checker used to describe a coming-soon or maintenance holding page as though
+  it were every page on the site, because it loads each page the way a logged-out visitor does and a gate
+  answers them all identically. It now notices when several pages come back byte-for-byte the same, says so
+  plainly, and marks those pages as "not checked" instead of inventing findings about them.
+* Fixed: a site with no shop is no longer told off for having no refund page and no shipping page.
 
 = 1.0.3 =
 * Security: the plugin now checks that your site still loads for a logged-out visitor after any
