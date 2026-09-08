@@ -10,34 +10,7 @@ file is the one written for developers: it names files, says what broke and why,
 and keeps the pre-release history that `readme.txt` presents as if it were
 public. When the two disagree, this file is correct.
 
-## [1.0.4] - 2026-09-08
-
-### Fixed
-
-- **`site_readiness` reported a coming-soon gate's holding page as if it were
-  every page on the site.** Fetched anonymously, a gate/maintenance-mode/
-  catch-all-redirect answers every URL with the same holding page at `200`,
-  and the tool was analyzing that page per URL — four separate
-  `placeholder-text` HIGH findings all matching "coming soon", an
-  `lcp-image-over-budget` for the holding page's own image, and
-  `missing-meta-description`/`missing-og-*` for its head, none of which
-  describe a page the audit ever actually saw. Found for real on
-  claudpress.com. It now hashes the body of every fetched page; when two or
-  more distinct URLs come back byte-identical, one `duplicate-body-gate`
-  finding is raised instead (`blocker` if every fetched URL matches — the
-  audit did not run at all; `high` if only some do, since the rest of the
-  crawl is still real signal) and every page-level check derived from those
-  bodies moves to `skipped`, never `findings`, naming the affected URLs and
-  telling the operator to re-run once the gate is off.
-
-- **`analyze_legal_pages()` demanded a refund page and a shipping page from
-  sites with no store.** `terms` and `privacy` still raise HIGH when missing
-  or unpublished on every site, but `refund` and `shipping` — and the
-  WooCommerce settings that wire pages into them, which do not exist without
-  WooCommerce — now move to `skipped` when WooCommerce is not active, instead
-  of a false-positive HIGH for a page nothing on the site needs.
-
-## [1.0.3] - 2026-09-07
+## [1.0.3] - 2026-09-08
 
 ### Security
 
@@ -179,6 +152,29 @@ public. When the two disagree, this file is correct.
   generic "Active PHP snippet…" note straight over `$res['note']`, which is
   where the verdict travels, so a response could report `front_end_status: 503`
   with no explanation at all — the one message the caller needed. Now appended.
+
+- **`site_readiness` reported a coming-soon gate's holding page as if it were
+  every page on the site.** Fetched anonymously, a gate/maintenance-mode/
+  catch-all-redirect answers every URL with the same holding page at `200`,
+  and the tool was analyzing that page per URL — four separate
+  `placeholder-text` HIGH findings all matching "coming soon", an
+  `lcp-image-over-budget` for the holding page's own image, and
+  `missing-meta-description`/`missing-og-*` for its head, none of which
+  describe a page the audit ever actually saw. Found for real on
+  claudpress.com. It now hashes the body of every fetched page; when two or
+  more distinct URLs come back byte-identical, one `duplicate-body-gate`
+  finding is raised instead (`blocker` if every fetched URL matches — the
+  audit did not run at all; `high` if only some do, since the rest of the
+  crawl is still real signal) and every page-level check derived from those
+  bodies moves to `skipped`, never `findings`, naming the affected URLs and
+  telling the operator to re-run once the gate is off.
+
+- **`analyze_legal_pages()` demanded a refund page and a shipping page from
+  sites with no store.** `terms` and `privacy` still raise HIGH when missing
+  or unpublished on every site, but `refund` and `shipping` — and the
+  WooCommerce settings that wire pages into them, which do not exist without
+  WooCommerce — now move to `skipped` when WooCommerce is not active, instead
+  of a false-positive HIGH for a page nothing on the site needs.
 
 ## [1.0.2] - 2026-09-07
 

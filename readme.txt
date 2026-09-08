@@ -5,7 +5,7 @@ Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
 Donate link: https://ko-fi.com/claudpress
-Stable tag: 1.0.4
+Stable tag: 1.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -265,13 +265,6 @@ the exact model IDs to type for each one.
 
 == Changelog ==
 
-= 1.0.4 =
-* Fixed: the launch readiness checker used to describe a coming-soon or maintenance holding page as though
-  it were every page on the site, because it loads each page the way a logged-out visitor does and a gate
-  answers them all identically. It now notices when several pages come back byte-for-byte the same, says so
-  plainly, and marks those pages as "not checked" instead of inventing findings about them.
-* Fixed: a site with no shop is no longer told off for having no refund page and no shipping page.
-
 = 1.0.3 =
 * Security: the plugin now checks that your site still loads for a logged-out visitor after any
   change that could break it — saving or switching on a snippet, running PHP or a write query,
@@ -294,6 +287,11 @@ the exact model IDs to type for each one.
   while doing nothing. Unrecognised setting names are now named in the response.
 * Improved: the Elementor skill now carries the traps that cost real time on a real build, including
   the Xpro Theme Builder header and footer settings and the classic-theme requirement.
+* Fixed: the launch readiness checker used to describe a coming-soon or maintenance holding page as though
+  it were every page on the site, because it loads each page the way a logged-out visitor does and a gate
+  answers them all identically. It now notices when several pages come back byte-for-byte the same, says so
+  plainly, and marks those pages as "not checked" instead of inventing findings about them.
+* Fixed: a site with no shop is no longer told off for having no refund page and no shipping page.
 
 = 1.0.2 =
 * Security: the key used to sign skill updates has been replaced. The old one was never published
