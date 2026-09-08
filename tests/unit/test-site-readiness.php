@@ -140,6 +140,109 @@ $valid_ld = '<h1>T</h1><script type="application/ld+json">{"@context":"https://s
 CP_Test::ok(!in_array('invalid-json-ld', $ids(Claudpress_Tools_Readiness::analyze_page_html($valid_ld, 'page-s')), true), 'valid JSON-LD is not flagged');
 
 // =============================================================================
+// analyze_duplicate_body_gate — the coming-soon-gate false-positive fix
+//
+// Found for real on claudpress.com: fetched anonymously, every URL behind a
+// coming-soon gate came back as the same holding page, and site_readiness
+// reported placeholder-text/missing-meta-description/lcp-image-over-budget
+// etc. findings about that holding page as though they described the real
+// pages. The fix detects the condition by content (identical bodies across
+// distinct URLs) and the gatherer (site_readiness) excludes those bodies
+// from analyze_page_html/JSON-LD/image analysis, reporting them in `skipped`
+// instead. Since site_readiness() itself calls WordPress functions and is
+// out of reach for this suite, these tests exercise the pure detector
+// directly and then replay the exact filtering logic the gatherer applies,
+// to prove the false positive is actually gone end to end.
+// =============================================================================
+
+CP_Test::group('site_readiness — duplicate-body gate: three identical bodies');
+
+$gate_all_same = Claudpress_Tools_Readiness::analyze_duplicate_body_gate([
+    ['location' => 'https://x.test/a', 'html' => '<h1>T</h1><p>Coming Soon</p>'],
+    ['location' => 'https://x.test/b', 'html' => '<h1>T</h1><p>Coming Soon</p>'],
+    ['location' => 'https://x.test/c', 'html' => '<h1>T</h1><p>Coming Soon</p>'],
+]);
+CP_Test::ok($gate_all_same['finding'] !== null, 'three distinct URLs with byte-identical bodies raise the gate finding');
+CP_Test::same('duplicate-body-gate', $gate_all_same['finding']['id'] ?? null, 'the gate finding has a stable id');
+CP_Test::same('blocker', $gate_all_same['finding']['severity'] ?? null, 'when EVERY fetched URL is identical, nothing about the real site was observed at all — that is a blocker, the same footing as tax-enabled-no-rates, not merely a high');
+sort($gate_all_same['gated_locations']);
+CP_Test::same(['https://x.test/a', 'https://x.test/b', 'https://x.test/c'], $gate_all_same['gated_locations'], 'all three URLs sharing the identical body are named as gated');
+
+// Replay the gatherer's own filtering logic (see site_readiness()) to prove
+// the actual false positive from the real run cannot happen once wired up:
+// placeholder-text must never reach `findings` for a gated body.
+$replay_findings = [];
+$replay_skipped  = [];
+$gated_flip = array_flip($gate_all_same['gated_locations']);
+foreach ([
+    ['location' => 'https://x.test/a', 'html' => '<h1>T</h1><p>Coming Soon</p>'],
+    ['location' => 'https://x.test/b', 'html' => '<h1>T</h1><p>Coming Soon</p>'],
+    ['location' => 'https://x.test/c', 'html' => '<h1>T</h1><p>Coming Soon</p>'],
+] as $page) {
+    if (isset($gated_flip[$page['location']])) {
+        $replay_skipped[] = ['check' => 'page-level checks on ' . $page['location'], 'reason' => 'gated'];
+        continue;
+    }
+    $replay_findings = array_merge($replay_findings, Claudpress_Tools_Readiness::analyze_page_html($page['html'], $page['location']));
+}
+CP_Test::ok(!in_array('placeholder-text', $ids($replay_findings), true), 'the exact false positive from the real run: "coming soon" placeholder-text from the gated holding page must NOT be in findings once the gate is applied');
+CP_Test::same(3, count($replay_skipped), 'all three gated pages are accounted for in skipped instead');
+CP_Test::ok($replay_findings === [], 'with every page gated, zero page-level findings are produced at all — none of them describe a page that was actually seen');
+
+CP_Test::group('site_readiness — duplicate-body gate: three distinct bodies (the ordinary case)');
+
+$gate_all_different = Claudpress_Tools_Readiness::analyze_duplicate_body_gate([
+    ['location' => 'https://x.test/a', 'html' => '<h1>Home</h1><p>Welcome to our real homepage.</p>'],
+    ['location' => 'https://x.test/b', 'html' => '<h1>About</h1><p>Our real story.</p>'],
+    ['location' => 'https://x.test/c', 'html' => '<h1>Contact</h1><p>Get in touch.</p>'],
+]);
+CP_Test::ok($gate_all_different['finding'] === null, 'three distinct URLs with three distinct bodies raise no gate finding at all — this is the regression that matters, the ordinary case must not break');
+CP_Test::ok($gate_all_different['gated_locations'] === [], 'nothing is marked gated when every body differs');
+
+// Confirm page-level analysis proceeds completely normally for all three —
+// the fix must not suppress real findings on an ungated site.
+$missing_h1_page = Claudpress_Tools_Readiness::analyze_page_html('<p>No heading here at all.</p>', 'https://x.test/d');
+CP_Test::ok(in_array('missing-h1', $ids($missing_h1_page), true), 'a real, distinct page with an actual missing-h1 defect is still flagged normally — the gate detector does not swallow genuine findings');
+
+CP_Test::group('site_readiness — duplicate-body gate: two identical + one different');
+
+// Deliberate design: this is NOT treated the same as "every page is
+// identical". Two matching URLs out of three is reported as `high` (serious,
+// worth a human's attention) rather than `blocker` (the whole audit is
+// void), because the third, distinct page is still real signal — its
+// findings can still be trusted. Only the two matching URLs are excluded
+// from page-level analysis; the wording says what was observed (identical
+// bodies), not an assumed cause, since two legitimately identical pages are
+// possible and should not be reported as "you have a gate".
+$gate_partial = Claudpress_Tools_Readiness::analyze_duplicate_body_gate([
+    ['location' => 'https://x.test/a', 'html' => '<h1>T</h1><p>Coming Soon</p>'],
+    ['location' => 'https://x.test/b', 'html' => '<h1>T</h1><p>Coming Soon</p>'],
+    ['location' => 'https://x.test/c', 'html' => '<h1>Contact</h1><p>Get in touch.</p>'],
+]);
+CP_Test::ok($gate_partial['finding'] !== null, 'two of three URLs sharing an identical body still raises a finding');
+CP_Test::same('high', $gate_partial['finding']['severity'] ?? null, 'a partial match is deliberately `high`, not `blocker` — the third, distinct page is still trustworthy signal, so this is not "the whole audit is void"');
+sort($gate_partial['gated_locations']);
+CP_Test::same(['https://x.test/a', 'https://x.test/b'], $gate_partial['gated_locations'], 'only the two URLs that actually share a body are marked gated; the distinct third URL is left alone');
+CP_Test::contains('byte-identical', $gate_partial['finding']['evidence'] ?? '', 'the finding states what was actually observed (identical bodies), not an assumed cause like "a gate is active"');
+
+// Replay the gatherer's filtering: the distinct third page must still be
+// analyzed normally and produce its own findings.
+$partial_findings = [];
+$partial_gated_flip = array_flip($gate_partial['gated_locations']);
+foreach ([
+    ['location' => 'https://x.test/a', 'html' => '<h1>T</h1><p>Coming Soon</p>'],
+    ['location' => 'https://x.test/b', 'html' => '<h1>T</h1><p>Coming Soon</p>'],
+    ['location' => 'https://x.test/c', 'html' => '<p>Get in touch, no heading.</p>'],
+] as $page) {
+    if (isset($partial_gated_flip[$page['location']])) {
+        continue;
+    }
+    $partial_findings = array_merge($partial_findings, Claudpress_Tools_Readiness::analyze_page_html($page['html'], $page['location']));
+}
+CP_Test::ok(!in_array('placeholder-text', $ids($partial_findings), true), 'placeholder-text from the two gated URLs does not leak into findings');
+CP_Test::ok(in_array('missing-h1', $ids($partial_findings), true), 'the third, distinct, non-gated page is still analyzed normally and its own real missing-h1 defect is reported');
+
+// =============================================================================
 // analyze_schema — aggregateRating / review without real reviews
 // =============================================================================
 
@@ -333,24 +436,27 @@ CP_Test::group('site_readiness — legal page existence, publish state, and wiri
 
 $missing_page = Claudpress_Tools_Readiness::analyze_legal_pages(
     ['terms' => ['exists' => false, 'published' => false, 'id' => 0]],
-    []
+    [],
+    true
 );
-CP_Test::ok(in_array('legal-page-missing-terms', $ids($missing_page), true), 'a legal page role that does not exist is its own distinct finding');
+CP_Test::ok(in_array('legal-page-missing-terms', $ids($missing_page['findings']), true), 'a legal page role that does not exist is its own distinct finding');
 
 $unpublished_page = Claudpress_Tools_Readiness::analyze_legal_pages(
     ['terms' => ['exists' => true, 'published' => false, 'id' => 5]],
-    []
+    [],
+    true
 );
-CP_Test::ok(in_array('legal-page-unpublished-terms', $ids($unpublished_page), true), 'a legal page that exists but is not published is a distinct finding from "missing"');
-CP_Test::ok(!in_array('legal-page-missing-terms', $ids($unpublished_page), true), 'an existing-but-unpublished page is not also counted as missing');
+CP_Test::ok(in_array('legal-page-unpublished-terms', $ids($unpublished_page['findings']), true), 'a legal page that exists but is not published is a distinct finding from "missing"');
+CP_Test::ok(!in_array('legal-page-missing-terms', $ids($unpublished_page['findings']), true), 'an existing-but-unpublished page is not also counted as missing');
 
 $exists_not_wired = Claudpress_Tools_Readiness::analyze_legal_pages(
     ['terms' => ['exists' => true, 'published' => true, 'id' => 5]],
-    ['woocommerce_terms_page_id' => 0]
+    ['woocommerce_terms_page_id' => 0],
+    true
 );
-CP_Test::ok(in_array('legal-page-not-wired-woocommerce-terms-page-id', $ids($exists_not_wired), true), 'a published legal page that WooCommerce is not actually pointed at is its own distinct finding');
-CP_Test::ok(!in_array('legal-page-missing-terms', $ids($exists_not_wired), true), 'an existing, published, unwired page is not also flagged as missing');
-CP_Test::ok(!in_array('legal-page-unpublished-terms', $ids($exists_not_wired), true), 'an existing, published, unwired page is not also flagged as unpublished');
+CP_Test::ok(in_array('legal-page-not-wired-woocommerce-terms-page-id', $ids($exists_not_wired['findings']), true), 'a published legal page that WooCommerce is not actually pointed at is its own distinct finding');
+CP_Test::ok(!in_array('legal-page-missing-terms', $ids($exists_not_wired['findings']), true), 'an existing, published, unwired page is not also flagged as missing');
+CP_Test::ok(!in_array('legal-page-unpublished-terms', $ids($exists_not_wired['findings']), true), 'an existing, published, unwired page is not also flagged as unpublished');
 
 $fully_wired = Claudpress_Tools_Readiness::analyze_legal_pages(
     [
@@ -359,9 +465,57 @@ $fully_wired = Claudpress_Tools_Readiness::analyze_legal_pages(
         'refund'   => ['exists' => true, 'published' => true, 'id' => 7],
         'shipping' => ['exists' => true, 'published' => true, 'id' => 8],
     ],
-    ['woocommerce_terms_page_id' => 5, 'woocommerce_refund_returns_page_id' => 7]
+    ['woocommerce_terms_page_id' => 5, 'woocommerce_refund_returns_page_id' => 7],
+    true
 );
-CP_Test::ok($fully_wired === [], 'four existing, published, fully-wired legal pages produce zero findings');
+CP_Test::ok($fully_wired['findings'] === [], 'four existing, published, fully-wired legal pages produce zero findings');
+CP_Test::ok($fully_wired['skipped'] === [], 'with a store active, nothing about legal pages is skipped');
+
+// ---- store-only roles: refund/shipping only mean anything with a store ----
+// This is the false positive found for real on claudpress.com: a free GPL
+// plugin's site with no checkout has nothing to refund or ship, so demanding
+// those pages at HIGH severity is noise expensive enough to train an agent
+// (or an owner) to skim past the findings list — exactly how a real HIGH
+// gets missed.
+
+CP_Test::group('site_readiness — legal pages: refund/shipping are store-only');
+
+$no_store_all_missing = Claudpress_Tools_Readiness::analyze_legal_pages(
+    ['terms' => ['exists' => false, 'published' => false, 'id' => 0], 'privacy' => ['exists' => false, 'published' => false, 'id' => 0]],
+    ['woocommerce_terms_page_id' => 0, 'woocommerce_refund_returns_page_id' => 0],
+    false
+);
+CP_Test::ok(in_array('legal-page-missing-terms', $ids($no_store_all_missing['findings']), true), 'terms still raises HIGH when missing, with no store active');
+CP_Test::ok(in_array('legal-page-missing-privacy', $ids($no_store_all_missing['findings']), true), 'privacy still raises HIGH when missing, with no store active');
+CP_Test::ok(!in_array('legal-page-missing-refund', $ids($no_store_all_missing['findings']), true), 'refund is NOT flagged as missing when there is no store — refund only means something with a store');
+CP_Test::ok(!in_array('legal-page-missing-shipping', $ids($no_store_all_missing['findings']), true), 'shipping is NOT flagged as missing when there is no store — shipping only means something with a store');
+CP_Test::ok(!in_array('legal-page-not-wired-woocommerce-terms-page-id', $ids($no_store_all_missing['findings']), true), 'WooCommerce wiring settings are not evaluated at all when there is no store — they do not exist without WooCommerce');
+
+$skipped_checks = array_column($no_store_all_missing['skipped'], 'check');
+CP_Test::ok(in_array('Refund page', $skipped_checks, true), 'refund is reported in skipped, not silently dropped, when there is no store');
+CP_Test::ok(in_array('Shipping page', $skipped_checks, true), 'shipping is reported in skipped, not silently dropped, when there is no store');
+
+$no_store_terms_and_privacy_exist = Claudpress_Tools_Readiness::analyze_legal_pages(
+    ['terms' => ['exists' => true, 'published' => true, 'id' => 5], 'privacy' => ['exists' => true, 'published' => true, 'id' => 6]],
+    [],
+    false
+);
+CP_Test::ok($no_store_terms_and_privacy_exist['findings'] === [], 'a no-store site with real terms and privacy pages produces zero findings — refund/shipping are not demanded');
+
+$with_store_all_missing = Claudpress_Tools_Readiness::analyze_legal_pages(
+    ['terms' => ['exists' => false, 'published' => false, 'id' => 0], 'privacy' => ['exists' => false, 'published' => false, 'id' => 0]],
+    [],
+    true
+);
+$with_store_findings = $ids($with_store_all_missing['findings']);
+foreach (['legal-page-missing-terms', 'legal-page-missing-privacy', 'legal-page-missing-refund', 'legal-page-missing-shipping'] as $expected) {
+    CP_Test::ok(in_array($expected, $with_store_findings, true), 'with a store active, all four legal page roles (including ' . $expected . ') still raise a finding when missing');
+}
+foreach ($with_store_all_missing['findings'] as $f) {
+    if (str_starts_with($f['id'], 'legal-page-missing-')) {
+        CP_Test::same('high', $f['severity'], $f['id'] . ' is specifically HIGH severity');
+    }
+}
 
 // =============================================================================
 // analyze_stock
@@ -423,7 +577,8 @@ $sample_findings = array_merge(
     Claudpress_Tools_Readiness::analyze_tax(true, []),
     Claudpress_Tools_Readiness::analyze_registration(1, 'administrator', false),
     Claudpress_Tools_Readiness::analyze_snippets([['id' => 1, 'last_error' => 'boom']]),
-    Claudpress_Tools_Readiness::analyze_legal_pages(['terms' => ['exists' => false, 'published' => false, 'id' => 0]], [])
+    Claudpress_Tools_Readiness::analyze_legal_pages(['terms' => ['exists' => false, 'published' => false, 'id' => 0]], [], true)['findings'],
+    [Claudpress_Tools_Readiness::analyze_duplicate_body_gate([['location' => 'https://example.test/a', 'html' => 'same'], ['location' => 'https://example.test/b', 'html' => 'same']])['finding']]
 );
 CP_Test::ok(count($sample_findings) >= 6, 'the cross-analyzer sample actually produced findings to check the shape of (' . count($sample_findings) . ')');
 

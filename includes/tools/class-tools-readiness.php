@@ -154,6 +154,91 @@ final class Claudpress_Tools_Readiness
     }
 
     /**
+     * Detect a coming-soon gate, maintenance mode, or catch-all redirect by
+     * content, not by looking for known snippets: if two or more DISTINCT
+     * URLs come back with a byte-identical body, the crawl is looking at one
+     * page dressed up as many. That is a general signal — it works for any
+     * coming-soon plugin, any maintenance mode, any host-level holding page,
+     * not just this plugin's own gate snippet.
+     *
+     * This only detects the condition and names the affected URLs; it does
+     * not remove anything. The caller is expected to exclude the named
+     * `gated_locations` from analyze_page_html/JSON-LD/image-weight analysis
+     * and report them in `skipped` instead of `findings` — every page-level
+     * finding derived from a gated body would be describing a page nobody
+     * asked for, which is worse than no finding at all.
+     *
+     * Severity is a deliberate split. When EVERY fetched URL shares one
+     * identical body, nothing about the real site was observed at all — the
+     * audit did not run, so this is a `blocker`, on the same footing as
+     * "tax is on with no rates configured". When only some URLs match, the
+     * rest of the crawl is still real signal, so this is `high`: serious and
+     * worth a human's attention, but it does not void the whole run. Either
+     * way the wording states only what was actually observed — byte-identical
+     * bodies — never an assumed cause, because a site can legitimately serve
+     * two identical pages and that is worth knowing without being told
+     * "you have a gate" when a gate was not, in fact, confirmed.
+     *
+     * @param array $pages [ ['location'=>string, 'html'=>string], ... ] one entry per fetched URL
+     * @return array{finding: array|null, gated_locations: string[]}
+     */
+    public static function analyze_duplicate_body_gate(array $pages): array
+    {
+        $by_hash = [];
+        foreach ($pages as $page) {
+            $location = (string) ($page['location'] ?? '');
+            if ($location === '') {
+                continue;
+            }
+            $hash = md5((string) ($page['html'] ?? ''));
+            $by_hash[$hash][$location] = true; // dedupe repeats of the same URL within one hash bucket
+        }
+
+        $gated_locations = [];
+        $largest_group = [];
+        foreach ($by_hash as $locations_for_hash) {
+            $locations_for_hash = array_keys($locations_for_hash);
+            if (count($locations_for_hash) < 2) {
+                continue; // a body seen at only one URL is not a duplicate
+            }
+            $gated_locations = array_merge($gated_locations, $locations_for_hash);
+            if (count($locations_for_hash) > count($largest_group)) {
+                $largest_group = $locations_for_hash;
+            }
+        }
+
+        if (!$gated_locations) {
+            return ['finding' => null, 'gated_locations' => []];
+        }
+
+        $gated_locations = array_values(array_unique($gated_locations));
+        $total_distinct_urls = count(array_unique(array_column($pages, 'location')));
+        $all_identical = count($by_hash) === 1 && count($largest_group) === $total_distinct_urls;
+
+        if ($all_identical) {
+            $finding = self::finding(
+                'duplicate-body-gate',
+                'blocker',
+                'code-quality-and-production-readiness',
+                'Every fetched page returned byte-identical content',
+                'All ' . $total_distinct_urls . ' fetched URL(s) returned the exact same response body. This is not a defect the audit found on the site — it is the audit reporting that it could not see the site: something (a coming-soon gate, maintenance mode, or a catch-all redirect) is intercepting every request and serving one holding page instead of the real pages. Re-run site_readiness once that is off, or take it off temporarily, before trusting any page-level finding from this run.',
+                'crawl-wide'
+            );
+        } else {
+            $finding = self::finding(
+                'duplicate-body-gate',
+                'high',
+                'code-quality-and-production-readiness',
+                count($largest_group) . ' of ' . $total_distinct_urls . ' fetched pages returned byte-identical content',
+                'These URLs returned a byte-identical response body: ' . implode(', ', $largest_group) . '. This may be a legitimate duplicate page, or a gate/redirect catching only some requests — verify manually. Either way, the individual page-level findings for these specific URLs from this run should not be trusted.',
+                'crawl-wide'
+            );
+        }
+
+        return ['finding' => $finding, 'gated_locations' => $gated_locations];
+    }
+
+    /**
      * Flags schema.org review/rating markup with no real reviews behind it —
      * "a store with no orders has no reviews to schema" (build-standard).
      *
@@ -330,12 +415,35 @@ final class Claudpress_Tools_Readiness
     /**
      * Legal pages: $pages maps role => ['exists'=>bool,'published'=>bool,'id'=>int].
      * $wired maps a WooCommerce setting name => the page id it currently points at
-     * (0/absent means unwired).
+     * (0/absent means unwired). $has_store says whether WooCommerce (or any
+     * store) is active on this site.
+     *
+     * `terms` and `privacy` apply to every site and stay HIGH when missing or
+     * unpublished regardless of $has_store. `refund` and `shipping` — and the
+     * WooCommerce wiring settings, which by definition do not exist without
+     * WooCommerce — only mean anything once there is a store: a free plugin's
+     * site with no checkout has nothing to refund or ship, and demanding
+     * those pages there is a false positive expensive enough to train an
+     * agent (or an owner) to skim past the findings list, which is exactly
+     * how a real HIGH gets missed. When $has_store is false those checks are
+     * reported in `skipped`, never in `findings`.
+     *
+     * @return array{findings: array, skipped: array}
      */
-    public static function analyze_legal_pages(array $pages, array $wired): array
+    public static function analyze_legal_pages(array $pages, array $wired, bool $has_store): array
     {
         $findings = [];
+        $skipped  = [];
+        $store_only_roles = ['refund', 'shipping'];
+
         foreach (['terms', 'privacy', 'refund', 'shipping'] as $role) {
+            if (!$has_store && in_array($role, $store_only_roles, true)) {
+                $skipped[] = [
+                    'check'  => ucfirst($role) . ' page',
+                    'reason' => 'No store is active on this site (WooCommerce not found); ' . $role . ' pages only apply to a store',
+                ];
+                continue;
+            }
             $info = $pages[$role] ?? ['exists' => false, 'published' => false, 'id' => 0];
             if (empty($info['exists'])) {
                 $findings[] = self::finding('legal-page-missing-' . $role, 'high', 'trust-and-conversion', ucfirst($role) . ' page does not exist', 'No page found for role: ' . $role, $role);
@@ -345,12 +453,23 @@ final class Claudpress_Tools_Readiness
                 $findings[] = self::finding('legal-page-unpublished-' . $role, 'high', 'trust-and-conversion', ucfirst($role) . ' page exists but is not published', 'Page id ' . (int) ($info['id'] ?? 0) . ' is not in a published state', $role);
             }
         }
-        foreach ($wired as $setting => $page_id) {
-            if ((int) $page_id === 0) {
-                $findings[] = self::finding('legal-page-not-wired-' . self::slug($setting), 'medium', 'trust-and-conversion', 'Legal page exists but is not wired into ' . $setting, 'Setting "' . $setting . '" has no page id set', $setting);
+
+        if (!$has_store) {
+            if ($wired) {
+                $skipped[] = [
+                    'check'  => 'Legal page wiring (WooCommerce settings)',
+                    'reason' => 'No store is active on this site (WooCommerce not found); these settings only exist for a store',
+                ];
+            }
+        } else {
+            foreach ($wired as $setting => $page_id) {
+                if ((int) $page_id === 0) {
+                    $findings[] = self::finding('legal-page-not-wired-' . self::slug($setting), 'medium', 'trust-and-conversion', 'Legal page exists but is not wired into ' . $setting, 'Setting "' . $setting . '" has no page id set', $setting);
+                }
             }
         }
-        return $findings;
+
+        return ['findings' => $findings, 'skipped' => $skipped];
     }
 
     /** Any snippet with a recorded last_error is a live, currently-broken piece of code — at minimum High. */
@@ -523,10 +642,33 @@ final class Claudpress_Tools_Readiness
             $skipped[] = ['check' => 'page-level checks (headings/alt/meta/OG/JSON-LD/links)', 'reason' => 'No fetchable pages found for the given scope'];
         }
 
+        // ---- duplicate-body gate detection ----------------------------------
+        // Fetched anonymously, every URL behind a coming-soon gate (or a
+        // maintenance mode, or a catch-all redirect) comes back as the same
+        // holding page. Analyzing that page per-URL produces confident,
+        // detailed findings about a page nobody asked for — worse than no
+        // answer. Detect it by content (see analyze_duplicate_body_gate) and
+        // exclude the affected bodies from every page-level check below.
+        $gate = self::analyze_duplicate_body_gate($page_targets);
+        if ($gate['finding'] !== null) {
+            $findings[] = $gate['finding'];
+        }
+        $gated_locations = array_flip($gate['gated_locations']);
+        if ($gated_locations) {
+            $skipped[] = [
+                'check'  => 'page-level checks (headings/alt/meta/OG/JSON-LD/images) on ' . count($gated_locations) . ' page(s) with duplicate content',
+                'reason' => 'These URLs returned a body identical to another URL, so nothing is known about their real content — see the duplicate-body-gate finding. Re-run this tool once any gate/maintenance mode is off (or take it off temporarily) to audit the real pages: ' . implode(', ', array_keys($gated_locations)),
+            ];
+        }
+
         $all_json_ld = [];
         $images_seen = [];
         $images_over_budget = false;
         foreach ($page_targets as $target) {
+            if (isset($gated_locations[$target['location']])) {
+                continue; // this body is a duplicate stand-in, not the real page — see the gate finding/skip above.
+            }
+
             $findings = array_merge($findings, self::analyze_page_html($target['html'], $target['location']));
 
             if (preg_match_all('/<script[^>]{0,200}type=["\']application\/ld\+json["\'][^>]{0,200}>(.*?)<\/script>/is', $target['html'], $lm)) {
@@ -573,9 +715,12 @@ final class Claudpress_Tools_Readiness
             ];
         }
         $image_rows = array_values(array_filter($images_seen, 'is_array'));
+        $all_targets_gated = $page_targets && count($gated_locations) >= count($page_targets);
         if ($image_rows) {
             $findings = array_merge($findings, self::analyze_image_weights($image_rows));
-        } else {
+        } elseif (!$all_targets_gated) {
+            // When every page target was gated, the skip above already
+            // explains why no images were checked — this would just repeat it.
             $skipped[] = ['check' => 'image weight budget', 'reason' => 'No images with a readable Content-Length were found'];
         }
 
@@ -652,7 +797,9 @@ final class Claudpress_Tools_Readiness
         // ---- legal pages ----------------------------------------------------
         $legal_pages = self::gather_legal_pages();
         $legal_wired = self::gather_legal_wiring();
-        $findings = array_merge($findings, self::analyze_legal_pages($legal_pages, $legal_wired));
+        $legal_result = self::analyze_legal_pages($legal_pages, $legal_wired, class_exists('WooCommerce'));
+        $findings = array_merge($findings, $legal_result['findings']);
+        $skipped  = array_merge($skipped, $legal_result['skipped']);
 
         // ---- registration / roles -------------------------------------------
         $users_can_register = (int) get_option('users_can_register', 0);
