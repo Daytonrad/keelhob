@@ -41,6 +41,13 @@ Apply site-wide colors/fonts once with `elementor_kit action=set` (merges into t
 ## Widget settings — read `get_controls()` first
 Wrong setting keys are written, saved, and reported successful, then do nothing — Elementor validates none of it. Before setting a widget's `settings`, read an existing instance of that widget with `action=get` (or check the widget's controls) rather than guessing names from the label in the editor UI. Real example from a live build: the `xpro-horizontal-menu` widget's controls are `nav_menu` and `menu_text_color` — the obvious guesses `menu` and `menu_color` are accepted and produce a menu with default dark-on-light colors on a near-black header, with nothing in the response to say so.
 
+## Containers: a "grid" of full-width children is not a grid
+A container child with no explicit width is **100% wide**, so setting `flex_direction: row` and `flex_wrap: wrap` on the parent produces stacked full-width blocks, not columns. It looks deliberate, so nobody notices — on one real build the capability grid, the docs answers, the pricing cards and two sponsor lists were *all* stacking and every one of them looked fine.
+
+Set `width` as a percentage on each **child**, with `width_tablet` and `width_mobile` back to `100%` so it stacks on a phone. There is no parent-level control that does this, which is the trap: the parent reads correct.
+
+Make the percentage **under** `100/N`. Elementor adds the flex gap on top of the width, so two children at `50%` with a `64px` gap wrap to one per row. Use roughly **47%** for two columns, **30.5%** for three, **22%** for four.
+
 ## Page title
 Disable a page's title through Elementor's own `hide_title` page setting, not with CSS. Hiding an `<h1>` with CSS leaves it in the rendered document ahead of your real headline — two H1s on the page, and the wrong one first.
 
