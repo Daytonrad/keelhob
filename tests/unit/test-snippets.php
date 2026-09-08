@@ -344,4 +344,71 @@ CP_Test::same('header', Claudpress_Snippets::default_location_for_type('css'), '
 CP_Test::same('header', Claudpress_Snippets::default_location_for_type('js'), 'so does js');
 CP_Test::same('everywhere', Claudpress_Snippets::default_location_for_type('php'), 'php still defaults to everywhere');
 
+CP_Test::group('Snippets - an explicit id that matches nothing is an error');
+
+// THE regression, found on this project's own site. resolve_target() returned
+// null for a missing id and save() fell through to an INSERT, so asking to
+// update snippet 14 created a brand-new snippet 17 and reported success. The
+// only clue was a different id in a response nobody reads.
+//
+// It costs an agent far more than a person. An agent restoring from a bundle,
+// or working from notes taken on a different site, names ids that do not exist
+// here - and every one becomes a silent duplicate, several of them active.
+
+$guard->existing = null;
+$guard->inserts  = 0;
+$guard->updates  = 0;
+
+$res = Claudpress_Snippets::save(['id' => 14, 'name' => 'Anything', 'code' => 'echo 1;']);
+CP_Test::same(false, $res['success'], 'updating an id that does not exist is refused, not turned into a create');
+CP_Test::contains('14', (string) ($res['error'] ?? ''), 'and the error names the id that was asked for');
+CP_Test::contains('Omit "id"', (string) ($res['error'] ?? ''), '...and says how to create one on purpose, so the refusal is not a dead end');
+CP_Test::same(0, $guard->inserts, 'nothing was inserted');
+CP_Test::same(0, $guard->updates, 'and nothing was updated');
+
+// Creating is still one omitted key away. If this breaks, the fix above has
+// cost more than the bug did.
+$guard->inserts = 0;
+$res = Claudpress_Snippets::save(['name' => 'Brand new', 'code' => 'echo 1;', 'snippet_type' => 'php']);
+CP_Test::same(true, $res['success'], 'omitting id still creates, which is the whole escape hatch');
+CP_Test::same(1, $guard->inserts, 'and it is really written');
+
+// id 0 is "no id", not "id number zero". A caller passing a default must not
+// be told a snippet is missing.
+$guard->inserts = 0;
+$res = Claudpress_Snippets::save(['id' => 0, 'name' => 'Zero', 'code' => 'echo 1;', 'snippet_type' => 'php']);
+CP_Test::same(true, $res['success'], 'id 0 means "unset" and still creates');
+CP_Test::same(1, $guard->inserts, 'and is written');
+
+CP_Test::group('Snippets - uid keeps the create-if-missing fall-through');
+
+// uid and origin_uid exist precisely to mean "this row if you have it, a new
+// one if you do not". Cross-site copy depends on it, so the strictness above
+// must stop at the numeric id and go no further.
+$guard->existing = null;
+$guard->inserts  = 0;
+$res = Claudpress_Snippets::save(['uid' => 'cps_from_another01', 'name' => 'Copied', 'code' => 'echo 1;', 'snippet_type' => 'php']);
+CP_Test::same(true, $res['success'], 'an unknown uid creates rather than erroring');
+CP_Test::same(1, $guard->inserts, 'and is written, so copying a snippet between sites still works');
+
+$guard->existing = null;
+$guard->inserts  = 0;
+$res = Claudpress_Snippets::save(['origin_uid' => 'cps_origin0123456', 'name' => 'Copied', 'code' => 'echo 1;', 'snippet_type' => 'php']);
+CP_Test::same(true, $res['success'], 'so does an unknown origin_uid');
+CP_Test::same(1, $guard->inserts, 'and it is written too');
+
+CP_Test::group('Snippets - resolve_target, with a finder that can tell columns apart');
+
+// The wpdb double above answers every get_var the same way, which cannot model
+// "id 14 is gone but uid still matches row 5". resolve_target() takes its
+// finder as an argument precisely so that case can be tested without a
+// database.
+$finder = static function (string $col, string $val): ?int {
+    return ($col === 'uid' && $val === 'cps_known01234567') ? 5 : null;
+};
+
+CP_Test::same(null, Claudpress_Snippets::resolve_target(['id' => 14], $finder), 'a missing id resolves to nothing, which is what save() now refuses on');
+CP_Test::same(5, Claudpress_Snippets::resolve_target(['uid' => 'cps_known01234567'], $finder), 'a known uid resolves');
+CP_Test::same(5, Claudpress_Snippets::resolve_target(['id' => 14, 'uid' => 'cps_known01234567'], $finder), 'a dead id alongside a live uid resolves to the uid row - the copy case must not be caught by the new strictness');
+
 $GLOBALS['wpdb'] = $real_wpdb;

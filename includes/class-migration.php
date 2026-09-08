@@ -256,6 +256,11 @@ final class Claudpress_Migration
             if (!empty($s['uid'])) {
                 $s['origin_uid'] = $s['uid'];
             }
+            // A row id from another site means nothing here, and honouring one
+            // would overwrite whatever local snippet happens to hold that
+            // number. all_full() does not export `id`, so this only fires on a
+            // hand-edited or foreign bundle - which is exactly when it matters.
+            unset($s['id']);
             if (!empty($bundle['source'])) {
                 $s['origin_site'] = (string) $bundle['source'];
             }

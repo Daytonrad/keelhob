@@ -618,6 +618,38 @@ final class Claudpress_Snippets
             $id = null;
         }
 
+        // An explicit id that matches nothing is a mistake, not an invitation
+        // to create.
+        //
+        // resolve_target() returned null and save() fell through to an INSERT,
+        // so asking to update snippet 14 on a site where 14 was deleted made a
+        // brand-new snippet at whatever the next auto-increment happened to be
+        // and reported success - with a different id in the response that
+        // nobody reads. It happened here: a build script wrote
+        // snippet_save({id: 14, ...}) and created snippet 17.
+        //
+        // It matters far more for an agent than for a person. An agent
+        // restoring from a bundle, or working from notes taken on another site,
+        // names ids that do not exist here, and every one of them becomes a
+        // silent duplicate - several of them active. Over a long build that is
+        // a table full of orphans nobody asked for.
+        //
+        // uid and origin_uid keep the fall-through on purpose: those exist
+        // precisely to mean "this row if you have it, a new one if you do not",
+        // and cross-site copying depends on it. This is only about a numeric id
+        // the caller chose to name. Creating is still one omitted key away.
+        $named_id = (int) ($a['id'] ?? 0);
+        if ($named_id > 0 && $id === null) {
+            return [
+                'success' => false,
+                'error'   => sprintf(
+                    'No snippet with id %d exists on this site, so there was nothing to update. '
+                        . 'Omit "id" to create a new snippet, or call snippet_list to see what is here.',
+                    $named_id
+                ),
+            ];
+        }
+
         $type = array_key_exists('snippet_type', $a)
             ? (in_array($a['snippet_type'], $types, true) ? $a['snippet_type'] : 'php')
             : (string) ($existing['snippet_type'] ?? 'php');
