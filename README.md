@@ -53,12 +53,15 @@ tour: **[docs/features.md](docs/features.md)**.
 
 ## Screenshots
 
-<!-- TODO(owner): capture — docs/img/SHOT-LIST.md gives the exact state each shot must be in -->
+<!-- TODO(owner): one shot left — 04-built-site.png, the front end of a store the
+     agent built from one prompt. It is the only one that needs a real build with
+     real API keys, so it could not be captured with the others. docs/img/SHOT-LIST.md
+     has the exact state it needs to be in. Add it as a fourth cell below. -->
 
 | | |
 |---|---|
-| ![The Connect page, showing the generated MCP command](docs/img/01-connect.png)<br>**Connect** — the ready-to-paste command, with this site's URL and token already in it. | ![The Snippets Studio listing installed snippets](docs/img/02-studio.png)<br>**Snippets Studio** — every piece of code the agent installed, why it exists, and its off switch. |
-| ![The capability toggles panel](docs/img/03-capabilities.png)<br>**Capabilities** — twenty-one groups, eight of them off, each saying what it unlocks. | ![A finished storefront built by the agent](docs/img/04-built-site.png)<br>**The output** — a store built from one prompt: pages, products, checkout and SEO. |
+| ![The Connect page, showing the generated MCP command](docs/img/01-connect.png)<br>**Connect** — the ready-to-paste command, with this site's URL already in it. The token is stored hashed and shown once. | ![The Snippets Studio listing installed snippets](docs/img/02-studio.png)<br>**Snippets Studio** — every piece of code the agent installed, why it exists, and its off switch. The top row switched itself off after taking the site down. |
+| ![The capability toggles panel](docs/img/03-capabilities.png)<br>**Capabilities** — twenty-one groups, eight of them off out of the box, each saying what it unlocks. | |
 
 ## Why it is free
 
