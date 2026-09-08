@@ -30,7 +30,48 @@ final class Claudpress_Admin_Automation
             <p style="max-width:760px;"><?php esc_html_e('Let the site run itself. Digest tasks email you a status snapshot on a schedule. Autonomous tasks hand a plain-language instruction to the on-site AI agent, which does the work and reports back — no client open. Add a provider API key below to enable autonomy.', 'claudpress'); ?></p>
             <?php if (isset($_GET['saved'])) : ?><div class="notice notice-success is-dismissible"><p><?php esc_html_e('Saved.', 'claudpress'); ?></p></div><?php endif; ?>
             <?php if (isset($_GET['ran'])) : ?><div class="notice notice-success is-dismissible"><p><?php esc_html_e('Task ran. See its last summary below.', 'claudpress'); ?></p></div><?php endif; ?>
-            <?php if (isset($_GET['tested'])) : ?><div class="notice notice-success is-dismissible"><p><?php esc_html_e('Test notification sent.', 'claudpress'); ?></p></div><?php endif; ?>
+            <?php
+            if (isset($_GET['tested'])) :
+                $test = get_transient('claudpress_test_notify_result');
+                $rows = (is_array($test) && !empty($test['results'])) ? $test['results'] : [];
+
+                if (empty($rows)) :
+                    ?>
+                    <div class="notice notice-error is-dismissible">
+                        <p><?php esc_html_e('Nothing was sent: no notification channel is both selected and connected.', 'claudpress'); ?></p>
+                    </div>
+                    <?php
+                else :
+                    // Report per channel. A blanket "sent" was the original
+                    // bug: wp_mail() returning false still printed success.
+                    $labels  = Claudpress_Notifier::labels();
+                    $health  = (is_array($test) && !empty($test['health'])) ? $test['health'] : [];
+                    $all_ok  = true;
+                    $lines   = [];
+
+                    foreach ($rows as $channel => $result) {
+                        $ok      = !empty($health[$channel]['ok']);
+                        $all_ok  = $all_ok && $ok;
+                        $label   = $labels[$channel] ?? $channel;
+                        $where   = ($channel === 'email' && !empty($test['to'])) ? ' → ' . $test['to'] : '';
+                        $lines[] = [$ok, $label . $where, (string) ($health[$channel]['error'] ?? '')];
+                    }
+                    ?>
+                    <div class="notice <?php echo $all_ok ? 'notice-success' : 'notice-error'; ?> is-dismissible">
+                        <?php foreach ($lines as $line) : ?>
+                            <p style="margin:6px 0;">
+                                <strong><?php echo $line[0] ? '✓' : '✕'; ?></strong>
+                                <?php echo esc_html($line[1]); ?>
+                                <?php if (!$line[0] && $line[2] !== '') : ?>
+                                    — <span style="color:#a00;"><?php echo esc_html($line[2]); ?></span>
+                                <?php endif; ?>
+                            </p>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php
+                endif;
+            endif;
+            ?>
 
             <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
                 <div style="flex:2;min-width:460px;">
@@ -317,6 +358,17 @@ final class Claudpress_Admin_Automation
                             <?php wp_nonce_field('claudpress_save'); ?>
                             <input type="hidden" name="action" value="claudpress_save">
                             <input type="hidden" name="claudpress_action" value="test_notify">
+                            <p style="margin:0 0 6px;">
+                                <label>
+                                    <?php esc_html_e('Send the test email to:', 'claudpress'); ?>
+                                    <input type="email" name="test_notify_email"
+                                        value="<?php echo esc_attr(trim((string) ($s['notify_email'] ?? '')) ?: (string) get_option('admin_email')); ?>"
+                                        class="regular-text" style="max-width:300px;">
+                                </label>
+                                <span style="color:#666;font-size:12px;display:block;margin-left:2px;">
+                                    <?php esc_html_e('This one message only — it is not saved, and it does not change your notification address. Telegram and webhook go to their configured destinations.', 'claudpress'); ?>
+                                </span>
+                            </p>
                             <button class="button"><?php esc_html_e('Send test notification', 'claudpress'); ?></button>
                         </form>
                     </div>

@@ -102,6 +102,11 @@ function add_action(string $hook, $cb, int $priority = 10, int $args = 1): bool
     return true;
 }
 
+function remove_action(string $hook, $cb, int $priority = 10): bool
+{
+    return true;
+}
+
 function do_action(string $hook, ...$args): void
 {
 }
@@ -114,6 +119,12 @@ function sanitize_key(string $key): string
 function sanitize_text_field($str): string
 {
     return trim(strip_tags((string) $str));
+}
+
+function sanitize_email($email): string
+{
+    $email = trim((string) $email);
+    return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : '';
 }
 
 function sanitize_title(string $s): string
@@ -663,7 +674,10 @@ if (!function_exists('wp_mail')) {
     function wp_mail($to, $subject, $message, $headers = [], $attachments = [])
     {
         $GLOBALS['cp_test_mail'][] = compact('to', 'subject', 'message');
-        return true;
+
+        // Hosts where mail cannot leave the box are the whole reason the
+        // notifier records outcomes, so the stub has to be able to be one.
+        return empty($GLOBALS['cp_test_mail_fails']);
     }
 }
 if (!function_exists('wp_remote_post')) {

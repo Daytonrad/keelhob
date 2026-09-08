@@ -131,16 +131,47 @@ final class Claudpress_Admin_Screens
                             $chosen       = Claudpress_Notifier::chosen_channels();
                             foreach (Claudpress_Notifier::labels() as $channel => $label) :
                                 $connected = !empty($availability[$channel]['connected']);
+                                $state     = $availability[$channel]['state'] ?? 'untested';
+                                $wanted    = in_array($channel, $chosen, true);
                                 ?>
                                 <p style="margin:4px 0;">
                                     <label style="<?php echo $connected ? '' : 'color:#888;'; ?>">
+                                        <?php
+                                        // Tick only what will actually be used. The preference
+                                        // itself survives in settings either way - see
+                                        // channels_from_post() - but a tick beside "connect the
+                                        // bot first" reads as a claim that it is working, and a
+                                        // reassuring mark next to a dead channel is the exact
+                                        // bug this screen is here to avoid.
+                                        ?>
                                         <input type="checkbox" name="notify_channels[]" value="<?php echo esc_attr($channel); ?>"
-                                            <?php checked(in_array($channel, $chosen, true)); ?>
+                                            <?php checked($wanted && $connected); ?>
                                             <?php disabled(!$connected); ?>>
                                         <?php echo esc_html($label); ?>
                                     </label>
                                     <?php if (!$connected) : ?>
                                         <span style="color:#a00;font-size:12px;">— <?php echo esc_html($availability[$channel]['reason']); ?></span>
+                                        <?php if ($wanted) : ?>
+                                            <span style="color:#666;font-size:12px;">
+                                                <?php esc_html_e('(your choice is remembered and comes back when this is connected)', 'claudpress'); ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    <?php elseif ($state === 'failing') : ?>
+                                        <span style="color:#a00;font-size:12px;">— <?php echo esc_html($availability[$channel]['warning']); ?></span>
+                                    <?php elseif ($state === 'working') : ?>
+                                        <span style="color:#1a7f37;font-size:12px;">
+                                            <?php
+                                            printf(
+                                                /* translators: %s: time ago, e.g. "5 mins" */
+                                                esc_html__('— delivered %s ago', 'claudpress'),
+                                                esc_html(human_time_diff((int) $availability[$channel]['last_at']))
+                                            );
+                                            ?>
+                                        </span>
+                                    <?php else : ?>
+                                        <span style="color:#666;font-size:12px;">
+                                            <?php esc_html_e('— set up, but nothing has been sent through it yet', 'claudpress'); ?>
+                                        </span>
                                     <?php endif; ?>
                                 </p>
                                 <?php
@@ -150,6 +181,10 @@ final class Claudpress_Admin_Screens
                                 ?>
                                 <p style="color:#a00;font-size:12px;margin-top:2px;">
                                     <?php esc_html_e('Nothing is selected, so digests and alerts will not be sent anywhere.', 'claudpress'); ?>
+                                </p>
+                            <?php elseif (empty(Claudpress_Notifier::healthy_channels())) : ?>
+                                <p style="color:#a00;font-size:12px;margin-top:2px;">
+                                    <?php esc_html_e('Every selected channel failed on its last try, so an alert about this site would not reach you. Send a test below to check whether it is fixed.', 'claudpress'); ?>
                                 </p>
                             <?php endif; ?>
 

@@ -244,7 +244,28 @@ final class Claudpress_Admin_Settings
             Claudpress_Snippets::delete((int) ($_POST['snippet_id'] ?? 0));
             self::redirect_back();
         } elseif ($action === 'test_notify') {
-            Claudpress_Notifier::send('[' . get_bloginfo('name') . '] Claudpress test', 'This is a test notification from Claudpress. Channels are working.');
+            // The address typed next to this button, not the stored one. The
+            // form above is a different form: typing an address there and
+            // pressing this posted nothing, so the test always went to the
+            // saved address and "sent" was reported regardless.
+            $test_to = sanitize_email(wp_unslash($_POST['test_notify_email'] ?? ''));
+
+            $results = Claudpress_Notifier::send(
+                '[' . get_bloginfo('name') . '] Claudpress test',
+                'This is a test notification from Claudpress. If you are reading it, this channel works.',
+                null,
+                null,
+                $test_to !== '' ? $test_to : null
+            );
+
+            // Hand the outcome back to the screen. A test whose result is not
+            // shown is not a test, it is a button.
+            set_transient('claudpress_test_notify_result', [
+                'at'      => time(),
+                'to'      => $test_to,
+                'results' => $results,
+                'health'  => Claudpress_Notifier::health(),
+            ], 5 * MINUTE_IN_SECONDS);
             wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation', 'tested' => 1], admin_url('admin.php')));
             exit;
         }
