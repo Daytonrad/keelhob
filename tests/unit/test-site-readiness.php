@@ -432,6 +432,57 @@ CP_Test::ok($closed_reg_safe_role === [], 'closed registration with a safe defau
 // analyze_legal_pages
 // =============================================================================
 
+CP_Test::group('site_readiness — finding a legal page when no setting names it');
+
+// THE regression. `terms` was read only from woocommerce_terms_page_id, an
+// option WooCommerce creates. On a site with no store it is always 0, so the
+// site was told its Terms page did not exist, wrote one, published it, and was
+// told again. A HIGH that cannot be cleared by doing what it asks is the one
+// that teaches an owner to skim the whole list.
+
+$published = static function (int $id): ?bool {
+    // 41 = the published Terms page; 42 = a draft; anything else is gone.
+    if ($id === 41) return true;
+    if ($id === 42) return false;
+    return null;
+};
+$by_slug = static function (array $slugs): int {
+    return in_array('terms', $slugs, true) ? 41 : 0;
+};
+
+$r = Claudpress_Tools_Readiness::resolve_legal_pages(['terms' => 0], $published, $by_slug);
+CP_Test::ok($r['terms']['exists'], 'a Terms page at /terms is found even though no setting points at it');
+CP_Test::ok($r['terms']['published'], '...and its publish state is read from the page itself');
+CP_Test::same(41, $r['terms']['id'], '...and the id reported is the page that was actually found');
+CP_Test::same('slug', $r['terms']['found_by'], '...and the report says how it was found, so "found_by: slug" on a store is a hint to wire it up');
+
+// A setting that names a page which has since been deleted is the same
+// situation as no setting at all: nothing currently says where the page is.
+$r = Claudpress_Tools_Readiness::resolve_legal_pages(['terms' => 999], $published, $by_slug);
+CP_Test::ok($r['terms']['exists'], 'a setting pointing at a deleted page falls back to the slug rather than reporting "missing"');
+CP_Test::same(41, $r['terms']['id'], '...and reports the page that is really there');
+
+// An explicit setting still wins. On a store it is what the checkout links to,
+// so a slug that happens to match must not quietly replace it.
+$r = Claudpress_Tools_Readiness::resolve_legal_pages(['terms' => 42], $published, $by_slug);
+CP_Test::same(42, $r['terms']['id'], 'an explicit setting wins over a slug match');
+CP_Test::same('setting', $r['terms']['found_by'], '...and says so');
+CP_Test::ok(!$r['terms']['published'], '...including when the page it names is only a draft, which is a different finding entirely');
+
+// Nothing anywhere is still "missing", which is the finding that should exist.
+$none = static function (array $slugs): int { return 0; };
+$r = Claudpress_Tools_Readiness::resolve_legal_pages(['terms' => 0], $published, $none);
+CP_Test::ok(!$r['terms']['exists'], 'with no setting and no page, it is genuinely missing');
+CP_Test::same(0, $r['terms']['id'], '...and reports no id rather than a stale one');
+CP_Test::same('none', $r['terms']['found_by'], '...and says nothing found it');
+
+// End to end: the resolver feeds the analyzer, and a real page clears the HIGH.
+$found = Claudpress_Tools_Readiness::resolve_legal_pages(['terms' => 0, 'privacy' => 41], $published, $by_slug);
+$out   = Claudpress_Tools_Readiness::analyze_legal_pages($found, [], false);
+$found_ids = array_map(static function ($f) { return $f['id']; }, $out['findings']);
+CP_Test::ok(!in_array('legal-page-missing-terms', $found_ids, true), 'a Terms page found by slug clears the missing-terms HIGH — the whole point');
+CP_Test::ok(!in_array('legal-page-missing-privacy', $found_ids, true), 'and privacy stays clear too');
+
 CP_Test::group('site_readiness — legal page existence, publish state, and wiring');
 
 $missing_page = Claudpress_Tools_Readiness::analyze_legal_pages(

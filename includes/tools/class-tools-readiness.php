@@ -934,24 +934,123 @@ final class Claudpress_Tools_Readiness
         return is_array($rows) ? $rows : [];
     }
 
-    /** @return array<string, array{exists:bool, published:bool, id:int}> */
+    /**
+     * Slugs a legal page is plausibly published at, when no setting names it.
+     *
+     * Ordered most-specific first, so the id reported is the best match rather
+     * than the first near-miss.
+     */
+    private const LEGAL_PAGE_SLUGS = [
+        'terms'    => ['terms', 'terms-of-use', 'terms-of-service', 'terms-and-conditions', 'terms-conditions'],
+        'privacy'  => ['privacy', 'privacy-policy'],
+        'refund'   => ['refund', 'refunds', 'refund-policy', 'refunds-and-returns', 'returns'],
+        'shipping' => ['shipping', 'shipping-policy', 'delivery', 'shipping-and-delivery'],
+    ];
+
+    /**
+     * The first of these slugs that is a real page, or 0.
+     *
+     * @param string[] $slugs
+     */
+    public static function page_id_by_slug(array $slugs): int
+    {
+        if (!function_exists('get_page_by_path')) {
+            return 0;
+        }
+        foreach ($slugs as $slug) {
+            $post = get_page_by_path($slug);
+            if ($post) {
+                return (int) $post->ID;
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Which legal pages exist, and whether they are published.
+     *
+     * THE SETTINGS ARE NOT THE ONLY EVIDENCE, and treating them as such made
+     * one of these findings impossible to clear.
+     *
+     * `terms` was read only from `woocommerce_terms_page_id`. WooCommerce
+     * creates that option, so it is 0 on every site without a store - and a
+     * site with no store was told its Terms page did not exist, went and wrote
+     * one, published it, and was told again. A HIGH finding that cannot be
+     * cleared by doing the thing it asks for is worse than no finding at all:
+     * it is the one that teaches an owner to skim the list. Found on
+     * claudpress.com, which has no WooCommerce and now has /terms.
+     *
+     * The setting is still preferred when it is set - it is an explicit
+     * statement of intent, and on a store it is what the checkout links to - and
+     * a slug lookup answers when it is not. Wiring stays a separate question: a
+     * page found by slug on a store still raises "not wired into WooCommerce",
+     * because on a store that wiring is the thing that matters.
+     *
+     * @return array<string, array{exists:bool, published:bool, id:int, found_by:string}>
+     */
     private static function gather_legal_pages(): array
     {
-        $map = [
-            'terms'    => (int) get_option('woocommerce_terms_page_id', 0),
-            'privacy'  => (int) get_option('wp_page_for_privacy_policy', 0),
-            'refund'   => (int) get_option('woocommerce_refund_returns_page_id', 0),
-            'shipping' => (int) get_option('woocommerce_shipping_policy_page_id', 0),
-        ];
+        return self::resolve_legal_pages(
+            [
+                'terms'    => (int) get_option('woocommerce_terms_page_id', 0),
+                'privacy'  => (int) get_option('wp_page_for_privacy_policy', 0),
+                'refund'   => (int) get_option('woocommerce_refund_returns_page_id', 0),
+                'shipping' => (int) get_option('woocommerce_shipping_policy_page_id', 0),
+            ],
+            static function (int $id): ?bool {
+                $post = $id ? get_post($id) : null;
+                return $post ? ($post->post_status === 'publish') : null;
+            },
+            [self::class, 'page_id_by_slug']
+        );
+    }
+
+    /**
+     * The decision itself, with no WordPress in it.
+     *
+     * Takes its two lookups as arguments for the same reason
+     * Claudpress_Snippets::resolve_target() does: the interesting cases here
+     * are "the setting is 0", "the setting points at a page that was deleted"
+     * and "there is no setting but there is a page", and none of them should
+     * need a database to pin down.
+     *
+     * @param array<string,int>            $setting_ids role => id from settings, 0 when unset
+     * @param callable(int):?bool          $published   id => published?, or null when no such page
+     * @param callable(array):int          $by_slug     slugs => first matching page id, or 0
+     * @return array<string, array{exists:bool, published:bool, id:int, found_by:string}>
+     */
+    public static function resolve_legal_pages(array $setting_ids, callable $published, callable $by_slug): array
+    {
         $out = [];
-        foreach ($map as $role => $id) {
-            $post = $id ? get_post($id) : null;
+
+        foreach ($setting_ids as $role => $id) {
+            $id    = (int) $id;
+            $state = $id ? $published($id) : null;
+
+            if ($state === null) {
+                // Either there was no setting, or it names a page that has
+                // since been deleted. Those are the same situation: nothing
+                // currently tells us where this page is, so go and look.
+                $id    = (int) $by_slug(self::LEGAL_PAGE_SLUGS[$role] ?? []);
+                $state = $id ? $published($id) : null;
+
+                $out[$role] = [
+                    'exists'    => $state !== null,
+                    'published' => $state === true,
+                    'id'        => $state !== null ? $id : 0,
+                    'found_by'  => $state !== null ? 'slug' : 'none',
+                ];
+                continue;
+            }
+
             $out[$role] = [
-                'exists'    => (bool) $post,
-                'published' => $post ? ($post->post_status === 'publish') : false,
+                'exists'    => true,
+                'published' => $state,
                 'id'        => $id,
+                'found_by'  => 'setting',
             ];
         }
+
         return $out;
     }
 
