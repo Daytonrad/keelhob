@@ -359,6 +359,43 @@ CP_Test::ok(in_array('url-200-but-404-body-robots-txt', $ids($empty_200), true),
 $real_body = Claudpress_Tools_Readiness::analyze_url_status('robots.txt', 'https://example.test/robots.txt', 200, "User-agent: *\nDisallow:");
 CP_Test::ok($real_body === [], 'a 200 response with a real, non-empty, non-404-looking body passes');
 
+// THE regression, and the general case of the two checks above. A coming-soon
+// gate on template_redirect intercepted /sitemap.xml and served the holding
+// page: status 200, content-type text/html, three kilobytes of HTML where an
+// XML sitemap should be. Every check here passed it, because it only ever
+// asked "is this a 404?" and it genuinely was not one. Found on
+// claudpress.com after the gate was fixed to return real 404s, which is what
+// made the sitemap's own answer visible in the first place.
+$gate_page = '<!doctype html><html lang="en"><head><title>Claudpress &mdash; coming soon</title>'
+    . '</head><body><h1>Let an AI actually run your WordPress site.</h1></body></html>';
+
+$intercepted = Claudpress_Tools_Readiness::analyze_url_status('sitemap', 'https://example.test/wp-sitemap.xml', 200, $gate_page);
+CP_Test::ok(in_array('url-200-but-wrong-content-sitemap', $ids($intercepted), true), 'an HTML page served where an XML sitemap belongs is a finding, even though it is a perfectly healthy 200');
+CP_Test::contains('intercepting', (string) ($intercepted[0]['evidence'] ?? ''), 'and the evidence names the likely cause, because "wrong content" alone does not tell anyone where to look');
+
+$llms_intercepted = Claudpress_Tools_Readiness::analyze_url_status('llms.txt', 'https://example.test/llms.txt', 200, $gate_page);
+CP_Test::ok(in_array('url-200-but-wrong-content-llms-txt', $ids($llms_intercepted), true), 'the same interception is caught on llms.txt');
+
+$robots_intercepted = Claudpress_Tools_Readiness::analyze_url_status('robots.txt', 'https://example.test/robots.txt', 200, $gate_page);
+CP_Test::ok(in_array('url-200-but-wrong-content-robots-txt', $ids($robots_intercepted), true), 'and on robots.txt');
+
+// The real things must still pass. A check that flags a correct site is worse
+// than no check at all, because it is the one that gets switched off.
+$real_sitemap = Claudpress_Tools_Readiness::analyze_url_status('sitemap', 'https://example.test/wp-sitemap.xml', 200, '<?xml version="1.0"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></sitemapindex>');
+CP_Test::ok($real_sitemap === [], 'a real XML sitemap passes');
+
+$real_llms = Claudpress_Tools_Readiness::analyze_url_status('llms.txt', 'https://example.test/llms.txt', 200, "# Claudpress\n\n> A free WordPress plugin.\n");
+CP_Test::ok($real_llms === [], 'a real llms.txt passes');
+
+$wrong_shape_llms = Claudpress_Tools_Readiness::analyze_url_status('llms.txt', 'https://example.test/llms.txt', 200, "Claudpress\nno heading here\n");
+CP_Test::ok(in_array('url-200-but-wrong-content-llms-txt', $ids($wrong_shape_llms), true), 'an llms.txt that does not open with an H1 is not in the llmstxt.org format the answer engines read');
+
+// An unmonitored label keeps the old, looser behaviour rather than being
+// guessed at. A shape rule invented for a URL nobody described is how a
+// correct site starts failing.
+$unknown = Claudpress_Tools_Readiness::analyze_url_status('something-else', 'https://example.test/x', 200, $gate_page);
+CP_Test::ok($unknown === [], 'a label with no declared shape is only checked for a 404-shaped body');
+
 // =============================================================================
 // analyze_404_handling
 // =============================================================================

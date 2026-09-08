@@ -341,17 +341,46 @@ final class Claudpress_Tools_Readiness
     }
 
     /**
+     * What a monitored URL's body has to look like before it counts as working.
+     *
+     * Keyed by the label the caller passes. A label with no entry here is only
+     * checked for the 404-shaped body below.
+     */
+    private const URL_BODY_SHAPE = [
+        'sitemap'    => ['starts' => '<', 'wants' => 'XML', 'reject_html' => true],
+        'llms.txt'   => ['starts' => '#', 'wants' => 'markdown beginning with an H1', 'reject_html' => true],
+        'robots.txt' => ['starts' => '', 'wants' => 'plain text directives', 'reject_html' => true],
+    ];
+
+    /**
      * A monitored URL (llms.txt, sitemap, robots.txt): non-200 is a finding,
-     * and so is a 200 whose body is actually a 404 page — the bug this plugin
-     * shipped in 1.9.1 (serve_llms_txt echoing a body under WordPress's own
-     * default-404 status).
+     * and so is a 200 whose body is not the thing that URL is for.
+     *
+     * Three ways this lies, and all three have happened:
+     *
+     *   1. A 200 whose body is a 404 page — the bug this plugin shipped in
+     *      1.9.1 (serve_llms_txt echoing a body under WordPress's own
+     *      default-404 status).
+     *   2. An empty body.
+     *   3. A 200 that is a WHOLE OTHER PAGE. Found on claudpress.com: a
+     *      coming-soon gate on template_redirect intercepted /sitemap.xml and
+     *      served the holding page — status 200, content-type text/html, three
+     *      kilobytes of HTML where an XML sitemap should be. Every check here
+     *      passed it, because it only asked "is this a 404?" and it genuinely
+     *      was not one.
+     *
+     * The third is the general case of the first two, and it is the one worth
+     * fixing properly: a monitored URL is working when it returns the KIND of
+     * thing it exists to return, not merely when it returns something.
      */
     public static function analyze_url_status(string $label, string $url, int $status, string $body): array
     {
         if ($status !== 200) {
             return [self::finding('url-not-200-' . self::slug($label), 'high', 'code-quality-and-production-readiness', $label . ' did not return HTTP 200', 'Status ' . $status, $url)];
         }
+
         $trimmed = trim($body);
+
         $looks_like_404 = $trimmed === '';
         if (!$looks_like_404 && preg_match('/<title>[^<]*/i', $body, $tm)) {
             $looks_like_404 = (bool) preg_match('/(page )?not found|404/i', $tm[0]);
@@ -359,6 +388,40 @@ final class Claudpress_Tools_Readiness
         if ($looks_like_404) {
             return [self::finding('url-200-but-404-body-' . self::slug($label), 'high', 'code-quality-and-production-readiness', $label . ' returns 200 but the body looks like a 404 page', $trimmed === '' ? 'Empty body' : 'Body <title> matches a not-found pattern', $url)];
         }
+
+        $shape = self::URL_BODY_SHAPE[strtolower($label)] ?? null;
+        if ($shape === null) {
+            return [];
+        }
+
+        // An HTML document where plain text or XML belongs. Checked by shape
+        // rather than by content-type, because the header is what a gate gets
+        // right by accident and the body is what it gets wrong.
+        $is_html = (bool) preg_match('/^\s*(<!doctype html|<html\b)/i', $body)
+            || (bool) preg_match('/<\/html\s*>/i', $body);
+
+        if (!empty($shape['reject_html']) && $is_html) {
+            return [self::finding(
+                'url-200-but-wrong-content-' . self::slug($label),
+                'high',
+                'code-quality-and-production-readiness',
+                $label . ' returns 200 but the body is an HTML page',
+                'Expected ' . $shape['wants'] . '. Something is intercepting this URL and serving a page instead — a coming-soon gate, a maintenance plugin, or a catch-all redirect.',
+                $url
+            )];
+        }
+
+        if ($shape['starts'] !== '' && strncmp($trimmed, $shape['starts'], strlen($shape['starts'])) !== 0) {
+            return [self::finding(
+                'url-200-but-wrong-content-' . self::slug($label),
+                'high',
+                'code-quality-and-production-readiness',
+                $label . ' returns 200 but does not begin the way it should',
+                'Expected ' . $shape['wants'] . '; body begins "' . mb_substr($trimmed, 0, 40) . '"',
+                $url
+            )];
+        }
+
         return [];
     }
 
