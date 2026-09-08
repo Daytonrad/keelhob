@@ -413,6 +413,7 @@
         "required": [],
         "properties": [
             "post_id",
+            "request_headers",
             "scope",
             "urls"
         ]

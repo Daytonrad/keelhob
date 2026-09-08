@@ -48,6 +48,7 @@ final class Claudpress_Tools_Readiness
                     'scope'   => ['type' => 'string', 'enum' => ['site', 'page'], 'default' => 'site', 'description' => 'site: crawl published pages/posts plus the site-level checks. page: check only post_id.'],
                     'post_id' => ['type' => 'integer', 'description' => 'Required when scope=page: the post/page to check.'],
                     'urls'    => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Optional extra absolute URLs to include in the page-level checks (e.g. a landing page not in the post table).'],
+                    'request_headers' => ['type' => 'object', 'description' => 'Optional headers to send with every fetch OF THIS SITE, so a site behind a coming-soon gate, a maintenance-mode plugin or an HTTP-auth wall can be audited instead of returning one holding page for every URL. Usually a Cookie: e.g. {"Cookie": "preview_key=abc"}. Ignored for any URL not on this site\'s own origin. This does not reveal anything the caller could not already reach; it only presents the credential a human would use in a browser.'],
                 ],
                 'required' => [],
             ],
@@ -639,6 +640,10 @@ final class Claudpress_Tools_Readiness
         $post_id = (int) ($args['post_id'] ?? 0);
         $extra_urls = array_values(array_filter(array_map('strval', (array) ($args['urls'] ?? []))));
 
+        // Per-run, and reset every run: a header left over from a previous
+        // call would silently change what a later audit saw.
+        self::set_request_headers($args['request_headers'] ?? null);
+
         $findings     = [];
         $skipped      = [];
         $not_verified = [
@@ -893,9 +898,82 @@ final class Claudpress_Tools_Readiness
 
     // ---- gather helpers -----------------------------------------------------
 
+    /**
+     * Headers to send when fetching THIS SITE, for this run only.
+     *
+     * @var array<string,string>
+     */
+    private static array $request_headers = [];
+
+    /**
+     * Sanitise and remember the caller's headers.
+     *
+     * @param mixed $raw
+     */
+    public static function set_request_headers($raw): void
+    {
+        self::$request_headers = [];
+        if (!is_array($raw)) {
+            return;
+        }
+        foreach ($raw as $name => $value) {
+            if (!is_string($name) || !is_scalar($value)) {
+                continue;
+            }
+            // A header name is a token; a value must not carry a newline, or
+            // one header becomes several and this turns into request
+            // splitting. Both are rejected rather than stripped, because
+            // silently sending something other than what was asked for is
+            // worse than refusing.
+            if (!preg_match('/^[A-Za-z0-9!#$%&\'*+.^_`|~-]+$/', $name)) {
+                continue;
+            }
+            $value = (string) $value;
+            if (preg_match('/[\r\n]/', $value)) {
+                continue;
+            }
+            self::$request_headers[$name] = $value;
+        }
+    }
+
+    /**
+     * Request args for one URL, with the caller's headers only if it is ours.
+     *
+     * THE ORIGIN CHECK IS THE SECURITY BOUNDARY, and it is why this argument
+     * is safe to have at all.
+     *
+     * `urls` already accepts arbitrary absolute URLs, so this tool can already
+     * be pointed at an address on the host's internal network. Attaching
+     * caller-supplied headers to THOSE requests would turn a read-only auditor
+     * into something that can present credentials to an internal service - a
+     * real escalation of an existing weakness. Restricted to this site's own
+     * origin it grants nothing new: the caller is asking us to show the site
+     * its own cookie, which is exactly what their browser does.
+     *
+     * @param array<string,mixed> $extra
+     * @return array<string,mixed>
+     */
+    public static function request_args(string $url, array $extra = []): array
+    {
+        $args = array_merge(['timeout' => 15], $extra);
+
+        if (self::$request_headers === []) {
+            return $args;
+        }
+
+        $ours  = wp_parse_url((string) home_url('/'), PHP_URL_HOST);
+        $theirs = wp_parse_url($url, PHP_URL_HOST);
+        if (!$ours || !$theirs || strcasecmp((string) $ours, (string) $theirs) !== 0) {
+            return $args;
+        }
+
+        $args['headers'] = array_merge((array) ($args['headers'] ?? []), self::$request_headers);
+        return $args;
+    }
+
     private static function fetch_body(string $url): ?string
     {
-        $resp = wp_remote_get($url, ['timeout' => 15]);
+        $resp = wp_remote_get($url, self::request_args($url));
         if (is_wp_error($resp)) {
             return null;
         }
@@ -907,7 +985,7 @@ final class Claudpress_Tools_Readiness
 
     private static function remote_status_and_body(string $url): array
     {
-        $resp = wp_remote_get($url, ['timeout' => 15]);
+        $resp = wp_remote_get($url, self::request_args($url));
         if (is_wp_error($resp)) {
             return [null, ''];
         }
@@ -923,7 +1001,7 @@ final class Claudpress_Tools_Readiness
      */
     private static function remote_status_and_final_url(string $url): ?array
     {
-        $resp = wp_remote_get($url, ['timeout' => 15, 'redirection' => 0]);
+        $resp = wp_remote_get($url, self::request_args($url, ['redirection' => 0]));
         if (is_wp_error($resp)) {
             return null;
         }
@@ -939,7 +1017,7 @@ final class Claudpress_Tools_Readiness
 
     private static function remote_headers(string $url): ?array
     {
-        $resp = wp_remote_get($url, ['timeout' => 15]);
+        $resp = wp_remote_get($url, self::request_args($url));
         if (is_wp_error($resp)) {
             return null;
         }
