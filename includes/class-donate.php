@@ -105,7 +105,7 @@ final class Claudpress_Donate
         }
         ?>
         <div class="wrap">
-            <h1><?php esc_html_e('Support Claudpress', 'claudpress'); ?></h1>
+            <h1><?php echo Claudpress_Brand::heading_mark(); ?><?php esc_html_e('Support Claudpress', 'claudpress'); ?></h1>
 
             <div style="max-width:760px;">
                 <p style="font-size:15px;line-height:1.7;">

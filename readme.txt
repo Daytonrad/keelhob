@@ -266,6 +266,8 @@ the exact model IDs to type for each one.
 == Changelog ==
 
 = 1.0.3 =
+* New: Claudpress now has its own icon in the WordPress admin menu, on every Claudpress screen, in
+  the toolbar, and on the Updates screen, instead of a generic placeholder.
 * Security: the plugin now checks that your site still loads for a logged-out visitor after any
   change that could break it — saving or switching on a snippet, running PHP or a write query,
   writing, editing or deleting a file, and activating a plugin or a theme. If the site stops

@@ -30,6 +30,8 @@ final class Claudpress_Admin
     public function hooks(): void
     {
         add_action('admin_menu', [$this, 'menu']);
+        // Decoration only, and admin-only: the front end never loads it.
+        Claudpress_Brand::hooks();
         add_action('admin_post_claudpress_save', [$this, 'handle_save']);
         add_action('admin_bar_menu', [$this, 'admin_bar'], 100);
         add_action('admin_notices', [$this, 'notice']);
@@ -44,7 +46,9 @@ final class Claudpress_Admin
 
     public function menu(): void
     {
-        add_menu_page('Claudpress', 'Claudpress', 'manage_options', 'claudpress', [$this, 'render'], 'dashicons-superhero', 58);
+        // The brand mark, not a dashicon. Claudpress_Brand::styles() undims it:
+        // WordPress assumes a menu image is a monochrome glyph and fades it.
+        add_menu_page('Claudpress', 'Claudpress', 'manage_options', 'claudpress', [$this, 'render'], Claudpress_Brand::menu_icon(), 58);
         add_submenu_page('claudpress', __('Connect', 'claudpress'), __('Connect', 'claudpress'), 'manage_options', 'claudpress', [$this, 'render']);
         // Directly after Connect: this is the primary "what has the AI done to
         // my site" surface, and it must be easy to find in a hurry.
@@ -132,7 +136,10 @@ final class Claudpress_Admin
         $on = Claudpress::instance()->abilities_enabled();
         $bar->add_node([
             'id'    => 'claudpress',
-            'title' => 'Claudpress: ' . ($on ? __('🟢 ON', 'claudpress') : __('⚪ OFF', 'claudpress')),
+            // The mark carries its own inline sizing, so this node stays correct
+            // if it is ever registered outside is_admin().
+            'title' => Claudpress_Brand::bar_mark()
+                . 'Claudpress: ' . ($on ? __('🟢 ON', 'claudpress') : __('⚪ OFF', 'claudpress')),
             'href'  => admin_url('admin.php?page=claudpress'),
         ]);
     }

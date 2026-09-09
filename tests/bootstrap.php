@@ -176,6 +176,13 @@ function esc_html($t) { return htmlspecialchars((string) $t, ENT_QUOTES, 'UTF-8'
 function esc_attr($t) { return htmlspecialchars((string) $t, ENT_QUOTES, 'UTF-8'); }
 function esc_url($u) { return htmlspecialchars((string) $u, ENT_QUOTES, 'UTF-8'); }
 function esc_url_raw($u) { return (string) $u; }
+
+/** Captures what Claudpress_Brand::styles() attaches, so a test can read it. */
+function wp_add_inline_style(string $handle, string $css): bool
+{
+    $GLOBALS['cp_test_inline_styles'][$handle] = ($GLOBALS['cp_test_inline_styles'][$handle] ?? '') . $css;
+    return true;
+}
 function __($t, $d = null) { return (string) $t; }
 function esc_html__($t, $d = null) { return esc_html($t); }
 function esc_attr__($t, $d = null) { return esc_attr($t); }
@@ -660,6 +667,9 @@ if (!defined('CLAUDPRESS_REPO_URL')) {
 }
 
 require_once CLAUDPRESS_DIR . 'includes/class-updater.php';
+// Every admin screen prints the brand mark in its <h1>, so this must load
+// before any of them.
+require_once CLAUDPRESS_DIR . 'includes/class-brand.php';
 require_once CLAUDPRESS_DIR . 'includes/class-donate.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin-providers.php';

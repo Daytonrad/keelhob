@@ -56,7 +56,7 @@ final class Claudpress_Admin_Screens
         $enabled = Claudpress::instance()->abilities_enabled();
         ?>
         <div class="wrap">
-            <h1>Claudpress <span style="font-size:13px;color:#888;">v<?php echo esc_html(CLAUDPRESS_VERSION); ?></span></h1><?php Claudpress_Donate::button(); ?>
+            <h1><?php echo Claudpress_Brand::heading_mark(); ?>Claudpress <span style="font-size:13px;color:#888;">v<?php echo esc_html(CLAUDPRESS_VERSION); ?></span></h1><?php Claudpress_Donate::button(); ?>
             <p style="max-width:760px;"><?php esc_html_e('Give an AI agent full, programmatic control of this WordPress & WooCommerce site over MCP — content, store, SEO, files, PHP — with cross-session memory and a skills engine. Self-contained, no external dependencies.', 'claudpress'); ?></p>
 
             <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:#217296;background:radial-gradient(45% 200% at 100% 50%,#d37355 0%,rgba(211,115,85,.9) 25%,rgba(211,115,85,0) 62%),linear-gradient(104deg,#1b6183 0%,#217296 55%,#2a83aa 100%);color:#fff;padding:14px 20px;border-radius:10px;margin:6px 0 18px;max-width:980px;box-shadow:0 6px 20px rgba(33,114,150,.22);">
@@ -399,7 +399,7 @@ final class Claudpress_Admin_Screens
         $h = 'margin:28px 0 10px;';
         ?>
         <div class="wrap" style="max-width:1000px;">
-            <h1><?php esc_html_e('Claudpress — Master Guide', 'claudpress'); ?></h1><?php Claudpress_Donate::button(); ?>
+            <h1><?php echo Claudpress_Brand::heading_mark(); ?><?php esc_html_e('Claudpress — Master Guide', 'claudpress'); ?></h1><?php Claudpress_Donate::button(); ?>
             <p style="font-size:15px;max-width:800px;"><?php esc_html_e('Everything this plugin lets your AI do, in plain English. Read this once and you\'ll know what to turn on, what to leave off, and how to get the best out of it — no coding required.', 'claudpress'); ?></p>
 
             <div class="notice notice-warning" style="max-width:800px;"><p><strong><?php esc_html_e('Golden rule:', 'claudpress'); ?></strong> <?php esc_html_e('use this on a development or staging site with backups. When AI abilities are ON, a connected agent can change anything. Don\'t point it at a live store you can\'t afford to have edited without review.', 'claudpress'); ?></p></div>
@@ -614,7 +614,7 @@ final class Claudpress_Admin_Screens
         };
         ?>
         <div class="wrap">
-            <h1><?php esc_html_e('Claudpress · Activity', 'claudpress'); ?></h1><?php Claudpress_Donate::button(); ?>
+            <h1><?php echo Claudpress_Brand::heading_mark(); ?><?php esc_html_e('Claudpress · Activity', 'claudpress'); ?></h1><?php Claudpress_Donate::button(); ?>
 
             <h2><?php esc_html_e('Memory', 'claudpress'); ?></h2>
             <p class="description"><?php esc_html_e('What the agent has been told to remember about this site. Kept in full — it is never trimmed automatically.', 'claudpress'); ?></p>

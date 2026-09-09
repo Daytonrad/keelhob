@@ -26,7 +26,7 @@ final class Claudpress_Admin_Automation
         $has_key = !empty($s['agent_api_key']);
         ?>
         <div class="wrap">
-            <h1><?php esc_html_e('Claudpress · Automation', 'claudpress'); ?></h1><?php Claudpress_Donate::button(); ?>
+            <h1><?php echo Claudpress_Brand::heading_mark(); ?><?php esc_html_e('Claudpress · Automation', 'claudpress'); ?></h1><?php Claudpress_Donate::button(); ?>
             <p style="max-width:760px;"><?php esc_html_e('Let the site run itself. Digest tasks email you a status snapshot on a schedule. Autonomous tasks hand a plain-language instruction to the on-site AI agent, which does the work and reports back — no client open. Add a provider API key below to enable autonomy.', 'claudpress'); ?></p>
             <?php if (isset($_GET['saved'])) : ?><div class="notice notice-success is-dismissible"><p><?php esc_html_e('Saved.', 'claudpress'); ?></p></div><?php endif; ?>
             <?php if (isset($_GET['ran'])) : ?><div class="notice notice-success is-dismissible"><p><?php esc_html_e('Task ran. See its last summary below.', 'claudpress'); ?></p></div><?php endif; ?>

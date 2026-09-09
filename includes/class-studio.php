@@ -96,7 +96,7 @@ final class Claudpress_Studio
         $current = self::current_tab();
         ?>
         <div class="wrap">
-            <h1 class="wp-heading-inline"><?php esc_html_e('Snippets Studio', 'claudpress'); ?></h1><?php Claudpress_Donate::button(); ?>
+            <h1 class="wp-heading-inline"><?php echo Claudpress_Brand::heading_mark(); ?><?php esc_html_e('Snippets Studio', 'claudpress'); ?></h1><?php Claudpress_Donate::button(); ?>
             <?php if ($current !== 'edit') : ?>
                 <a href="<?php echo esc_url(self::url('edit')); ?>" class="page-title-action"><?php esc_html_e('Add Snippet', 'claudpress'); ?></a>
             <?php endif; ?>

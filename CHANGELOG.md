@@ -120,6 +120,52 @@ public. When the two disagree, this file is correct.
   applies. Rule 6 now also carries the snippet location matrix, so a refused
   `css` save is avoidable rather than merely explained.
 
+### Added
+
+- **The Claudpress mark, in the four places WordPress gives a plugin to put
+  one.** The admin sidebar icon (previously a generic `dashicons-superhero`,
+  which taught nobody anything), the `<h1>` of all eight Claudpress admin
+  screens, the admin bar item, and the Dashboard → Updates row — which until
+  now showed the grey puzzle-piece placeholder, an unfortunate look for a
+  plugin that updates itself from GitHub rather than wordpress.org.
+
+  **The mark is never cropped and never squashed.** A first attempt cut it
+  down to the C bowl so it would fit a 20x20 square, and the result read as a
+  broken image rather than a logo — the ribbon running out of the bowl is the
+  mark. The shape keeps its own 1.7:1 proportions everywhere; only the colour
+  changes with size, because below roughly 32px the copper and teal average
+  into brown mush.
+
+  **The small marks are drawn as a CSS mask filled with `currentColor`, not as
+  an `<img>`.** That is the one thing an image cannot do: take whatever colour
+  WordPress has given the text beside it. The alternative was a white PNG, and
+  it was wrong twice over — eight of the nine admin colour schemes have a dark
+  sidebar and toolbar, but "Light" has neither, so white vanished there; and
+  inverting it for that scheme then broke the *current* menu item, whose
+  background is already mid-grey with white text. Each fix needed the next one.
+  A mask has no states to enumerate, and it is how WordPress draws its own menu
+  icons — dashicons is a font, so every core icon inherits `color` for free.
+  The mask sits behind `@supports`, because `background-color` with no mask
+  would paint a solid rectangle in the sidebar, which is worse than no icon.
+
+  All of it lives in one class, `Claudpress_Brand`, so a redraw is one edit.
+  `bin/build-zip.sh` now names each of the four image files rather than
+  counting them: a count passes when a file is renamed, and a renamed brand
+  file is exactly the quiet failure this guards — the plugin still installs,
+  still works, and shows a broken image in the sidebar of every site that has
+  it. `tests/unit/test-brand.php` opens each file, checks it is really a PNG of
+  the size its name claims, asserts the menu mark is *not* square so it cannot
+  quietly be cropped again, and reads the generated CSS to confirm no rule
+  names a colour scheme.
+
+- **`tests/rig/sync-plugin.sh`**, for pushing a code change into a rig you are
+  keeping. `build-rig.sh` deletes and recreates the whole WordPress install,
+  taking every snippet, page and setting with it — correct for CI, wrong for a
+  rig kept across sessions to test fixes against. The new script copies only
+  the plugin, and parse-checks every file before copying anything, because a
+  syntax error copied into a running rig takes down the admin screen you would
+  use to find it.
+
 ### Changed
 
 - **Agents are now told about both**, in the two places they read before acting:

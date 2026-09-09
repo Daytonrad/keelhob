@@ -67,7 +67,7 @@ final class Claudpress_Admin_Skills
         $history   = Claudpress_Skills_Remote::history();
         ?>
         <div class="wrap">
-            <h1><?php esc_html_e('Skills', 'claudpress'); ?></h1><?php Claudpress_Donate::button(); ?>
+            <h1><?php echo Claudpress_Brand::heading_mark(); ?><?php esc_html_e('Skills', 'claudpress'); ?></h1><?php Claudpress_Donate::button(); ?>
 
             <?php if ($refreshed) : ?>
                 <div class="notice <?php echo !empty($refreshed['success']) ? 'notice-success' : 'notice-warning'; ?>">

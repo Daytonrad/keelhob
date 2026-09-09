@@ -211,6 +211,10 @@ final class Claudpress_Updater
             'new_version' => $latest['version'],
             'url'         => $latest['url'],
             'package'     => $latest['package'],
+            // Without these the Updates screen shows the grey puzzle-piece
+            // placeholder, which on a plugin that updates itself from GitHub
+            // rather than wordpress.org reads as "source unknown".
+            'icons'       => Claudpress_Brand::icons(),
         ];
         return $transient;
     }
@@ -231,6 +235,7 @@ final class Claudpress_Updater
             'version'       => $latest['version'],
             'homepage'      => $latest['url'],
             'download_link' => $latest['package'],
+            'icons'         => Claudpress_Brand::icons(),
             'sections'      => [
                 'description' => 'Self-contained MCP server that lets an AI agent run your WordPress and WooCommerce site. Free, GPL, funded by donations.',
             ],

@@ -164,7 +164,10 @@ if [ "${CP_RIG_LINK:-0}" = "1" ]; then
 else
   mkdir -p "$DEST"
   cp "$ROOT/claudpress.php" "$ROOT/uninstall.php" "$ROOT/readme.txt" "$DEST/"
-  cp -r "$ROOT/includes" "$ROOT/skills" "$DEST/"
+  # assets/ ships in the zip, so it must be here too. Leave it out and the rig
+  # shows a broken image where the sidebar icon goes — which looks like a bug in
+  # the plugin rather than a gap in this script.
+  cp -r "$ROOT/includes" "$ROOT/skills" "$ROOT/assets" "$DEST/"
   echo "Plugin:  copied from $ROOT"
 fi
 
