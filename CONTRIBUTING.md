@@ -145,6 +145,41 @@ wipes somebody's configuration. If a key must change, migrate it in
 
 ---
 
+## Branch names, and the one way to get no CI
+
+Name your branch with a normal prefix and a hyphenated description:
+
+```
+feature/telegram-voice-notes
+fix/snippet-revert-loses-css
+docs/rig-readme
+```
+
+`feature/`, `feat/`, `fix/`, `hotfix/`, `bugfix/`, `chore/`, `docs/`,
+`refactor/`, `perf/`, `test/`, `ci/`, `build/`, `release/` and `revert/` all run
+the full suite on every push, as do `main` and `dev`. The list lives in
+[.github/workflows/ci.yml](.github/workflows/ci.yml).
+
+**A branch outside that list gets no CI on push** — and it does not tell you.
+GitHub has nothing to run, so the branch shows no check marks rather than a
+failing one, and silence looks identical to "everything passed". This is worth
+knowing because it has already caught someone out on this repository.
+
+Two things make it harmless. **Open the pull request** and CI runs regardless of
+the branch name; the `pull_request` trigger has no filter. And you can always
+run the whole thing locally first:
+
+```bash
+php tests/run.php     # the suite
+composer analyse      # PHPStan, if you have the dev dependencies
+composer lint         # php -l over every file
+```
+
+If your prefix is missing from that list and it is a normal one, adding it is a
+welcome pull request in itself.
+
+---
+
 ## Commit messages and pull requests
 
 Explain **why**, not what — the diff already says what. A message that says

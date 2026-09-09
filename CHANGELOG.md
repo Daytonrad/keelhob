@@ -177,6 +177,19 @@ public. When the two disagree, this file is correct.
 
 ### Fixed
 
+- **A branch named anything but `feature/**` got no CI, and said nothing about
+  it.** The push trigger listed `[main, dev, 'feature/**']`, so a branch called
+  `fix/rig-silent-failures` ran no jobs at all — not a skip, not a warning.
+  GitHub has nothing to run, so the branch shows no check marks rather than a
+  failing one, and no check marks looks exactly like nothing to report.
+
+  Fourteen conventional prefixes are now listed — `fix/`, `chore/`, `docs/`,
+  `refactor/`, `test/`, `ci/`, `release/` and the rest — so a contributor
+  naming a branch the ordinary way does not have to know the workflow file
+  exists. `CONTRIBUTING.md` now says which prefixes run, that a pull request
+  runs CI whatever the branch is called, and how to run the same checks
+  locally.
+
 - **Two bugs in `tests/rig/build-rig.sh`, both of which reported success while
   being wrong.** Neither ships to a user; both cost developer time, which is
   the only reason the rig exists.

@@ -2,7 +2,35 @@ name: CI
 
 on:
   push:
-    branches: [main, dev, 'feature/**']
+    # Every conventional branch prefix, not just feature/**.
+    #
+    # This list used to be [main, dev, 'feature/**'], and a branch named
+    # fix/rig-silent-failures got NO CI AT ALL. Not a skip, not a warning —
+    # GitHub simply has nothing to run, and the branch page shows no check
+    # marks rather than a red one. Silence reads exactly like "nothing to
+    # report", which is the one thing it does not mean.
+    #
+    # A contributor naming a branch the ordinary way should not have to know
+    # this file exists. If you use a prefix that is not here, CI will not run
+    # on your push — open the pull request and it runs anyway, because the
+    # pull_request trigger below has no branch filter at all.
+    branches:
+      - main
+      - dev
+      - 'feature/**'
+      - 'feat/**'
+      - 'fix/**'
+      - 'hotfix/**'
+      - 'bugfix/**'
+      - 'chore/**'
+      - 'docs/**'
+      - 'refactor/**'
+      - 'perf/**'
+      - 'test/**'
+      - 'ci/**'
+      - 'build/**'
+      - 'release/**'
+      - 'revert/**'
   pull_request:
   workflow_dispatch:
 
