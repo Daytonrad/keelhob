@@ -40,6 +40,13 @@
 # must produce identical bytes or the signature is meaningless.
 skills/*.md text eol=lf
 
+# Generated Markdown. bin/build-skill-router.php writes docs/SKILL-STANDARD.md
+# and CI fails when it is stale, so the file's bytes are a build artifact rather
+# than prose someone edits. Left to the platform, a Windows contributor and a
+# Linux runner would generate different bytes from identical input and the
+# staleness check would fail for nobody's mistake.
+docs/*.md   text eol=lf
+
 # Node and JSON tooling. Not strictly required, but there is no reason for the
 # test runner's files to differ by platform.
 *.mjs   text eol=lf
