@@ -1,13 +1,25 @@
 ---
 name: blog-publishing
+title: Blog publishing
 description: Write and publish blog posts and articles end to end — draft the content, structure it with headings, add images, set categories and tags, and optimize it for search before publishing. Use whenever the task is to write, draft, publish, or schedule a blog post or article.
 enable_agentic: true
 enable_prompt: true
+role: procedure
+next_skills: seo-optimization, web-design-master
+verified_by: seo-optimization
 ---
 
 # Blog publishing
 
 Take a topic to a published, search-ready post.
+
+## When to use
+
+The task is to write, draft, schedule or publish a post or an article. Covers drafting the copy, structuring it with headings, choosing images, and setting categories and tags.
+
+## When NOT to use
+
+Not for a page that is part of the site's structure — a homepage, a service page, a landing page. Those are `website-building`. A post that exists only to rank for a phrase is still a post, but read `seo-optimization` before writing it, not after.
 
 ## Before writing
 - Check existing content: `list_posts search=<topic>` so you don't duplicate or cannibalize an existing post — link to it instead.
@@ -48,3 +60,13 @@ A post is not finished when the words are written.
   treatment. A well-written post in a bad template still looks cheap.
 - **`motion-and-interaction`** — if the post has a hero or anything interactive.
 - **`build-standard`** — what "published" actually requires.
+
+## Routing examples
+
+Phrases that must reach this skill, and one that must not. `bin/lint-skills.php`
+checks them against every other skill's description.
+
+- fires: write a blog post about padel courts
+- fires: draft an article for my news section
+- fires: schedule three posts for next week
+- skips: clone this design pixel for pixel

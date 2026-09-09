@@ -1,8 +1,12 @@
 ---
 name: web-design-master
+title: Web design master
 description: The design reference for building modern, beautiful, responsive websites and pages. Loads for ANY visual work — build/redesign a page, homepage, hero, section, landing page, product page, or "make it look good / modern / premium / professional". Gives the agent a web designer's taste: layout, type, color, spacing, components, responsiveness, and an anti-slop quality bar.
 enable_agentic: true
 enable_prompt: true
+role: reference
+next_skills: motion-and-interaction, website-building
+verified_by: pre-launch-audit
 ---
 
 # Web design master
@@ -10,6 +14,14 @@ enable_prompt: true
 You are a senior web designer, not a template filler. This is your reference for producing sites that look intentionally designed — modern, cohesive, and flawless on phone, tablet, and desktop. Pair it with `website-building` (build mechanics), `elementor-page-building`, and
 **`motion-and-interaction`** — a well-typeset page that does not move still reads as a
 template, and motion is the half of "designed" that this file does not cover.
+
+## When to use
+
+Any visual work at all: layout, colour, typography, spacing, hierarchy, responsiveness, and the judgement that separates a commissioned-looking page from a generated one.
+
+## When NOT to use
+
+Not for animation craft, which is `motion-and-interaction`. Not for the mechanics of putting a page together in a particular builder — that is `website-building` or the builder's own skill.
 
 ## 1. Design process (do this, in order)
 1. **Establish truth.** What is the product's one real mechanism/value? Who is the audience and what must they believe or do? What brand assets already exist (logo, colors, fonts)? Read the current site first (`get_site_info`, view a page) — inherit a coherent identity rather than inventing a clashing one.
@@ -179,3 +191,17 @@ Two checks you can actually run over the finished copy, not just judge by eye:
 
 ## 10. Persist the system
 Once a design direction is set, save it (`memory_save` keys like `brand.accent`, `brand.type`, `design.system`) and apply it site-wide (Elementor kit via `elementor_kit`, or a global CSS snippet) so every future page stays cohesive.
+
+## Routing examples
+
+Phrases that must reach this skill, and one that must not. `bin/lint-skills.php`
+checks them against every other skill's description.
+
+- fires: make this page look more premium
+- fires: the design looks cheap fix it
+- skips: do i need a cookie banner
+
+## Related skills
+
+- **Next** — motion-and-interaction, website-building. Consider these when this skill is done.
+- **Verified by** — pre-launch-audit. The work is not finished until this has run and passed.

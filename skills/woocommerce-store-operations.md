@@ -1,13 +1,25 @@
 ---
 name: woocommerce-store-operations
+title: WooCommerce store operations
 description: Run the WooCommerce shop end to end — add or edit products, manage stock and pricing, process and fulfil orders, create coupons and sales, and read sales reports. Use whenever the task involves the store, products, inventory, orders, customers, discounts, or shop revenue.
 enable_agentic: true
 enable_prompt: true
+role: procedure
+next_skills: store-launch-and-deploy, seo-optimization
+verified_by: site-safety
 ---
 
 # WooCommerce store operations
 
 You are operating a live WooCommerce store. Prefer the dedicated `wc_*` tools; drop to `execute_php` only for things they do not cover (WooCommerce class APIs are all available there).
+
+## When to use
+
+Running a shop that already works: adding or editing products, stock and pricing, processing and fulfilling orders, coupons and sales, and reading sales reports.
+
+## When NOT to use
+
+Not for first-time setup of payments, shipping or tax, and not for deploying to production — both are `store-launch-and-deploy`.
 
 ## Orientation first
 Before acting, call `get_site_info` (confirms WooCommerce + currency) and, for anything financial, `wc_settings action=get`. Never assume currency, tax mode, or country.
@@ -89,3 +101,13 @@ report it as a bug.
 - **`seo-optimization`** — product pages need schema and meta like any other page, and
   `Product` schema is what puts a price in the search result.
 - **`build-standard`** — the definition of done for the store as a whole.
+
+## Routing examples
+
+Phrases that must reach this skill, and one that must not. `bin/lint-skills.php`
+checks them against every other skill's description.
+
+- fires: add ten products to my shop
+- fires: which orders still need fulfilling
+- fires: create a coupon for black friday
+- skips: set up payments and shipping so i can take orders

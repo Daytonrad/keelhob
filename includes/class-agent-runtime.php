@@ -398,9 +398,18 @@ final class Claudpress_Agent_Runtime
      */
     private static function system_prompt(bool $interactive = false, string $channel = ''): string
     {
-        $mem = [];
-        foreach (Claudpress::instance()->memory->all() as $m) {
-            $mem[] = '- ' . $m['key'] . ': ' . $m['value'];
+        // Guarded for the same reason the skill catalog below is: this is
+        // decoration assembled while building a prompt, and the memory service
+        // is wired during boot(). Anything calling in before that, or a site
+        // where the table is unreadable, should get a run with no site memory
+        // rather than a fatal in the middle of a Telegram reply. The catalog
+        // was hardened against exactly this and the line above it was not.
+        $mem     = [];
+        $service = Claudpress::instance()->memory;
+        if ($service instanceof Claudpress_Memory) {
+            foreach ($service->all() as $m) {
+                $mem[] = '- ' . $m['key'] . ': ' . $m['value'];
+            }
         }
         $memory_block = $mem ? "\n\nSite memory (conventions & context):\n" . implode("\n", array_slice($mem, 0, 40)) : '';
 

@@ -1,11 +1,23 @@
 ---
 name: motion-and-interaction
+title: Motion and interaction
 description: How to make a site feel alive rather than static — entrance choreography, scroll-driven animation, easing, stagger, hover and micro-interaction, page transitions, and the performance budget that keeps it all fast. Covers CSS-native motion first, then GSAP and ScrollTrigger, smooth scroll, and where Framer Motion does and does not apply in WordPress. Load this for ANY visual build alongside web-design-master, and whenever the ask is "make it feel premium/expensive/modern/award-winning", "add animations", "animate on scroll", "it looks flat", "bring it to life", or a page has been built and does not move.
 enable_agentic: true
 enable_prompt: true
+role: reference
+next_skills: web-design-master, seo-audit-and-fix
+verified_by: pre-launch-audit
 ---
 
 # Motion and interaction
+
+## When to use
+
+A page feels flat, static or generated, or the task names animation, scroll behaviour, hover, transitions or micro-interaction. Read it during a build, not bolted on at the end.
+
+## When NOT to use
+
+Not for layout, colour, type or spacing decisions — those are `web-design-master`. Not a licence to animate everything; motion that costs the performance budget is a defect, not a flourish.
 
 ## Read this first
 
@@ -341,3 +353,13 @@ assembled.
 - **`seo-audit-and-fix`** — measures whether the motion cost you the performance score. Check after any significant animation work.
 - **`website-building`**, **`elementor-page-building`** — the build mechanics that place the markup you are animating.
 - **`build-standard`** — the definition of done, and the router for everything else.
+
+## Routing examples
+
+Phrases that must reach this skill, and one that must not. `bin/lint-skills.php`
+checks them against every other skill's description.
+
+- fires: make the hero animate on scroll
+- fires: the site feels flat and static
+- fires: add a hover effect to the cards
+- skips: do i need a cookie banner

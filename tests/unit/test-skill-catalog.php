@@ -33,7 +33,16 @@ CP_Test::group('Skill catalogue - every skill ships to everyone');
 // file behind it is how a skill goes missing without anyone noticing, and a
 // file with no entry is a skill the admin screen cannot name.
 $names = Claudpress_Skill_Catalog::names();
-CP_Test::same(18, count($names), 'all eighteen skills are catalogued');
+
+// Derived from the folder rather than typed here. The catalogue is generated
+// from skills/*.md by bin/build-skill-router.php, so a hard-coded number would
+// only ever record how many skills existed on the day someone last remembered
+// to update it — and updating it was one of the four chores that made accepting
+// a contributed skill a job in itself. What is worth asserting is that the two
+// sides agree, in both directions, which the loops below do.
+$files = glob(CLAUDPRESS_DIR . 'skills/*.md') ?: [];
+CP_Test::same(count($files), count($names), 'every skill file has a catalogue entry, and nothing extra is catalogued');
+CP_Test::ok(count($names) >= 15, 'and the catalogue is not empty or truncated (' . count($names) . ' skills)');
 
 foreach ($names as $name) {
     CP_Test::ok(is_file(CLAUDPRESS_DIR . 'skills/' . $name . '.md'), $name . ' has a file behind its catalogue entry');
@@ -60,21 +69,32 @@ foreach (['web-design-master', 'pre-launch-audit', 'store-launch-and-deploy', 'w
 $src = file_get_contents(CLAUDPRESS_DIR . 'includes/class-skill-catalog.php');
 CP_Test::ok(strlen($src) < 20000, 'the catalogue is metadata-sized, not body-sized');
 
-CP_Test::group('Skill catalogue — every skill ships, and the count is asserted');
+CP_Test::group('Skill catalogue — every skill ships, and nothing is kept by hand');
 
 // The build used to split these across two zips by tier. It copies the whole
 // folder now, which makes the old "did every skill land somewhere" check
 // tautologically true - and a check that cannot fail is worse than none,
-// because it reads like cover. So the script asserts an expected count
-// instead, and this asserts the script still does that.
+// because it reads like cover. It carried a hand-typed EXPECTED_SKILLS instead,
+// which did make somebody notice they had added a skill.
+//
+// That noticing has a better home now. bin/lint-skills.php has to pass and
+// bin/build-skill-router.php --check has to be current before a skill can ship
+// at all, and both of those say something about the skill rather than merely
+// counting it. So the constant is gone, and what the build compares is the
+// staged folder against the source folder - which still catches a copy that
+// silently dropped a file, and no longer asks a contributor to update a number
+// in a shell script they have no other reason to open.
 $build = file_get_contents(CLAUDPRESS_DIR . 'bin/build-zip.sh');
 
-CP_Test::contains('EXPECTED_SKILLS', $build, 'the build asserts how many skills it expects to stage');
+CP_Test::ok(strpos($build, 'EXPECTED_SKILLS') === false, 'the hand-typed skill count is gone from the build script');
+CP_Test::contains('source_skills', $build, 'the build compares what it staged against what is in skills/');
 CP_Test::ok(strpos($build, 'PRO_STAGE') === false, 'there is no second zip to stage skills into');
 CP_Test::ok(strpos($build, 'Claudpress_Skill_Catalog::names') === false, 'the build no longer asks the catalogue which tier a skill is');
 
-// The number in the script and the number on disk must agree, or the build
-// fails for everyone the moment somebody adds a skill without updating it.
-preg_match('/EXPECTED_SKILLS=(\d+)/', $build, $m);
-$on_disk = count(glob(CLAUDPRESS_DIR . 'skills/*.md'));
-CP_Test::same($on_disk, (int) ($m[1] ?? 0), 'EXPECTED_SKILLS in the build script matches what is actually in skills/');
+// The catalogue is generated, so the assertion that matters is that the
+// generator has been run. A stale catalogue is a skill the admin screen cannot
+// name, which is exactly the drift the generator exists to end.
+$gen = trim((string) shell_exec(
+    escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(CLAUDPRESS_DIR . 'bin/build-skill-router.php') . ' --check 2>&1'
+));
+CP_Test::contains('current', $gen, 'the generated catalogue and skill-tree table are up to date (' . $gen . ')');

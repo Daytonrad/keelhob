@@ -53,6 +53,17 @@ ksort($now);
 $expected = $baseline;
 unset($expected['pro_status']);
 
+// Tools added deliberately since the snapshot. They are declared here rather
+// than written into the fixture, because the fixture's whole value is being an
+// untouched record of what the two halves held on the day they were merged —
+// editing it to include something that never existed then would quietly turn a
+// piece of evidence into a wish list.
+//
+// skill_lint applies the skill standard on a live site. It exists because the
+// standard would otherwise only ever police the skills in this repository, and
+// never the ones agents write on other people's sites.
+$expected['skill_lint'] = ['required' => [], 'properties' => ['markdown', 'name']];
+
 CP_Test::same([], array_values(array_diff(array_keys($expected), array_keys($now))), 'no tool was lost in the merge');
 CP_Test::same([], array_values(array_diff(array_keys($now), array_keys($expected))), 'no tool appeared unannounced');
 CP_Test::ok(!isset($now['pro_status']), 'pro_status is gone, which is the one intended removal');

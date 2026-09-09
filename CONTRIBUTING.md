@@ -16,7 +16,20 @@ contribution to this project is a **skill**, and skills are plain markdown.
 2. **Write a skill.** A skill is a markdown playbook the agent loads when a task
    matches it. If you know how to do something well in WordPress — a niche store
    setup, a membership flow, a migration — that knowledge is a pull request. No
-   PHP required. Start from `skills/site-safety.md` for the shape.
+   PHP required.
+
+   **Read [`docs/SKILL-STANDARD.md`](docs/SKILL-STANDARD.md) first.** It is short,
+   and it is what your pull request is reviewed against. Then run
+   `php bin/lint-skills.php`, which scores your skill out of 100 and names
+   exactly what is wrong — the same check CI runs and the same one a reviewer
+   uses, so there are no surprises at review time.
+
+   The part people miss: a skill has to declare where it sits among the others
+   (`requires`, `next_skills`, `verified_by`). A skill nothing points at is only
+   ever reached by luck, and a skill that points at nothing leaves the agent
+   with nowhere to go when it finishes. Both fail the linter, both used to ship.
+
+   Start from `skills/site-safety.md` for the shape.
 3. **Improve the docs.** If something took you an hour to work out, that hour is
    a documentation bug.
 4. **Fix a `good first issue`.** They are genuinely that.

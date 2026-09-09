@@ -1,8 +1,12 @@
 ---
 name: seo-optimization
+title: SEO + GEO optimization
 description: Required build phase, not an optional pass — meta title/description, Open Graph/Twitter cards, JSON-LD schema, sitemap, robots.txt, and llms.txt for every page, verified in the rendered HTML. Also covers target keywords, GEO/AI answer-engine visibility, redirects, and ranking fixes. Use whenever the task involves SEO, GEO, AI search visibility, ranking, meta tags, schema, keywords, ChatGPT/Perplexity/AI Overviews citations, "make this rank"/"get this cited by AI", or any page-building/site-build-kickoff task reaching its SEO step.
 enable_agentic: true
 enable_prompt: true
+role: gate
+next_skills: seo-audit-and-fix
+verified_by: pre-launch-audit
 ---
 
 # SEO + GEO optimization
@@ -19,6 +23,14 @@ robots.txt, and `llms.txt` in its page- and site-level Definition of Done — a 
 these is not done, the same as a page with a broken link.
 
 Two goals, one workflow: rank in classical search (Google/Bing) AND get cited by AI answer engines (ChatGPT, Perplexity, Google AI Overviews, Gemini, Claude). GEO is not a separate discipline bolted on after — AI engines extract and cite pages that are already well-structured, well-sourced, and fresh, so most of the work below serves both goals at once.
+
+## When to use
+
+Every page, every time, as a build phase rather than an afterthought — meta title and description, Open Graph and Twitter cards, JSON-LD schema, sitemap, robots.txt and llms.txt, checked in the rendered HTML.
+
+## When NOT to use
+
+Not for auditing a site that already exists across all its pages — that is `seo-audit-and-fix`. This skill assumes you are building or editing the page in front of you.
 
 ## Verify in the rendered HTML, not from a tool's return value
 
@@ -116,3 +128,17 @@ Lighthouse in. `seo-audit-and-fix` has the full method.
 - Don't fabricate stats, testimonials, or credentials to game E-E-A-T signals — use real data only; ask the user for anything you don't have.
 - If publishing content in bulk (e.g. via `create_post` in a loop), throttle it — sudden volume spikes read as spam to Google, not just AI engines.
 - Save the site's keyword targets, brand voice, and title formula to `memory_save` so future content stays on-strategy.
+
+## Routing examples
+
+Phrases that must reach this skill, and one that must not. `bin/lint-skills.php`
+checks them against every other skill's description.
+
+- fires: set the meta title and description for this page
+- fires: add json-ld schema to the product pages
+- skips: audit the seo of my whole website
+
+## Related skills
+
+- **Next** — seo-audit-and-fix. Consider these when this skill is done.
+- **Verified by** — pre-launch-audit. The work is not finished until this has run and passed.

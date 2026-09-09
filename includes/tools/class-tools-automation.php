@@ -119,6 +119,10 @@ final class Claudpress_Tools_Automation
             'cost_usd'    => (float) $r['cost_usd'],
             'instruction' => mb_substr((string) $r['instruction'], 0, 300),
             'summary'     => mb_substr((string) $r['summary'], 0, 600),
+            // What the run actually loaded, recorded by the tool registry rather
+            // than claimed in the summary. A build that came out badly and shows
+            // no skills here has its explanation in that one field.
+            'skills_used' => Claudpress_Skill_Standard::slugs((string) ($r['skills_used'] ?? '')),
         ], Claudpress_Agent_Runs::recent((int) ($a['limit'] ?? 20)));
 
         return [

@@ -84,6 +84,31 @@ jobs:
       - name: Run the test suite
         run: php tests/run.php
 
+  skills:
+    name: Skill standard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: none
+
+      # The rubric a contributed skill is accepted against. It runs here so the
+      # answer to "is this skill good enough" is the same for a maintainer, a
+      # contributor and CI, instead of three different judgements.
+      - name: Check every skill against the standard
+        run: php bin/lint-skills.php
+
+      # The catalogue, the contributor doc and the skill-tree table are all
+      # generated from skills/*.md. This fails when they are stale, which is the
+      # whole reason accepting a skill no longer costs four hand edits in four
+      # unrelated files.
+      - name: Check the generated files are current
+        run: php bin/build-skill-router.php --check
+
   analyse:
     name: Static analysis
     runs-on: ubuntu-latest

@@ -1,8 +1,11 @@
 ---
 name: security-standard
+title: Security standard
 description: Harden and audit a WordPress/WooCommerce site's security — 20 automatic checks, a 7-question owner-decision intake, WooCommerce/card-skimming specifics, and a compromise-detection sweep to run before building on a site you did not build. Use when the user says "harden my site", "is my site secure", "security audit", "I think I've been hacked", "check for malware", or before launch. Loaded automatically by build-standard whenever a site is being built or launched.
 enable_agentic: true
 enable_prompt: true
+role: reference
+next_skills: site-safety, pre-launch-audit
 ---
 
 # Security standard
@@ -19,6 +22,14 @@ not.
 compromised site does not clean it — it adds hardening on top of a backdoor.
 
 ---
+
+## When to use
+
+Hardening a site, investigating whether one has been compromised, or taking over a site somebody else built. Also before any work that touches checkout, payment or customer data.
+
+## When NOT to use
+
+Not the everyday rules for making a change safely — that is `site-safety`, which is smaller and loads far more often. Do not load this for a routine edit.
 
 ## 1. The threat model — what actually compromises WordPress sites
 
@@ -560,3 +571,17 @@ integration silently losing its credential. Anything you could not verify (no fi
 permission visibility, no browser to confirm a header actually reached the client) goes in
 **Not verified**, never reported as a pass. A compromise finding (§5) is never silently
 resolved — it is reported to the owner before any further work continues.
+
+## Routing examples
+
+Phrases that must reach this skill, and one that must not. `bin/lint-skills.php`
+checks them against every other skill's description.
+
+- fires: harden my wordpress security
+- fires: check whether this site has been hacked
+- fires: is my checkout safe from card skimming
+- skips: make the hero animate on scroll
+
+## Related skills
+
+- **Next** — site-safety, pre-launch-audit. Consider these when this skill is done.

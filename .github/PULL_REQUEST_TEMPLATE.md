@@ -10,6 +10,18 @@
 - [ ] `php tests/run.php` passes
 - [ ] `php -l` clean on every file touched
 
+## If this adds or changes a skill
+
+<!-- The linter is the review rubric. It scores out of 100 and says what is
+     wrong, so this is not a formality anyone has to interpret. -->
+
+- [ ] `php bin/lint-skills.php` passes
+- [ ] `php bin/build-skill-router.php` was run and the generated files are committed
+      (`includes/class-skill-catalog.php`, `docs/SKILL-STANDARD.md`, the table in
+      `skills/build-standard.md`) — you do not edit any of those by hand
+- [ ] It declares `next_skills` and/or `verified_by`, and at least one other skill
+      points at it. A skill nothing reaches is a skill that does not exist.
+
 ## If this changes behaviour
 
 - [ ] Anything with decision logic has a test

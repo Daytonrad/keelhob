@@ -1,11 +1,23 @@
 ---
 name: launch-readiness-and-compliance
+title: Launch readiness and compliance
 description: The gate a site passes before anyone sees it — the twenty things that make a site read as cheap, and the legal duties a website owes its visitors. Covers cookie consent and GDPR/ePrivacy done correctly (no analytics before Accept), privacy policy, CCPA/CPRA, accessibility to WCAG 2.2 AA and the European Accessibility Act, and e-commerce duties like returns, delivery terms and business identity. Use for "is my site ready", "am I allowed to", "check my cookie banner", "GDPR", "privacy policy", "do I need terms", "is this legal", "review before launch", or automatically before any site or store goes live. Ask what the site is for first — the rules that apply differ.
 enable_agentic: true
 enable_prompt: true
+role: gate
+next_skills: store-launch-and-deploy, security-standard
+verified_by: pre-launch-audit
 ---
 
 # Launch readiness and compliance
+
+## When to use
+
+Anything to do with cookie consent, GDPR or ePrivacy, a privacy policy, accessibility duties, or the legal obligations a shop owes a buyer. Also the last gate before a site is shown to the public.
+
+## When NOT to use
+
+Not a substitute for a lawyer, and not the place for design judgement. How a page looks is `web-design-master`; whether it may lawfully load a tracker is here.
 
 ## Read this first
 
@@ -176,3 +188,13 @@ every time.
 - **`store-launch-and-deploy`** — payments, shipping and tax, which is where most of the e-commerce duties are actually implemented.
 - **`security-standard`** — hardening. Compliance and security overlap but are not the same thing: a site can be secure and unlawful.
 - **`web-design-master`**, **`motion-and-interaction`** — the fixes for most of the twenty.
+
+## Routing examples
+
+Phrases that must reach this skill, and one that must not. `bin/lint-skills.php`
+checks them against every other skill's description.
+
+- fires: do i need a cookie banner
+- fires: is my site legal to launch in europe
+- fires: check my gdpr consent setup
+- skips: rebuild the homepage in elementor

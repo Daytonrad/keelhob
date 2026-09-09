@@ -1,106 +1,106 @@
 <?php
 /**
- * The skills have to form a connected tree, and each one has to parse.
+ * The eighteen shipped skills, judged by the standard they ship under.
  *
- * Two silent failures this guards, both of which cost the agent quality with
- * no error anywhere:
+ * This file used to build the tree itself, by looking for one skill's name
+ * anywhere inside another skill's body with strpos(). That was wrong in a way
+ * worth recording: it passed on a body that said "unlike web-design-master",
+ * which links nothing, and nine of the eighteen files had no "Related skills"
+ * section at all while every one of them passed. It measured whether a word
+ * appeared, and reported it as whether a skill connected.
  *
- * 1. A LEAF — a skill that names no other skill. The agent loads it, follows
- *    it to the end, and stops. blog-publishing was one: an agent could write
- *    and publish a whole post without ever being told that seo-optimization or
- *    web-design-master existed, so the post shipped with no meta, no schema and
- *    a default template. Nothing errors; the work is just worse.
- *
- * 2. AN ORPHAN — a skill no other skill names. Nothing routes to it, so it is
- *    only ever reached if the owner's own wording happens to match its
- *    description. A skill nobody can find is a skill that does not exist.
- *
- * And a parse check, because Claudpress_Skills::parse_markdown() is not a YAML
- * parser: four keys, matched line by line, no nesting and no wrapped values. A
- * description that wraps onto a second line silently becomes empty, and the
- * description is the ONLY thing that matches a task to a skill.
+ * The edges are declared data now — `role`, `requires`, `next_skills` and
+ * `verified_by` in the front matter — and Claudpress_Skill_Standard is the only
+ * thing that judges them. tests/unit/test-skill-standard.php proves those rules
+ * fire on planted failures; this file points them at what actually ships.
  */
 
-CP_Test::group('Skill tree — every skill parses, and none is a dead end');
+CP_Test::group('Skill tree — every shipped skill meets the standard');
 
-$files = glob(CLAUDPRESS_DIR . 'skills/*.md');
+$files = glob(CLAUDPRESS_DIR . 'skills/*.md') ?: [];
 sort($files);
 
-$names  = [];
-$bodies = [];
+CP_Test::ok(count($files) >= 15, 'the skills folder is populated (' . count($files) . ' files)');
 
+$skills = [];
 foreach ($files as $file) {
     $slug = basename($file, '.md');
-    $raw  = str_replace(["\r\n", "\r"], "\n", (string) file_get_contents($file));
 
-    CP_Test::ok(
-        (bool) preg_match('/^---\n(.*?)\n---\n?(.*)$/s', $raw, $m),
-        $slug . ': has front matter the plugin can find'
-    );
-    if (empty($m)) {
+    // Parsed by the plugin's own parser, not a friendlier one written for the
+    // test. parse_markdown() is not YAML: one key per line, no nesting, no
+    // wrapped values. A description that wraps silently loses everything after
+    // the first line, and the description is the only thing that routes a task
+    // to a skill — so a test that parsed it more generously would pass a file
+    // the site cannot read.
+    $parsed = Claudpress_Skills::parse_markdown((string) file_get_contents($file));
+
+    CP_Test::same($slug, $parsed['name'] ?? '', $slug . ': the front matter parses and its name matches the filename');
+    if (($parsed['name'] ?? '') !== $slug) {
         continue;
     }
-
-    // Parsed exactly as class-skills.php does it.
-    $meta = [];
-    foreach (explode("\n", $m[1]) as $line) {
-        if ($line !== '' && preg_match('/^([a-zA-Z_]+)\s*:\s*(.*)$/', $line, $kv)) {
-            $meta[$kv[1]] = trim($kv[2], " '\"");
-        }
-    }
-
-    CP_Test::same($slug, $meta['name'] ?? '', $slug . ': name matches the filename, so skill_get finds it by the name people see');
-    CP_Test::ok(($meta['description'] ?? '') !== '', $slug . ': has a description — without one nothing can route a task to it');
-    CP_Test::ok(
-        strlen($meta['description'] ?? '') >= 120,
-        $slug . ': the description is long enough to say when to load it, not just what it is'
-    );
-    CP_Test::same('true', strtolower($meta['enable_agentic'] ?? ''), $slug . ': is agentic, so it appears in the session catalog');
-
-    $names[]        = $slug;
-    $bodies[$slug]  = $m[2];
+    $skills[$slug] = $parsed;
 }
 
-CP_Test::ok(count($names) >= 15, 'every skill file parsed (' . count($names) . ' of ' . count($files) . ')');
+$known = array_keys($skills);
 
-// --- the tree ----------------------------------------------------------------
+foreach ($skills as $slug => $skill) {
+    $findings = Claudpress_Skill_Standard::check($skill, $known);
+    $errors   = array_values(array_filter($findings, static fn($f) => $f['level'] === 'error'));
 
-$out = [];
-$in  = array_fill_keys($names, 0);
-
-foreach ($names as $from) {
-    $out[$from] = [];
-    foreach ($names as $to) {
-        if ($from !== $to && strpos($bodies[$from], $to) !== false) {
-            $out[$from][] = $to;
-            $in[$to]++;
-        }
-    }
-}
-
-foreach ($names as $slug) {
     CP_Test::ok(
-        !empty($out[$slug]),
-        $slug . ': names at least one other skill — an agent that finishes it knows where to go next'
-    );
-    CP_Test::ok(
-        $in[$slug] > 0,
-        $slug . ': is named by at least one other skill — nothing routes to a skill nobody mentions'
+        empty($errors),
+        $slug . ': meets the standard' . (empty($errors) ? '' : ' — ' . $errors[0]['message'])
     );
 }
 
-// build-standard is the router. If it stops naming the others, every new skill
-// is reachable only by luck.
+$graph = Claudpress_Skill_Standard::check_graph($skills);
+$fatal = array_values(array_filter($graph, static fn($f) => $f['level'] === 'error'));
+
 CP_Test::ok(
-    count($out['build-standard'] ?? []) >= count($names) - 1,
-    'build-standard still names every other skill — it is the router table the operating protocol sends the agent to'
+    empty($fatal),
+    'the tree as a whole holds: no loops, no orphans, nothing over the context budget, nothing routed to the wrong skill'
+        . (empty($fatal) ? '' : ' — ' . $fatal[0]['skill'] . ': ' . $fatal[0]['message'])
 );
 
-// The three skills added for SEO, motion and compliance are the ones most
-// likely to be forgotten in the router, because nothing breaks when they are.
-foreach (['seo-audit-and-fix', 'motion-and-interaction', 'launch-readiness-and-compliance'] as $slug) {
+// ---- the properties worth naming, rather than only scoring -----------------
+
+// build-standard is the router the operating protocol sends the agent to. If it
+// stops naming a skill, that skill is reachable only by luck.
+$router = Claudpress_Skill_Standard::outbound($skills['build-standard'] ?? []);
+foreach ($known as $slug) {
+    if ($slug === 'build-standard') {
+        continue;
+    }
+    CP_Test::ok(in_array($slug, $router, true), 'the router names ' . $slug);
+}
+
+// A gate that nothing is verified by is a gate nobody has to pass.
+$verifiers = [];
+foreach ($skills as $skill) {
+    $verifiers = array_merge($verifiers, Claudpress_Skill_Standard::edges($skill)['verified_by']);
+}
+$verifiers = array_unique($verifiers);
+CP_Test::ok(in_array('pre-launch-audit', $verifiers, true), 'pre-launch-audit is declared as a verifier, so build work is not done on the builder\'s own say-so');
+
+foreach ($skills as $slug => $skill) {
+    if (Claudpress_Skill_Standard::role($skill) !== 'gate') {
+        continue;
+    }
+    // build-standard is the one exception, and it is exempt for a stated
+    // reason rather than to make the test pass: it is the entry point, named
+    // by operating-protocol rule 11 from PHP, so nothing declares it as a
+    // verifier. Every other gate must have something actually gated on it, or
+    // it is a gate in name only.
     CP_Test::ok(
-        in_array($slug, $out['build-standard'] ?? [], true),
-        'the router names ' . $slug
+        in_array($slug, $verifiers, true) || $slug === 'build-standard',
+        $slug . ' is a gate and something is actually gated on it'
     );
 }
+
+// The whole set, priced. Every connected session pays this before any work
+// happens, so it is worth an assertion rather than a discovery later.
+$catalog = Claudpress_Skill_Standard::catalog_cost($skills);
+CP_Test::ok(
+    $catalog <= Claudpress_Skill_Standard::CATALOG_BUDGET,
+    sprintf('the session-start catalog costs %d KB, within the %d KB budget', (int) round($catalog / 1024), (int) round(Claudpress_Skill_Standard::CATALOG_BUDGET / 1024))
+);

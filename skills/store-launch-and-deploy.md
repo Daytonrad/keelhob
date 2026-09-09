@@ -1,11 +1,23 @@
 ---
 name: store-launch-and-deploy
+title: Store launch & deploy
 description: Take a WooCommerce store from empty to able-to-take-real-orders (payments, shipping, tax), and ship changes from a staging site to production. Use when setting up checkout, enabling payment methods, configuring shipping/tax, launching a store, or deploying/migrating a site staging→production.
 enable_agentic: true
 enable_prompt: true
+role: procedure
+next_skills: launch-readiness-and-compliance, woocommerce-store-operations
+verified_by: pre-launch-audit
 ---
 
 # Store launch & deploy
+
+## When to use
+
+Getting a WooCommerce store from empty to able to take a real order — payments, shipping, tax — or moving changes from staging to production.
+
+## When NOT to use
+
+Not the day-to-day running of a shop that already works. Products, stock, orders and coupons are `woocommerce-store-operations`.
 
 ## Launch gates — not done until these pass
 
@@ -129,3 +141,17 @@ Build and validate on staging, then ship to the live site. Never edit production
 5. After deploy, spot-check production: load a migrated page/product and confirm it renders, then report what changed.
 
 Guardrails: production is real. Announce exactly which entities you'll push and get a yes. Prefer pushing a narrow set (the things you actually changed) over "everything". Keep production abilities OFF except during a supervised deploy window.
+
+## Routing examples
+
+Phrases that must reach this skill, and one that must not. `bin/lint-skills.php`
+checks them against every other skill's description.
+
+- fires: set up payments and shipping so i can take orders
+- fires: push my staging store to production
+- skips: make the hero animate on scroll
+
+## Related skills
+
+- **Next** — launch-readiness-and-compliance, woocommerce-store-operations. Consider these when this skill is done.
+- **Verified by** — pre-launch-audit. The work is not finished until this has run and passed.

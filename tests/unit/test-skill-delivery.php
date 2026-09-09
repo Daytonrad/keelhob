@@ -26,8 +26,20 @@ CP_Test::group('Skill delivery — the catalog reaches every surface');
 // --- the wording, with no database in the way --------------------------------
 
 $two = [
-    ['name' => 'build-standard', 'description' => 'The Definition of Done for any build work.'],
-    ['name' => 'web-design-master', 'description' => 'The design reference. Loads for ANY visual work.'],
+    [
+        'name'        => 'build-standard',
+        'description' => 'The Definition of Done for any build work.',
+        'role'        => 'gate',
+        'next_skills' => ['web-design-master'],
+        'verified_by' => ['pre-launch-audit'],
+    ],
+    [
+        'name'        => 'web-design-master',
+        'description' => 'The design reference. Loads for ANY visual work.',
+        'role'        => 'reference',
+        'next_skills' => [],
+        'verified_by' => [],
+    ],
 ];
 
 $block = Claudpress_MCP_Server::format_skill_catalog($two);
@@ -39,6 +51,21 @@ CP_Test::contains(
     'build-standard carries the router table',
     $block,
     'and points at the router — an agent that reads one description and stops builds a page with no SEO pass and no taste'
+);
+
+// The edges are what turn a list of names into a map. Without them the agent
+// learns that eighteen skills exist and nothing about how they relate, so it
+// picks one, follows it to the end, and stops — which is the failure the whole
+// skill standard was built to end.
+CP_Test::contains('[gate]', $block, 'the catalog says what kind of skill each one is');
+CP_Test::contains('then: web-design-master', $block, 'and where to go when a skill is finished');
+CP_Test::contains('not done until: pre-launch-audit', $block, 'and what has to run before the work counts as done');
+CP_Test::contains('gate = work is not finished until it passes', $block, 'and it explains the roles, because a label nobody can interpret is noise');
+
+CP_Test::ok(
+    strpos($block, 'web-design-master [reference]: The design reference. Loads for ANY visual work.' . "\n") !== false
+        || substr_count($block, 'web-design-master [reference]') === 1,
+    'a skill with no edges gets no empty brackets after it'
 );
 
 CP_Test::same(
@@ -120,4 +147,27 @@ CP_Test::contains(
     'does not apply to ordinary single-page work',
     $protocol,
     'and it is bounded, so an agent does not start asking permission to set a meta description'
+);
+
+// --- rule 13: the verifier a skill declares is not decoration ---------------
+//
+// Also in PHP rather than in a skill. A skill can be switched off, and the one
+// obligation that must survive that is "do not report work as done when the
+// thing that checks it never ran". Rule 11 already tells the agent to load a
+// skill; nothing until this checked that it honoured what the skill pointed at,
+// so verified_by would have read like a guarantee in the file and been a no-op
+// in practice.
+
+CP_Test::contains('13.', $protocol, 'the protocol carries a thirteenth rule');
+CP_Test::contains('honour their verifiers', $protocol, 'and it is the verifier rule, not something else numbered 13');
+CP_Test::contains('not done until', $protocol, 'it uses the same wording the catalog uses, so the agent is not asked to connect two vocabularies');
+CP_Test::contains(
+    'say so plainly and say why',
+    $protocol,
+    'and skipping a verifier is allowed as long as it is said out loud — an unenforceable rule gets quietly ignored, a reporting duty does not'
+);
+
+CP_Test::ok(
+    strpos($protocol, '12.') < strpos($protocol, '13.'),
+    'the rules are in order — they are read by a model as a numbered list, and one out of sequence reads like a mistake in the instructions'
 );

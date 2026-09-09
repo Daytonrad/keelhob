@@ -17,11 +17,19 @@ final class Claudpress_Tools_Skills
             'type' => 'object', 'properties' => (object) [],
         ], [self::class, 'list'], ['readOnlyHint' => true]);
 
-        $r->add('skill_get', 'Load the full body of a skill by name. Call this when a task matches a skill\'s description so you can follow its playbook.', [
+        $r->add('skill_get', 'Load the full body of a skill by name. Call this when a task matches a skill\'s description so you can follow its playbook. The response also returns the skill\'s role and its links: `requires` (load these first), `next_skills` (consider these when you are done) and `verified_by` (the work is NOT finished until these have run).', [
             'type' => 'object',
             'properties' => ['name' => ['type' => 'string']],
             'required' => ['name'],
         ], [self::class, 'get'], ['readOnlyHint' => true]);
+
+        $r->add('skill_lint', 'Check a skill against the Claudpress skill standard and get a 0-100 score with specific findings. Pass `markdown` to check a draft before saving it, or `name` to check a skill already on this site; pass neither to check every skill and the links between them (loops, orphans, skills competing for the same request). Use it before skill_save so a new skill is actually reachable and actually connects to the others. Read-only.', [
+            'type' => 'object',
+            'properties' => [
+                'markdown' => ['type' => 'string', 'description' => 'A full skill document to check without saving it.'],
+                'name'     => ['type' => 'string', 'description' => 'A skill already on this site.'],
+            ],
+        ], [self::class, 'lint'], ['readOnlyHint' => true, 'title' => 'Check a Skill']);
 
         $r->add('skill_save', 'Create or update a skill. Provide either a full Markdown document (YAML frontmatter + body) as `markdown`, or explicit fields. Skills are shared site-wide and loaded automatically when their description matches a task.', [
             'type' => 'object',
@@ -73,15 +81,145 @@ final class Claudpress_Tools_Skills
         return ['success' => true, 'skills' => $skills];
     }
 
+    /**
+     * The body, plus where this skill sits in the tree.
+     *
+     * The edges cost a handful of bytes and arrive at the one moment they are
+     * most useful — the agent has just decided to follow this playbook, which
+     * is exactly when it needs to know that something must be loaded first and
+     * something else has to run before the work counts as done. Finding that
+     * out later, buried in prose at the bottom of the body, is finding it out
+     * after the decision has already been made.
+     */
     public static function get(array $a): array
     {
         $s = Claudpress::instance()->skills->get_by_name((string) ($a['name'] ?? ''));
-        return $s ? ['success' => true, 'name' => $s['name'], 'description' => $s['description'], 'body' => $s['body']] : ['success' => false, 'error' => 'Skill not found.'];
+        if (!$s) {
+            return ['success' => false, 'error' => 'Skill not found.'];
+        }
+
+        $edges = Claudpress_Skill_Standard::edges($s);
+
+        return [
+            'success'     => true,
+            'name'        => $s['name'],
+            'description' => $s['description'],
+            'role'        => Claudpress_Skill_Standard::role($s),
+            'requires'    => $edges['requires'],
+            'next_skills' => $edges['next_skills'],
+            'verified_by' => $edges['verified_by'],
+            'body'        => $s['body'],
+        ];
     }
 
+    /**
+     * Save, and say what is wrong with it — but save it either way.
+     *
+     * The standard warns here rather than refusing on purpose. This runs on
+     * somebody else's live site, and blocking an owner's save over a missing
+     * heading is not our call to make; the repo is where the rules are
+     * enforced. What we owe them is the finding, not a locked door.
+     */
     public static function save(array $a): array
     {
-        return Claudpress::instance()->skills->save($a);
+        $result = Claudpress::instance()->skills->save($a);
+
+        if (empty($result['success'])) {
+            return $result;
+        }
+
+        $saved = Claudpress::instance()->skills->get_by_name((string) $result['name']);
+        if (!$saved) {
+            return $result;
+        }
+
+        $known    = array_column(Claudpress::instance()->skills->all(), 'name');
+        $findings = Claudpress_Skill_Standard::check($saved, $known);
+        if (empty($findings)) {
+            return $result;
+        }
+
+        return array_merge($result, [
+            'score'    => Claudpress_Skill_Standard::score($findings),
+            'warnings' => array_map(
+                static fn(array $f): string => $f['level'] . ': ' . $f['message'],
+                $findings
+            ),
+            'note' => 'Saved. These are the ways it falls short of the skill standard — a skill that fails them still works, it is just harder for an agent to find and easier to leave stranded. Run skill_lint after fixing.',
+        ]);
+    }
+
+    /**
+     * The same judgement the repository's CI applies, available on a live site.
+     *
+     * Without this the standard would only ever police the eighteen skills we
+     * ship, and never the ones agents write on other people's sites — which is
+     * most of the skills that will ever exist.
+     */
+    public static function lint(array $a): array
+    {
+        $service = Claudpress::instance()->skills;
+        $all     = [];
+        foreach ($service->all() as $row) {
+            $all[(string) $row['name']] = $row;
+        }
+        $known = array_keys($all);
+
+        // A draft, checked without saving it.
+        if (!empty($a['markdown'])) {
+            $parsed = Claudpress_Skills::parse_markdown((string) $a['markdown']);
+            if (empty($parsed['name'])) {
+                return ['success' => false, 'error' => 'No front matter found. A skill opens with --- on the first line.'];
+            }
+            $findings = Claudpress_Skill_Standard::check($parsed, array_unique(array_merge($known, [$parsed['name']])));
+            return self::lint_result([$parsed['name'] => $findings]);
+        }
+
+        // One skill already here.
+        if (!empty($a['name'])) {
+            $name = sanitize_title((string) $a['name']);
+            if (!isset($all[$name])) {
+                return ['success' => false, 'error' => 'Skill not found.'];
+            }
+            return self::lint_result([$name => Claudpress_Skill_Standard::check($all[$name], $known)]);
+        }
+
+        // Everything, including the links between them.
+        $by_skill = [];
+        foreach ($all as $name => $row) {
+            $by_skill[$name] = Claudpress_Skill_Standard::check($row, $known);
+        }
+        foreach (Claudpress_Skill_Standard::check_graph($all) as $finding) {
+            $by_skill[$finding['skill']][] = $finding;
+        }
+        return self::lint_result($by_skill);
+    }
+
+    /** @param array<string, array<int, array{level:string, message:string}>> $by_skill */
+    private static function lint_result(array $by_skill): array
+    {
+        $flat = [];
+        $out  = [];
+
+        foreach ($by_skill as $name => $findings) {
+            $flat = array_merge($flat, $findings);
+            $out[] = [
+                'name'     => $name,
+                'score'    => Claudpress_Skill_Standard::score($findings),
+                'passes'   => !Claudpress_Skill_Standard::has_errors($findings),
+                'findings' => array_map(
+                    static fn(array $f): string => $f['level'] . ': ' . $f['message'],
+                    $findings
+                ),
+            ];
+        }
+
+        return [
+            'success' => true,
+            'score'   => Claudpress_Skill_Standard::score($flat),
+            'passes'  => !Claudpress_Skill_Standard::has_errors($flat),
+            'skills'  => $out,
+        ];
     }
 
     public static function refresh(array $a): array

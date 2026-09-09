@@ -1,13 +1,25 @@
 ---
 name: site-safety
-description: Baseline safety and verification rules for making changes on this WordPress site. Loads automatically for any create/update/delete/install/PHP/SQL operation to keep changes reversible and verified.
+title: Site safety
+description: Baseline safety and verification rules for making changes on this WordPress site. Loads automatically for any create/update/delete/install/PHP/SQL operation to keep changes reversible and verified. Use when a change needs to be undoable, when you must verify the front end still loads and did not break after an edit, when something you just did took the site down, or before touching anything you did not build.
 enable_agentic: true
 enable_prompt: false
+role: gate
+next_skills: security-standard, code-snippets
+verified_by: pre-launch-audit
 ---
 
 # Site safety
 
 You have full control of a real WordPress site. Move fast, but never leave it broken.
+
+## When to use
+
+Any create, update, delete, install, PHP or SQL operation on a live site. It is the baseline that keeps a change reversible and makes you prove it worked.
+
+## When NOT to use
+
+Not a security audit — that is `security-standard`. This is about not breaking the site you are working on, not about defending it from an attacker.
 
 ## Never report done without the audit
 
@@ -96,3 +108,17 @@ site, so you don't get to unilaterally change them.
 
 ## Remember
 - Save durable decisions and conventions with `memory_save` so future sessions don't repeat mistakes or re-ask.
+
+## Routing examples
+
+Phrases that must reach this skill, and one that must not. `bin/lint-skills.php`
+checks them against every other skill's description.
+
+- fires: make sure this change is reversible
+- fires: verify the change did not break the front end
+- skips: write a blog post about padel courts
+
+## Related skills
+
+- **Next** — security-standard, code-snippets. Consider these when this skill is done.
+- **Verified by** — pre-launch-audit. The work is not finished until this has run and passed.

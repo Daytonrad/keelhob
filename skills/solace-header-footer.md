@@ -1,8 +1,13 @@
 ---
 name: solace-header-footer
+title: Solace header & footer
 description: Build or edit the header/footer of a site running the Solace theme. Use whenever the active theme is Solace (or Solace Extra) and the task touches the header, footer, mega menu, or site chrome. Distilled from a full Solace Site Builder + Customizer reference — read before writing anything, this theme has real traps.
 enable_agentic: true
 enable_prompt: true
+role: procedure
+requires: web-design-master
+next_skills: website-building, motion-and-interaction
+verified_by: pre-launch-audit
 ---
 
 # Solace header & footer
@@ -11,6 +16,14 @@ Solace ships **two independent header/footer systems**. Whichever is active full
 
 1. **Customizer / Header-Footer Grid (HFG)** — plain `theme_mod` values (JSON strings + PHP arrays), sitewide only, ships with base Solace. No Claudpress tool writes these directly; use `execute_php` (`set_theme_mod`/`get_theme_mod`) if this system is the one live.
 2. **Site Builder** (needs the free **Solace Extra** plugin) — built with Elementor, stored as `solace-sitebuilder` posts with per-page display conditions. Fully readable/writable with the normal `elementor_page` tool once you have the post ID.
+
+## When to use
+
+The active theme is Solace or Solace Extra and the task touches the header, footer, mega menu or site chrome.
+
+## When NOT to use
+
+Not on any other theme. On Elementor the same job is `elementor-page-building`; elsewhere it is `website-building`.
 
 ## Step 0 — detect which one is live (every time, before touching anything)
 1. Query `solace-sitebuilder` posts (`list_posts post_type=solace-sitebuilder`) and check each one's `_solace_template` (header/footer), `_solace_{header|footer}_status` (enabled?), and `_solace_{header|footer}_conditions` (which pages it targets).
@@ -38,3 +51,18 @@ Any other theme, or Solace's page bodies (use `elementor-page-building` for thos
 ## Guardrails
 - Don't disable/hide the currently-live header/footer system to "clean up" the other one without asking — the site depends on it.
 - Save which system is active for this site with `memory_save key=site.solace_header_system` so future sessions skip re-detecting.
+
+## Routing examples
+
+Phrases that must reach this skill, and one that must not. `bin/lint-skills.php`
+checks them against every other skill's description.
+
+- fires: edit the header on my solace theme
+- fires: set up the mega menu in solace
+- skips: write a blog post about padel courts
+
+## Related skills
+
+- **Requires** — web-design-master. Load these before you start.
+- **Next** — website-building, motion-and-interaction. Consider these when this skill is done.
+- **Verified by** — pre-launch-audit. The work is not finished until this has run and passed.

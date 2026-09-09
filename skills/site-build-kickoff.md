@@ -1,13 +1,26 @@
 ---
 name: site-build-kickoff
+title: Site build kickoff
 description: The FIRST skill to load whenever someone asks to build a WordPress site from scratch — "build me a website", "make my site", "I need a website for my business", or any brand-new-site request with no detailed brief attached. Runs a short menu + intake Q&A instead of requiring a long prompt, saves the answers to memory, then hands off to website-building/elementor-page-building/solace-header-footer/blog-publishing/seo-optimization. Do NOT use for edits to an existing page — only for a new site build.
 enable_agentic: true
 enable_prompt: true
+role: procedure
+requires: build-standard
+next_skills: website-building, web-design-master
+verified_by: launch-readiness-and-compliance
 ---
 
 # Site build kickoff
 
 A simple "build me a website" is enough. Never demand a long brief — ask a short menu + a short batch of questions, then build. Keep every reply caveman-brief: short sentences, no filler, plain words. Save state as you go so a fresh session can resume.
+
+## When to use
+
+The very first move on a brand-new site request that arrives with no detailed brief. It runs the short intake that turns "build me a website" into something buildable.
+
+## When NOT to use
+
+Not when a brief, a screenshot or a design already exists — go straight to `website-building`. Not for editing a site that is already up.
 
 ## Step 0 — load the standard, then check memory
 Load `build-standard` first, before anything else — it is the Definition of Done every
@@ -117,3 +130,18 @@ If the environment supports spawning sub-agents (e.g. an `Agent`/Task tool is av
 - Never ship lorem ipsum or grey placeholder images — use `image_search`/`image_generate` or ask for real assets.
 - Confirm before overwriting an existing live site's homepage.
 - Stay caveman-brief in every message to the user, from the first menu question to the final report.
+
+## Routing examples
+
+Phrases that must reach this skill, and one that must not. `bin/lint-skills.php`
+checks them against every other skill's description.
+
+- fires: build me a website
+- fires: i need a website for my business
+- skips: add a tracking pixel to every page
+
+## Related skills
+
+- **Requires** — build-standard. Load these before you start.
+- **Next** — website-building, web-design-master. Consider these when this skill is done.
+- **Verified by** — launch-readiness-and-compliance. The work is not finished until this has run and passed.

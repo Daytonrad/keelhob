@@ -1,13 +1,25 @@
 ---
 name: code-snippets
+title: Code snippets
 description: Add custom functionality or behavior to the site by writing live code snippets (PHP, CSS, JS, HTML) — hooks, filters, shortcodes, tracking pixels, tweaks, fixes. Use when the task is to change how the site works or looks via code rather than content, or the user says "add code", "add a snippet", "add a hook/filter", "add tracking", "custom function".
 enable_agentic: true
 enable_prompt: true
+role: procedure
+requires: site-safety
+next_skills: motion-and-interaction, security-standard
 ---
 
 # Code snippets
 
 Use `snippet_save` to add real code that runs on the live site — the safe alternative to editing `functions.php`. A PHP snippet that fatals is auto-deactivated so the site never breaks.
+
+## When to use
+
+The task is to change how the site behaves or looks by writing live code — a hook, a filter, a shortcode, a tracking pixel, a CSS tweak, a small fix — rather than by editing content.
+
+## When NOT to use
+
+Not for content edits, and not for design work a theme setting or page builder already covers. Reaching for code first is how a site ends up with behaviour nobody can find later.
 
 ## Types & where they run
 - **php** — runs in WordPress. Do NOT include `<?php` tags. Register hooks/filters/shortcodes or define functions. Location `everywhere` (default) runs on `plugins_loaded`; `admin_only` / `frontend_only` scope it.
@@ -85,3 +97,13 @@ or SKU on the destination.
   That skill has the correct way to enqueue a library and the performance budget.
 - **`security-standard`** — before writing anything that touches input, auth or files.
 - **`build-standard`** — the router for what else the job needs.
+
+## Routing examples
+
+Phrases that must reach this skill, and one that must not. `bin/lint-skills.php`
+checks them against every other skill's description.
+
+- fires: add a tracking pixel to every page
+- fires: write a php hook that changes the checkout
+- fires: add custom css to hide the sidebar
+- skips: audit my site before it goes live

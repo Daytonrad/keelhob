@@ -1,18 +1,19 @@
 <?php
 /**
- * The skill catalogue: what exists, what it does, and which tier it belongs to.
+ * The skill catalogue: what exists, what it is called, and what it does.
  *
- * This is deliberately separate from the skill BODIES. It exists so the Skills
+ * GENERATED FILE — do not edit by hand. Run `php bin/build-skill-router.php`.
+ * The source of truth is the front matter in skills/*.md; every value below is
+ * that file's `title` and the first sentence of its `description`.
+ *
+ * It is deliberately separate from the skill BODIES. It exists so the Skills
  * admin screen can name and describe every skill without loading eighteen
- * bodies to render one list - the bodies are large, and the screen only ever
+ * bodies to render one list — the bodies are large, and the screen only ever
  * shows a title and a line.
  *
- * It once served a second purpose: showing free users what the paid tier would
- * have given them. There is no paid tier, every skill ships, and that framing
- * is gone.
- *
- * Keep this in step with skills/ when a skill is added or renamed. The test
- * suite fails if the two drift, which is the point.
+ * It was hand-kept until the skill standard arrived, and drifting from skills/
+ * was one of the four chores that made accepting a contributed skill a job in
+ * itself.
  */
 
 if (!defined('ABSPATH')) {
@@ -45,11 +46,11 @@ final class Claudpress_Skill_Catalog
             ],
             'launch-readiness-and-compliance' => [
                 'title'       => 'Launch readiness and compliance',
-                'description' => 'The gate a site passes before anyone sees it - the twenty things that make a site read as cheap, and the legal duties a website owes its visitors: cookie consent done correctly, privacy, accessibility, and e-commerce obligations.',
+                'description' => 'The gate a site passes before anyone sees it — the twenty things that make a site read as cheap, and the legal duties a website owes its visitors.',
             ],
             'motion-and-interaction' => [
                 'title'       => 'Motion and interaction',
-                'description' => 'How to make a site feel alive rather than static - entrance choreography, scroll-driven animation, easing, stagger, micro-interaction and page transitions, with the performance budget that keeps it fast.',
+                'description' => 'How to make a site feel alive rather than static — entrance choreography, scroll-driven animation, easing, stagger, hover and micro-interaction, page transitions, and the performance budget that keeps it all fast.',
             ],
             'pre-launch-audit' => [
                 'title'       => 'Pre-launch audit',
@@ -61,7 +62,7 @@ final class Claudpress_Skill_Catalog
             ],
             'seo-audit-and-fix' => [
                 'title'       => 'SEO audit and fix',
-                'description' => 'Audit a whole website across five layers - on-page, technical and Core Web Vitals, AI-overview readiness, duplicate and doorway pages, and local - then fix what it finds, with a before-and-after report the owner can look at.',
+                'description' => 'Audit a whole website\'s SEO across five layers and then fix what it finds — on-page, technical/Core Web Vitals, AI-overview readiness, duplicate/doorway pages, and local/Google Business Profile — producing a before-and-after report the owner can actually look at.',
             ],
             'seo-optimization' => [
                 'title'       => 'SEO + GEO optimization',

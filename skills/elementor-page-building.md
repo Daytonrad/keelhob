@@ -1,13 +1,26 @@
 ---
 name: elementor-page-building
+title: Elementor page building
 description: Build or edit fully editable pages, headers, and footers with Elementor (free or Pro, incl. Xpro Addons). Use whenever the task is to build/edit an Elementor page, header, footer, or template, or the site's builder is Elementor and the user wants client-editable pages.
 enable_agentic: true
 enable_prompt: true
+role: procedure
+requires: web-design-master
+next_skills: motion-and-interaction, seo-optimization
+verified_by: pre-launch-audit
 ---
 
 # Elementor page building
 
 Build **client-editable** pages with Elementor via the `elementor_page`, `elementor_settings`, and `elementor_kit` tools. (For maximum-fidelity pages the client won't edit, prefer a custom-coded page template — see the `website-building` skill.)
+
+## When to use
+
+The builder is Elementor and the task touches an Elementor page, header, footer or template — building one, rebuilding a homepage or landing page in it, editing one, or making one editable by the owner afterwards.
+
+## When NOT to use
+
+Not when the site's builder is something else. On a Solace theme the chrome belongs to `solace-header-footer`; a page built in code belongs to `website-building`.
 
 ## One-time prep (do this first)
 1. Confirm Elementor is active (`get_site_info`). If not: `manage_plugin action=install plugin=elementor` then `action=activate plugin=elementor/elementor.php`.
@@ -65,3 +78,18 @@ Xpro Theme Builder layouts are their own post type (`xpro-themer`) with display-
 - Keep element `id`s unique; duplicate ids break the editor.
 - **Verify by rendering, never by reading the JSON back.** A malformed-JSON check alone isn't enough — every trap above produces a tree that looks completely correct in `_elementor_data`. Load the page and check the actual computed result (does the menu have the right colors? does the header appear at all? is there one H1?).
 - Save the site's chosen builder and any recurring section patterns with `memory_save`.
+
+## Routing examples
+
+Phrases that must reach this skill, and one that must not. `bin/lint-skills.php`
+checks them against every other skill's description.
+
+- fires: rebuild the homepage in elementor
+- fires: edit this elementor template
+- skips: write a blog post about padel courts
+
+## Related skills
+
+- **Requires** — web-design-master. Load these before you start.
+- **Next** — motion-and-interaction, seo-optimization. Consider these when this skill is done.
+- **Verified by** — pre-launch-audit. The work is not finished until this has run and passed.

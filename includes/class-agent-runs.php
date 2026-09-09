@@ -43,6 +43,7 @@ final class Claudpress_Agent_Runs
             output_tokens BIGINT NOT NULL DEFAULT 0,
             cost_usd DECIMAL(10,5) NOT NULL DEFAULT 0,
             summary LONGTEXT NULL,
+            skills_used VARCHAR(500) NOT NULL DEFAULT '',
             detail LONGTEXT NULL,
             PRIMARY KEY (id),
             KEY started_at (started_at),
@@ -53,6 +54,12 @@ final class Claudpress_Agent_Runs
     /** Open a run row and return its id (0 if the table is unavailable). */
     public static function start(string $instruction, string $context, string $model, ?int $task_id = null): int
     {
+        // Fresh receipt. Without this a long-lived process that runs two tasks
+        // in one request would credit the first run's skills to the second, and
+        // the record exists precisely because it must be more trustworthy than
+        // the agent's own account.
+        Claudpress_Tool_Registry::reset_skills_loaded();
+
         global $wpdb;
         $ok = $wpdb->insert(self::table(), [
             'started_at'  => current_time('mysql'),
@@ -82,6 +89,7 @@ final class Claudpress_Agent_Runs
             'output_tokens' => (int) ($fields['output_tokens'] ?? 0),
             'cost_usd'      => round((float) ($fields['cost_usd'] ?? 0), 5),
             'summary'       => mb_substr((string) ($fields['summary'] ?? ''), 0, 8000),
+            'skills_used'   => substr(implode(', ', Claudpress_Tool_Registry::skills_loaded()), 0, 500),
             'detail'        => mb_substr((string) wp_json_encode($fields['detail'] ?? []), 0, 20000),
         ];
         $wpdb->update(self::table(), $row, ['id' => $id]);

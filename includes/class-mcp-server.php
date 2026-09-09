@@ -160,6 +160,16 @@ final class Claudpress_MCP_Server
             // clock and real API credit, and the owner may only have said
             // "check my SEO".
             '12. Work that costs money or takes a long time gets agreed first. Before a whole-site audit, a bulk content or image run, a paid API call, or anything that will run for many minutes, say what you are about to do, roughly what it will cost and how long it will take, and wait for a yes. An estimate you are unsure of is still worth saying out loud - a number with a caveat is useful, silence is what makes a bill a surprise. This does not apply to ordinary single-page work.',
+            '',
+            // Rule 11 tells the agent to load a skill; nothing until now checked
+            // that it did, or that it honoured what the skill pointed at. A
+            // skill declares `verified_by` precisely because finishing the steps
+            // is not the same as the work being right, and a declared verifier
+            // that never runs is worse than none - it reads like a guarantee in
+            // the file and is a no-op in practice. Naming the skills used also
+            // makes a bad result diagnosable: the run record shows what was
+            // loaded, so "why did this page ship with no meta" has an answer.
+            '13. Name the skills you used, and honour their verifiers. Before reporting any work as done, say which skills you loaded. If a skill you loaded declares a verifier ("not done until X" in the catalog), run X and report what it said. If you did not run it, say so plainly and say why - do not report the work as done and leave the verifier unmentioned.',
         ];
 
         return (string) apply_filters('claudpress_operating_protocol', implode("\n", $rules));
@@ -236,7 +246,15 @@ final class Claudpress_MCP_Server
      * database — Claudpress_Skills is final and reads $wpdb directly, so the
      * only way to assert on this text otherwise is to stand up a schema for it.
      *
-     * @param array<int,array{name:string,description:string}> $skills
+     * Each line carries the skill's role and its declared edges, not just its
+     * description. That is the difference between a list of names and a map:
+     * before loading a single body the agent can see that this one is a gate,
+     * that finishing that one implies another, and that some work is not done
+     * until a named skill has run. It costs about 50 bytes a skill, and
+     * Claudpress_Skill_Standard::CATALOG_BUDGET is what stops it growing
+     * without anyone noticing.
+     *
+     * @param array<int,array{name:string,description:string,role?:string,next_skills?:string[],verified_by?:string[]}> $skills
      */
     public static function format_skill_catalog(array $skills): string
     {
@@ -246,14 +264,35 @@ final class Claudpress_MCP_Server
 
         $lines = ['Available skills (load the full body with the skill_get tool, or invoke as a prompt, when a task matches):'];
         foreach ($skills as $s) {
-            $lines[] = sprintf('- %s: %s', (string) ($s['name'] ?? ''), (string) ($s['description'] ?? ''));
+            $line = sprintf('- %s [%s]: %s', (string) ($s['name'] ?? ''), (string) ($s['role'] ?? 'procedure'), (string) ($s['description'] ?? ''));
+
+            $tail = [];
+            if (!empty($s['next_skills'])) {
+                // Capped, because build-standard names every other skill and
+                // that one line cost about 400 bytes of every session. The rest
+                // are one skill_get away, and rule 11 sends the agent there
+                // before it builds anything.
+                $next  = (array) $s['next_skills'];
+                $shown = array_slice($next, 0, Claudpress_Skill_Standard::CATALOG_EDGES);
+                $more  = count($next) - count($shown);
+                $tail[] = 'then: ' . implode(', ', $shown) . ($more > 0 ? sprintf(' +%d more', $more) : '');
+            }
+            if (!empty($s['verified_by'])) {
+                $tail[] = 'not done until: ' . implode(', ', (array) $s['verified_by']);
+            }
+            if (!empty($tail)) {
+                $line .= ' (' . implode(' | ', $tail) . ')';
+            }
+            $lines[] = $line;
         }
+
         // Naming the router explicitly. A description is the only thing that
         // matches a task to a skill, so an agent that reads one description and
         // stops gets a page built with no taste, no SEO pass and no safety
         // check — every one of which lives in a different skill that the first
         // one names.
-        $lines[] = 'Skills reference each other. When a skill names another, load that one too — build-standard carries the router table for every kind of build.';
+        $lines[] = 'Roles: gate = work is not finished until it passes; procedure = steps to follow; reference = knowledge to read for judgement.';
+        $lines[] = 'Skills reference each other. Follow "then" when a skill is done, and treat "not done until" as binding — build-standard carries the router table for every kind of build.';
 
         return implode("\n", $lines);
     }

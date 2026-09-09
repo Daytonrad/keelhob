@@ -1,13 +1,26 @@
 ---
 name: website-building
+title: Website building
 description: Build a beautiful website, landing page, homepage, header, or footer in WordPress from a brief, screenshot, or design. Use when the user wants to build/redesign a page or whole site, clone a design pixel-for-pixel, set up theme, navigation, and footer, or build a cinematic scroll-driven hero where the video scrubs with the scroll wheel. For a brand-new site with no brief yet, load `site-build-kickoff` first — it runs the stack menu + intake questions this skill assumes are already answered.
 enable_agentic: true
 enable_prompt: true
+role: procedure
+requires: web-design-master
+next_skills: motion-and-interaction, seo-optimization, elementor-page-building, solace-header-footer, code-snippets
+verified_by: pre-launch-audit
 ---
 
 # Website building
 
 Turn a brief, screenshot, or design into a live WordPress page. First decide the **build mode** with the user (or from the `build.page_modes` memory):
+
+## When to use
+
+Building or redesigning a page or a whole site from a brief, a screenshot or a design — including cloning a layout pixel for pixel, setting up the theme, navigation and forms.
+
+## When NOT to use
+
+Not for a brand-new site request with no brief; that starts at `site-build-kickoff`. Not for posts and articles, which are `blog-publishing`.
 
 ## Mode 1 — Pixel-perfect custom-coded page (highest fidelity)
 Best when the design must match exactly and the client won't edit it themselves.
@@ -173,3 +186,18 @@ not at the end when seven pages share the same mistake.
 - Confirm before overwriting an existing homepage or template.
 - Keep everything mobile-responsive; test narrow widths mentally and fix overflow.
 - Prefer child theme or snippets over editing core/parent theme files.
+
+## Routing examples
+
+Phrases that must reach this skill, and one that must not. `bin/lint-skills.php`
+checks them against every other skill's description.
+
+- fires: clone this design pixel for pixel
+- fires: build the homepage from this screenshot
+- skips: audit the seo of my whole website
+
+## Related skills
+
+- **Requires** — web-design-master. Load these before you start.
+- **Next** — motion-and-interaction, seo-optimization, elementor-page-building, solace-header-footer, code-snippets. Consider these when this skill is done.
+- **Verified by** — pre-launch-audit. The work is not finished until this has run and passed.

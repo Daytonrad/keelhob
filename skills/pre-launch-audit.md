@@ -1,8 +1,11 @@
 ---
 name: pre-launch-audit
+title: Pre-launch audit
 description: Audit a WordPress or WooCommerce site before it goes live and produce a scored report — design, responsiveness, performance, functionality, accessibility, security, SEO and conversion. Use when the user asks to review/audit/check a site before launch, asks "is this ready to go live", "what's wrong with my site", "review my site", wants a second opinion on a build, or has just finished a build and needs it checked. Read-only: this skill inspects and reports, it never fixes. Emits a machine-readable JSON findings block alongside the human report so `build-standard`'s fix loop can consume it programmatically.
 enable_agentic: true
 enable_prompt: true
+role: gate
+next_skills: launch-readiness-and-compliance, seo-audit-and-fix, security-standard
 ---
 
 # Pre-launch audit
@@ -23,6 +26,14 @@ This is the checker for the standard defined in `build-standard` — that skill 
 the real status code again on each iteration. A build session's memory of what it changed
 is not evidence — "I set that earlier" is exactly what let four SEO bugs in a past release
 report success while silently emitting nothing.
+
+## When to use
+
+Someone wants a site reviewed and scored rather than changed — before a launch, before a handover, or to settle whether work is actually finished. It is also the verifier most build skills declare.
+
+## When NOT to use
+
+Not for fixing what it finds. It produces the report and the score; the fixes belong to the skill that owns each area. Never score your own design work without it.
 
 ## How to judge
 
@@ -351,3 +362,12 @@ Worked example (illustrative, not exhaustive — a real report has more findings
 - **`build-standard`** — the definition of done this audit is scoring against.
 - **`web-design-master`**, **`motion-and-interaction`** — where the design findings get fixed.
 - **`security-standard`** — the hardening pass, which this does not replace.
+
+## Routing examples
+
+Phrases that must reach this skill, and one that must not. `bin/lint-skills.php`
+checks them against every other skill's description.
+
+- fires: audit my site before it goes live
+- fires: give me a scored report on this site
+- skips: add a tracking pixel to every page

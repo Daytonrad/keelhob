@@ -1,11 +1,23 @@
 ---
 name: seo-audit-and-fix
+title: SEO audit and fix
 description: Audit a whole website's SEO across five layers and then fix what it finds — on-page, technical/Core Web Vitals, AI-overview readiness, duplicate/doorway pages, and local/Google Business Profile — producing a before-and-after report the owner can actually look at. Use for "audit my SEO", "why am I not ranking", "check my whole site", "improve my Lighthouse score", "my traffic dropped", "make my site load faster", "get me into AI Overviews", "score my site", or auditing a prospect's site to win work. This is the WHOLE-SITE, expensive, consent-gated job; for one page use seo-optimization instead. Never start it without agreeing scope and cost with the owner first.
 enable_agentic: true
 enable_prompt: true
+role: procedure
+next_skills: seo-optimization, motion-and-interaction
+verified_by: pre-launch-audit
 ---
 
 # SEO audit and fix
+
+## When to use
+
+A whole site's search performance is the subject: rankings dropped, traffic fell, Core Web Vitals are poor, or the owner wants an audit across every page. Expensive, so the cost gate comes first.
+
+## When NOT to use
+
+Not for one page. Setting a meta title, adding schema, or writing a description for a single page is `seo-optimization`, which is far cheaper to load and runs constantly during a build.
 
 ## Read this first
 
@@ -320,3 +332,13 @@ than re-ask.
 - **`launch-readiness-and-compliance`** — a fast page that is illegal is still not ready. Analytics that fire before consent is a real finding, and it belongs there.
 - **`motion-and-interaction`** — animation is a common cause of a failing performance and layout-shift score; that skill carries the budget.
 - **`website-building`**, **`web-design-master`** — when the fix is that the page is wrong, not that the tag is missing.
+
+## Routing examples
+
+Phrases that must reach this skill, and one that must not. `bin/lint-skills.php`
+checks them against every other skill's description.
+
+- fires: audit the seo of my whole website
+- fires: my rankings dropped find out why
+- fires: check my core web vitals
+- skips: do i need a cookie banner

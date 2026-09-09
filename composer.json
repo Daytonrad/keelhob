@@ -27,11 +27,15 @@
     "scripts": {
         "test": "php tests/run.php",
         "analyse": "phpstan analyse --memory-limit=2G",
-        "lint": "php bin/lint.php"
+        "lint": "php bin/lint.php",
+        "lint:skills": "php bin/lint-skills.php",
+        "skills:build": "php bin/build-skill-router.php"
     },
     "scripts-descriptions": {
         "test": "Run the custom unit suite (tests/run.php). No PHPUnit, no database.",
         "analyse": "Run PHPStan level 1 over the plugin against the committed baseline.",
-        "lint": "Run `php -l` over every PHP file in the repo, excluding vendor/."
+        "lint": "Run `php -l` over every PHP file in the repo, excluding vendor/.",
+        "lint:skills": "Score every skill against docs/SKILL-STANDARD.md. This is the pull-request rubric.",
+        "skills:build": "Regenerate the skill catalogue, the standard doc, and the tree table in build-standard.md."
     }
 }

@@ -1,11 +1,23 @@
 ---
 name: build-standard
+title: Build standard
 description: The Definition of Done for any build work on this site — what "finished" requires before a page, a site, or a launch can be reported as complete. Load this BEFORE building anything: a new site, a new page, an edit to an existing page, a store launch, or a pre-launch pass. Triggers on "build me a...", "add a page", "make this live", "is this done", "ready to launch", "finish the site", or the start of any site-build-kickoff/website-building/store-launch-and-deploy task. Routes to the right skill for each part of the job and defines the fix loop, the security floor, and the completion report. Not an audit tool itself — pre-launch-audit does the checking; this is the standard it checks against.
 enable_agentic: true
 enable_prompt: true
+role: gate
+next_skills: site-build-kickoff, website-building, blog-publishing, seo-optimization, code-snippets, woocommerce-store-operations, launch-readiness-and-compliance, skill-creator, site-safety, security-standard, web-design-master, motion-and-interaction, seo-audit-and-fix, elementor-page-building, solace-header-footer, store-launch-and-deploy
+verified_by: pre-launch-audit
 ---
 
 # Build standard
+
+## When to use
+
+Before any build work at all: a new site, a new page, an edit to a page a visitor will see, a store setup, a launch. It carries the Definition of Done and the router table that says which skill owns which part of the job.
+
+## When NOT to use
+
+Not for reading or reporting on a site nobody is changing. An audit with no edits belongs to `pre-launch-audit`.
 
 ## What this is
 
@@ -139,6 +151,39 @@ Load the skill for the part of the job you're actually doing, not everything at 
 | Cookie consent, GDPR, privacy, accessibility, returns — and the twenty things that make a site look cheap | `launch-readiness-and-compliance` |
 | Building a new repeatable skill | `skill-creator` |
 
+## The skill tree
+
+The table above says which skill owns a job. This one says what each skill owes
+the others — what it needs loaded first, where to go when it is finished, and
+what has to run before the work counts as done. **"Not done until" is binding:**
+finishing the steps in a skill is not the same as the work being right.
+
+Generated from the front matter in `skills/*.md` by `php bin/build-skill-router.php`.
+Do not edit the table by hand — change the skill file and regenerate.
+
+<!-- ROUTER:START -->
+| Skill | Role | Requires first | Then consider | Not done until |
+|---|---|---|---|---|
+| `blog-publishing` | procedure | — | `seo-optimization`, `web-design-master` | `seo-optimization` |
+| `build-standard` | gate | — | `site-build-kickoff`, `website-building`, `blog-publishing`, `seo-optimization`, `code-snippets`, `woocommerce-store-operations`, `launch-readiness-and-compliance`, `skill-creator`, `site-safety`, `security-standard`, `web-design-master`, `motion-and-interaction`, `seo-audit-and-fix`, `elementor-page-building`, `solace-header-footer`, `store-launch-and-deploy` | `pre-launch-audit` |
+| `code-snippets` | procedure | `site-safety` | `motion-and-interaction`, `security-standard` | — |
+| `elementor-page-building` | procedure | `web-design-master` | `motion-and-interaction`, `seo-optimization` | `pre-launch-audit` |
+| `launch-readiness-and-compliance` | gate | — | `store-launch-and-deploy`, `security-standard` | `pre-launch-audit` |
+| `motion-and-interaction` | reference | — | `web-design-master`, `seo-audit-and-fix` | `pre-launch-audit` |
+| `pre-launch-audit` | gate | — | `launch-readiness-and-compliance`, `seo-audit-and-fix`, `security-standard` | — |
+| `security-standard` | reference | — | `site-safety`, `pre-launch-audit` | — |
+| `seo-audit-and-fix` | procedure | — | `seo-optimization`, `motion-and-interaction` | `pre-launch-audit` |
+| `seo-optimization` | gate | — | `seo-audit-and-fix` | `pre-launch-audit` |
+| `site-build-kickoff` | procedure | `build-standard` | `website-building`, `web-design-master` | `launch-readiness-and-compliance` |
+| `site-safety` | gate | — | `security-standard`, `code-snippets` | `pre-launch-audit` |
+| `skill-creator` | procedure | — | `build-standard` | — |
+| `solace-header-footer` | procedure | `web-design-master` | `website-building`, `motion-and-interaction` | `pre-launch-audit` |
+| `store-launch-and-deploy` | procedure | — | `launch-readiness-and-compliance`, `woocommerce-store-operations` | `pre-launch-audit` |
+| `web-design-master` | reference | — | `motion-and-interaction`, `website-building` | `pre-launch-audit` |
+| `website-building` | procedure | `web-design-master` | `motion-and-interaction`, `seo-optimization`, `elementor-page-building`, `solace-header-footer`, `code-snippets` | `pre-launch-audit` |
+| `woocommerce-store-operations` | procedure | — | `store-launch-and-deploy`, `seo-optimization` | `site-safety` |
+<!-- ROUTER:END -->
+
 ## Page-level vs site-level gates
 
 A full-site audit for one new page is disproportionate — it slows down small edits until
@@ -252,3 +297,17 @@ Never mass-rewrite existing content. Never bulk-toggle settings. Never "fix" a d
 decision nobody asked you to touch. Present the findings and let the owner choose what
 happens next. See `site-safety` for the full change-safety rules once you do start
 touching a live site.
+
+## Routing examples
+
+Phrases that must reach this skill, and one that must not. `bin/lint-skills.php`
+checks them against every other skill's description.
+
+- fires: what is the definition of done here
+- fires: can i report this build as complete
+- skips: write a blog post about padel courts
+
+## Related skills
+
+- **Next** — site-build-kickoff, website-building, blog-publishing, seo-optimization, code-snippets, woocommerce-store-operations, launch-readiness-and-compliance, skill-creator, site-safety, security-standard, web-design-master, motion-and-interaction, seo-audit-and-fix, elementor-page-building, solace-header-footer, store-launch-and-deploy. Consider these when this skill is done.
+- **Verified by** — pre-launch-audit. The work is not finished until this has run and passed.

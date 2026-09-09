@@ -14,6 +14,18 @@ final class Claudpress_Tool_Registry
     private $tools = [];
 
     /**
+     * Skills loaded through skill_get during this PHP request, in order.
+     *
+     * Static rather than per-instance because the thing being measured is the
+     * request, not the registry: an unattended run builds its own registry and
+     * the answer to "what did that run load" must not depend on how many were
+     * built along the way.
+     *
+     * @var string[]
+     */
+    private static $skills_loaded = [];
+
+    /**
      * @param array $input_schema  JSON Schema for the tool's arguments.
      * @param mixed $callback      fn(array $args): array — return value is the tool result.
      *                             Not type-hinted `callable` on purpose — see below.
@@ -84,6 +96,18 @@ final class Claudpress_Tool_Registry
             throw new Exception(sprintf('Unknown tool: %s', $name));
         }
 
+        // A receipt, taken here because this is the one place every tool call
+        // passes through. Rule 13 asks the agent to name the skills it used,
+        // and an agent's own account of what it did is the least reliable
+        // evidence there is — it can honestly believe it followed a playbook it
+        // never loaded. This is the record that does not depend on it: the run
+        // report can say "loaded web-design-master, declared verifier
+        // pre-launch-audit never ran", which is the difference between knowing
+        // why a page shipped badly and guessing.
+        if ($name === 'skill_get' && !empty($args['name'])) {
+            self::$skills_loaded[] = (string) $args['name'];
+        }
+
         $started = microtime(true);
         $result  = call_user_func($this->tools[$name]['callback'], $args);
         $elapsed = round((microtime(true) - $started) * 1000, 1);
@@ -104,5 +128,21 @@ final class Claudpress_Tool_Registry
     public function names(): array
     {
         return array_keys($this->tools);
+    }
+
+    /**
+     * Which skills were loaded, de-duplicated, in the order first seen.
+     *
+     * @return string[]
+     */
+    public static function skills_loaded(): array
+    {
+        return array_values(array_unique(self::$skills_loaded));
+    }
+
+    /** Start a fresh receipt. An unattended run calls this before it begins. */
+    public static function reset_skills_loaded(): void
+    {
+        self::$skills_loaded = [];
     }
 }

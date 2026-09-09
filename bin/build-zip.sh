@@ -22,12 +22,6 @@ BUILD="$ROOT/build"
 STAGE="$BUILD/claudpress"
 ZIP="$BUILD/claudpress.zip"
 
-# Every skill in skills/ ships. The count is asserted rather than derived,
-# because "copy the folder, then check the folder was copied" is a test that
-# cannot fail — and a check that cannot fail is worse than no check, since it
-# reads like cover. Adding a skill is a deliberate act that updates this number.
-EXPECTED_SKILLS=18
-
 VERSION="$(grep -oP "define\('CLAUDPRESS_VERSION',\s*'\K[^']+" "$ROOT/claudpress.php" || true)"
 [ -n "$VERSION" ] || { echo "Could not read CLAUDPRESS_VERSION from claudpress.php" >&2; exit 1; }
 
@@ -57,10 +51,20 @@ cp -r "$ROOT/assets"       "$STAGE/"
 find "$BUILD" \( -name '.DS_Store' -o -name '*.log' -o -name '.env' \) -delete
 rm -rf "$STAGE/.codegraph" "$STAGE/node_modules"
 
+# Compared against the source folder, not against a number kept in this file.
+# That number used to be the thing that made you notice you had added a skill,
+# which was its real job - but the noticing has a better home now:
+# bin/lint-skills.php has to pass, and bin/build-skill-router.php --check has to
+# be current, before a skill can ship at all. What is left for this check to do
+# is catch a copy that silently dropped a file, so it compares the two folders.
+source_skills="$(find "$ROOT/skills" -name '*.md' | wc -l | tr -d ' ')"
 actual_skills="$(find "$STAGE/skills" -name '*.md' | wc -l | tr -d ' ')"
-if [ "$actual_skills" != "$EXPECTED_SKILLS" ]; then
-  echo "::error::staged $actual_skills skills, expected $EXPECTED_SKILLS." >&2
-  echo "If you added or removed a skill on purpose, update EXPECTED_SKILLS in this script." >&2
+if [ "$actual_skills" != "$source_skills" ]; then
+  echo "::error::staged $actual_skills skills but skills/ holds $source_skills. The copy dropped something." >&2
+  exit 1
+fi
+if [ "$actual_skills" -lt 1 ]; then
+  echo "::error::no skills staged." >&2
   exit 1
 fi
 echo "Skills: $actual_skills staged."

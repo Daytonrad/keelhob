@@ -39,6 +39,13 @@ final class Claudpress_Skills
         // existing table on upgrade without touching the rows. The default is
         // 'local' because that is the only answer that is safe when wrong: a
         // row nobody can prove came from us is a row a refresh must not touch.
+        //
+        // `role`, `requires`, `next_skills` and `verified_by` arrive the same
+        // way. They default to a lone procedure with no edges, which is exactly
+        // what a skill written before the standard existed is: it still works,
+        // it just does not connect to anything until someone declares that it
+        // does. `next_skills` rather than `next` because `next` is reserved in
+        // several SQL dialects and this value becomes a column name.
         dbDelta("CREATE TABLE {$table} (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             name VARCHAR(191) NOT NULL,
@@ -51,6 +58,10 @@ final class Claudpress_Skills
             bundled_hash VARCHAR(32) NOT NULL DEFAULT '',
             source VARCHAR(20) NOT NULL DEFAULT 'local',
             version VARCHAR(32) NOT NULL DEFAULT '',
+            role VARCHAR(20) NOT NULL DEFAULT 'procedure',
+            requires VARCHAR(500) NOT NULL DEFAULT '',
+            next_skills VARCHAR(500) NOT NULL DEFAULT '',
+            verified_by VARCHAR(500) NOT NULL DEFAULT '',
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             UNIQUE KEY name (name)
@@ -122,6 +133,15 @@ final class Claudpress_Skills
             'is_bundled'     => (int) (bool) ($args['is_bundled'] ?? 0),
             'updated_at'     => current_time('mysql'),
         ];
+        // The tree, as declared by the skill itself. Absent keys are written as
+        // empty rather than left alone on purpose: if an edit removes a
+        // `verified_by` line, the row must lose the edge too, or the site keeps
+        // enforcing a link the author deleted.
+        $row['role']        = Claudpress_Skill_Standard::role($args);
+        $row['requires']    = implode(', ', Claudpress_Skill_Standard::slugs((string) ($args['requires'] ?? '')));
+        $row['next_skills'] = implode(', ', Claudpress_Skill_Standard::slugs((string) ($args['next_skills'] ?? '')));
+        $row['verified_by'] = implode(', ', Claudpress_Skill_Standard::slugs((string) ($args['verified_by'] ?? '')));
+
         if (array_key_exists('bundled_hash', $args)) {
             $row['bundled_hash'] = (string) $args['bundled_hash'];
         }
@@ -172,13 +192,26 @@ final class Claudpress_Skills
         return $rows ?: [];
     }
 
-    /** Skills exposed to the agent's automatic catalog (description only). */
+    /**
+     * Skills exposed to the agent's automatic catalog.
+     *
+     * Descriptions and edges, never bodies. The edges cost about 50 bytes a
+     * skill and turn the catalog from a list of names into a map: the agent can
+     * see that finishing one skill implies another, and that some work is not
+     * done until a gate has run, before it has loaded a single body.
+     */
     public function agentic_catalog(): array
     {
         $out = [];
         foreach ($this->all() as $s) {
             if ((int) $s['enabled'] === 1 && (int) $s['enable_agentic'] === 1) {
-                $out[] = ['name' => $s['name'], 'description' => $s['description']];
+                $out[] = [
+                    'name'        => $s['name'],
+                    'description' => $s['description'],
+                    'role'        => Claudpress_Skill_Standard::role($s),
+                    'next_skills' => Claudpress_Skill_Standard::slugs((string) ($s['next_skills'] ?? '')),
+                    'verified_by' => Claudpress_Skill_Standard::slugs((string) ($s['verified_by'] ?? '')),
+                ];
             }
         }
         return $out;
@@ -226,6 +259,29 @@ final class Claudpress_Skills
                         break;
                     case 'enable_prompt':
                         $fields['enable_prompt'] = in_array(strtolower($val), ['1', 'true', 'yes'], true);
+                        break;
+                    // The skill's own place in the ecosystem, as data rather
+                    // than prose. Before these existed the only way one skill
+                    // could point at another was a sentence in its body, which
+                    // no script can read — so nothing could detect a loop, cost
+                    // a chain, or generate a router. Kept as raw single-line
+                    // strings here; Claudpress_Skill_Standard::slugs() is what
+                    // turns them into lists, because the front-matter parser
+                    // has no concept of one.
+                    case 'role':
+                    case 'requires':
+                    case 'next_skills':
+                    case 'verified_by':
+                        $fields[$key] = $val;
+                        break;
+                    // The display name, for the Skills admin screen. It exists
+                    // because "seo-audit-and-fix" cannot be turned into "SEO
+                    // audit and fix" by any rule that also handles "WooCommerce"
+                    // and "Solace header & footer" — so the skill says how it
+                    // wants to be called, and the catalogue is generated from
+                    // that instead of being kept by hand in a second file.
+                    case 'title':
+                        $fields['title'] = $val;
                         break;
                 }
             }

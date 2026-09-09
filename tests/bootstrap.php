@@ -633,6 +633,7 @@ require_once CLAUDPRESS_DIR . 'includes/class-snippet-log.php';
 require_once CLAUDPRESS_DIR . 'includes/class-tool-registry.php';
 require_once CLAUDPRESS_DIR . 'includes/class-capabilities.php';
 require_once CLAUDPRESS_DIR . 'includes/class-skill-catalog.php';
+require_once CLAUDPRESS_DIR . 'includes/class-skill-standard.php';
 require_once CLAUDPRESS_DIR . 'includes/class-memory.php';
 require_once CLAUDPRESS_DIR . 'includes/class-policy.php';
 require_once CLAUDPRESS_DIR . 'includes/class-agent-runs.php';
