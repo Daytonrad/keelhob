@@ -71,6 +71,20 @@ page at 375, 768, 1280 and 1440, check for horizontal scroll, overlap and clippe
 and read the console. If it does not, say so in the report and mark those checks *Not
 verified* rather than guessing. A guessed viewport result is worse than an admitted gap.
 
+## What this audit does not cover
+
+Two gates sit beside this one and neither is optional:
+
+- **`launch-readiness-and-compliance`** — cookie consent, GDPR, privacy, accessibility
+  duties, returns and delivery terms, and the twenty specific things that make a site
+  read as cheap. This audit judges whether a site is *good*; that one judges whether it
+  is *allowed*. A beautiful site that fires analytics before consent still fails.
+- **`seo-audit-and-fix`** — the whole-site SEO and performance pass. Report speed
+  findings here, but measure them there.
+
+Run all three before calling a launch ready, and never let one quietly stand in for
+another.
+
 ## What to check
 
 **Design and layout** — hierarchy, section order, alignment, spacing rhythm, whitespace,
@@ -329,3 +343,11 @@ Worked example (illustrative, not exhaustive — a real report has more findings
 - Do not soften a finding because the owner will be disappointed, and do not inflate one
   to look rigorous.
 - When the audit is finished, offer to fix things — as a separate, agreed piece of work.
+
+## Related skills
+
+- **`launch-readiness-and-compliance`** — the legal and cheap-looking gate. Run it too.
+- **`seo-audit-and-fix`** — where speed, crawl and duplicate findings are actually measured.
+- **`build-standard`** — the definition of done this audit is scoring against.
+- **`web-design-master`**, **`motion-and-interaction`** — where the design findings get fixed.
+- **`security-standard`** — the hardening pass, which this does not replace.

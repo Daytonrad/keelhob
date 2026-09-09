@@ -76,3 +76,12 @@ or SKU on the destination.
 - Prefer snippets over editing theme files; they survive theme updates and auto-recover from fatals.
 - Deactivate (don't delete) while iterating so you keep the code. Save reusable snippets' purpose to memory.
 - The owner can edit or delete any snippet from the Snippets page, and those edits are not versioned. If code you wrote looks different from what you remember, read it with `snippet_get` before changing it — do not assume your version is still there.
+
+## Related skills
+
+- **`site-safety`** — the change-safety rules for anything that runs on a live site. Live
+  code is the highest-risk thing in this plugin; read the rules before writing any.
+- **`motion-and-interaction`** — most CSS and JS snippets on a real site are animation.
+  That skill has the correct way to enqueue a library and the performance budget.
+- **`security-standard`** — before writing anything that touches input, auth or files.
+- **`build-standard`** — the router for what else the job needs.

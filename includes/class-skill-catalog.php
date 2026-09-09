@@ -2,10 +2,14 @@
 /**
  * The skill catalogue: what exists, what it does, and which tier it belongs to.
  *
- * This is deliberately separate from the skill BODIES. Descriptions ship in the
- * free plugin so the Skills screen can show someone exactly what Pro would give
- * them - that is the most honest upsell there is, and it costs nothing to give
- * away. The bodies are the product and ship only where they are licensed.
+ * This is deliberately separate from the skill BODIES. It exists so the Skills
+ * admin screen can name and describe every skill without loading eighteen
+ * bodies to render one list - the bodies are large, and the screen only ever
+ * shows a title and a line.
+ *
+ * It once served a second purpose: showing free users what the paid tier would
+ * have given them. There is no paid tier, every skill ships, and that framing
+ * is gone.
  *
  * Keep this in step with skills/ when a skill is added or renamed. The test
  * suite fails if the two drift, which is the point.
@@ -18,7 +22,7 @@ if (!defined('ABSPATH')) {
 final class Claudpress_Skill_Catalog
 {
     /**
-     * @return array<string, array{title:string, description:string, tier:string}>
+     * @return array<string, array{title:string, description:string}>
      */
     public static function all(): array
     {
@@ -39,6 +43,14 @@ final class Claudpress_Skill_Catalog
                 'title'       => 'Elementor page building',
                 'description' => 'Build or edit fully editable pages, headers, and footers with Elementor (free or Pro, incl. Xpro Addons).',
             ],
+            'launch-readiness-and-compliance' => [
+                'title'       => 'Launch readiness and compliance',
+                'description' => 'The gate a site passes before anyone sees it - the twenty things that make a site read as cheap, and the legal duties a website owes its visitors: cookie consent done correctly, privacy, accessibility, and e-commerce obligations.',
+            ],
+            'motion-and-interaction' => [
+                'title'       => 'Motion and interaction',
+                'description' => 'How to make a site feel alive rather than static - entrance choreography, scroll-driven animation, easing, stagger, micro-interaction and page transitions, with the performance budget that keeps it fast.',
+            ],
             'pre-launch-audit' => [
                 'title'       => 'Pre-launch audit',
                 'description' => 'Audit a WordPress or WooCommerce site before it goes live and produce a scored report — design, responsiveness, performance, functionality, accessibility, security, SEO and conversion.',
@@ -46,6 +58,10 @@ final class Claudpress_Skill_Catalog
             'security-standard' => [
                 'title'       => 'Security standard',
                 'description' => 'Harden and audit a WordPress/WooCommerce site\'s security — 20 automatic checks, a 7-question owner-decision intake, WooCommerce/card-skimming specifics, and a compromise-detection sweep to run before building on a site you did not build.',
+            ],
+            'seo-audit-and-fix' => [
+                'title'       => 'SEO audit and fix',
+                'description' => 'Audit a whole website across five layers - on-page, technical and Core Web Vitals, AI-overview readiness, duplicate and doorway pages, and local - then fix what it finds, with a before-and-after report the owner can look at.',
             ],
             'seo-optimization' => [
                 'title'       => 'SEO + GEO optimization',

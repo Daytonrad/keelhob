@@ -266,6 +266,15 @@ the exact model IDs to type for each one.
 == Changelog ==
 
 = 1.0.3 =
+* New: three skills. A whole-site SEO audit that scores your site, fixes what it finds and shows you
+  a before-and-after report page you can open on your phone. A design skill covering animation and
+  scroll effects, so pages stop coming out flat. And a launch check covering cookie consent, privacy,
+  accessibility and the twenty things that make a site look cheap.
+* New: your AI is now told which skills exist over Telegram and on scheduled runs, not only when
+  connected from a desktop app. It could previously build a page without knowing the design and SEO
+  guidance was there.
+* New: your AI now agrees the cost with you before starting anything slow or expensive, such as a
+  whole-site audit.
 * New: Claudpress now has its own icon in the WordPress admin menu, on every Claudpress screen, in
   the toolbar, and on the Updates screen, instead of a generic placeholder.
 * Security: the plugin now checks that your site still loads for a logged-out visitor after any

@@ -27,12 +27,13 @@ foreach ($catalog as $name => $meta) {
 
 CP_Test::group('Skill catalogue - every skill ships to everyone');
 
-// These fifteen used to be split nine/six across a free and a paid zip. There
-// is one zip now, and the assertion worth keeping is that every skill named in
-// the catalogue is actually present and describable - a catalogue entry with no
-// file behind it is how a skill goes missing without anyone noticing.
+// These once split nine/six across a free and a paid zip. There is one zip
+// now, and the assertion worth keeping is that every skill named in the
+// catalogue is actually present and describable - a catalogue entry with no
+// file behind it is how a skill goes missing without anyone noticing, and a
+// file with no entry is a skill the admin screen cannot name.
 $names = Claudpress_Skill_Catalog::names();
-CP_Test::same(15, count($names), 'all fifteen skills are catalogued');
+CP_Test::same(18, count($names), 'all eighteen skills are catalogued');
 
 foreach ($names as $name) {
     CP_Test::ok(is_file(CLAUDPRESS_DIR . 'skills/' . $name . '.md'), $name . ' has a file behind its catalogue entry');

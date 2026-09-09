@@ -73,9 +73,10 @@ Don't ask about things covered by the stack choice already (builder, header/foot
 1. Site chrome first: theme active, Elementor prepared, header + footer built and verified live on one page (use the stack's builder — Xpro/Solace/Pro Theme Builder per `elementor-page-building` / `solace-header-footer`).
 2. Menus created (`manage_menu`) before any page links to them.
 3. Homepage.
-4. Remaining pages, one at a time, each checked against the brief and the `web-design-master` quality bar.
+4. Remaining pages, one at a time, each checked against the brief and the `web-design-master` quality bar — with `motion-and-interaction` loaded alongside it. A page that does not move reads as a template no matter how well it is typeset, and retrofitting motion afterwards is harder than building it in.
 5. Blog posts — only if the brief says "now" (`blog-publishing` skill); otherwise leave for later and say so.
 6. `seo-optimization` pass across every new page once content is final.
+6b. `launch-readiness-and-compliance` before anything is shown to the public. It asks what the other skills do not: whether the site is allowed to do what it is doing, and whether it reads as paid-for. For a shop this is not optional — a store owes its customers returns terms, delivery terms and honest prices.
 7. Clear Elementor cache once, at the end, not per-page.
 8. The pages existing is not the same as the build being over — go to Step 4.5 before
    reporting anything as done.

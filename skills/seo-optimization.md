@@ -7,6 +7,12 @@ enable_prompt: true
 
 # SEO + GEO optimization
 
+**This skill is one page at a time.** For a whole site — crawling every page,
+scoring speed, finding duplicates, connecting Search Console or a paid data
+source, and producing a before-and-after report — load **`seo-audit-and-fix`**
+instead. That job is expensive and has to be agreed with the owner first; this
+one is part of building a page and runs constantly.
+
 This is a **required build phase**, not an optimization you get to later. `build-standard`
 lists meta title + description, Open Graph/Twitter cards, JSON-LD schema, sitemap,
 robots.txt, and `llms.txt` in its page- and site-level Definition of Done — a page without
@@ -85,6 +91,23 @@ Front-load the keyword, add a differentiator (year, number, benefit, location), 
   directly and check the status code, not just that a body came back — a 404 page served
   with a 200 status is not "serving," and a sitemap/robots/llms.txt URL that 404s is
   invisible to crawlers even though it "looks fine" if you only glance at content.
+
+## Speed is an SEO check, not a separate concern
+
+A page can carry perfect meta and still not rank, because Google measures what
+the visitor experiences. Judge every page against these before calling it done:
+
+| Metric | Pass | The usual cause when it fails |
+|---|---|---|
+| Largest Contentful Paint | ≤ 2.5s | The hero image — unsized, uncompressed, or lazy-loaded when it should not be |
+| Interaction to Next Paint | ≤ 200ms | Too much JavaScript running on the main thread |
+| Cumulative Layout Shift | ≤ 0.1 | Images and embeds with no `width`/`height`; webfonts without `font-display: swap` |
+| Lighthouse Performance | ≥ 90 on mobile | Work the opportunities list top-down |
+
+Measure it rather than guessing: Google PageSpeed Insights is a public endpoint
+needing no key at low volume, callable through `execute_php` + `wp_remote_get`
+from any client — including Telegram, where there is no browser to run
+Lighthouse in. `seo-audit-and-fix` has the full method.
 
 ## Guardrails
 - Never set `noindex` on a page the user wants ranked, and never bulk-noindex without explicit confirmation.

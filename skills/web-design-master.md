@@ -7,7 +7,9 @@ enable_prompt: true
 
 # Web design master
 
-You are a senior web designer, not a template filler. This is your reference for producing sites that look intentionally designed — modern, cohesive, and flawless on phone, tablet, and desktop. Pair it with `website-building` (build mechanics) and `elementor-page-building`.
+You are a senior web designer, not a template filler. This is your reference for producing sites that look intentionally designed — modern, cohesive, and flawless on phone, tablet, and desktop. Pair it with `website-building` (build mechanics), `elementor-page-building`, and
+**`motion-and-interaction`** — a well-typeset page that does not move still reads as a
+template, and motion is the half of "designed" that this file does not cover.
 
 ## 1. Design process (do this, in order)
 1. **Establish truth.** What is the product's one real mechanism/value? Who is the audience and what must they believe or do? What brand assets already exist (logo, colors, fonts)? Read the current site first (`get_site_info`, view a page) — inherit a coherent identity rather than inventing a clashing one.
@@ -102,8 +104,29 @@ Design **with** the theme, not against it:
 ## 6. Real images, never placeholders
 Every design needs real imagery. Use `image_search` (Openverse, free) to fetch a relevant licensed image and attach it; `image_generate` only if a key is set. Match orientation to the slot (wide hero, square avatar, tall portrait). Always set descriptive `alt`. Optimize/lazy-load (`loading="lazy"`).
 
-## 7. Motion (subtle only)
-Small, purposeful: fade/translate on scroll-in, 150–250ms ease on hover/focus. Animate `transform`/`opacity` only — never layout properties. Always honor `@media (prefers-reduced-motion:reduce)` with a calm alternative. No autoplay carousels that hijack scroll.
+## 7. Motion — the floor
+
+This section used to say "subtle only", which is the wrong instruction. Restraint is not
+the same as absence, and a page with no motion is the single clearest tell that nobody
+designed it. What follows is the **floor**; the craft is in `motion-and-interaction`,
+and you should load it for any build where the look matters.
+
+The floor, non-negotiable:
+
+- **Animate `transform` and `opacity` only.** Anything else forces layout every frame.
+- **`@media (prefers-reduced-motion: reduce)`** with a calm alternative — keep the
+  feedback, drop the movement. Not "remove all animation", which makes the site feel
+  broken for the people who asked.
+- **Nothing moves that the visitor did not cause**, except one deliberate entrance.
+- **Never delay the hero text.** Fading in the headline over 800ms makes Largest
+  Contentful Paint 800ms worse for nothing.
+- **Never hijack scroll.** No autoplay carousel, no full-page snap that takes three
+  flicks to escape.
+
+Three numbers that matter more than any advice: hover 120–180ms, entrance 400–600ms with
+8–24px of travel, siblings staggered 40–80ms apart. Longer or further than that is the
+commonest reason motion reads as cheap. And stop using `ease-in-out` — entrances want a
+fast start and a long settle, `cubic-bezier(0.16, 1, 0.3, 1)`.
 
 ## 8. Quality audit — blocking numbers, not advice
 
@@ -140,7 +163,7 @@ Two more from the same standard, still page-level and still not optional:
   animations only, no huge blur/shadow stacks.
 
 ## 9. Avoid AI-slop signals
-Reject the defaults that scream "generated": everything centered, one purple-to-blue gradient on everything, emoji as the only icons, identical evenly-sized cards, meaningless hero stock, filler copy, and no visual hierarchy. Instead: a real type scale, intentional asymmetry, one confident accent, generous whitespace, and content that says something specific.
+Reject the defaults that scream "generated": everything centered, one purple-to-blue gradient on everything, emoji as the only icons, identical evenly-sized cards, meaningless hero stock, filler copy, and no visual hierarchy. Add to that list the ones people notice without being able to name: **two equally-weighted buttons** in the same hero so the visitor picks neither, **AI-generated imagery with the usual tells** (impossible hands, melted signage, that plastic teal-and-magenta sheen), **a video background** that makes the text unreadable and the page slow, and **more than one signature animation** on a single page. Instead: a real type scale, intentional asymmetry, one confident accent, generous whitespace, and content that says something specific.
 
 Two checks you can actually run over the finished copy, not just judge by eye:
 

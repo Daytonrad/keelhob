@@ -37,3 +37,14 @@ Write genuinely useful, specific content — not filler.
 ## Guardrails
 - Never publish straight to `publish` if the user asked for a draft or review.
 - Don't invent facts, statistics, or quotes. If a claim needs a source and you don't have one, say so.
+
+## Related skills
+
+A post is not finished when the words are written.
+
+- **`seo-optimization`** — meta, schema, the answer-first opening and the FAQ block that
+  gets a post quoted by AI search. Load it before publishing, not after.
+- **`web-design-master`** — the post template itself: measure, type scale, image
+  treatment. A well-written post in a bad template still looks cheap.
+- **`motion-and-interaction`** — if the post has a hero or anything interactive.
+- **`build-standard`** — what "published" actually requires.

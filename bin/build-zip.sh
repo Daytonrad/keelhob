@@ -26,7 +26,7 @@ ZIP="$BUILD/claudpress.zip"
 # because "copy the folder, then check the folder was copied" is a test that
 # cannot fail — and a check that cannot fail is worse than no check, since it
 # reads like cover. Adding a skill is a deliberate act that updates this number.
-EXPECTED_SKILLS=15
+EXPECTED_SKILLS=18
 
 VERSION="$(grep -oP "define\('CLAUDPRESS_VERSION',\s*'\K[^']+" "$ROOT/claudpress.php" || true)"
 [ -n "$VERSION" ] || { echo "Could not read CLAUDPRESS_VERSION from claudpress.php" >&2; exit 1; }

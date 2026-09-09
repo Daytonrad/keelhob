@@ -122,6 +122,60 @@ public. When the two disagree, this file is correct.
 
 ### Added
 
+- **Three skills, and the wiring that makes all eighteen findable.** Fifteen
+  shipped, and three jobs an agent is routinely asked to do were thin, missing,
+  or steering the wrong way.
+
+  **`seo-audit-and-fix`** — the whole-site pass `seo-optimization` never
+  covered: five layers (on-page, technical and Core Web Vitals, AI-overview
+  readiness, duplicate and doorway pages, local), a tool ladder that asks what
+  the owner has connected rather than assuming, and a free path that works with
+  nothing connected at all — because that is what most owners have. Kept
+  separate from `seo-optimization` on purpose: per-page work runs constantly
+  during a build and must stay cheap to load, while a site-wide audit is rare
+  and expensive, and merging them would drag the audit machinery into every
+  page. It builds a before-and-after report as a WordPress page with an
+  unguessable slug, noindex, at status 200 — which is the only way an owner on
+  Telegram or Slack can see the evidence at all — and it never deletes that
+  page on its own.
+
+  **`motion-and-interaction`** — a grep for `gsap`, `framer`, `scrolltrigger`,
+  `lenis` or `21st.dev` across all fifteen skills returned nothing, and
+  `web-design-master` carried a two-line section headed "Motion (subtle
+  only)". That was a ceiling where a floor was needed, and it is the
+  instruction that made every generated page read as a template. The new skill
+  teaches the craft — duration ladder, easing that is not `ease-in-out`,
+  8-24px of travel rather than 100, stagger, one signature moment per page —
+  and puts CSS-native motion first, because scroll-driven animations,
+  `@starting-style` and view transitions need no library and cannot be broken
+  by a theme update. GSAP where the job genuinely needs it, enqueued properly
+  and version-pinned. It also says plainly that **Framer Motion is a React
+  library and a PHP-rendered WordPress theme cannot use it**, which saves an
+  afternoon that would otherwise end in a broken build.
+
+  **`launch-readiness-and-compliance`** — twenty specific things that make a
+  site read as cheap, each with a way to detect it rather than a warning about
+  it; and the legal duties nothing in the plugin mentioned. The one most sites
+  fail is not a missing cookie banner but a banner that does nothing: analytics
+  firing before Accept is pressed. The skill verifies it instead of assuming —
+  load with no cookies, list what is set before the banner is touched — and
+  covers GDPR/ePrivacy, CCPA/CPRA, WCAG 2.2 AA and the European Accessibility
+  Act, and e-commerce duties including the EU right of withdrawal. It also
+  notes the answer nobody offers: a site that sets no non-essential cookies
+  needs no banner, so removing unused analytics removes the banner with it.
+
+  Third-party design and SEO resources are **linked and taught in our own
+  words, never vendored** — nothing in the zip carries someone else's licence.
+
+  The skills now form a connected tree. `blog-publishing`, `code-snippets`,
+  `skill-creator` and `woocommerce-store-operations` named no other skill, so
+  an agent could write and publish a whole post without ever learning that
+  `seo-optimization` or `web-design-master` existed. `tests/unit/test-skill-tree.php`
+  now fails on any skill that names none (a dead end) or is named by none (a
+  skill nothing routes to), and checks every file's front matter parses — the
+  parser is not YAML, and a description that wraps onto a second line silently
+  becomes empty, which makes the skill unroutable with no error anywhere.
+
 - **The Claudpress mark, in the four places WordPress gives a plugin to put
   one.** The admin sidebar icon (previously a generic `dashicons-superhero`,
   which taught nobody anything), the `<h1>` of all eight Claudpress admin

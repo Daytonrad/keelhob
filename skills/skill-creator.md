@@ -38,3 +38,13 @@ The instructions the agent should follow.
 3. Write the body: goal, then the steps/conventions, then any guardrails.
 4. Call `skill_save` with the full `markdown`.
 5. Tell the user it is saved site-wide and will fire automatically when a matching task comes up.
+
+## Related skills
+
+- **`build-standard`** — read its router table before writing a new skill. Most "we need a
+  skill for this" turns out to be a section missing from a skill that already exists, and
+  a second skill covering the same ground splits the agent's attention.
+
+Two things a new skill must do or it will never be used: give it a `description` naming
+the phrases a user would actually type, since that is the only thing that routes a task
+to it, and add a `## Related skills` footer so it is part of the tree rather than a leaf.

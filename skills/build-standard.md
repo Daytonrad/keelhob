@@ -12,9 +12,8 @@ enable_prompt: true
 A build is not finished when it looks right. The obligation to check that is already in
 your operating protocol — you may not report a site or page done without checking your own
 work and resolving every Blocker and High. **`site_readiness` is the checker on every
-site.** `pre-launch-audit` is the second, deeper pass, and it is part of Claudpress Pro; if
-`skill_get pre-launch-audit` tells you it is unavailable, that is expected, not a fault —
-run the loop on `site_readiness` alone and say so in the completion report. This skill
+site.** `pre-launch-audit` is the second, deeper pass, and it ships with the plugin like
+every other skill — load it with `skill_get pre-launch-audit`. This skill
 is the detail behind that obligation: what "done" actually requires, which skill handles
 each part, and how the fix loop runs so it terminates instead of stalling or gaming itself.
 
@@ -127,14 +126,17 @@ Load the skill for the part of the job you're actually doing, not everything at 
 | Building or editing an Elementor page/header/footer/template | `elementor-page-building` |
 | Header/footer on the Solace theme specifically | `solace-header-footer` |
 | General page-building guidance, taste, and the page-level checklist | `website-building`, `web-design-master` |
+| Animation, scroll effects, hover states, "make it feel alive/premium/expensive" | `motion-and-interaction` |
 | Writing and publishing a blog post | `blog-publishing` |
-| Meta, schema, sitemap, robots, `llms.txt`, AI-search visibility | `seo-optimization` |
+| Meta, schema, sitemap, robots, `llms.txt`, AI-search visibility, one page at a time | `seo-optimization` |
+| Auditing and fixing the SEO of a WHOLE site — scores, speed, crawl, duplicates, local | `seo-audit-and-fix` (agree the cost first) |
 | Adding live code — hooks, filters, shortcodes, custom endpoints | `code-snippets` |
 | Running the store — products, stock, orders, coupons, reports | `woocommerce-store-operations` |
 | Turning on payments/shipping/tax, or deploying staging → production | `store-launch-and-deploy` |
 | Hardening or auditing security, or the intake questionnaire | `security-standard` |
 | Change-safety rules for any create/update/delete/install/PHP/SQL op | `site-safety` |
-| Scoring the finished work, before launch or on request | `site_readiness` (always), then `pre-launch-audit` (Pro) |
+| Scoring the finished work, before launch or on request | `site_readiness` (always), then `pre-launch-audit` |
+| Cookie consent, GDPR, privacy, accessibility, returns — and the twenty things that make a site look cheap | `launch-readiness-and-compliance` |
 | Building a new repeatable skill | `skill-creator` |
 
 ## Page-level vs site-level gates
@@ -156,17 +158,18 @@ the gate. Reach for the site-level pass only when the scope is "the site" or "la
    fast, machine-checkable, and unarguable — heading order, alt text, meta/OG, JSON-LD,
    dead links, image weight, security headers, and (when WooCommerce is active) tax/stock
    sanity, all checked from the rendered site, not from memory.
-2. Run `pre-launch-audit` on top of it **if this site has it**. It is the judgement layer
-   `site_readiness` cannot provide — design, copy quality, hierarchy, trust, conversion,
-   whether the site actually makes sense for its audience. Neither replaces the other.
-   It is a Claudpress Pro skill, so on a free site it will not be there: skip it, run the
-   loop on `site_readiness` alone, and record in the completion report that the judgement
-   pass did not run. Do not fake it by scoring your own design work — an agent grading its
-   own taste is the exact failure this whole standard exists to prevent.
-3. Fix every **Blocker** and every **High** from whichever sources ran.
-4. Re-run them.
-5. Repeat steps 3–4 to a maximum of **3 iterations total**.
-6. Anything still failing after 3 iterations goes into the completion report as an
+2. Run `pre-launch-audit` on top of it. It is the judgement layer `site_readiness`
+   cannot provide — design, copy quality, hierarchy, trust, conversion, whether the site
+   actually makes sense for its audience. Neither replaces the other. Do not fake it by
+   scoring your own design work — an agent grading its own taste is the exact failure
+   this whole standard exists to prevent.
+3. Run `launch-readiness-and-compliance` before anything goes public. It asks a different
+   question from the other two: not "is this good" but "is this allowed, and does it look
+   paid-for". A fast, handsome site that fires analytics before consent is not ready.
+4. Fix every **Blocker** and every **High** from whichever sources ran.
+5. Re-run them.
+6. Repeat steps 4–5 to a maximum of **3 iterations total**.
+7. Anything still failing after 3 iterations goes into the completion report as an
    explicit outstanding item, with the reason it wasn't resolved — never reported as a
    pass.
 

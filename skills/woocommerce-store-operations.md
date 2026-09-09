@@ -78,3 +78,14 @@ report it as a bug.
 - Destructive or financial actions (delete product, refund, bulk price change, change base country/currency): state exactly what you will do and get a yes first.
 - After a batch change, verify by reading one affected record back and report what changed.
 - Persist store conventions (brand voice, category structure, SKU scheme, price rounding) with `memory_save` so later sessions stay consistent.
+
+## Related skills
+
+- **`store-launch-and-deploy`** — payments, shipping and tax. Products with no way to pay
+  for them is the commonest half-built store.
+- **`launch-readiness-and-compliance`** — a shop owes its customers things a blog does
+  not: business identity, prices with tax, delivery terms, a returns policy, and the EU
+  right of withdrawal. Run it before the store takes a real order.
+- **`seo-optimization`** — product pages need schema and meta like any other page, and
+  `Product` schema is what puts a price in the search result.
+- **`build-standard`** — the definition of done for the store as a whole.
