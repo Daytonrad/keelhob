@@ -177,6 +177,26 @@ public. When the two disagree, this file is correct.
 
 ### Fixed
 
+- **Two bugs in `tests/rig/build-rig.sh`, both of which reported success while
+  being wrong.** Neither ships to a user; both cost developer time, which is
+  the only reason the rig exists.
+
+  `CP_RIG_LINK=1` claimed to symlink the plugin. In Git Bash on Windows,
+  without `MSYS=winsymlinks:nativestrict` and with Developer Mode off, `ln -s`
+  recursively **copies** the target and exits 0 — silently. The rig then built,
+  loaded, and passed every check while holding a frozen copy, so edits to the
+  checkout never appeared and the plugin took the blame. The link is now
+  checked with `-L`, the bogus copy is deleted rather than handed back, and the
+  error names the two ways out. Verified by running it on a machine where it
+  fails.
+
+  The rig's own "is `CLAUDPRESS_DIR` inside `wp-content/plugins`" check
+  compared raw strings, so it reported `OUTSIDE` for a perfectly correct rig
+  whenever the path held a Windows 8.3 short name — PHP resolved one side to
+  `C:/Users/FLINTSBWOY/...` and the other to `C:/Users/FLINTS~1/...`. Same
+  directory, no shared prefix. Both sides go through `realpath()` now. A check
+  that cries wolf on a correct rig is one that gets ignored on a broken one.
+
 - **`elementor_page` accepted any settings key without looking at it.** A wrong
   control name was written into `_elementor_data`, saved, reported successful,
   and did nothing. On a real build an `xpro-horizontal-menu` was given `menu`

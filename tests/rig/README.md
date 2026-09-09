@@ -77,6 +77,14 @@ keeps for this case. A copy puts every path where a real install puts it. On a
 development machine the live-edit trade is worth it, and `CP_RIG_LINK=1 bash
 tests/rig/build-rig.sh` links instead.
 
+**`CP_RIG_LINK=1` does not work in Git Bash on Windows out of the box.** Without
+`MSYS=winsymlinks:nativestrict` and Developer Mode enabled, `ln -s` recursively
+*copies* the target and exits 0 — no warning, no error. The rig then builds,
+loads, and passes every check while holding a frozen copy that never sees
+another edit. `build-rig.sh` now checks the link is really a link, deletes the
+copy and stops if it is not. If you hit that, use the default copy and
+`sync-plugin.sh` below; it is what this machine does.
+
 ```bash
 wp plugin activate claudpress
 ```

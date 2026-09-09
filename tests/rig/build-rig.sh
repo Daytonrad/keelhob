@@ -160,6 +160,31 @@ php -l "$WP/wp-config.php" > /dev/null
 DEST="$WP/wp-content/plugins/claudpress"
 if [ "${CP_RIG_LINK:-0}" = "1" ]; then
   ln -s "$ROOT" "$DEST"
+
+  # `ln -s` reporting success is not evidence that a symlink exists. Git Bash on
+  # Windows, without MSYS=winsymlinks:nativestrict and with Developer Mode off,
+  # RECURSIVELY COPIES the target instead and exits 0. Nothing warns you.
+  #
+  # That failure is the worst shape a failure can take here. The rig builds, the
+  # plugin loads, every check passes — and then edits to the checkout never
+  # appear, because the rig is holding a frozen copy made at build time. You
+  # change code, reload, see the old behaviour, and start debugging the plugin.
+  #
+  # So the claim is checked rather than trusted, and the bogus copy is deleted:
+  # leaving it would hand back exactly the stale rig this is meant to prevent.
+  if [ ! -L "$DEST" ]; then
+    rm -rf "$DEST"
+    echo "CP_RIG_LINK=1 was asked for, but this shell cannot make symlinks." >&2
+    echo "ln -s exited 0 and produced a plain directory, which would have gone" >&2
+    echo "stale the moment you edited anything. Nothing was left behind." >&2
+    echo >&2
+    echo "On Git Bash for Windows, either:" >&2
+    echo "  export MSYS=winsymlinks:nativestrict   # and enable Developer Mode" >&2
+    echo "or drop CP_RIG_LINK and use the copy, which is the default:" >&2
+    echo "  bash tests/rig/build-rig.sh \"$RIG\"" >&2
+    echo "  bash tests/rig/sync-plugin.sh \"$WP\"   # after each change" >&2
+    exit 2
+  fi
   echo "Plugin:  symlinked from $ROOT"
 else
   mkdir -p "$DEST"
@@ -198,9 +223,15 @@ if ( ! defined( "CLAUDPRESS_VERSION" ) ) {
     exit( 1 );
 }
 printf( "Loaded:  WordPress %s, Claudpress %s\n", get_bloginfo( "version" ), CLAUDPRESS_VERSION );
+// realpath() on both sides before comparing. Comparing the raw strings gave a
+// false OUTSIDE on Windows whenever the rig sat under a path with an 8.3 short
+// name: PHP resolved CLAUDPRESS_DIR to "C:/Users/FLINTSBWOY/..." while
+// WP_PLUGIN_DIR still read "C:/Users/FLINTS~1/...". Same directory, no shared
+// prefix. A check that cries wolf on a correct rig gets ignored on a broken one.
+$cp_dir = wp_normalize_path( (string) ( realpath( CLAUDPRESS_DIR ) ?: CLAUDPRESS_DIR ) );
+$wp_dir = wp_normalize_path( (string) ( realpath( WP_PLUGIN_DIR ) ?: WP_PLUGIN_DIR ) );
 printf( "Paths:   CLAUDPRESS_DIR %s wp-content/plugins\n",
-    strpos( wp_normalize_path( CLAUDPRESS_DIR ), wp_normalize_path( WP_PLUGIN_DIR ) ) === 0
-        ? "is inside" : "is OUTSIDE" );
+    strpos( $cp_dir, $wp_dir ) === 0 ? "is inside" : "is OUTSIDE" );
 '
 
 echo
