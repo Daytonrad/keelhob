@@ -13,7 +13,7 @@ final class Claudpress_Tools_Skills
 {
     public static function register(Claudpress_Tool_Registry $r): void
     {
-        $r->add('skill_list', 'List every skill this site has (name, description, source, enabled/agentic/prompt flags), plus the skills that exist but are not available here, marked available:false with the tier that carries them. At session start you receive descriptions only; call skill_get to load a body when a task matches. Never call skill_get on an unavailable skill — it is listed so you know it exists and what it would do, not so you can try it. Read-only.', [
+        $r->add('skill_list', 'List every skill this site has (name, description, source, enabled/agentic/prompt flags). Every skill listed here is available — call skill_get to load its body when a task matches its description. You already receive the same names and descriptions at session start, so this is for re-checking after a skill is added or switched off. Read-only.', [
             'type' => 'object', 'properties' => (object) [],
         ], [self::class, 'list'], ['readOnlyHint' => true]);
 
@@ -51,12 +51,14 @@ final class Claudpress_Tools_Skills
     }
 
     /**
-     * Everything on this site, then everything that exists and is not.
+     * Every skill on this site. Names and descriptions travel, bodies never do.
      *
-     * The second half is the point: an agent that cannot see a skill exists
-     * either invents a worse version of it or keeps probing for one. Names and
-     * descriptions travel, bodies never do — a description tells the agent
-     * enough to route around the gap and tell the owner what is missing.
+     * This used to promise a second half — the skills that exist but are "not
+     * available here", marked available:false with the tier carrying them —
+     * from back when there was a paid tier to withhold them. There is one free
+     * plugin now, every skill in it ships, and the code never returned that key
+     * anyway. Describing a half that does not exist taught the agent to expect
+     * skills it could not have, which is worse than saying nothing.
      */
     public static function list(array $a): array
     {

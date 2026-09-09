@@ -404,8 +404,17 @@ final class Claudpress_Agent_Runtime
         }
         $memory_block = $mem ? "\n\nSite memory (conventions & context):\n" . implode("\n", array_slice($mem, 0, 40)) : '';
 
+        // The same catalog an MCP client gets at initialize. Without it these
+        // runs knew the operating protocol — including rule 11, "load the
+        // build-standard skill before building anything" — while having no way
+        // to discover that build-standard existed. A Telegram agent would build
+        // a page with none of the taste, SEO or safety work the skills carry,
+        // and nothing anywhere would say why.
+        $catalog = Claudpress_MCP_Server::skill_catalog_block();
+        $skills_block = $catalog !== '' ? "\n\n" . $catalog : '';
+
         if ($interactive) {
-            return self::interactive_prompt($channel) . $memory_block;
+            return self::interactive_prompt($channel) . $skills_block . $memory_block;
         }
 
         return implode("\n", [
@@ -423,7 +432,7 @@ final class Claudpress_Agent_Runtime
             '- Leave the site in a working state at every step. Never end a run mid-migration, with a broken template live, or with a half-updated set of products.',
             '',
             'Keep going until the task is complete or truly blocked, then stop and write a concise plain-text summary of what you did, what changed, what you skipped, and anything the owner should review.',
-        ]) . $memory_block;
+        ]) . $skills_block . $memory_block;
     }
 
     /**

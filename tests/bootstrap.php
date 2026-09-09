@@ -266,6 +266,12 @@ class CP_Test_WPDB
 
     public function get_results($query, $output = null)
     {
+        // Opt-in fixture. Default stays [] so no existing test changes
+        // behaviour; a test that genuinely needs rows sets the global and
+        // clears it again afterwards.
+        if (isset($GLOBALS['cp_test_db_results']) && is_array($GLOBALS['cp_test_db_results'])) {
+            return $GLOBALS['cp_test_db_results'];
+        }
         return [];
     }
 

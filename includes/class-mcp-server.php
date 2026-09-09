@@ -152,6 +152,14 @@ final class Claudpress_MCP_Server
             '10. Never invent facts. No statistic, review, testimonial, customer count, credential, award, staff member, or photograph presented as a real person or customer, unless the site can substantiate it. A store with no orders has no customers.',
             '',
             '11. Load the build-standard skill before building anything. It lists what "done" requires and which skill to use for each part of the job.',
+            '',
+            // Lives here rather than in a skill for the same reason as the rest
+            // of this protocol: a skill can be switched off, and the one thing
+            // that must never be optional is asking before spending someone
+            // else's money. A whole-site SEO audit can burn an hour of wall
+            // clock and real API credit, and the owner may only have said
+            // "check my SEO".
+            '12. Work that costs money or takes a long time gets agreed first. Before a whole-site audit, a bulk content or image run, a paid API call, or anything that will run for many minutes, say what you are about to do, roughly what it will cost and how long it will take, and wait for a yes. An estimate you are unsure of is still worth saying out loud - a number with a caveat is useful, silence is what makes a bill a surprise. This does not apply to ordinary single-page work.',
         ];
 
         return (string) apply_filters('claudpress_operating_protocol', implode("\n", $rules));
@@ -185,15 +193,68 @@ final class Claudpress_MCP_Server
             $lines[] = 'OFF-LIMITS: the owner has switched these capabilities OFF — their tools are hidden and will be refused. Do not attempt them, and do not use execute_php/execute_sql/snippets/file writes to work around them. If one is needed, say plainly that the owner can enable it under Claudpress > Settings > Capabilities. Off: ' . implode('; ', $off) . '.';
         }
 
-        // Agentic skill catalog: descriptions only (bodies load on demand via prompts/get or skill_get).
-        $skills = Claudpress::instance()->skills->agentic_catalog();
-        if (!empty($skills)) {
+        $catalog = self::skill_catalog_block();
+        if ($catalog !== '') {
             $lines[] = '';
-            $lines[] = 'Available skills (load the full body with the skill_get tool, or invoke as a prompt, when a task matches):';
-            foreach ($skills as $s) {
-                $lines[] = sprintf('- %s: %s', $s['name'], $s['description']);
-            }
+            $lines[] = $catalog;
         }
+        return implode("\n", $lines);
+    }
+
+    /**
+     * The agentic skill catalog, as one block of text.
+     *
+     * Descriptions only — bodies load on demand via skill_get, prompts/get or
+     * resources/read. Sending fifteen full skills at session start would cost
+     * more context than the whole conversation that follows.
+     *
+     * Public and static because Claudpress_Agent_Runtime needs the identical
+     * block. Unattended and Telegram runs used to get the operating protocol
+     * and the site memory but no catalog at all, so an agent on a phone could
+     * see that a skill_list tool existed and nothing about what was in it — it
+     * had every skill available and no way to know any of them were there.
+     * One definition, two callers, so the two can never drift apart again.
+     */
+    public static function skill_catalog_block(): string
+    {
+        // Decoration must never be the thing that kills a run. This block is
+        // built while assembling a system prompt, and the skills service is set
+        // during boot() — anything calling in before that, or a site where the
+        // table is unreadable, gets a session with no catalog rather than a
+        // fatal error in the middle of a Telegram reply. The tools still work
+        // either way; only the shortcut to knowing they exist is lost.
+        $service = Claudpress::instance()->skills;
+        $skills  = $service instanceof Claudpress_Skills ? $service->agentic_catalog() : [];
+
+        return self::format_skill_catalog($skills);
+    }
+
+    /**
+     * The catalog array in, the prompt block out. No lookups, no globals.
+     *
+     * Split from skill_catalog_block() so the wording can be tested without a
+     * database — Claudpress_Skills is final and reads $wpdb directly, so the
+     * only way to assert on this text otherwise is to stand up a schema for it.
+     *
+     * @param array<int,array{name:string,description:string}> $skills
+     */
+    public static function format_skill_catalog(array $skills): string
+    {
+        if (empty($skills)) {
+            return '';
+        }
+
+        $lines = ['Available skills (load the full body with the skill_get tool, or invoke as a prompt, when a task matches):'];
+        foreach ($skills as $s) {
+            $lines[] = sprintf('- %s: %s', (string) ($s['name'] ?? ''), (string) ($s['description'] ?? ''));
+        }
+        // Naming the router explicitly. A description is the only thing that
+        // matches a task to a skill, so an agent that reads one description and
+        // stops gets a page built with no taste, no SEO pass and no safety
+        // check — every one of which lives in a different skill that the first
+        // one names.
+        $lines[] = 'Skills reference each other. When a skill names another, load that one too — build-standard carries the router table for every kind of build.';
+
         return implode("\n", $lines);
     }
 
