@@ -131,6 +131,22 @@ The extra workers matter: WordPress makes loopback requests to itself, and a
 single-worker built-in server deadlocks waiting for a response it is not free to
 serve.
 
+## Pushing a code change into a rig you are keeping
+
+```bash
+bash tests/rig/sync-plugin.sh <RIG>/wordpress
+```
+
+`build-rig.sh` deletes and recreates the whole WordPress install, so every
+snippet, page and setting the rig is carrying goes with it. That is correct for
+CI and wrong for a rig kept across sessions to test fixes against.
+
+`sync-plugin.sh` copies only the plugin — exactly the file list
+`bin/build-zip.sh` ships, no more — and leaves the site around it alone. It
+parse-checks every PHP file *before* copying anything, because a syntax error
+copied into a running rig takes down the admin screen you would use to find it.
+No reactivation is needed; reload the page.
+
 ## Throwing it away
 
 Delete the rig directory. Nothing in it is precious, and rebuilding takes a
