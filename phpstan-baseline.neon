@@ -1,4 +1,4 @@
-# PHPStan baseline — 50 findings at level 1, none of them bugs.
+# PHPStan baseline — 51 findings at level 1, none of them bugs.
 #
 # What is in here, and why each group is noise rather than substance:
 #
@@ -7,9 +7,9 @@
 #       php-stubs/woocommerce-stubs would remove all 44 and is a reasonable
 #       future change; it was left out to keep the dev dependency list at two.
 #
-#    5  CLAUDPRESS_DIR / CLAUDPRESS_BASENAME "not found". PHPStan does not carry
-#       define() across files. Both are defined unconditionally in claudpress.php
-#       before anything that uses them loads.
+#    6  CLAUDPRESS_DIR / CLAUDPRESS_URL / CLAUDPRESS_BASENAME "not found". PHPStan
+#       does not carry define() across files. All three are defined unconditionally
+#       in claudpress.php before anything that uses them loads.
 #
 #    1  a style rule about DOING_CRON.
 #
@@ -27,6 +27,12 @@
 # to put things you do not want to think about.
 parameters:
 	ignoreErrors:
+		-
+			message: '#^Constant CLAUDPRESS_URL not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: includes/class-brand.php
+
 		-
 			message: '#^Function get_woocommerce_currency not found\.$#'
 			identifier: function.notFound
