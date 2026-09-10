@@ -5,6 +5,7 @@ description: Take a WooCommerce store from empty to able-to-take-real-orders (pa
 enable_agentic: true
 enable_prompt: true
 role: procedure
+surface: any
 next_skills: launch-readiness-and-compliance, woocommerce-store-operations
 verified_by: pre-launch-audit
 ---

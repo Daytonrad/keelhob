@@ -5,6 +5,7 @@ description: Audit a WordPress or WooCommerce site before it goes live and produ
 enable_agentic: true
 enable_prompt: true
 role: gate
+surface: any
 next_skills: launch-readiness-and-compliance, seo-audit-and-fix, security-standard
 ---
 

@@ -72,6 +72,26 @@ final class Claudpress_Skill_Catalog
                 'title'       => 'Site build kickoff',
                 'description' => 'The FIRST skill to load whenever someone asks to build a WordPress site from scratch — "build me a website", "make my site", "I need a website for my business", or any brand-new-site request with no detailed brief attached.',
             ],
+            'site-clone-capture' => [
+                'title'       => 'Measure a page before rebuilding it',
+                'description' => 'Records a target page so it can be rebuilt without guessing: full-page screenshots at three widths, computed styles rather than eyeballed ones, the scroll sweep, the hover sweep and the click sweep, which framework and animation library it runs on, and every image, video and font it uses.',
+            ],
+            'site-clone-design-system' => [
+                'title'       => 'Borrow a site\'s taste, not its pages',
+                'description' => 'Installs another site\'s colour palette, typography, type scale, spacing rhythm, radii, shadows and motion timing as this site\'s own global defaults, so pages built here inherit that craft without copying anybody\'s layout, words or pictures.',
+            ],
+            'site-clone-rebuild' => [
+                'title'       => 'Turn a captured spec into WordPress',
+                'description' => 'Builds an already-measured page as real WordPress — Elementor sections the owner can still edit, or a page-template snippet when pixel accuracy beats editability.',
+            ],
+            'site-clone-verify' => [
+                'title'       => 'Score the copy against the original',
+                'description' => 'The gate that decides whether a rebuilt page is finished.',
+            ],
+            'site-clone' => [
+                'title'       => 'Copy a site into WordPress',
+                'description' => 'The way in when somebody hands over a URL and asks to clone, copy, replicate or migrate an existing website into this WordPress site — off Wix, Shopify, Squarespace, Webflow, Framer or a React build.',
+            ],
             'site-safety' => [
                 'title'       => 'Site safety',
                 'description' => 'Baseline safety and verification rules for making changes on this WordPress site.',

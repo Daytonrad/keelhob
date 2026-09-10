@@ -5,6 +5,7 @@ description: Build or edit fully editable pages, headers, and footers with Eleme
 enable_agentic: true
 enable_prompt: true
 role: procedure
+surface: any
 requires: web-design-master
 next_skills: motion-and-interaction, seo-optimization
 verified_by: pre-launch-audit

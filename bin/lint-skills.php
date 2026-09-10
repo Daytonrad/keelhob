@@ -111,6 +111,14 @@ foreach ($skills as $slug => $skill) {
     $bad   = Claudpress_Skill_Standard::has_errors($mine);
     $role  = Claudpress_Skill_Standard::role($skill);
 
+    // The surface is appended only when it restricts something. Printing
+    // "any" on seventeen of eighteen lines would bury the one line where a
+    // reviewer needs to stop and think about it.
+    $surface = Claudpress_Skill_Standard::surface($skill);
+    if ($surface !== Claudpress_Skill_Standard::SURFACE_DEFAULT) {
+        $role .= ' · needs ' . $surface;
+    }
+
     printf("%s  %-38s  %3d/100  [%s]\n", $bad ? 'FAIL' : 'pass', $slug, $score, $role);
 
     foreach ($mine as $finding) {

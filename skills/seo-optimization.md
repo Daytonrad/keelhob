@@ -5,6 +5,7 @@ description: Required build phase, not an optional pass — meta title/descripti
 enable_agentic: true
 enable_prompt: true
 role: gate
+surface: any
 next_skills: seo-audit-and-fix
 verified_by: pre-launch-audit
 ---

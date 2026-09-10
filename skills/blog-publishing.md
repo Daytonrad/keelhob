@@ -5,6 +5,7 @@ description: Write and publish blog posts and articles end to end — draft the 
 enable_agentic: true
 enable_prompt: true
 role: procedure
+surface: any
 next_skills: seo-optimization, web-design-master
 verified_by: seo-optimization
 ---

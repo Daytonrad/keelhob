@@ -5,6 +5,7 @@ description: How to make a site feel alive rather than static — entrance chore
 enable_agentic: true
 enable_prompt: true
 role: reference
+surface: any
 next_skills: web-design-master, seo-audit-and-fix
 verified_by: pre-launch-audit
 ---

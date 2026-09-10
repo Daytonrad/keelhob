@@ -5,6 +5,7 @@ description: Harden and audit a WordPress/WooCommerce site's security — 20 aut
 enable_agentic: true
 enable_prompt: true
 role: reference
+surface: any
 next_skills: site-safety, pre-launch-audit
 ---
 

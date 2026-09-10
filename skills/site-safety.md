@@ -5,6 +5,7 @@ description: Baseline safety and verification rules for making changes on this W
 enable_agentic: true
 enable_prompt: false
 role: gate
+surface: any
 next_skills: security-standard, code-snippets
 verified_by: pre-launch-audit
 ---

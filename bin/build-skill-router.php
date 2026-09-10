@@ -158,8 +158,8 @@ TAIL;
 // ---- 2. the tree table ------------------------------------------------------
 
 $rows = [];
-$rows[] = '| Skill | Role | Requires first | Then consider | Not done until |';
-$rows[] = '|---|---|---|---|---|';
+$rows[] = '| Skill | Role | Runs on | Requires first | Then consider | Not done until |';
+$rows[] = '|---|---|---|---|---|---|';
 
 $fmt = static function (array $list): string {
     return empty($list) ? '—' : '`' . implode('`, `', $list) . '`';
@@ -168,9 +168,10 @@ $fmt = static function (array $list): string {
 foreach ($skills as $slug => $s) {
     $e = Claudpress_Skill_Standard::edges($s);
     $rows[] = sprintf(
-        '| `%s` | %s | %s | %s | %s |',
+        '| `%s` | %s | %s | %s | %s | %s |',
         $slug,
         Claudpress_Skill_Standard::role($s),
+        Claudpress_Skill_Standard::surface($s),
         $fmt($e['requires']),
         $fmt($e['next_skills']),
         $fmt($e['verified_by'])
@@ -211,6 +212,7 @@ $doc = "# The Claudpress skill standard\n\n"
     . "enable_agentic: true\n"
     . "enable_prompt: true\n"
     . "role: procedure                # " . implode(' | ', constant($S . '::ROLES')) . "\n"
+    . "surface: any                   # " . implode(' | ', constant($S . '::SURFACES')) . "\n"
     . "requires: skill-a, skill-b     # load these BEFORE starting\n"
     . "next_skills: skill-c           # consider these when finished\n"
     . "verified_by: pre-launch-audit  # NOT done until this has run\n"
@@ -222,6 +224,22 @@ $doc = "# The Claudpress skill standard\n\n"
     . "| `gate` | Gets in the way on purpose. Work is not done until it passes. |\n"
     . "| `procedure` | Steps to follow to accomplish a task. The default. |\n"
     . "| `reference` | Background knowledge, read for judgement. No steps. |\n\n"
+
+    . "### Where a skill can run\n\n"
+    . "`role` says what a skill IS. `surface` says which kind of session can FINISH it, and\n"
+    . "it exists because a skill body reads identically down every pipe. Without it, an agent\n"
+    . "on Telegram loads a skill whose third step is \"open the page in a headless browser and\n"
+    . "compare computed styles\", gets four steps in, and then either stalls or invents a\n"
+    . "result. Both are worse than refusing at step zero and naming the client that can.\n\n"
+    . "| Surface | Meaning |\n|---|---|\n"
+    . "| `any` | " . constant($S . '::SURFACE_NOTES')['any'] . " The default. |\n"
+    . "| `interactive` | " . constant($S . '::SURFACE_NOTES')['interactive'] . " |\n"
+    . "| `workstation` | " . constant($S . '::SURFACE_NOTES')['workstation'] . " |\n\n"
+    . "A skill may not `requires`, or be `verified_by`, a skill with a stricter surface than\n"
+    . "its own: that is a promise it cannot keep, and the linter refuses it. `next_skills` is\n"
+    . "deliberately exempt, because that edge is advice for afterwards rather than a\n"
+    . "prerequisite — \"and when you are next at your machine, do this too\" is a useful thing\n"
+    . "for a chat-safe skill to be able to say.\n\n"
 
     . "### The three edges\n\n"
     . "This is what makes a skill part of an ecosystem instead of an island. Before these\n"

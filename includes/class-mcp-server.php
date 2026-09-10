@@ -170,6 +170,13 @@ final class Claudpress_MCP_Server
             // makes a bad result diagnosable: the run record shows what was
             // loaded, so "why did this page ship with no meta" has an answer.
             '13. Name the skills you used, and honour their verifiers. Before reporting any work as done, say which skills you loaded. If a skill you loaded declares a verifier ("not done until X" in the catalog), run X and report what it said. If you did not run it, say so plainly and say why - do not report the work as done and leave the verifier unmentioned.',
+            '',
+            // A skill body reads identically whichever pipe the agent is on, so
+            // without this an agent in a chat window starts a browser-driven
+            // skill, gets several steps in, and then either stalls or invents
+            // the result it cannot measure. Refusing at step zero and naming
+            // the client that CAN do it is the only outcome that helps anyone.
+            '14. Check a skill can be finished here before you start it. The catalog marks any skill that needs more than this connection: "needs: interactive" means a person has to be answering while it runs, so it cannot be a scheduled task; "needs: workstation" means it uses tools on the caller\'s own machine - a browser, another MCP server - so it can only be completed from Claude Code or an IDE. If you are on Telegram or Slack, or running unattended, and the task needs such a skill: say which skill it is, say plainly that this connection cannot finish it, and tell the owner to run it from Claude Code or an IDE connected to this site. Do not start it and improvise around the missing tool, and never report a result you could not measure.',
         ];
 
         return (string) apply_filters('claudpress_operating_protocol', implode("\n", $rules));
@@ -207,6 +214,17 @@ final class Claudpress_MCP_Server
         if ($catalog !== '') {
             $lines[] = '';
             $lines[] = $catalog;
+            // Deliberately NOT the flat assertion the Telegram and scheduled
+            // prompts get. Those two know exactly what they are; this endpoint
+            // does not. The same URL is opened by Claude Code, by an IDE, by a
+            // desktop client and by other people's scripts, and nothing in the
+            // MCP handshake says which — so claiming "this session is a
+            // workstation" here would be a guess, and a wrong one is precisely
+            // the failure the surface field exists to stop.
+            //
+            // The client, however, DOES know: it can see its own tool list. So
+            // the honest instruction is to check rather than to assume.
+            $lines[] = 'You are connected over MCP, and only you can see which other tools your client has. Before starting a skill marked "needs: workstation", confirm you actually have the tool it asks for — a browser, another MCP server, the local filesystem. If you do not, say which skill it is and that this client cannot finish it, rather than starting it and working around what is missing.';
         }
         return implode("\n", $lines);
     }
@@ -267,6 +285,14 @@ final class Claudpress_MCP_Server
             $line = sprintf('- %s [%s]: %s', (string) ($s['name'] ?? ''), (string) ($s['role'] ?? 'procedure'), (string) ($s['description'] ?? ''));
 
             $tail = [];
+            // Only the surfaces that RESTRICT anything are printed. Marking the
+            // overwhelming majority "any" would spend bytes in every session to
+            // say nothing, and would train the reader to skip the field on the
+            // two or three lines where it matters.
+            $surface = (string) ($s['surface'] ?? Claudpress_Skill_Standard::SURFACE_DEFAULT);
+            if ($surface !== Claudpress_Skill_Standard::SURFACE_DEFAULT) {
+                $tail[] = 'needs: ' . $surface;
+            }
             if (!empty($s['next_skills'])) {
                 // Capped, because build-standard names every other skill and
                 // that one line cost about 400 bytes of every session. The rest
@@ -292,6 +318,7 @@ final class Claudpress_MCP_Server
         // check — every one of which lives in a different skill that the first
         // one names.
         $lines[] = 'Roles: gate = work is not finished until it passes; procedure = steps to follow; reference = knowledge to read for judgement.';
+        $lines[] = '"needs: interactive" = a person must be answering while it runs, so not a scheduled task. "needs: workstation" = it uses tools on the caller\'s own machine (a browser, another MCP server), so Claude Code or an IDE only — over Telegram or Slack, say so and stop rather than starting it.';
         $lines[] = 'Skills reference each other. Follow "then" when a skill is done, and treat "not done until" as binding — build-standard carries the router table for every kind of build.';
 
         return implode("\n", $lines);

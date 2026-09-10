@@ -5,6 +5,7 @@ description: Build a beautiful website, landing page, homepage, header, or foote
 enable_agentic: true
 enable_prompt: true
 role: procedure
+surface: any
 requires: web-design-master
 next_skills: motion-and-interaction, seo-optimization, elementor-page-building, solace-header-footer, code-snippets
 verified_by: pre-launch-audit
