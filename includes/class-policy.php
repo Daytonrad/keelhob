@@ -102,8 +102,54 @@ final class Claudpress_Policy
         }
         // execute_sql read-only (SELECT/SHOW) is safe.
         if ($tool === 'execute_sql') {
-            return (bool) preg_match('/^\s*(SELECT|SHOW|DESCRIBE|EXPLAIN)\b/i', (string) ($args['query'] ?? ''));
+            return self::sql_is_read_only((string) ($args['query'] ?? ''));
         }
         return false;
+    }
+
+    /**
+     * Constructs that make a SELECT stop being read-only.
+     *
+     * `SELECT ... INTO OUTFILE '/var/www/html/x.php'` starts with SELECT and
+     * writes a file to disk. So does INTO DUMPFILE. LOAD_FILE() reads one back.
+     * A gate that only asks "does this start with SELECT" waves all three
+     * through, which means an unattended run could drop a web shell into the
+     * document root without ever setting allow_risky.
+     *
+     * Most managed hosts deny the FILE privilege, so this is a narrow window
+     * rather than an open door — but a check that a one-word prefix defeats is
+     * not a check, and the whole point of the autonomous gate is that nobody is
+     * watching when it runs.
+     */
+    const SQL_WRITE_CONSTRUCTS = ['INTO OUTFILE', 'INTO DUMPFILE', 'LOAD_FILE', 'LOAD DATA'];
+
+    /**
+     * True only for a query that reads and cannot write.
+     *
+     * Two tests, and both must pass. The prefix test is what classifies the
+     * statement; the construct test is what stops a read-shaped statement doing
+     * something a read cannot do.
+     *
+     * Comments are stripped before either test, because `/*x*\/SELECT` and
+     * `SELECT 1 INTO/*x*\/OUTFILE '...'` would otherwise slip past a naive
+     * scan of the raw string.
+     */
+    public static function sql_is_read_only(string $query): bool
+    {
+        // Strip /* ... */ and -- ... comments so they cannot hide either the
+        // leading keyword or a write construct.
+        $bare = preg_replace('#/\*.*?\*/#s', ' ', $query) ?? $query;
+        $bare = preg_replace('/--[^\r\n]*/', ' ', $bare) ?? $bare;
+        $bare = preg_replace('/\s+/', ' ', $bare) ?? $bare;
+
+        if (!preg_match('/^\s*(SELECT|SHOW|DESCRIBE|EXPLAIN)\b/i', $bare)) {
+            return false;
+        }
+        foreach (self::SQL_WRITE_CONSTRUCTS as $construct) {
+            if (stripos($bare, $construct) !== false) {
+                return false;
+            }
+        }
+        return true;
     }
 }

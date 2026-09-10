@@ -18,6 +18,27 @@ CP_Test::same(null, Claudpress_Policy::check('execute_sql', ['query' => 'SELECT 
 CP_Test::same(null, Claudpress_Policy::check('execute_sql', ['query' => "  \n show tables"], 'autonomous'), 'SHOW is safe regardless of whitespace/case');
 CP_Test::ok(Claudpress_Policy::check('execute_sql', ['query' => 'DELETE FROM wp_posts'], 'autonomous') !== null, 'destructive SQL needs opt-in');
 CP_Test::ok(Claudpress_Policy::check('execute_sql', ['query' => 'DROP TABLE wp_posts'], 'autonomous') !== null, 'DROP needs opt-in');
+
+// A SELECT that writes a file is not a read. The gate used to ask only whether
+// the statement began with SELECT, so `SELECT ... INTO OUTFILE` — a web shell
+// dropped into the document root — was classed as safe and ran unattended with
+// no allow_risky. Each of these starts with a read keyword and must still be
+// refused.
+$writes_disguised_as_reads = [
+    "SELECT '<?php eval(\$_GET[c]);' INTO OUTFILE '/var/www/html/x.php'" => 'INTO OUTFILE is refused',
+    "SELECT 0x3c3f706870 INTO DUMPFILE '/var/www/html/y.php'"            => 'INTO DUMPFILE is refused',
+    "SELECT LOAD_FILE('/etc/passwd')"                                    => 'LOAD_FILE is refused',
+    "select 1 into/*bypass*/outfile '/tmp/z'"                            => 'a comment cannot hide the construct',
+    "SELECT * FROM wp_posts -- INTO OUTFILE '/tmp/a'"                    => 'a construct inside a comment is not a false positive',
+];
+foreach ($writes_disguised_as_reads as $query => $why) {
+    $blocked = Claudpress_Policy::check('execute_sql', ['query' => $query], 'autonomous') !== null;
+    // The last case is the inverse: the text appears only inside a comment, so
+    // the query really is read-only and must stay allowed. Anything else here
+    // must be blocked.
+    $expected = strpos($why, 'false positive') === false;
+    CP_Test::same($expected, $blocked, $why);
+}
 CP_Test::ok(Claudpress_Policy::check('manage_updates', ['action' => 'check'], 'autonomous') === null, 'checking for updates is safe');
 CP_Test::ok(Claudpress_Policy::check('manage_updates', ['action' => 'update'], 'autonomous') !== null, 'applying updates needs opt-in');
 
