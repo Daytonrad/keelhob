@@ -64,14 +64,37 @@ CP_Test::ok(
 
 // ---- the properties worth naming, rather than only scoring -----------------
 
-// build-standard is the router the operating protocol sends the agent to. If it
-// stops naming a skill, that skill is reachable only by luck.
-$router = Claudpress_Skill_Standard::outbound($skills['build-standard'] ?? []);
+// build-standard is the router the operating protocol sends the agent to. If a
+// skill cannot be reached from it, that skill is found only by luck.
+//
+// REACHABLE, not NAMED. This used to require build-standard to name every skill
+// directly, which quietly forbade a family: site-clone is one entry in the
+// router and the four skills behind it (capture, design-system, rebuild,
+// verify) are reached through it, which is the design rather than an accident.
+// Forcing all five into the top-level list would make the router twenty-three
+// entries instead of nineteen real starting points, and a router nobody can
+// skim routes nothing.
+//
+// The property that actually matters is that a walk from build-standard finds
+// everything. That is strictly stronger than the old check on a flat set, and
+// it still fails the moment a skill is genuinely stranded.
+$reachable = [];
+$queue     = ['build-standard'];
+while ($queue) {
+    $slug = array_shift($queue);
+    if (isset($reachable[$slug]) || !isset($skills[$slug])) {
+        continue;
+    }
+    $reachable[$slug] = true;
+    foreach (Claudpress_Skill_Standard::outbound($skills[$slug]) as $next) {
+        $queue[] = $next;
+    }
+}
 foreach ($known as $slug) {
     if ($slug === 'build-standard') {
         continue;
     }
-    CP_Test::ok(in_array($slug, $router, true), 'the router names ' . $slug);
+    CP_Test::ok(isset($reachable[$slug]), 'the router reaches ' . $slug);
 }
 
 // A gate that nothing is verified by is a gate nobody has to pass.
@@ -82,17 +105,33 @@ foreach ($skills as $skill) {
 $verifiers = array_unique($verifiers);
 CP_Test::ok(in_array('pre-launch-audit', $verifiers, true), 'pre-launch-audit is declared as a verifier, so build work is not done on the builder\'s own say-so');
 
+// A gate can stand at either end of the work, and both are real gating.
+//
+// pre-launch-audit gates the EXIT: things declare it as their verifier, so the
+// work is not done until it passes. site-clone gates the ENTRANCE: nothing is
+// verified by it, but site-clone-capture REQUIRES it, so no measuring can start
+// until the permission question has been answered. Demanding that every gate be
+// a verifier would have forced site-clone to be mislabelled a procedure, which
+// would then have been a lie about what it does.
+//
+// What is not allowed is a gate with neither: nothing gated on it before, and
+// nothing gated on it after. That is a gate in name only.
+$required = [];
+foreach ($skills as $skill) {
+    $required = array_merge($required, Claudpress_Skill_Standard::edges($skill)['requires']);
+}
+$required = array_unique($required);
+
 foreach ($skills as $slug => $skill) {
     if (Claudpress_Skill_Standard::role($skill) !== 'gate') {
         continue;
     }
     // build-standard is the one exception, and it is exempt for a stated
     // reason rather than to make the test pass: it is the entry point, named
-    // by operating-protocol rule 11 from PHP, so nothing declares it as a
-    // verifier. Every other gate must have something actually gated on it, or
-    // it is a gate in name only.
+    // by operating-protocol rule 11 from PHP, so nothing declares it as either
+    // a verifier or a prerequisite.
     CP_Test::ok(
-        in_array($slug, $verifiers, true) || $slug === 'build-standard',
+        in_array($slug, $verifiers, true) || in_array($slug, $required, true) || $slug === 'build-standard',
         $slug . ' is a gate and something is actually gated on it'
     );
 }

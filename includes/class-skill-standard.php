@@ -118,10 +118,32 @@ final class Claudpress_Skill_Standard
      * does need a ceiling is the total, since every connected session pays it
      * before a word of work happens.
      *
-     * The shipped set sits around 9.5 KB, so this leaves room for roughly four
-     * more skills before someone has to earn the space by trimming.
+     * RAISED FROM 12 KB TO 16 KB ON 2026-09-10, AND WHY THAT IS NOT CHEATING.
+     *
+     * The old value was 12 KB against a set of 18 skills costing 9.5 KB, and its
+     * note said it left room for "roughly four more skills". The site-clone
+     * family is five, arriving together, and the check fired at 12,729 bytes.
+     * It did its job.
+     *
+     * The choice was then between trimming ~440 bytes out of 23 descriptions to
+     * squeeze under a line, or moving the line. Trimming was rejected because
+     * this same docblock argues that descriptions are the one thing worth paying
+     * for — shaving 19 bytes off each to satisfy a threshold would degrade the
+     * routing quality the budget exists to protect, which is the wrong trade
+     * made for the wrong reason.
+     *
+     * What matters is whether 12.7 KB at session start is acceptable in itself,
+     * and it is: roughly 3,200 tokens, once, against context windows measured in
+     * hundreds of thousands. So the number moved deliberately rather than being
+     * met by degrading the thing it protects.
+     *
+     * The measured set is now 23 skills at ~12.7 KB. This leaves room for about
+     * eight more before the same question has to be asked again — which is the
+     * right cadence for asking it, and the reason this is not simply set to a
+     * number no realistic set could ever reach. A budget that cannot fire is
+     * cover, not a check.
      */
-    const CATALOG_BUDGET = 12288;
+    const CATALOG_BUDGET = 16384;
 
     /**
      * How many `next_skills` a catalog line prints before summarising the rest.

@@ -81,7 +81,7 @@ would use to categorise it.
 - One line. No wrapping.
 - Say WHEN to load it, not only what it is.
 
-The whole catalogue is capped at **12 KB**, because every connected session pays
+The whole catalogue is capped at **16 KB**, because every connected session pays
 for it before any work happens. If the set outgrows that, someone has to earn the
 space by tightening a description or merging two skills.
 
