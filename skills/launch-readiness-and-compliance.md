@@ -21,23 +21,35 @@ Not a substitute for a lawyer, and not the place for design judgement. How a pag
 
 ## Read this first
 
-1. **Ask what the site is for before you check anything.** A shop, a service business, a blog and a SaaS owe different things. Raising all of it on a personal blog is how a checklist gets ignored.
-2. **The twenty** below are the difference between a site that looks paid-for and one that looks generated. Detect them, do not just warn about them.
-3. **The commonest legal failure is not a missing banner — it is a banner that does nothing.** Analytics firing before Accept is pressed is the single most widespread violation on vibe-coded sites.
-4. **The owner may decline any of it.** Record the decision and move on. What is never acceptable is silence.
-5. **This is what the rules require, not legal advice.** Say so. A real lawyer is the answer for anything contested.
-6. **Write what you found to memory** so the next session resumes instead of re-asking.
+1. **This skill has two halves, and only one of them is conditional.** The twenty in §1
+   are about quality, and they apply to **every** site — a shop, a one-page business card,
+   a personal blog, a charity, a site that sells nothing and collects nothing. The legal
+   duties in §2 and §3 depend on what the site does and where its visitors are. Never let
+   "this site does not sell anything" or "we are not in the EU" skip §1. A site with no
+   shopping cart can still have a headline nobody understands, a dead button and a wall of
+   text, and those are the things that make it look amateur.
+2. **Ask what the site is for before you check the legal half.** A shop, a service
+   business, a blog and a SaaS owe different things. Raising all of it on a personal blog
+   is how a checklist gets ignored.
+3. **The twenty** in §1 are the difference between a site that looks paid-for and one that
+   looks generated. Detect them, do not just warn about them.
+4. **The commonest legal failure is not a missing banner — it is a banner that does nothing.** Analytics firing before Accept is pressed is the single most widespread violation on vibe-coded sites.
+5. **The owner may decline any of it.** Record the decision and move on. What is never acceptable is silence.
+6. **This is what the rules require, not legal advice.** Say so. A real lawyer is the answer for anything contested.
+7. **Write what you found to memory** so the next session resumes instead of re-asking.
 
 ---
 
 ## 0. Ask first
 
-Before running anything:
+These questions scope **§2 and §3 only**. §1 runs regardless of every answer here,
+including "it sells nothing" and "there are no European visitors" — the twenty are
+about whether the site looks professional, and that is not a matter of jurisdiction.
 
 - **What is this site for?** Shop · service business · blog or publication · SaaS or app · portfolio · charity.
 - **Where are the visitors?** EU/UK visitors bring GDPR and ePrivacy. California brings CCPA/CPRA. Most sites get both, because the web is not regional.
 - **Does it take money?** That turns on the whole e-commerce section.
-- **Does it collect anything at all** — a contact form, a newsletter, analytics? If genuinely nothing, several sections below drop away and you should say so rather than manufacturing work.
+- **Does it collect anything at all** — a contact form, a newsletter, analytics? If genuinely nothing, parts of §3 drop away and you should say so rather than manufacturing work. §1 does not drop away.
 
 ---
 
