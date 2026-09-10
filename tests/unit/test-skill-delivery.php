@@ -171,3 +171,51 @@ CP_Test::ok(
     strpos($protocol, '12.') < strpos($protocol, '13.'),
     'the rules are in order — they are read by a model as a numbered list, and one out of sequence reads like a mistake in the instructions'
 );
+
+// --- rule 14: do not start what this connection cannot finish -----------------
+//
+// The same failure as rule 13, one step earlier. A skill body reads identically
+// whether the agent reached it from Claude Code or from a Telegram message, so
+// an agent in a chat window will happily begin a skill whose third step needs a
+// browser, get several steps in, and then either stall or report a result it
+// could not measure. Refusing at step zero and naming the client that CAN do it
+// is the only outcome that helps anyone.
+
+CP_Test::contains('14.', $protocol, 'the protocol carries a fourteenth rule');
+CP_Test::contains('needs: workstation', $protocol, 'and it is the surface guard, naming the marker the catalog prints');
+CP_Test::contains('Claude Code or an IDE', $protocol, 'it names what the owner should use instead, rather than only refusing');
+
+// The catalog is where the marker is defined, so it has to print it.
+$restricted = [
+    [
+        'name'        => 'site-clone-capture',
+        'description' => 'Records a page in a real browser.',
+        'role'        => 'procedure',
+        'surface'     => 'workstation',
+        'next_skills' => [],
+        'verified_by' => [],
+    ],
+    [
+        'name'        => 'blog-publishing',
+        'description' => 'Writes and publishes a post.',
+        'role'        => 'procedure',
+        'surface'     => 'any',
+        'next_skills' => [],
+        'verified_by' => [],
+    ],
+];
+$restricted_block = Claudpress_MCP_Server::format_skill_catalog($restricted);
+CP_Test::contains('needs: workstation', $restricted_block, 'a skill that needs a workstation says so in the catalog');
+CP_Test::ok(
+    substr_count($restricted_block, 'needs: any') === 0,
+    'but "any" is never printed — marking seventeen of eighteen lines with the default would bury the one that matters'
+);
+
+// The two prompts that know exactly what they are must say so. Only the MCP
+// endpoint is left to check for itself, because the same URL is opened by
+// Claude Code, an IDE, a desktop client and other people's scripts, and nothing
+// in the handshake says which.
+CP_Test::contains('THIS SESSION IS', $interactive, 'a Telegram run is told which surface it is');
+CP_Test::contains('Claude Code', $interactive, '...and where to send the owner for the skills it cannot finish');
+CP_Test::contains('THIS SESSION IS', $scheduled, 'an unattended run is told too');
+CP_Test::contains('needs: interactive', $scheduled, '...including that it cannot finish a skill needing a human, which Telegram can');

@@ -5,6 +5,7 @@ description: The FIRST skill to load whenever someone asks to build a WordPress 
 enable_agentic: true
 enable_prompt: true
 role: procedure
+surface: interactive
 requires: build-standard
 next_skills: website-building, web-design-master
 verified_by: launch-readiness-and-compliance

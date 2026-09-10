@@ -51,6 +51,53 @@ final class Claudpress_Skill_Standard
     const ROLE_DEFAULT = 'procedure';
 
     /**
+     * WHERE a skill can actually be finished.
+     *
+     * `role` says what a skill is. This says which kind of session can complete
+     * it, and it exists because the answer is not always "any of them".
+     *
+     * The same agent reaches this site down three very different pipes. Claude
+     * Code and the IDE clients are a workstation: a human is present, and the
+     * client has local tools of its own — a browser, a filesystem, other MCP
+     * servers. Telegram and Slack are a chat window: a human is present but the
+     * agent has nothing except this site's tools. A scheduled task is neither;
+     * nobody is there at all.
+     *
+     * Without this field an agent on Telegram happily loads a skill whose third
+     * step is "open the page in a headless browser and compare computed
+     * styles", gets four steps in, and then either stalls or invents a result.
+     * Both outcomes are worse than refusing at the start, and the agent had no
+     * way to know — a skill body reads exactly the same down every pipe.
+     *
+     *   any          — no special requirement. Nearly everything.
+     *   interactive  — needs a human answering questions DURING the run, so it
+     *                  cannot be completed by an unattended scheduled task.
+     *                  Chat is fine.
+     *   workstation  — needs a client with local tools of its own (a browser,
+     *                  a second MCP server, the local filesystem). Claude Code
+     *                  or an IDE only: not chat, not unattended.
+     *
+     * The values are ordered weakest requirement first, which is what
+     * surface_rank() relies on.
+     */
+    const SURFACES = ['any', 'interactive', 'workstation'];
+
+    /** Anything that does not say otherwise runs anywhere. */
+    const SURFACE_DEFAULT = 'any';
+
+    /**
+     * What each session type can actually do, for the agent-facing explanation.
+     *
+     * Keyed by surface, so the message a caller shows is written once here
+     * rather than reinvented at each of the three places that need it.
+     */
+    const SURFACE_NOTES = [
+        'any'         => 'Runs anywhere: Claude Code, an IDE, Telegram, Slack, or an unattended task.',
+        'interactive' => 'Needs a person answering questions while it runs. Not an unattended scheduled task.',
+        'workstation' => 'Needs Claude Code or an IDE — it uses tools that live on the caller\'s machine (a browser, another MCP server). Cannot be completed over Telegram or Slack.',
+    ];
+
+    /**
      * The one skill allowed to have nothing pointing at it. Operating-protocol
      * rule 11 injects it into every session, so it is reached by name from PHP
      * rather than by an edge from another skill.
@@ -177,6 +224,75 @@ final class Claudpress_Skill_Standard
     {
         $role = strtolower(trim((string) ($skill['role'] ?? '')));
         return in_array($role, self::ROLES, true) ? $role : self::ROLE_DEFAULT;
+    }
+
+    /**
+     * Anything unrecognised runs anywhere.
+     *
+     * Defaulting to the LOOSEST value is deliberate, and it is the opposite of
+     * what a safety-minded default usually looks like. A wrong `workstation`
+     * default would make every existing skill refuse to run on Telegram
+     * overnight, breaking working setups over a field their author never wrote.
+     * A wrong `any` leaves exactly the behaviour there was before this field
+     * existed. The linter is what makes authors state it; the runtime is not
+     * the place to guess.
+     */
+    public static function surface(array $skill): string
+    {
+        $surface = strtolower(trim((string) ($skill['surface'] ?? '')));
+        return in_array($surface, self::SURFACES, true) ? $surface : self::SURFACE_DEFAULT;
+    }
+
+    /**
+     * What to tell an agent about the session it is actually in.
+     *
+     * The catalog explains what each surface MEANS; this says which one the
+     * agent has. Both halves are needed and neither is guessable: a skill body
+     * reads identically down every pipe, and an agent has no way to discover
+     * that this particular connection has no browser attached.
+     *
+     * Written once here rather than at each call site because the wording is
+     * the whole product — an agent that is told "you cannot do this" without
+     * being told what CAN do it will improvise, which is the failure this is
+     * for.
+     *
+     * @param string $session One of SURFACES: what this connection offers.
+     */
+    public static function session_surface_notice(string $session): string
+    {
+        $blocked = [];
+        foreach (self::SURFACES as $surface) {
+            if (!self::surface_allows($session, $surface)) {
+                $blocked[] = $surface;
+            }
+        }
+        if (empty($blocked)) {
+            return 'THIS SESSION IS A WORKSTATION. Every skill in the catalog can be completed here, including any marked "needs: interactive" or "needs: workstation".';
+        }
+        return sprintf(
+            'THIS SESSION IS "%s". You CANNOT complete a skill the catalog marks "needs: %s". If the task requires one, name the skill, say plainly that this connection cannot finish it, and tell the owner to run it from Claude Code or an IDE connected to this site. Do not start it and work around the missing tool, and never report a result you could not measure.',
+            $session,
+            implode('" or "needs: ', $blocked)
+        );
+    }
+
+    /** How demanding a surface is. Higher needs more of the session. */
+    public static function surface_rank(string $surface): int
+    {
+        $i = array_search($surface, self::SURFACES, true);
+        return $i === false ? 0 : (int) $i;
+    }
+
+    /**
+     * Can a session of this kind finish a skill of that kind?
+     *
+     * Callers pass what the SESSION offers; the skill says what it NEEDS. A
+     * workstation session can run everything, chat can run `any` and
+     * `interactive`, an unattended task can run only `any`.
+     */
+    public static function surface_allows(string $session, string $needed): bool
+    {
+        return self::surface_rank($session) >= self::surface_rank($needed);
     }
 
     /**
@@ -380,6 +496,37 @@ final class Claudpress_Skill_Standard
             ));
         }
 
+        // A typo here is worse than a missing value, because both read as "runs
+        // anywhere" at runtime and only one of them is what the author meant.
+        // `surface: workstaton` would silently let a browser-driven skill start
+        // on Telegram — exactly the failure the field was added to prevent.
+        $surface = self::surface($skill);
+        if (($skill['surface'] ?? '') !== '' && $surface !== strtolower(trim((string) $skill['surface']))) {
+            $f[] = self::finding('error', 'surface-unknown', $name, sprintf(
+                'Unknown surface "%s". Use one of: %s.',
+                (string) $skill['surface'],
+                implode(', ', self::SURFACES)
+            ));
+        }
+
+        // A skill that names a tool nobody on this site provides is describing
+        // work that has to happen on the caller's machine, and it has to say so.
+        // Caught by looking for the phrases that give it away rather than by
+        // parsing prose: the point is to make the author think, not to be
+        // exhaustive, and a false positive costs one word of frontmatter.
+        if ($surface === self::SURFACE_DEFAULT) {
+            $needs_local = ['headless browser', 'chrome-devtools', 'playwright', 'puppeteer', 'firecrawl', 'screenshot the page', 'on your machine'];
+            foreach ($needs_local as $phrase) {
+                if (stripos($body, $phrase) !== false) {
+                    $f[] = self::finding('error', 'surface-understated', $name, sprintf(
+                        'The body mentions "%s" but the skill claims surface: any. Work that needs a tool on the caller\'s machine cannot finish over Telegram — declare surface: workstation.',
+                        $phrase
+                    ));
+                    break;
+                }
+            }
+        }
+
         foreach (self::SECTIONS as $heading) {
             if (!self::has_section($body, $heading)) {
                 $f[] = self::finding('error', 'section-missing', $name, sprintf('Missing the "## %s" section.', $heading));
@@ -480,6 +627,41 @@ final class Claudpress_Skill_Standard
                     $kind,
                     implode(' -> ', $cycle)
                 ));
+            }
+        }
+
+        // A binding edge cannot demand more of the session than the skill does.
+        //
+        // If A declares surface: any but REQUIRES B, and B needs a workstation,
+        // then A cannot honestly be run anywhere — an agent on Telegram loads
+        // A, is told to load B first, and is stuck. Same for verified_by: a
+        // skill whose verifier needs a browser is a skill that cannot be
+        // reported done without one.
+        //
+        // next_skills is deliberately NOT checked. That edge is a suggestion
+        // for afterwards, not a prerequisite, so an `any` skill may perfectly
+        // well point at a workstation one — "and when you are next at your
+        // machine, do this too" is a useful thing to be able to say.
+        foreach ($names as $name) {
+            $own      = self::surface($skills[$name]);
+            $own_rank = self::surface_rank($own);
+            foreach (['requires', 'verified_by'] as $kind) {
+                foreach (self::edges($skills[$name])[$kind] as $target) {
+                    if (!isset($skills[$target])) {
+                        continue; // dangling edges are reported by check()
+                    }
+                    $their = self::surface($skills[$target]);
+                    if (self::surface_rank($their) > $own_rank) {
+                        $f[] = self::finding('error', 'surface-conflict', $name, sprintf(
+                            'Declares surface: %s but %s "%s", which needs surface: %s. Raise this skill to %s, or move the edge to next_skills if it is advice rather than a prerequisite.',
+                            $own,
+                            $kind,
+                            $target,
+                            $their,
+                            $their
+                        ));
+                    }
+                }
             }
         }
 

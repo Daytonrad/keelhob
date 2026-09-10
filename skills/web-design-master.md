@@ -5,6 +5,7 @@ description: The design reference for building modern, beautiful, responsive web
 enable_agentic: true
 enable_prompt: true
 role: reference
+surface: any
 next_skills: motion-and-interaction, website-building
 verified_by: pre-launch-audit
 ---

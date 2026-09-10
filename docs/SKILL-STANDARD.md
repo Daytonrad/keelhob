@@ -24,6 +24,7 @@ description: One line...       # see below — this is the router
 enable_agentic: true
 enable_prompt: true
 role: procedure                # gate | procedure | reference
+surface: any                   # any | interactive | workstation
 requires: skill-a, skill-b     # load these BEFORE starting
 next_skills: skill-c           # consider these when finished
 verified_by: pre-launch-audit  # NOT done until this has run
@@ -37,6 +38,26 @@ verified_by: pre-launch-audit  # NOT done until this has run
 | `gate` | Gets in the way on purpose. Work is not done until it passes. |
 | `procedure` | Steps to follow to accomplish a task. The default. |
 | `reference` | Background knowledge, read for judgement. No steps. |
+
+### Where a skill can run
+
+`role` says what a skill IS. `surface` says which kind of session can FINISH it, and
+it exists because a skill body reads identically down every pipe. Without it, an agent
+on Telegram loads a skill whose third step is "open the page in a headless browser and
+compare computed styles", gets four steps in, and then either stalls or invents a
+result. Both are worse than refusing at step zero and naming the client that can.
+
+| Surface | Meaning |
+|---|---|
+| `any` | Runs anywhere: Claude Code, an IDE, Telegram, Slack, or an unattended task. The default. |
+| `interactive` | Needs a person answering questions while it runs. Not an unattended scheduled task. |
+| `workstation` | Needs Claude Code or an IDE — it uses tools that live on the caller's machine (a browser, another MCP server). Cannot be completed over Telegram or Slack. |
+
+A skill may not `requires`, or be `verified_by`, a skill with a stricter surface than
+its own: that is a promise it cannot keep, and the linter refuses it. `next_skills` is
+deliberately exempt, because that edge is advice for afterwards rather than a
+prerequisite — "and when you are next at your machine, do this too" is a useful thing
+for a chat-safe skill to be able to say.
 
 ### The three edges
 

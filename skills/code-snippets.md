@@ -5,6 +5,7 @@ description: Add custom functionality or behavior to the site by writing live co
 enable_agentic: true
 enable_prompt: true
 role: procedure
+surface: any
 requires: site-safety
 next_skills: motion-and-interaction, security-standard
 ---

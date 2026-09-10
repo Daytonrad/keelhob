@@ -5,6 +5,7 @@ description: Create, refine, or improve a Claudpress skill. Use whenever the use
 enable_agentic: true
 enable_prompt: true
 role: procedure
+surface: any
 next_skills: build-standard
 ---
 

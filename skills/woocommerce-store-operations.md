@@ -5,6 +5,7 @@ description: Run the WooCommerce shop end to end — add or edit products, manag
 enable_agentic: true
 enable_prompt: true
 role: procedure
+surface: any
 next_skills: store-launch-and-deploy, seo-optimization
 verified_by: site-safety
 ---

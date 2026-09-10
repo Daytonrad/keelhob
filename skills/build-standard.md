@@ -5,6 +5,7 @@ description: The Definition of Done for any build work on this site — what "fi
 enable_agentic: true
 enable_prompt: true
 role: gate
+surface: any
 next_skills: site-build-kickoff, website-building, blog-publishing, seo-optimization, code-snippets, woocommerce-store-operations, launch-readiness-and-compliance, skill-creator, site-safety, security-standard, web-design-master, motion-and-interaction, seo-audit-and-fix, elementor-page-building, solace-header-footer, store-launch-and-deploy
 verified_by: pre-launch-audit
 ---
@@ -162,26 +163,26 @@ Generated from the front matter in `skills/*.md` by `php bin/build-skill-router.
 Do not edit the table by hand — change the skill file and regenerate.
 
 <!-- ROUTER:START -->
-| Skill | Role | Requires first | Then consider | Not done until |
-|---|---|---|---|---|
-| `blog-publishing` | procedure | — | `seo-optimization`, `web-design-master` | `seo-optimization` |
-| `build-standard` | gate | — | `site-build-kickoff`, `website-building`, `blog-publishing`, `seo-optimization`, `code-snippets`, `woocommerce-store-operations`, `launch-readiness-and-compliance`, `skill-creator`, `site-safety`, `security-standard`, `web-design-master`, `motion-and-interaction`, `seo-audit-and-fix`, `elementor-page-building`, `solace-header-footer`, `store-launch-and-deploy` | `pre-launch-audit` |
-| `code-snippets` | procedure | `site-safety` | `motion-and-interaction`, `security-standard` | — |
-| `elementor-page-building` | procedure | `web-design-master` | `motion-and-interaction`, `seo-optimization` | `pre-launch-audit` |
-| `launch-readiness-and-compliance` | gate | — | `store-launch-and-deploy`, `security-standard` | `pre-launch-audit` |
-| `motion-and-interaction` | reference | — | `web-design-master`, `seo-audit-and-fix` | `pre-launch-audit` |
-| `pre-launch-audit` | gate | — | `launch-readiness-and-compliance`, `seo-audit-and-fix`, `security-standard` | — |
-| `security-standard` | reference | — | `site-safety`, `pre-launch-audit` | — |
-| `seo-audit-and-fix` | procedure | — | `seo-optimization`, `motion-and-interaction` | `pre-launch-audit` |
-| `seo-optimization` | gate | — | `seo-audit-and-fix` | `pre-launch-audit` |
-| `site-build-kickoff` | procedure | `build-standard` | `website-building`, `web-design-master` | `launch-readiness-and-compliance` |
-| `site-safety` | gate | — | `security-standard`, `code-snippets` | `pre-launch-audit` |
-| `skill-creator` | procedure | — | `build-standard` | — |
-| `solace-header-footer` | procedure | `web-design-master` | `website-building`, `motion-and-interaction` | `pre-launch-audit` |
-| `store-launch-and-deploy` | procedure | — | `launch-readiness-and-compliance`, `woocommerce-store-operations` | `pre-launch-audit` |
-| `web-design-master` | reference | — | `motion-and-interaction`, `website-building` | `pre-launch-audit` |
-| `website-building` | procedure | `web-design-master` | `motion-and-interaction`, `seo-optimization`, `elementor-page-building`, `solace-header-footer`, `code-snippets` | `pre-launch-audit` |
-| `woocommerce-store-operations` | procedure | — | `store-launch-and-deploy`, `seo-optimization` | `site-safety` |
+| Skill | Role | Runs on | Requires first | Then consider | Not done until |
+|---|---|---|---|---|---|
+| `blog-publishing` | procedure | any | — | `seo-optimization`, `web-design-master` | `seo-optimization` |
+| `build-standard` | gate | any | — | `site-build-kickoff`, `website-building`, `blog-publishing`, `seo-optimization`, `code-snippets`, `woocommerce-store-operations`, `launch-readiness-and-compliance`, `skill-creator`, `site-safety`, `security-standard`, `web-design-master`, `motion-and-interaction`, `seo-audit-and-fix`, `elementor-page-building`, `solace-header-footer`, `store-launch-and-deploy` | `pre-launch-audit` |
+| `code-snippets` | procedure | any | `site-safety` | `motion-and-interaction`, `security-standard` | — |
+| `elementor-page-building` | procedure | any | `web-design-master` | `motion-and-interaction`, `seo-optimization` | `pre-launch-audit` |
+| `launch-readiness-and-compliance` | gate | any | — | `store-launch-and-deploy`, `security-standard` | `pre-launch-audit` |
+| `motion-and-interaction` | reference | any | — | `web-design-master`, `seo-audit-and-fix` | `pre-launch-audit` |
+| `pre-launch-audit` | gate | any | — | `launch-readiness-and-compliance`, `seo-audit-and-fix`, `security-standard` | — |
+| `security-standard` | reference | any | — | `site-safety`, `pre-launch-audit` | — |
+| `seo-audit-and-fix` | procedure | any | — | `seo-optimization`, `motion-and-interaction` | `pre-launch-audit` |
+| `seo-optimization` | gate | any | — | `seo-audit-and-fix` | `pre-launch-audit` |
+| `site-build-kickoff` | procedure | interactive | `build-standard` | `website-building`, `web-design-master` | `launch-readiness-and-compliance` |
+| `site-safety` | gate | any | — | `security-standard`, `code-snippets` | `pre-launch-audit` |
+| `skill-creator` | procedure | any | — | `build-standard` | — |
+| `solace-header-footer` | procedure | any | `web-design-master` | `website-building`, `motion-and-interaction` | `pre-launch-audit` |
+| `store-launch-and-deploy` | procedure | any | — | `launch-readiness-and-compliance`, `woocommerce-store-operations` | `pre-launch-audit` |
+| `web-design-master` | reference | any | — | `motion-and-interaction`, `website-building` | `pre-launch-audit` |
+| `website-building` | procedure | any | `web-design-master` | `motion-and-interaction`, `seo-optimization`, `elementor-page-building`, `solace-header-footer`, `code-snippets` | `pre-launch-audit` |
+| `woocommerce-store-operations` | procedure | any | — | `store-launch-and-deploy`, `seo-optimization` | `site-safety` |
 <!-- ROUTER:END -->
 
 ## Page-level vs site-level gates

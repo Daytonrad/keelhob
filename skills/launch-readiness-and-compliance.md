@@ -5,6 +5,7 @@ description: The gate a site passes before anyone sees it — the twenty things 
 enable_agentic: true
 enable_prompt: true
 role: gate
+surface: any
 next_skills: store-launch-and-deploy, security-standard
 verified_by: pre-launch-audit
 ---

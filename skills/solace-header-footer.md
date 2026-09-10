@@ -5,6 +5,7 @@ description: Build or edit the header/footer of a site running the Solace theme.
 enable_agentic: true
 enable_prompt: true
 role: procedure
+surface: any
 requires: web-design-master
 next_skills: website-building, motion-and-interaction
 verified_by: pre-launch-audit

@@ -422,8 +422,23 @@ final class Claudpress_Agent_Runtime
         $catalog = Claudpress_MCP_Server::skill_catalog_block();
         $skills_block = $catalog !== '' ? "\n\n" . $catalog : '';
 
+        // Which of the three session types this run actually is.
+        //
+        // Neither of these is a workstation. Both reach the site through the
+        // plugin's own tools and nothing else — there is no browser here, no
+        // second MCP server, no local filesystem. A Telegram run at least has a
+        // person answering, so it can finish an "interactive" skill; a
+        // scheduled run has nobody, so it can only finish "any".
+        //
+        // Appended after the catalog on purpose: the catalog is what explains
+        // what the labels mean, and this is the sentence that tells the agent
+        // which one it is holding.
+        $surface_block = "\n\n" . Claudpress_Skill_Standard::session_surface_notice(
+            $interactive ? 'interactive' : Claudpress_Skill_Standard::SURFACE_DEFAULT
+        );
+
         if ($interactive) {
-            return self::interactive_prompt($channel) . $skills_block . $memory_block;
+            return self::interactive_prompt($channel) . $skills_block . $surface_block . $memory_block;
         }
 
         return implode("\n", [
@@ -441,7 +456,7 @@ final class Claudpress_Agent_Runtime
             '- Leave the site in a working state at every step. Never end a run mid-migration, with a broken template live, or with a half-updated set of products.',
             '',
             'Keep going until the task is complete or truly blocked, then stop and write a concise plain-text summary of what you did, what changed, what you skipped, and anything the owner should review.',
-        ]) . $skills_block . $memory_block;
+        ]) . $skills_block . $surface_block . $memory_block;
     }
 
     /**

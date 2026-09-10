@@ -251,3 +251,65 @@ CP_Test::same(97, Claudpress_Skill_Standard::score([['level' => 'warn']]), 'a wa
 CP_Test::same(0, Claudpress_Skill_Standard::score(array_fill(0, 50, ['level' => 'error'])), 'the score floors at zero rather than going negative');
 CP_Test::ok(Claudpress_Skill_Standard::has_errors([['level' => 'warn'], ['level' => 'error']]), 'has_errors sees an error among warnings');
 CP_Test::ok(!Claudpress_Skill_Standard::has_errors([['level' => 'warn']]), 'and warnings alone never fail a build');
+
+CP_Test::group('Skill standard — where a skill can actually be finished');
+
+// The field exists because a skill body reads identically down every pipe. An
+// agent in a Telegram window has no browser and no second MCP server, and
+// nothing in the text of a skill would ever tell it so.
+
+CP_Test::same('any', Claudpress_Skill_Standard::surface([]), 'a skill that says nothing runs anywhere');
+CP_Test::same('workstation', Claudpress_Skill_Standard::surface(['surface' => ' WorkStation ']), 'the value is trimmed and case-folded');
+
+// The loose default is deliberate and is the opposite of a safety default: a
+// wrong `workstation` would make every existing skill refuse to run on Telegram
+// overnight, while a wrong `any` leaves the behaviour there was before.
+CP_Test::same('any', Claudpress_Skill_Standard::surface(['surface' => 'workstaton']), 'a typo falls back to the loosest value, not the strictest');
+CP_Test::ok(in_array('surface-unknown', $codes(Claudpress_Skill_Standard::check($make('alpha', ['surface' => 'workstaton']), ['alpha', 'other'])), true), '...and the linter is what catches the typo, because the runtime must not guess');
+
+// What each kind of session can reach.
+CP_Test::ok(Claudpress_Skill_Standard::surface_allows('workstation', 'workstation'), 'Claude Code can finish a workstation skill');
+CP_Test::ok(Claudpress_Skill_Standard::surface_allows('workstation', 'any'), '...and everything below it');
+CP_Test::ok(Claudpress_Skill_Standard::surface_allows('interactive', 'interactive'), 'Telegram can finish a skill that only needs a human answering');
+CP_Test::ok(!Claudpress_Skill_Standard::surface_allows('interactive', 'workstation'), 'Telegram CANNOT finish a workstation skill — the whole point of the field');
+CP_Test::ok(!Claudpress_Skill_Standard::surface_allows('any', 'interactive'), 'an unattended task cannot finish a skill that needs someone to answer');
+CP_Test::ok(Claudpress_Skill_Standard::surface_allows('any', 'any'), '...but can still run the ordinary ones');
+
+// A body that describes local tooling while claiming to run anywhere is the
+// exact mistake this was built to stop, so the linter reads the body too rather
+// than trusting the field alone.
+$understated = $make('alpha', ['body' => "# alpha\n\n## When to use\n\nx\n\n## When NOT to use\n\ny\n\n## Routing examples\n\n- fires: alpha bravo\n- skips: echo foxtrot\n\n## Related skills\n\n- next: other\n\nOpen the page in a headless browser and compare the computed styles.\n" . str_repeat("\nfiller\n", 30)]);
+CP_Test::ok(in_array('surface-understated', $codes(Claudpress_Skill_Standard::check($understated, ['alpha', 'other'])), true), 'a body that needs a headless browser while claiming surface: any is refused');
+$stated = $understated;
+$stated['surface'] = 'workstation';
+CP_Test::ok(!in_array('surface-understated', $codes(Claudpress_Skill_Standard::check($stated, ['alpha', 'other'])), true), '...and is fine once it says so');
+
+// A binding edge cannot demand more of the session than the skill itself does.
+$conflict = [
+    'alpha' => $make('alpha', ['surface' => 'any', 'requires' => 'bravo', 'next_skills' => 'bravo']),
+    'bravo' => $make('bravo', ['surface' => 'workstation', 'next_skills' => 'alpha']),
+];
+CP_Test::ok(in_array('surface-conflict', $graph_codes($conflict), true), 'a skill claiming "any" cannot require one that needs a workstation — it could never be followed on Telegram');
+
+$verifier_conflict = [
+    'alpha' => $make('alpha', ['surface' => 'any', 'verified_by' => 'bravo', 'next_skills' => 'bravo']),
+    'bravo' => $make('bravo', ['surface' => 'workstation', 'next_skills' => 'alpha']),
+];
+CP_Test::ok(in_array('surface-conflict', $graph_codes($verifier_conflict), true), 'nor can its verifier need one — that skill could never be reported done');
+
+// next_skills is advice for afterwards, so pointing at a heavier skill is a
+// useful thing for a chat-safe skill to be able to do.
+$advice = [
+    'alpha' => $make('alpha', ['surface' => 'any', 'next_skills' => 'bravo']),
+    'bravo' => $make('bravo', ['surface' => 'workstation', 'next_skills' => 'alpha']),
+];
+CP_Test::ok(!in_array('surface-conflict', $graph_codes($advice), true), 'but next_skills is exempt — "when you are next at your machine, do this too" is legitimate');
+
+// The notice has to name the client that CAN do the work. An agent told only
+// "you cannot" improvises, which is the failure this exists to prevent.
+$chat = Claudpress_Skill_Standard::session_surface_notice('interactive');
+CP_Test::ok(strpos($chat, 'workstation') !== false, 'a chat session is told which surface it cannot reach');
+CP_Test::ok(stripos($chat, 'Claude Code') !== false, '...and is told what to send the owner to instead');
+$unattended = Claudpress_Skill_Standard::session_surface_notice('any');
+CP_Test::ok(strpos($unattended, 'interactive') !== false, 'an unattended run is told it cannot finish an interactive skill either');
+CP_Test::ok(strpos(Claudpress_Skill_Standard::session_surface_notice('workstation'), 'Every skill') !== false, 'a workstation session is told it can finish everything');

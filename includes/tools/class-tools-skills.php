@@ -105,6 +105,10 @@ final class Claudpress_Tools_Skills
             'name'        => $s['name'],
             'description' => $s['description'],
             'role'        => Claudpress_Skill_Standard::role($s),
+            // Where this can be finished. The catalog only prints it when it
+            // restricts something, so an agent that skipped straight to
+            // skill_get would otherwise never see it at all.
+            'surface'     => Claudpress_Skill_Standard::surface($s),
             'requires'    => $edges['requires'],
             'next_skills' => $edges['next_skills'],
             'verified_by' => $edges['verified_by'],

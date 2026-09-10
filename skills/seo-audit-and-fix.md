@@ -5,6 +5,7 @@ description: Audit a whole website's SEO across five layers and then fix what it
 enable_agentic: true
 enable_prompt: true
 role: procedure
+surface: any
 next_skills: seo-optimization, motion-and-interaction
 verified_by: pre-launch-audit
 ---

@@ -59,6 +59,7 @@ final class Claudpress_Skills
             source VARCHAR(20) NOT NULL DEFAULT 'local',
             version VARCHAR(32) NOT NULL DEFAULT '',
             role VARCHAR(20) NOT NULL DEFAULT 'procedure',
+            surface VARCHAR(20) NOT NULL DEFAULT 'any',
             requires VARCHAR(500) NOT NULL DEFAULT '',
             next_skills VARCHAR(500) NOT NULL DEFAULT '',
             verified_by VARCHAR(500) NOT NULL DEFAULT '',
@@ -138,6 +139,7 @@ final class Claudpress_Skills
         // `verified_by` line, the row must lose the edge too, or the site keeps
         // enforcing a link the author deleted.
         $row['role']        = Claudpress_Skill_Standard::role($args);
+        $row['surface']     = Claudpress_Skill_Standard::surface($args);
         $row['requires']    = implode(', ', Claudpress_Skill_Standard::slugs((string) ($args['requires'] ?? '')));
         $row['next_skills'] = implode(', ', Claudpress_Skill_Standard::slugs((string) ($args['next_skills'] ?? '')));
         $row['verified_by'] = implode(', ', Claudpress_Skill_Standard::slugs((string) ($args['verified_by'] ?? '')));
@@ -209,6 +211,7 @@ final class Claudpress_Skills
                     'name'        => $s['name'],
                     'description' => $s['description'],
                     'role'        => Claudpress_Skill_Standard::role($s),
+                    'surface'     => Claudpress_Skill_Standard::surface($s),
                     'next_skills' => Claudpress_Skill_Standard::slugs((string) ($s['next_skills'] ?? '')),
                     'verified_by' => Claudpress_Skill_Standard::slugs((string) ($s['verified_by'] ?? '')),
                 ];
@@ -269,6 +272,10 @@ final class Claudpress_Skills
                     // turns them into lists, because the front-matter parser
                     // has no concept of one.
                     case 'role':
+                    // Which kind of session can finish this skill. Chat and an
+                    // unattended task cannot drive a browser, so a skill that
+                    // needs one has to say so before an agent starts it there.
+                    case 'surface':
                     case 'requires':
                     case 'next_skills':
                     case 'verified_by':
