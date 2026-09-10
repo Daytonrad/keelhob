@@ -41,6 +41,28 @@ for ($i = 0; $i < 95; $i++) {
 $_SERVER['REMOTE_ADDR'] = '192.0.2.55';
 CP_Test::ok(Claudpress_Auth::is_locked_out(), 'the global counter still catches a spread-out attack from many IPs');
 
+// The global lock used to be a flat tally of failures from anybody, so one
+// machine sending a few hundred bad requests locked the real owner out for
+// fifteen minutes — a denial of service that cost the attacker seconds. It
+// counts distinct addresses now, so a single source can only ever lock itself.
+$GLOBALS['cp_test_transients'] = [];
+$_SERVER['REMOTE_ADDR'] = '203.0.113.200';
+for ($i = 0; $i < 500; $i++) { $record->invoke(null); }
+CP_Test::ok(Claudpress_Auth::is_locked_out(), 'the flooding IP locks itself out');
+$_SERVER['REMOTE_ADDR'] = '198.51.100.1';
+CP_Test::ok(!Claudpress_Auth::is_locked_out(), 'one flooding IP can no longer lock everybody else out');
+
+// Twenty-five different people each mistyping a token is not an attack, but a
+// success from one of them must take that address back out of the set.
+$GLOBALS['cp_test_transients'] = [];
+for ($i = 0; $i < 25; $i++) {
+    $_SERVER['REMOTE_ADDR'] = '172.16.0.' . $i;
+    $record->invoke(null);
+}
+CP_Test::ok(Claudpress_Auth::is_locked_out(), 'twenty-five failing addresses do trip the global lock');
+$clear->invoke(null);
+CP_Test::ok(!Claudpress_Auth::is_locked_out(), 'a success removes that address from the set, releasing the lock');
+
 $GLOBALS['cp_test_transients'] = [];
 $_SERVER['REMOTE_ADDR'] = '203.0.113.9';
 for ($i = 0; $i < 10; $i++) { $record->invoke(null); }

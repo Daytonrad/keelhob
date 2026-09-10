@@ -165,7 +165,34 @@ final class Claudpress_Auth
 
     const LOCKOUT_WINDOW   = 900;  // 15 minutes
     const MAX_FAILS_PER_IP = 10;
-    const MAX_FAILS_GLOBAL = 100;
+
+    /**
+     * How many DISTINCT addresses must be failing before everyone is locked out.
+     *
+     * This used to be a flat count of failures from anybody, which made the
+     * global lock trivially weaponisable: 100 bad requests from one machine —
+     * a few seconds of curl against the unauthenticated /status route — locked
+     * the real owner out of their own site for fifteen minutes, repeatable
+     * forever. The counter meant to stop a botnet was a denial-of-service tool
+     * with a lower cost to the attacker than to the victim.
+     *
+     * Counting addresses instead restores the distinction the check was for. A
+     * single attacker now trips only their own per-IP lock no matter how many
+     * requests they send, because they only ever contribute one entry here. A
+     * real botnet, which is many addresses each staying under the per-IP
+     * ceiling, is exactly what this still catches.
+     */
+    const MAX_FAILING_IPS = 25;
+
+    /**
+     * Ceiling on how many addresses are remembered.
+     *
+     * The set lives in one transient, so an attacker who can present unlimited
+     * source addresses could otherwise grow a single option row without bound.
+     * Well past MAX_FAILING_IPS, so the lock has always fired long before the
+     * cap is reached — the cap is a memory guard, not part of the rule.
+     */
+    const MAX_TRACKED_IPS = 200;
 
     private static function fail_key_ip(): string
     {
@@ -174,28 +201,66 @@ final class Claudpress_Auth
 
     private static function fail_key_global(): string
     {
-        return 'claudpress_authfail_global';
+        return 'claudpress_authfail_ips';
+    }
+
+    /** Hashed, never raw: this set is stored, and it does not need real addresses. */
+    private static function ip_fingerprint(): string
+    {
+        return md5(self::client_ip());
+    }
+
+    /** The remembered failing addresses, with the expired ones already dropped. */
+    private static function failing_ips(): array
+    {
+        $set = get_transient(self::fail_key_global());
+        if (!is_array($set)) {
+            return [];
+        }
+        // Each entry expires on its own clock. Without this, one burst would
+        // hold the site near the threshold for the whole window even after the
+        // addresses behind it had gone quiet.
+        $cutoff = time() - self::LOCKOUT_WINDOW;
+        return array_filter($set, static fn($seen): bool => (int) $seen > $cutoff);
     }
 
     public static function is_locked_out(): bool
     {
         return (int) get_transient(self::fail_key_ip()) >= self::MAX_FAILS_PER_IP
-            || (int) get_transient(self::fail_key_global()) >= self::MAX_FAILS_GLOBAL;
+            || count(self::failing_ips()) >= self::MAX_FAILING_IPS;
     }
 
     private static function record_failure(): void
     {
-        foreach ([[self::fail_key_ip(), self::MAX_FAILS_PER_IP], [self::fail_key_global(), self::MAX_FAILS_GLOBAL]] as [$key, $_max]) {
-            $count = (int) get_transient($key);
-            // Always re-set with the full window so a sustained attack stays
-            // locked out rather than trickling through as the window slides.
-            set_transient($key, $count + 1, self::LOCKOUT_WINDOW);
+        // Per-IP: a plain counter, re-set with the full window so a sustained
+        // attack stays locked out rather than trickling through as it slides.
+        $count = (int) get_transient(self::fail_key_ip());
+        set_transient(self::fail_key_ip(), $count + 1, self::LOCKOUT_WINDOW);
+
+        // Global: a set of addresses, not a tally of requests.
+        $set = self::failing_ips();
+        $me  = self::ip_fingerprint();
+        if (!isset($set[$me]) && count($set) >= self::MAX_TRACKED_IPS) {
+            return; // Already far past the threshold; nothing to learn.
         }
+        $set[$me] = time();
+        set_transient(self::fail_key_global(), $set, self::LOCKOUT_WINDOW);
     }
 
     private static function clear_failures(): void
     {
         delete_transient(self::fail_key_ip());
+
+        // Drop this address from the global set too. Without it, one fat-
+        // fingered token from each of twenty-five staff over fifteen minutes
+        // would lock the site even though every one of them then succeeded.
+        $set = self::failing_ips();
+        unset($set[self::ip_fingerprint()]);
+        if (empty($set)) {
+            delete_transient(self::fail_key_global());
+        } else {
+            set_transient(self::fail_key_global(), $set, self::LOCKOUT_WINDOW);
+        }
     }
 
     /**
