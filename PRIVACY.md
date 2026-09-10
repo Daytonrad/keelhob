@@ -39,11 +39,46 @@ installs" number from exactly this mechanism.
 | `version` | The Claudpress version running | To know which release to offer, and what is still in the wild |
 | `wp` | Your WordPress version | To know which versions still need supporting |
 | `php` | Your PHP version | The same |
+| `locale` | Your site language, e.g. `en_US` | Whether translating is worth doing, and into what |
+| `multisite` | `1` or `0` | Multisite breaks assumptions all over a plugin. Knowing whether anyone runs it decides whether to keep testing for it |
+| `woo` | `1` or `0` — is WooCommerce active | Half this plugin is store features. This says whether that half is used |
+| `builder` | `auto`, `elementor`, `solace`, … — the configured page builder | Which builder skills are worth the effort |
+| `ai` | `1` or `0` — whether AI abilities are switched on | Installs that never switch it on are a different problem from installs that do |
+| `caps` | The **names** of the capability groups you have switched on, e.g. `content,seo` | Eight groups ship OFF because they are risky. This says whether people find the switch, or whether it is buried |
+| `runs` | How many unattended runs happened in the last 24 hours, as a number | Whether anyone actually uses automation, or only ever drives it by hand |
 
 **That is the complete list.** In particular it does **not** send: your site
 address, your domain, your site name, any email address, any username, any post
 or product or order, any API key, any file, any prompt, or any record of what a
 connected agent did.
+
+It also does **not** send what your automation costs you or how many tokens it
+used. Your spend is your business. `runs` is a count of how many times something
+ran, and nothing about what it did or what it was worth.
+
+Every field above obeys one rule: it has to be true of a thousand other sites.
+None of them, alone or together, says whose install this is.
+
+**On `caps` specifically.** It is fair to ask whether "this install has code
+execution switched on" is a thing you want leaving your server. It is worth
+saying plainly why it is safe here: the endpoint stores no site address, no
+domain and no IP, so the most anyone could ever learn — including us, and
+including anyone who broke into the endpoint — is that *some* anonymous UUID
+somewhere has a capability enabled, with no way to find the site it belongs to.
+The reason that holds is the same reason `site_id` is random rather than derived
+from your URL. If that ever stopped being true, this field would have to go.
+
+**Why these and not an analytics service.** A free project still has to decide
+what to build next, and until now this endpoint answered one question — how
+many — and no others. It could not say whether anyone comes back after week one,
+which risky capabilities people deliberately enable, or whether the PHP floor
+can move. The alternative to a dozen anonymous integers was guessing.
+
+The alternative we did **not** take was adding PostHog or anything like it to
+the plugin. That would have meant a third-party script in your admin, on a
+plugin that already has more access to your site than almost anything else
+installed on it. This request already existed, was already documented, and
+already had an off switch.
 
 `site_id` is a `wp_generate_uuid4()` value stored in your own database. It is
 **not** derived from your URL, domain, or anything else about you, so it cannot

@@ -4,14 +4,30 @@
  *
  * The payload assertion below is the important one, and it is written as an
  * exact match rather than a "contains" on purpose. PRIVACY.md promises a
- * closed list of four fields to people who are being asked to let an AI run
- * their site. A helpful future addition — the site URL "just for debugging",
- * the admin email "so we can warn them" — would break that promise silently,
- * and a permissive test would wave it through.
+ * CLOSED list to people who are being asked to let an AI run their site. A
+ * helpful future addition — the site URL "just for debugging", the admin email
+ * "so we can warn them" — would break that promise silently, and a permissive
+ * test would wave it through.
  *
  * If this test fails because you added a field: the fix is not to update the
  * test. It is to update PRIVACY.md, the readme, and the settings screen first,
  * and then decide whether you still want to.
+ *
+ * The list was four fields until the project needed to answer more than "how
+ * many installs" — whether anyone returns after week one, which of the eight
+ * risky capability groups owners actually enable, whether the PHP floor can
+ * move. It grew to eleven, and it grew through the front door: the three
+ * documents above were rewritten first and this test last, in that order,
+ * exactly as the paragraph above demands. The alternative on the table was
+ * putting an analytics service inside a plugin that already has more access to
+ * a site than almost anything else installed on it, which is a trade this
+ * project is not willing to make.
+ *
+ * What did NOT change is the rule every field obeys: it has to be true of a
+ * thousand other sites. The assertions below name, one by one, the fields a
+ * future change is most likely to reach for — the URL, the admin email, an API
+ * key, the owner's spend — and refuse each of them explicitly, so that adding
+ * one is a deliberate act rather than an oversight.
  */
 
 CP_Test::group('Updater — exactly four things are sent, and nothing else');
@@ -31,11 +47,39 @@ CP_Test::ok(strpos($url, '/wp-json/') === false, 'and not to the marketing site,
 $query = [];
 parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
 
-CP_Test::same(['php', 'site_id', 'version', 'wp'], (function () use ($query) {
+CP_Test::same(['ai', 'builder', 'caps', 'locale', 'multisite', 'php', 'runs', 'site_id', 'version', 'woo', 'wp'], (function () use ($query) {
     $keys = array_keys($query);
     sort($keys);
     return $keys;
-})(), 'the payload is exactly site_id, version, wp and php — nothing was added');
+})(), 'the payload is exactly this closed list — nothing was added');
+
+// Every field is a fact about the software, never about the site. These are the
+// ones a "helpful" future change would reach for first, so each is named.
+foreach (['url', 'home', 'domain', 'site_url', 'email', 'admin_email', 'user', 'name', 'title', 'key', 'api_key', 'token', 'ip'] as $forbidden) {
+    CP_Test::ok(!array_key_exists($forbidden, $query), 'the payload does not carry ' . $forbidden);
+}
+
+// Spend is the owner's business. `runs` says something happened; how much it
+// cost them and how many tokens it burned is not the project's to collect.
+foreach (['cost', 'cost_usd', 'tokens', 'spend'] as $forbidden) {
+    CP_Test::ok(!array_key_exists($forbidden, $query), 'the payload does not carry ' . $forbidden);
+}
+
+// caps carries group NAMES so the project can see which risky groups owners
+// actually switch on. It must never carry the tools inside them, which would
+// start describing what one specific site can do.
+CP_Test::ok(
+    preg_match('/^[a-z0-9_,.-]*$/', (string) ($query['caps'] ?? '')) === 1,
+    'caps is a plain list of group keys'
+);
+CP_Test::ok(strpos((string) ($query['caps'] ?? ''), 'execute_php') === false, 'caps names groups, never individual tools');
+
+// Booleans stay booleans. A field that can carry free text is a field that can
+// one day carry something identifying without the shape of the payload changing.
+foreach (['multisite', 'woo', 'ai'] as $flag) {
+    CP_Test::ok(in_array((string) ($query[$flag] ?? ''), ['0', '1'], true), $flag . ' is 1 or 0, never free text');
+}
+CP_Test::ok(ctype_digit((string) ($query['runs'] ?? '')), 'runs is a plain count');
 
 CP_Test::same(CLAUDPRESS_VERSION, $query['version'] ?? '', 'the plugin version is sent');
 CP_Test::same(36, strlen((string) ($query['site_id'] ?? '')), 'site_id is a UUID');

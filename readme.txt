@@ -155,10 +155,22 @@ continuing.
 
 What is sent, in full: a random ID generated on your site (not derived from your
 address, domain or email, so it cannot be traced back to you), the Claudpress
-version, and your WordPress and PHP versions. That is the complete list. No site
-address, no domain, no email, no user data, no content, and no record of what
-the AI does. The endpoint does not keep IP addresses, and rows are deleted after
-90 days of silence.
+version, your WordPress and PHP versions, your site language, whether this is a
+multisite, whether WooCommerce is active, which page builder is configured,
+whether AI abilities are switched on, the names of the capability groups you
+have enabled, and how many unattended runs happened in the last 24 hours.
+
+That is the complete list, and every item on it is true of a thousand other
+sites. No site address, no domain, no email, no user data, no content, no API
+keys, and no record of what the AI actually did. It does not send what your
+automation costs you or how many tokens it used - your spend is your business.
+The endpoint does not keep IP addresses, and rows are deleted after 90 days of
+silence.
+
+Why more than a version number: a free project still has to decide what to build
+next, and a bare install count cannot say whether anyone comes back, which
+features people actually turn on, or whether the PHP floor can move. The
+alternative we did not take was putting an analytics service in your admin.
 
 Turn it off under Claudpress > Settings and the update check goes straight to
 GitHub (https://api.github.com) instead — you keep getting every update,

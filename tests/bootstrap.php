@@ -153,6 +153,16 @@ function get_bloginfo(string $show = 'name'): string
     return 'Test Site';
 }
 
+function get_locale(): string
+{
+    return $GLOBALS['cp_test_locale'] ?? 'en_US';
+}
+
+function is_multisite(): bool
+{
+    return !empty($GLOBALS['cp_test_multisite']);
+}
+
 function home_url(string $path = ''): string
 {
     return ($GLOBALS['cp_test_home_url'] ?? 'https://example.test') . $path;

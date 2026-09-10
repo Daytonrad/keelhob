@@ -75,6 +75,91 @@ final class Claudpress_Updater
         return $id;
     }
 
+    /**
+     * What the check-in carries.
+     *
+     * The rule every field here obeys: it must be true of a THOUSAND sites, or
+     * it does not go. Nothing here names a site, a person, a domain, a key, a
+     * post, a product or a price. Read the whole list out loud to a stranger
+     * and none of it tells them whose install it is.
+     *
+     * Why widen it at all. The endpoint already counted installs and nothing
+     * else, which answers "how many" and no other question — not whether anyone
+     * comes back after week one, not which of the eight risky capability groups
+     * people actually turn on, not whether the PHP floor can move. A free
+     * project with no analytics still has to decide what to build next, and the
+     * alternative to a handful of anonymous integers is guessing.
+     *
+     * Why not an analytics vendor instead. PRIVACY.md promises there is no
+     * analytics service, no session recording and no third-party script in the
+     * admin, and this plugin already has more access to a site than almost
+     * anything else installed on it. That promise is worth more than a funnel
+     * chart. This request already exists, is already documented, and already
+     * has an off switch — widening it costs the owner nothing new.
+     *
+     * Deliberately absent: cost and token totals (that is the owner's spend,
+     * and none of our business), anything from the content of the site, and
+     * anything a support conversation would need — because the moment a field
+     * is useful for identifying one install it stops being a count.
+     *
+     * Split out from latest() so it can be asserted on directly. What leaves
+     * somebody else's server is exactly the kind of thing that should be
+     * readable in one place and pinned by a test.
+     *
+     * @return array<string, string|int>
+     */
+    public static function checkin_fields(): array
+    {
+        $fields = [
+            'site_id' => self::site_id(),
+            'version' => CLAUDPRESS_VERSION,
+            'wp'      => get_bloginfo('version'),
+            'php'     => PHP_VERSION,
+        ];
+
+        // The stack, for deciding what the plugin still has to support. The PHP
+        // floor is 8.0 and moving it is guesswork without knowing who is on it.
+        $fields['locale']    = (string) get_locale();
+        $fields['multisite'] = is_multisite() ? 1 : 0;
+        $fields['woo']       = class_exists('WooCommerce') ? 1 : 0;
+
+        if (class_exists('Claudpress')) {
+            $builder = (string) Claudpress::instance()->get('builder', 'auto');
+            $fields['builder'] = $builder !== '' ? $builder : 'auto';
+            $fields['ai']      = Claudpress::instance()->abilities_enabled() ? 1 : 0;
+        }
+
+        // Which capability groups are switched ON. Eight of them ship off by
+        // default because they are risky, and how many owners deliberately
+        // enable each one is the difference between "nobody wanted this" and
+        // "the switch is too hard to find". Group keys only — never the tools
+        // inside them, and never whether a provider key is present.
+        if (class_exists('Claudpress_Capabilities')) {
+            // is_group_enabled() rather than diffing against disabled_groups():
+            // that method returns rows describing each disabled group for the
+            // agent to read, not a list of keys, so diffing keys against it
+            // compared strings with arrays and quietly produced the wrong list.
+            $on = [];
+            foreach (array_keys(Claudpress_Capabilities::groups()) as $key) {
+                if (Claudpress_Capabilities::is_group_enabled((string) $key)) {
+                    $on[] = (string) $key;
+                }
+            }
+            sort($on);
+            $fields['caps'] = implode(',', $on);
+        }
+
+        // Is anyone actually using it. A count of unattended runs in the last
+        // day, already stored on the site for the owner's own reporting, so
+        // this adds no new record of anything. Never the cost or the tokens.
+        if (class_exists('Claudpress_Agent_Runs')) {
+            $usage = Claudpress_Agent_Runs::usage_since(24);
+            $fields['runs'] = (int) ($usage['runs'] ?? 0);
+        }
+
+        return $fields;
+    }
+
     /** Whether this site joins the public count. On unless the owner says no. */
     public static function counts_itself(): bool
     {
@@ -103,12 +188,7 @@ final class Claudpress_Updater
         $out = null;
 
         if (self::counts_itself()) {
-            $out = self::ask(add_query_arg([
-                'site_id' => self::site_id(),
-                'version' => CLAUDPRESS_VERSION,
-                'wp'      => get_bloginfo('version'),
-                'php'     => PHP_VERSION,
-            ], self::CHECKIN_ENDPOINT));
+            $out = self::ask(add_query_arg(self::checkin_fields(), self::CHECKIN_ENDPOINT));
         }
 
         // If the counting endpoint is unreachable, not yet built, or answers
