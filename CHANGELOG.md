@@ -10,6 +10,95 @@ file is the one written for developers: it names files, says what broke and why,
 and keeps the pre-release history that `readme.txt` presents as if it were
 public. When the two disagree, this file is correct.
 
+## [1.1.0] - unreleased
+
+### Added
+
+- **The feedback log.** `includes/class-feedback.php`, `includes/tools/class-tools-feedback.php`.
+
+  The loop this exists for: somebody asks for a hero section, the agent gets it
+  wrong, they correct it, it gets it wrong differently, three rounds later it
+  lands and they are tired. That happens on every install and none of it reaches
+  the project. One person shrugs; twenty people is the most useful thing this
+  project could know.
+
+  Friction is captured automatically in `Claudpress_Tool_Registry::call()` — the
+  one place every tool call passes through — because an agent's own account of
+  what went badly is the least reliable evidence there is. It sees three things
+  by itself: a tool that errored, a refusal that reads as a policy block, and the
+  same tool called with near-identical arguments three times. Zero tokens, zero
+  conversation content, and an agent cannot decline to report its own failures.
+
+  The agent adds a line only for the category no machine sees: *it did what was
+  asked and the result looked wrong.*
+
+  **Nothing is sent without a person reading the whole draft and saying yes.**
+  That rule is operating-protocol **rule 15**, in PHP, for the same reason as
+  rules 9–14: a skill can be switched off and consent must not be. The two tools
+  split on that boundary — `feedback_status` drafts and can never send;
+  `feedback_send` requires `approved` and is the only thing that touches the
+  network.
+
+  Offered only when friction exists **and** seven days have passed since the last
+  offer, whatever the answer was. A prompt every session is a nag, a nag gets the
+  setting switched off, and that costs more reports than the nagging gains.
+
+  Retention: 30 days or 50 rows, tighter than the 90 days the server keeps,
+  because this table sits on somebody else's site.
+
+- **`Claudpress_Feedback::redact()`**, applied on write and again before sending.
+  Strips URLs, bare domains, emails, IPv4/IPv6, absolute paths, key-shaped runs,
+  anything following `key`/`token`/`password`/`secret`, and the site's own name
+  and hostname. In PHP, not in a skill, because a skill can be edited away.
+
+  `tests/unit/test-feedback-redaction.php` plants each of those as a deliberate
+  leak. A no-op `redact()` fails 22 of its 30 assertions — verified, not assumed.
+  That file is what makes the claim in PRIVACY.md checkable rather than stated.
+
+- **Claudpress → Activity → Feedback log.** Every row, in full, with two buttons:
+  one that wipes the local log, one that also sends
+  `DELETE /v1/feedback?site_id=…` so the server drops what it already holds.
+  Anonymous data normally cannot honour a deletion request because nothing can
+  find it; the site knows its own UUID, so it can ask.
+
+- **The "Help improve Claudpress" setting**, on by default, beside the public-count
+  setting because both answer the same question. Default-ON is defensible only
+  because of the two rules under it: nothing is recorded when it is off, and
+  nothing is ever sent without a yes. Default-ON *sending* would not be.
+
+- **`skills/contribute-feedback.md`** — how to word a note, with a good and a bad
+  example side by side. 100/100 on `bin/lint-skills.php`.
+
+- **API:** `POST /v1/feedback`, `DELETE /v1/feedback`, `GET /v1/feedback/summary`,
+  the `feedback_reports` table (migration `0005`), and `src/domain/feedback.ts`,
+  which re-derives the whole guarantee server-side. The plugin is GPL and runs on
+  somebody else's server, so a modified client can skip every client-side rule.
+
+### Changed
+
+- `PRIVACY.md` and `readme.txt` document the feedback report field by field,
+  including the part it is fair to be uneasy about: a client's name typed into a
+  note during approval is sent, because redaction catches addresses and keys and
+  cannot know that "Acme Dental" is a customer.
+
+- `Claudpress_Capabilities::always_on()` gains `feedback_status` and
+  `feedback_send`. A report the owner must enable a capability to give is a
+  report nobody gives, and neither tool can change anything on the site.
+
+### Known gaps
+
+- **The private inbox is not built.** `GET /v1/feedback/summary` returns grouped
+  counts of *distinct sites* and never a note. Reading the notes needs owner
+  authentication, and this service deliberately has none — the two guards that
+  once provided it read `SUPABASE_SERVICE_KEY` and were deleted with the paid
+  tier. Adding auth back is a decision, not a detail, so it is named here rather
+  than half-done.
+
+- **`POST /v1/feedback` is rate limited at 30/hour per address, not the 5 the
+  plan wrote.** Five assumed one site per address. Agencies and shared hosts put
+  dozens of installs behind one outbound IP, and they are exactly the callers
+  worth hearing from — five would silently drop the fourth one's report.
+
 ## [1.0.3] - 2026-09-08
 
 ### Security
@@ -98,7 +187,8 @@ public. When the two disagree, this file is correct.
   no automatic revert for that write, never that the write is refused.
 
   The restore is byte-exact, which is the whole value of it. A file that loses
-  its trailing newline or gains a stray `` is not the file the owner had.
+  its trailing newline or gains a stray `
+` is not the file the owner had.
 
   A **new** file's revert is deleting it, not restoring empty content. A 0-byte
   file left behind is still there, still loaded, and now looks deliberate.

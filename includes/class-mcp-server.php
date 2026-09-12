@@ -177,6 +177,16 @@ final class Claudpress_MCP_Server
             // the result it cannot measure. Refusing at step zero and naming
             // the client that CAN do it is the only outcome that helps anyone.
             '14. Check a skill can be finished here before you start it. The catalog marks any skill that needs more than this connection: "needs: interactive" means a person has to be answering while it runs, so it cannot be a scheduled task; "needs: workstation" means it uses tools on the caller\'s own machine - a browser, another MCP server - so it can only be completed from Claude Code or an IDE. If you are on Telegram or Slack, or running unattended, and the task needs such a skill: say which skill it is, say plainly that this connection cannot finish it, and tell the owner to run it from Claude Code or an IDE connected to this site. Do not start it and improvise around the missing tool, and never report a result you could not measure.',
+            '',
+            // In PHP for the same reason as rules 9-14: a skill can be switched
+            // off, and consent is the one thing that must never be optional.
+            // The setting means "the agent may OFFER". It never means "the
+            // agent may SEND". The only version of "nothing sensitive was sent"
+            // that survives somebody checking is "a human read it before it
+            // left", and that only holds if the draft is shown in full - a
+            // forty-line prompt nobody reads is not consent either, which is
+            // why the report is capped at five short lines.
+            '15. Offer the feedback report only when the plugin says it is due, and never send it without a yes. Call feedback_status when you are writing up finished work. If it says due, show the WHOLE draft it returns - every event, nothing summarised or folded away - then ask "Send this to the Claudpress project? Or is there anything you would add or change?". If they add anything, call feedback_status again with their addition, show the new draft in full, and ask again. Only call feedback_send after an explicit yes. If they say no, call feedback_send with approved=false and do not raise it again in this session. Never send a report they have not seen word for word, never add a note describing their site or its content, and never argue with a refusal.',
         ];
 
         return (string) apply_filters('claudpress_operating_protocol', implode("\n", $rules));

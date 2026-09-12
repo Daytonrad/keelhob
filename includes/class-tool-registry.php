@@ -93,6 +93,12 @@ final class Claudpress_Tool_Registry
     public function call(string $name, array $args): array
     {
         if (!isset($this->tools[$name])) {
+            // A tool that was never registered is almost always a capability
+            // the owner switched off, or one the plugin simply does not have.
+            // That is the single most useful thing this project could know and
+            // it is free to observe here, so it is not thrown away with the
+            // exception.
+            Claudpress_Feedback::observe_unknown_tool($name);
             throw new Exception(sprintf('Unknown tool: %s', $name));
         }
 
@@ -121,6 +127,14 @@ final class Claudpress_Tool_Registry
             Claudpress::instance()->logger->record($name, $args, $result);
         }
 
+        // Friction, captured from the same choke point and for the same reason
+        // the receipt above is: an agent's own account of what went badly is
+        // the least reliable evidence there is. This costs no tokens, carries
+        // no conversation content, and cannot be skipped by an agent that does
+        // not feel like cooperating. It records nothing at all when the owner
+        // has the setting off.
+        Claudpress_Feedback::observe_call($name, $args, $result);
+
         return $result;
     }
 
@@ -144,5 +158,6 @@ final class Claudpress_Tool_Registry
     public static function reset_skills_loaded(): void
     {
         self::$skills_loaded = [];
+        Claudpress_Feedback::reset_repeats();
     }
 }

@@ -1,6 +1,9 @@
 # Plan — the feedback log
 
-**Status: PLAN ONLY, v2. Nothing here is built. Do not start until the owner says so.**
+**Status: BUILT, 2026-09-12. This document is now the record of why, not a
+plan.** Two things were decided differently during the build and are recorded at
+the bottom under "What changed when it was built" — the rate limit, and the
+private inbox.
 
 v2 supersedes v1 after a product-risk review found thirteen risks, one of which
 made v1 unbuildable as written. Every decision below was made deliberately;
@@ -417,3 +420,52 @@ Answer **no** — confirm nothing was sent and the clock reset. Then answer
 **yes** with a note deliberately containing a URL, an email and a fake key, and
 confirm what arrives has none of them. Finally untick the setting, cause more
 friction, and confirm the local log stays empty.
+
+
+---
+
+## What changed when it was built
+
+Two deviations, both deliberate, both recorded here rather than quietly absorbed.
+
+### The rate limit is 30 an hour, not 5
+
+Section 3.2 said 5 per hour per IP, on the reasoning that a site sends at most
+one report a week.
+
+That reasoning assumed one site per address. It is false for exactly the callers
+this project most wants to hear from: agencies and shared hosts put dozens of
+WordPress installs behind one outbound IP. At five, the fourth agency site's
+report is dropped — and dropped *silently*, because the plugin deliberately
+never shows the user an error about a report.
+
+30 an hour is still a ceiling no honest caller reaches, and it is the same
+argument the version route's docblock already makes for its own limit.
+
+Found by the HTTP test, not by review: the suite tripped the limit while posting
+its own garbage cases.
+
+### The private inbox is not built
+
+Section 3.5 described two readers: a private, owner-authenticated summary with
+notes, and a public page of grouped counts.
+
+**The public half is built.** `GET /v1/feedback/summary` returns counts of
+distinct sites per `friction + tool + skill`, and never a note.
+
+**The private half is not**, because this service has no authentication at all
+and that is on purpose — the two guards that once provided it read
+`SUPABASE_SERVICE_KEY`, a credential that bypasses row-level security, and they
+were deleted along with the paid tier. Adding authentication back to reach the
+notes is a real decision about what secret lives in that environment, not a
+detail to be slipped in at the end of a build.
+
+Until it is made, notes are in the table and reachable directly from the
+database. That is honest, and it is less useful than the plan implied.
+
+### One thing the build confirmed rather than changed
+
+`POST` answering 200 for every input is not automatic: Nest returns 201 for a
+POST by default, and the route needed `@HttpCode(200)`. The HTTP test caught it.
+A unit test calling the controller directly would not have — which is the same
+lesson the Ko-fi urlencoded parser taught this project once already.

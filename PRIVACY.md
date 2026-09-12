@@ -11,8 +11,14 @@ Claudpress makes **one** network request of its own accord: an update check.
 Everything else happens only because you entered a key or connected a client,
 and goes to a service you chose.
 
+There is one more thing that can leave your server, and it never leaves without
+you reading it first and saying yes: a **feedback report**. It is described in
+full below.
+
 Claudpress has no analytics, no session recording, no error reporting service,
-no advertising, and no third-party scripts anywhere in the admin.
+no advertising, and no third-party scripts anywhere in the admin. The feedback
+report is none of those, and the section on it says exactly why — including the
+parts that are fair to be uneasy about.
 
 ---
 
@@ -102,6 +108,115 @@ number that flatters.
 The update check then goes straight to `https://api.github.com` instead. You
 still get every update, including security ones. An opt-out that quietly stops
 your security updates is not an opt-out, so this one does not.
+
+---
+
+## The feedback report
+
+**Code:** [`includes/class-feedback.php`](includes/class-feedback.php)
+**Endpoint:** `https://api.claudpress.com/v1/feedback`
+**Frequency:** at most once a week, and only when you say yes.
+
+### Why this exists
+
+You ask the agent to build a hero section. It gets it wrong. You correct it. It
+gets it wrong differently. Three rounds later it lands and you are tired.
+
+That happens on every install and none of it reaches the project. One person
+shrugs. Twenty people is the most useful thing this project could know, and
+today it evaporates when you close the window.
+
+### What is recorded on your own site
+
+When **Claudpress → Settings → "Help improve Claudpress"** is ticked, the plugin
+notes friction in a table in your own database. Nothing is sent by this.
+
+It records only these things, and each is one row:
+
+| Recorded | Detected by |
+|---|---|
+| A tool returned an error | the tool's own failure result |
+| A permission blocked work that looked legitimate | the same result, read for refusal wording |
+| The same tool called with near-identical arguments three or more times | a hash of the tool name and its arguments, within one burst of work |
+| A short note the agent wrote about something that looked wrong | the agent, rarely — this is the only category no machine can see |
+
+**It does not record your conversation.** Not a transcript, not a summary, not
+your words. A row is a friction type, a tool name, a skill name, a count, and at
+most 200 characters of note.
+
+**Retention:** 30 days, or 50 rows, whichever comes first. Older rows are
+deleted automatically.
+
+**You can read every row and delete them all** at Claudpress → Activity →
+Feedback log.
+
+**Untick the box and nothing is recorded at all.** Not "recorded but not sent" —
+not recorded. A promise with a "but" in it is not one anybody should believe.
+
+### What is sent, and only after you approve it
+
+About once a week — and only if something actually went wrong — the agent will
+show you a draft and ask. The rule that requires it to show you the whole thing,
+and to send nothing without an explicit yes, is rule 15 of the operating
+protocol in [`includes/class-mcp-server.php`](includes/class-mcp-server.php). It
+lives there rather than in a skill because a skill can be switched off, and
+consent must not be something that can be edited away.
+
+The report carries at most **five** problems, each one line of at most **200**
+characters, plus exactly these fields:
+
+| Field | Value |
+|---|---|
+| `site_id` | The same random UUID as the update check — not derived from your address |
+| `plugin_version` | The Claudpress version running |
+| `events` | Up to five entries of: friction type, tool name, skill name, attempt count, note |
+| `omitted` | How many problems did not fit, as a number |
+
+**That is the complete list**, and `tests/unit/test-feedback-offer.php` asserts
+it as an exact match, so adding a field turns the test suite red.
+
+### What is stripped before anything is stored or sent
+
+Redaction runs twice — once before a row is written to your own database, and
+again before anything leaves. It is PHP, not guidance, for the same reason as
+rule 15.
+
+Removed: web addresses and bare domains, email addresses, IPv4 and IPv6
+addresses, absolute file paths, key-shaped strings, anything following the words
+`key`, `token`, `password` or `secret`, and **your site's own name and
+hostname**.
+
+[`tests/unit/test-feedback-redaction.php`](tests/unit/test-feedback-redaction.php)
+plants each of those as a deliberate leak and fails if any survives. That file
+is what makes this section checkable rather than merely stated.
+
+### The part it is fair to be uneasy about
+
+If you type a client's name into a note during the approval step, that name is
+sent. Redaction catches addresses and keys; it cannot know that "Acme Dental" is
+a customer. It is your own text, it is on screen in front of you when you are
+asked, and it goes as written. That is the honest limit of this design.
+
+### What the endpoint does with it
+
+Stores the fields above, keyed by `site_id`. **No IP address is logged.** Rows
+older than 90 days are deleted. The public page on claudpress.com shows only
+grouped counts — how many distinct sites hit a given problem — and never a note.
+
+### Deleting what was already sent
+
+**Claudpress → Activity → Feedback log → "Clear, and delete what was sent."**
+
+This sends `DELETE /v1/feedback?site_id=…` and removes every report the server
+holds for your site, then clears the local log. Anonymous data normally cannot
+honour a deletion request because nothing can find it; your site knows its own
+UUID, so it can ask.
+
+### Turning it off
+
+**Claudpress → Settings → untick "Help improve Claudpress."** Recording stops
+immediately and you are never asked again. Nothing else about the plugin
+changes.
 
 ---
 

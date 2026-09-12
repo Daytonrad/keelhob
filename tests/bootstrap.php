@@ -640,6 +640,8 @@ require_once CLAUDPRESS_DIR . 'includes/class-claudpress.php';
 require_once CLAUDPRESS_DIR . 'includes/class-auth.php';
 require_once CLAUDPRESS_DIR . 'includes/class-logger.php';
 require_once CLAUDPRESS_DIR . 'includes/class-snippet-log.php';
+require_once CLAUDPRESS_DIR . 'includes/class-feedback.php';
+require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-feedback.php';
 require_once CLAUDPRESS_DIR . 'includes/class-tool-registry.php';
 require_once CLAUDPRESS_DIR . 'includes/class-capabilities.php';
 require_once CLAUDPRESS_DIR . 'includes/class-skill-catalog.php';

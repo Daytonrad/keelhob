@@ -5,7 +5,7 @@ Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
 Donate link: https://ko-fi.com/claudpress
-Stable tag: 1.0.3
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -176,6 +176,26 @@ Turn it off under Claudpress > Settings and the update check goes straight to
 GitHub (https://api.github.com) instead — you keep getting every update,
 including security ones, and this site simply is not counted.
 
+**The feedback report (on by default, nothing sent without your yes).**
+When something goes wrong while the agent works - a tool errors, a permission
+blocks real work, or it tries the same thing three times - Claudpress notes it in
+a table in your own database. Nothing is sent by that. About once a week, and
+only if something actually went wrong, the agent shows you a short summary and
+asks whether to send it to https://api.claudpress.com/v1/feedback. You see the
+whole thing before you answer, and you can change it or refuse.
+
+What is sent, in full: the same random site ID as the update check, the plugin
+version, and at most five problems of at most 200 characters each. Web
+addresses, domains, email addresses, IP addresses, file paths, key-shaped
+strings and your own site's name are stripped in PHP before anything is stored
+or sent. No conversation, no transcript, no page content, no customer data.
+
+The local notes are kept for 30 days or 50 entries, whichever comes first. You
+can read every one of them and delete them all at Claudpress > Activity, and the
+same screen can ask the server to delete every report it already holds for your
+site. Untick "Help improve Claudpress" under Claudpress > Settings and nothing is
+recorded at all.
+
 **Your MCP client (Claude Code, Claude Desktop, Cursor, Codex, or any other).**
 Whatever client you connect makes the requests; whatever it reads from your site
 goes to that client's model provider under that provider's terms. This is the
@@ -276,6 +296,29 @@ under Claudpress > Automation. Pick your provider there — the model guide next
 the exact model IDs to type for each one.
 
 == Changelog ==
+
+= 1.1.0 =
+
+* New: **the feedback log.** When something goes wrong while the agent works - a
+  tool errors, a permission blocks real work, or it tries the same thing three
+  times - Claudpress notes it in your own database. About once a week, and only
+  if something actually went wrong, the agent shows you a short summary and asks
+  whether to send it to the project. You see the whole thing first and you can
+  change it or say no. Nothing is ever sent without your yes.
+* New: Claudpress > Activity now shows every note in that log, and two buttons -
+  one that wipes it, one that also asks the project to delete every report it
+  already holds for your site.
+* New: the "Help improve Claudpress" setting, under Claudpress > Settings. Untick
+  it and nothing is recorded at all - not "recorded but not sent". Nothing.
+* New: `contribute-feedback` skill, which teaches the agent how to word a note
+  and what must never go in one.
+* New: skills now say where they can be run. A skill that needs a browser on your
+  own machine is refused on Telegram instead of half-finishing.
+* New: the `site-clone` skill family - copy a site built on Wix, Shopify, React,
+  Next or Vite into WordPress, one page at a time, and check the result against
+  the original.
+* Privacy: PRIVACY.md now documents the feedback report field by field, including
+  the part it is fair to be uneasy about.
 
 = 1.0.3 =
 * New: three skills. A whole-site SEO audit that scores your site, fixes what it finds and shows you

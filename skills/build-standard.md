@@ -6,7 +6,7 @@ enable_agentic: true
 enable_prompt: true
 role: gate
 surface: any
-next_skills: site-build-kickoff, site-clone, website-building, blog-publishing, seo-optimization, code-snippets, woocommerce-store-operations, launch-readiness-and-compliance, skill-creator, site-safety, security-standard, web-design-master, motion-and-interaction, seo-audit-and-fix, elementor-page-building, solace-header-footer, store-launch-and-deploy
+next_skills: site-build-kickoff, site-clone, contribute-feedback, website-building, blog-publishing, seo-optimization, code-snippets, woocommerce-store-operations, launch-readiness-and-compliance, skill-creator, site-safety, security-standard, web-design-master, motion-and-interaction, seo-audit-and-fix, elementor-page-building, solace-header-footer, store-launch-and-deploy
 verified_by: pre-launch-audit
 ---
 
@@ -166,8 +166,9 @@ Do not edit the table by hand — change the skill file and regenerate.
 | Skill | Role | Runs on | Requires first | Then consider | Not done until |
 |---|---|---|---|---|---|
 | `blog-publishing` | procedure | any | — | `seo-optimization`, `web-design-master` | `seo-optimization` |
-| `build-standard` | gate | any | — | `site-build-kickoff`, `site-clone`, `website-building`, `blog-publishing`, `seo-optimization`, `code-snippets`, `woocommerce-store-operations`, `launch-readiness-and-compliance`, `skill-creator`, `site-safety`, `security-standard`, `web-design-master`, `motion-and-interaction`, `seo-audit-and-fix`, `elementor-page-building`, `solace-header-footer`, `store-launch-and-deploy` | `pre-launch-audit` |
+| `build-standard` | gate | any | — | `site-build-kickoff`, `site-clone`, `contribute-feedback`, `website-building`, `blog-publishing`, `seo-optimization`, `code-snippets`, `woocommerce-store-operations`, `launch-readiness-and-compliance`, `skill-creator`, `site-safety`, `security-standard`, `web-design-master`, `motion-and-interaction`, `seo-audit-and-fix`, `elementor-page-building`, `solace-header-footer`, `store-launch-and-deploy` | `pre-launch-audit` |
 | `code-snippets` | procedure | any | `site-safety` | `motion-and-interaction`, `security-standard` | — |
+| `contribute-feedback` | procedure | any | `site-safety` | `skill-creator` | `pre-launch-audit` |
 | `elementor-page-building` | procedure | any | `web-design-master` | `motion-and-interaction`, `seo-optimization` | `pre-launch-audit` |
 | `launch-readiness-and-compliance` | gate | any | — | `store-launch-and-deploy`, `security-standard` | `pre-launch-audit` |
 | `motion-and-interaction` | reference | any | — | `web-design-master`, `seo-audit-and-fix` | `pre-launch-audit` |

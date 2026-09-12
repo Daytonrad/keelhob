@@ -93,6 +93,11 @@ final class Claudpress
             'fs_base'           => ABSPATH,
             'require_https'     => false,
             'log_calls'         => true,
+            // The feedback log. ON by default, which is only defensible because
+            // nothing is recorded when it is off and nothing is ever sent
+            // without a person reading the whole draft first. See
+            // Claudpress_Feedback and docs/plans/feedback-log.md.
+            'feedback_log'      => true,
             // Snippet engine kill-switch (active snippets run for real visitors).
             'run_snippets'      => true,
             // Short handle an agent uses to tell this site apart from the other
@@ -237,6 +242,7 @@ final class Claudpress
         Claudpress_Tools_Payments::register($this->registry);
         Claudpress_Tools_Deploy::register($this->registry);
         Claudpress_Tools_Readiness::register($this->registry);
+        Claudpress_Tools_Feedback::register($this->registry);
 
         /**
          * The extension seam for tools that do not live in this plugin.
@@ -297,6 +303,7 @@ final class Claudpress
         Claudpress_Telegram::install_table();
         Claudpress_Logger::install_table();
         Claudpress_Snippet_Log::install_table();
+        Claudpress_Feedback::install_table();
         // After install_table() has added the columns: give pre-1.9 snippets a
         // uid and a created_at so the Snippets page and cross-site copy work.
         Claudpress_Snippets::backfill();
@@ -419,6 +426,7 @@ final class Claudpress
         Claudpress_Telegram::install_table();
         Claudpress_Logger::install_table();
         Claudpress_Snippet_Log::install_table();
+        Claudpress_Feedback::install_table();
         Claudpress_Snippets::backfill();
         // Rows written before the source column existed have to be classified
         // before anything can refresh them; see Claudpress_Skills::backfill_sources().

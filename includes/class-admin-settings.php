@@ -89,6 +89,7 @@ final class Claudpress_Admin_Settings
                 'allow_app_passwords' => !empty($_POST['allow_app_passwords']),
                 'require_https'       => !empty($_POST['require_https']),
                 'log_calls'           => !empty($_POST['log_calls']),
+                'feedback_log'        => !empty($_POST['feedback_log']),
                 'delete_data_on_uninstall' => !empty($_POST['delete_data_on_uninstall']),
                 'skip_checkin'             => !empty($_POST['skip_checkin']),
 
@@ -109,6 +110,18 @@ final class Claudpress_Admin_Settings
             ]);
         } elseif ($action === 'clear_memory') {
             Claudpress::instance()->memory->clear();
+        } elseif ($action === 'clear_feedback') {
+            // Local only, and immediate. A log the owner cannot wipe is a log
+            // the owner cannot trust, and trust is the entire basis on which
+            // this feature is allowed to default to on.
+            Claudpress_Feedback::clear();
+        } elseif ($action === 'forget_feedback') {
+            // The other half: ask the server to drop everything it holds for
+            // this site. Anonymous data normally cannot honour a deletion
+            // request because nothing can find it - this site knows its own
+            // UUID, so it can ask.
+            Claudpress_Feedback::forget_remote();
+            Claudpress_Feedback::clear();
         } elseif ($action === 'capabilities') {
             $posted = isset($_POST['cap']) && is_array($_POST['cap']) ? array_map('sanitize_key', array_keys($_POST['cap'])) : [];
             $caps = [];

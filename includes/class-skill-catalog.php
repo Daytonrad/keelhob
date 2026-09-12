@@ -40,6 +40,10 @@ final class Claudpress_Skill_Catalog
                 'title'       => 'Code snippets',
                 'description' => 'Add custom functionality or behavior to the site by writing live code snippets (PHP, CSS, JS, HTML) — hooks, filters, shortcodes, tracking pixels, tweaks, fixes.',
             ],
+            'contribute-feedback' => [
+                'title'       => 'Write a friction note',
+                'description' => 'How to word a note for the Claudpress feedback report, and what must never go in one.',
+            ],
             'elementor-page-building' => [
                 'title'       => 'Elementor page building',
                 'description' => 'Build or edit fully editable pages, headers, and footers with Elementor (free or Pro, incl. Xpro Addons).',

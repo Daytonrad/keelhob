@@ -58,7 +58,7 @@ final class Claudpress_Capabilities
      */
     public static function always_on(): array
     {
-        return ['get_site_info', 'get_dashboard', 'memory_list', 'memory_get', 'skill_list', 'skill_get', 'skill_lint', 'task_list', 'agent_runs', 'site_readiness'];
+        return ['get_site_info', 'get_dashboard', 'memory_list', 'memory_get', 'skill_list', 'skill_get', 'skill_lint', 'task_list', 'agent_runs', 'site_readiness', 'feedback_status', 'feedback_send'];
     }
 
     /**

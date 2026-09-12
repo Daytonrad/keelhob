@@ -118,6 +118,7 @@ final class Claudpress_Admin_Screens
                             <p><label><input type="checkbox" name="allow_app_passwords" value="1" <?php checked(!empty($s['allow_app_passwords'])); ?>> <?php esc_html_e('Allow Application Password (Basic) auth in addition to the bearer token', 'claudpress'); ?></label></p>
                             <p><label><input type="checkbox" name="require_https" value="1" <?php checked(!empty($s['require_https'])); ?>> <?php esc_html_e('Require HTTPS (recommended for remote sites)', 'claudpress'); ?></label></p>
                             <p><label><input type="checkbox" name="log_calls" value="1" <?php checked(!empty($s['log_calls'])); ?>> <?php esc_html_e('Log tool calls (Activity tab)', 'claudpress'); ?></label></p>
+                            </p>
                             <hr>
                             <p style="margin-bottom:6px;"><strong><?php esc_html_e('Notifications', 'claudpress'); ?></strong></p>
                             <?php
@@ -200,6 +201,19 @@ final class Claudpress_Admin_Screens
                                 </span>
                             </p>
 
+                            <hr>
+                            <?php
+                            // The wording is the consent. It is spelled out in
+                            // full rather than linked to, because a promise
+                            // nobody read is not one anybody agreed to - and
+                            // this is the only setting in the plugin that lets
+                            // anything at all leave the server other than the
+                            // update check. See Claudpress_Feedback.
+                            ?>
+                            <p style="margin-bottom:4px;"><label><input type="checkbox" name="feedback_log" value="1" <?php checked(!empty($s['feedback_log'])); ?>> <strong><?php esc_html_e('Help improve Claudpress', 'claudpress'); ?></strong></label></p>
+                            <p class="description" style="margin:0 0 6px 24px;max-width:640px;">
+                                <?php esc_html_e('When something goes wrong, note it locally. About once a week the agent will offer to send a short, anonymous summary — you see exactly what it says and approve it first. No site address, no page content, no keys. Switch this off and nothing is recorded at all.', 'claudpress'); ?>
+                                <a href="<?php echo esc_url(admin_url('admin.php?page=claudpress-activity')); ?>"><?php esc_html_e('See what has been noted', 'claudpress'); ?></a>
                             <hr>
                             <p style="margin-bottom:6px;"><strong><?php esc_html_e('Uninstall', 'claudpress'); ?></strong></p>
                             <p>
@@ -615,6 +629,59 @@ final class Claudpress_Admin_Screens
         ?>
         <div class="wrap">
             <h1><?php echo Claudpress_Brand::heading_mark(); ?><?php esc_html_e('Claudpress · Activity', 'claudpress'); ?></h1><?php Claudpress_Donate::button(); ?>
+
+            <?php
+            // The feedback log, shown in full and first.
+            //
+            // This is the only thing in the plugin that can send anything other
+            // than the four-field update check, so the owner gets to read every
+            // row of it before any of it goes anywhere, and gets two buttons:
+            // one that wipes what is here, and one that also asks the server to
+            // drop what it already holds for this site.
+            $cp_feedback_on   = Claudpress_Feedback::enabled();
+            $cp_feedback_rows = $cp_feedback_on ? Claudpress_Feedback::all(50) : [];
+            ?>
+            <h2><?php esc_html_e('Feedback log', 'claudpress'); ?></h2>
+            <?php if (!$cp_feedback_on) : ?>
+                <p class="description"><?php esc_html_e('Switched off. Nothing is being recorded.', 'claudpress'); ?>
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=claudpress')); ?>"><?php esc_html_e('Settings', 'claudpress'); ?></a></p>
+            <?php else : ?>
+                <p class="description" style="max-width:720px;"><?php esc_html_e('What went wrong while the agent worked here. Kept for 30 days or 50 entries, whichever comes first. Nothing leaves this site until you have read a summary of it and said yes.', 'claudpress'); ?></p>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-bottom:8px;display:inline-block;" onsubmit="return confirm('<?php echo esc_js(__('Delete everything in the local feedback log?', 'claudpress')); ?>');">
+                    <?php wp_nonce_field('claudpress_save'); ?>
+                    <input type="hidden" name="action" value="claudpress_save">
+                    <input type="hidden" name="claudpress_action" value="clear_feedback">
+                    <button class="button"><?php esc_html_e('Clear the log', 'claudpress'); ?></button>
+                </form>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-bottom:8px;display:inline-block;margin-left:6px;" onsubmit="return confirm('<?php echo esc_js(__('Also ask the Claudpress project to delete every report it holds for this site?', 'claudpress')); ?>');">
+                    <?php wp_nonce_field('claudpress_save'); ?>
+                    <input type="hidden" name="action" value="claudpress_save">
+                    <input type="hidden" name="claudpress_action" value="forget_feedback">
+                    <button class="button"><?php esc_html_e('Clear, and delete what was sent', 'claudpress'); ?></button>
+                </form>
+                <table class="widefat striped" style="margin-bottom:24px;">
+                    <thead><tr>
+                        <th><?php esc_html_e('What happened', 'claudpress'); ?></th>
+                        <th><?php esc_html_e('Tool', 'claudpress'); ?></th>
+                        <th><?php esc_html_e('Note', 'claudpress'); ?></th>
+                        <th><?php esc_html_e('When', 'claudpress'); ?></th>
+                        <th><?php esc_html_e('Sent', 'claudpress'); ?></th>
+                    </tr></thead>
+                    <tbody>
+                    <?php if (!$cp_feedback_rows) : ?>
+                        <tr><td colspan="5"><?php esc_html_e('Nothing noted. That is the good outcome.', 'claudpress'); ?></td></tr>
+                    <?php else : foreach ($cp_feedback_rows as $cp_row) : ?>
+                        <tr>
+                            <td><?php echo esc_html(Claudpress_Feedback::label((string) $cp_row['friction'])); ?><?php echo ((int) $cp_row['attempts']) > 1 ? ' <span style="color:#888;">×' . (int) $cp_row['attempts'] . '</span>' : ''; ?></td>
+                            <td><code><?php echo esc_html($cp_row['tool'] !== '' ? (string) $cp_row['tool'] : '—'); ?></code></td>
+                            <td><?php echo esc_html((string) $cp_row['note']); ?><?php if (!empty($cp_row['redacted'])) : ?> <span style="color:#888;">(<?php esc_html_e('redacted', 'claudpress'); ?>)</span><?php endif; ?></td>
+                            <td><?php echo esc_html((string) $cp_row['created_at']); ?></td>
+                            <td><?php echo empty($cp_row['sent']) ? esc_html__('no', 'claudpress') : esc_html__('yes', 'claudpress'); ?></td>
+                        </tr>
+                    <?php endforeach; endif; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
 
             <h2><?php esc_html_e('Memory', 'claudpress'); ?></h2>
             <p class="description"><?php esc_html_e('What the agent has been told to remember about this site. Kept in full — it is never trimmed automatically.', 'claudpress'); ?></p>
