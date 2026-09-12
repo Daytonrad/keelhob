@@ -97,3 +97,60 @@ CP_Test::ok(!Claudpress_Capabilities::tool_allowed('run_agent'), 'switching auto
 
 
 cp_test_reset_options();
+
+CP_Test::group('Capabilities — the description must not understate the toggle');
+
+// A permission prompt that understates the permission is a security defect, not
+// a typo: the owner consents to something they were not told about. These four
+// had drifted because tools were added to a group and the sentence was not.
+//
+// Asserted on the specific WORD that carries the risk, because that is the word
+// a reader needs to see before ticking the box. If a future edit makes the
+// sentence prettier and drops it, this fails — which is the point.
+$groups = Claudpress_Capabilities::groups();
+
+$must_mention = [
+    // seo_sitemap can rewrite robots.txt and allow or block GPTBot, ClaudeBot
+    // and Google-Extended. Blocking a crawler is a commercial decision, and the
+    // toggle used to describe itself as "the sitemap".
+    'seo'     => ['robots', 'crawler'],
+    // skill_refresh fetches over the network and with force=true destroys the
+    // owner's own edits. "Create/delete" covered neither.
+    'skills'  => ['download', 'overwrite'],
+    // The group has delete_post. "Create/edit" did not say so.
+    'content' => ['delete'],
+    // list_directory is browsing, and write_sandbox_file adds PHP that runs on
+    // every request. "Read/write/delete files" undersold both.
+    'files'   => ['browse', 'every request'],
+];
+
+foreach ($must_mention as $key => $words) {
+    CP_Test::ok(isset($groups[$key]), "capability group \"$key\" still exists");
+    $desc = strtolower((string) ($groups[$key]['desc'] ?? ''));
+    foreach ($words as $word) {
+        CP_Test::ok(
+            strpos($desc, $word) !== false,
+            "the \"$key\" description mentions \"$word\" — the owner reads this before granting it"
+        );
+    }
+}
+
+// And the general rule the four above are instances of: a group holding a tool
+// that can destroy something has to say so somewhere in its sentence.
+foreach ($groups as $key => $group) {
+    $has_delete = false;
+    foreach ((array) ($group['tools'] ?? []) as $tool) {
+        if (strpos($tool, 'delete') !== false) {
+            $has_delete = true;
+            break;
+        }
+    }
+    if (!$has_delete) {
+        continue;
+    }
+    $desc = strtolower((string) ($group['desc'] ?? ''));
+    CP_Test::ok(
+        strpos($desc, 'delete') !== false || strpos($desc, 'remove') !== false || strpos($desc, 'destroy') !== false,
+        "\"$key\" contains a delete tool, so its description says so"
+    );
+}

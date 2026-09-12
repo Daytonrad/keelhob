@@ -36,16 +36,57 @@ rm -f  "$ZIP"
 mkdir -p "$STAGE"
 
 # ---- stage ------------------------------------------------------------------
+#
+# THE ZIP IS A FUNCTION OF A COMMIT, NOT OF SOMEBODY'S DESK.
+#
+# This used to `cp -r` out of the working tree, which meant whatever happened to
+# be sitting in the checkout is what people installed: an uncommitted debug
+# edit, a `class-admin.php.orig` left by a bad merge, an editor swapfile, a
+# stale checkout's CRLF line endings. None of it would have been noticed.
+#
+# That matters more here than in most projects because these releases are
+# SIGNED, and the entire promise of a signature is that the artefact is exactly
+# what the source says it is. A build that quietly includes whatever was lying
+# around breaks that promise before the signature is applied to it.
+#
+# `git archive` needs no new dependency and takes only tracked content at the
+# given ref.
+#
+# PATHS SHIPPED — keep in step with the list in the header comment above.
+PATHS=(claudpress.php uninstall.php readme.txt includes skills assets)
+# assets is the brand images. Small and few, but the admin menu icon is a URL
+# into that directory: if it does not ship, every install gets a broken image in
+# the sidebar, which reads as a broken plugin rather than a missing decoration.
 
-cp "$ROOT/claudpress.php"  "$STAGE/"
-cp "$ROOT/uninstall.php"   "$STAGE/"
-cp "$ROOT/readme.txt"      "$STAGE/"
-cp -r "$ROOT/includes"     "$STAGE/"
-cp -r "$ROOT/skills"       "$STAGE/"
-# The brand images. Small and few, but the admin menu icon is a URL into this
-# directory: if it does not ship, every install gets a broken image in the
-# sidebar, which looks like a broken plugin rather than a missing decoration.
-cp -r "$ROOT/assets"       "$STAGE/"
+REF="${CLAUDPRESS_BUILD_REF:-HEAD}"
+
+if git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    # Refuse a dirty tree by default. Warning instead would be friendlier, and
+    # would also mean the one time it mattered it scrolled past unread. Someone
+    # testing a local change can opt out; a release cannot do it by accident.
+    if [ -n "$(git -C "$ROOT" status --porcelain)" ] && [ "${ALLOW_DIRTY:-0}" != "1" ]; then
+        echo "Refusing to build: the working tree has uncommitted or untracked files." >&2
+        echo "The zip is signed, so it must be exactly what the commit says it is." >&2
+        echo >&2
+        git -C "$ROOT" status --short >&2
+        echo >&2
+        echo "Commit or stash them, or run again with ALLOW_DIRTY=1 for a local test build." >&2
+        exit 1
+    fi
+    [ "${ALLOW_DIRTY:-0}" = "1" ] && echo "  WARNING: ALLOW_DIRTY=1 — building from $REF, uncommitted changes are NOT included."
+
+    echo "  staging from git ($REF)"
+    git -C "$ROOT" archive --format=tar "$REF" "${PATHS[@]}" | tar -x -C "$STAGE"
+else
+    # Someone building from an extracted tarball has no .git. Falling back is
+    # right — refusing would make the source archive unbuildable — but it is
+    # loud, because this is the one path where the guarantee above does not hold.
+    echo "  WARNING: not a git checkout. Falling back to copying the working tree."
+    echo "  WARNING: the zip will contain whatever is in this directory."
+    for path in "${PATHS[@]}"; do
+        cp -r "$ROOT/$path" "$STAGE/"
+    done
+fi
 
 # Belt and braces: strip anything that should never ship even if it was copied.
 find "$BUILD" \( -name '.DS_Store' -o -name '*.log' -o -name '.env' \) -delete
