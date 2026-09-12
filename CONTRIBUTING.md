@@ -203,6 +203,60 @@ default, say what breaks for someone who upgrades.
 
 ---
 
+## Reviewing a pull request
+
+Written down because a review that depends on the maintainer's mood is a review
+nobody can predict, and an unpredictable review is why people stop contributing.
+
+**Four commands decide almost everything. CI runs them on every pull request, so
+the answer is usually on the page before anyone opens a terminal.**
+
+```bash
+php tests/run.php                        # every assertion
+composer analyse                         # PHPStan
+php bin/lint-skills.php                  # the skill standard, scored out of 100
+php bin/build-skill-router.php --check   # generated files are in step
+```
+
+| Outcome | What it means |
+|---|---|
+| All four green | Mechanically sound. Now read it for taste. |
+| Any red | Send it back with the output pasted in. Not a judgement call, and not personal — the tool said it, not you. |
+
+For a skill, `bin/lint-skills.php` prints a score and names every finding. That
+output **is** the review: paste it. A contributor who can see the score move can
+fix their own work without a conversation.
+
+### The three things the tools cannot answer
+
+These are the only parts that need a human, and they are worth being slow about:
+
+1. **Should this exist at all?** A correct implementation of something the
+   plugin should not do is still a no. Say so early — before the review, if the
+   issue was discussed first — because the expensive version of this answer is
+   the one that arrives after somebody spent a weekend.
+
+2. **Does it make a promise the project cannot keep?** `PRIVACY.md` and
+   `SECURITY.md` are commitments, not documentation. A change that sends
+   something new over the network, stores something new, or widens what an agent
+   may do without asking, has to be weighed against them — and if it is
+   accepted, those files change in the same pull request.
+
+3. **Will the next person understand why?** This codebase explains its reasoning
+   in comments on purpose. A clever change with no explanation is a change
+   somebody deletes in six months because it looked redundant.
+
+### Saying no
+
+Say it plainly, say it once, and say what would change the answer. Thank them
+for the work either way — they spent their evening on this, and the cost of a
+graceless no is every contribution that person would have made afterwards.
+
+If the answer is "not now" rather than "no", say which it is. They are very
+different sentences to receive.
+
+---
+
 ## Code of conduct
 
 Be decent. [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) has the long version.
