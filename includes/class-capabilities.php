@@ -70,7 +70,7 @@ final class Claudpress_Capabilities
         return [
             'content' => [
                 'label' => 'Content', 'sensitive' => false,
-                'desc' => 'Create/edit posts, pages, media, taxonomies.',
+                'desc' => 'Create, edit and DELETE posts, pages, media and taxonomies.',
                 'tools' => ['create_post', 'update_post', 'delete_post', 'get_post', 'list_posts', 'upload_media', 'manage_taxonomy'],
             ],
             // Building a store and running one are different jobs. Products,
@@ -111,7 +111,7 @@ final class Claudpress_Capabilities
             // subscription is actually for.
             'seo' => [
                 'label' => 'SEO setup', 'sensitive' => false,
-                'desc' => 'Meta titles and descriptions, JSON-LD schema, and the sitemap.',
+                'desc' => 'Meta titles and descriptions, JSON-LD schema, the sitemap, robots.txt, llms.txt, and which AI crawlers may read this site.',
                 'tools' => ['seo_meta', 'seo_schema', 'seo_sitemap'],
             ],
             'seo_optimize' => [
@@ -133,7 +133,7 @@ final class Claudpress_Capabilities
             // express that before.
             'snippets' => [
                 'label' => 'Snippets', 'sensitive' => true,
-                'desc' => 'Create and manage live code snippets (PHP, CSS, JS, HTML).',
+                'desc' => 'Create, edit, switch on and delete live code snippets (PHP, CSS, JS, HTML) that run on your site.',
                 'tools' => ['snippet_save', 'snippet_list', 'snippet_get', 'snippet_toggle', 'snippet_delete'],
             ],
             'code_exec' => [
@@ -143,7 +143,7 @@ final class Claudpress_Capabilities
             ],
             'files' => [
                 'label' => 'Filesystem', 'sensitive' => true,
-                'desc' => 'Read/write/delete files and sandbox scripts.',
+                'desc' => 'Browse, read, write and delete files anywhere under the site root, and add PHP that runs on every request.',
                 'tools' => ['read_file', 'write_file', 'edit_file', 'delete_file', 'list_directory', 'write_sandbox_file'],
             ],
             'users' => [
@@ -173,7 +173,7 @@ final class Claudpress_Capabilities
             ],
             'automation' => [
                 'label' => 'Autonomy (agent & scheduled tasks)', 'sensitive' => true,
-                'desc' => 'Run the autonomous agent and create/run scheduled tasks.',
+                'desc' => 'Run the agent unattended, and create, run and delete scheduled tasks that act with no human watching.',
                 'tools' => ['run_agent', 'task_save', 'task_run', 'task_delete'],
             ],
             'memory' => [
@@ -183,7 +183,7 @@ final class Claudpress_Capabilities
             ],
             'skills' => [
                 'label' => 'Skills (write)', 'sensitive' => false,
-                'desc' => 'Create/delete agent skills.',
+                'desc' => 'Create and delete agent skills, and download the bundled ones from this project over the internet — which can overwrite skills you have edited.',
                 'tools' => ['skill_save', 'skill_delete', 'skill_refresh'],
             ],
             'deploy' => [
