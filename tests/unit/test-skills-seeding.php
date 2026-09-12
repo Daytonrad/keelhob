@@ -124,3 +124,48 @@ CP_Test::same(count($seen_names), count(array_unique($seen_names)), 'no two ship
 // stops shipping, every agent is pointed at a skill that does not exist.
 CP_Test::ok(in_array('build-standard', $seen_names, true), 'build-standard ships, because the operating protocol tells every agent to load it');
 CP_Test::ok(in_array('security-standard', $seen_names, true), 'security-standard ships, because build-standard routes security work to it');
+
+CP_Test::group('Seeding — a front-matter-only change still reaches existing sites');
+
+// bundled_hash covers the BODY only, so a skill whose declaration changed but
+// whose prose did not used to be classed "current" and skipped entirely. That
+// is exactly the shape of the change that added `surface: interactive` to
+// site-build-kickoff — no word of its body moved — and it would have shipped
+// to nobody who already had the plugin.
+
+$body = "# Alpha\n\nSome unchanged prose.\n";
+$row  = [
+    'name'           => 'alpha',
+    'title'          => 'Alpha',
+    'description'    => 'The original description.',
+    'body'           => $body,
+    'role'           => 'procedure',
+    'surface'        => 'any',
+    'requires'       => '',
+    'next_skills'    => 'other',
+    'verified_by'    => '',
+    'enabled'        => 1,
+    'enable_agentic' => 1,
+    'enable_prompt'  => 1,
+    'bundled_hash'   => md5($body),
+];
+
+// Same everything: nothing to do, and the row must not be rewritten on every
+// page load just because the strings were assembled differently.
+$same = array_merge($row, ['next_skills' => 'other']);
+CP_Test::ok(!Claudpress_Skills::metadata_drifted($row, $same), 'an identical declaration is not drift');
+CP_Test::ok(
+    !Claudpress_Skills::metadata_drifted($row, array_merge($row, ['next_skills' => ' other ,  other '])),
+    'nor is the same edge list written untidily — it is normalised before comparing'
+);
+
+// The real case, and the four others that share its shape.
+CP_Test::ok(Claudpress_Skills::metadata_drifted($row, array_merge($row, ['surface' => 'interactive'])), 'a changed surface IS drift — this is the bug that was found');
+CP_Test::ok(Claudpress_Skills::metadata_drifted($row, array_merge($row, ['role' => 'gate'])), 'a changed role is drift');
+CP_Test::ok(Claudpress_Skills::metadata_drifted($row, array_merge($row, ['description' => 'A better description.'])), 'a rewritten description is drift — it is the only thing that routes work to a skill');
+CP_Test::ok(Claudpress_Skills::metadata_drifted($row, array_merge($row, ['verified_by' => 'pre-launch-audit'])), 'a newly declared verifier is drift');
+CP_Test::ok(Claudpress_Skills::metadata_drifted($row, array_merge($row, ['title' => 'Alpha renamed'])), 'a renamed title is drift');
+
+// The owner's switches are theirs. A skill they turned off stays off.
+CP_Test::ok(!Claudpress_Skills::metadata_drifted($row, array_merge($row, ['enabled' => 0])), 'the owner switching a skill off is NOT drift to be undone');
+CP_Test::ok(!Claudpress_Skills::metadata_drifted($row, array_merge($row, ['enable_agentic' => 0])), 'nor is switching it out of the agent catalog');

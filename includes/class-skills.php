@@ -372,10 +372,81 @@ final class Claudpress_Skills
                     $report['kept'][] = $name;
                     break;
 
-                // 'current' — already the shipped text, nothing to do.
+                case 'current':
+                    // The BODY is unchanged — but the front matter may not be,
+                    // and bundled_hash only covers the body.
+                    //
+                    // This was a silent hole. `surface: interactive` was added
+                    // to site-build-kickoff without touching a word of its
+                    // body, so every existing install would have compared the
+                    // same body hash, decided "current", and never stored the
+                    // new value. The field whose entire job is stopping an
+                    // unattended run from starting a skill that needs a human
+                    // would have worked only on fresh installs.
+                    //
+                    // The same applies to every metadata-only change: a fixed
+                    // description, a new edge, a corrected role. Those are the
+                    // cheapest and most common kind of skill edit, and none of
+                    // them shipped.
+                    //
+                    // Body hash stays the edit-detector — it is what tells an
+                    // owner's rewrite apart from ours, and that has to keep
+                    // working. This is a second, narrower comparison layered on
+                    // top: same body, different declaration, so update the
+                    // declaration and leave everything else alone.
+                    if (self::metadata_drifted($existing, $parsed)) {
+                        $parsed['enabled']        = (int) $existing['enabled'];
+                        $parsed['enable_agentic'] = (int) $existing['enable_agentic'];
+                        $parsed['enable_prompt']  = (int) $existing['enable_prompt'];
+                        $skills->save($parsed);
+                        $report['updated'][] = $name;
+                    }
+                    break;
             }
         }
         return $report;
+    }
+
+    /**
+     * Has the shipped front matter changed, for a body that has not?
+     *
+     * Compared through the same normalisers save() uses, so a cosmetic
+     * difference — "seo-optimization, web-design-master" against
+     * "seo-optimization,web-design-master" — is not mistaken for a real change
+     * and does not rewrite the row on every single page load.
+     *
+     * The owner's own switches are deliberately NOT compared. enabled,
+     * enable_agentic and enable_prompt are their decisions, not ours, and a
+     * skill they switched off must stay off through an update.
+     *
+     * @param array<string, mixed> $existing the stored row
+     * @param array<string, mixed> $parsed   the shipped document
+     */
+    public static function metadata_drifted(array $existing, array $parsed): bool
+    {
+        $scalars = ['description', 'title'];
+        foreach ($scalars as $key) {
+            if (trim((string) ($existing[$key] ?? '')) !== trim((string) ($parsed[$key] ?? ''))) {
+                return true;
+            }
+        }
+
+        if (Claudpress_Skill_Standard::role($existing) !== Claudpress_Skill_Standard::role($parsed)) {
+            return true;
+        }
+        if (Claudpress_Skill_Standard::surface($existing) !== Claudpress_Skill_Standard::surface($parsed)) {
+            return true;
+        }
+
+        foreach (['requires', 'next_skills', 'verified_by'] as $edge) {
+            $was = Claudpress_Skill_Standard::slugs((string) ($existing[$edge] ?? ''));
+            $now = Claudpress_Skill_Standard::slugs((string) ($parsed[$edge] ?? ''));
+            if ($was !== $now) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
