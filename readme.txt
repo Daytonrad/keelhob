@@ -190,6 +190,11 @@ addresses, domains, email addresses, IP addresses, file paths, key-shaped
 strings and your own site's name are stripped in PHP before anything is stored
 or sent. No conversation, no transcript, no page content, no customer data.
 
+If the project's inbox is already full for the day (it accepts a limited number
+of reports from any one network address, because many sites share one), nothing
+is lost: your notes are kept, your weekly offer is not used up, and it asks again
+the next day.
+
 The local notes are kept for 30 days or 50 entries, whichever comes first. You
 can read every one of them and delete them all at Claudpress > Activity, and the
 same screen can ask the server to delete every report it already holds for your

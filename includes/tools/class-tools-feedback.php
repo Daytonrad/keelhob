@@ -38,7 +38,7 @@ final class Claudpress_Tools_Feedback
 
         $r->add(
             'feedback_send',
-            'Send the feedback report the user has just approved, or record that they declined. Only call this after showing the full draft from feedback_status and getting an explicit yes or no. Pass approved=false when they say no — that records the refusal so they are not asked again for another week, and sends nothing.',
+            'Send the feedback report the user has just approved, or record that they declined. Only call this after showing the full draft from feedback_status and getting an explicit yes or no. Pass approved=false when they say no — that records the refusal so they are not asked again for another week, and sends nothing. If the response comes back with throttled=true the report was NOT lost: the project\'s endpoint hit its daily limit for this server\'s network address, which happens when several sites share one. Say one line about it and move on; the plugin will offer it again tomorrow.',
             [
                 'type' => 'object',
                 'properties' => [
@@ -86,9 +86,7 @@ final class Claudpress_Tools_Feedback
             return [
                 'success' => true,
                 'due'     => false,
-                'reason'  => Claudpress_Feedback::count_unsent() < 1
-                    ? 'Nothing has gone wrong since the last report. Say nothing.'
-                    : 'A report was already offered within the last 7 days. Say nothing.',
+                'reason'  => self::not_due_reason(),
             ];
         }
 
@@ -109,6 +107,26 @@ final class Claudpress_Tools_Feedback
     }
 
     /**
+     * Why no report is due, in words the agent can act on.
+     *
+     * Three different "no" answers, and they are worth telling apart: nothing
+     * to say, already asked, and asked-but-the-server-was-busy. Only the third
+     * one comes back tomorrow rather than next week, and an agent that cannot
+     * tell them apart will either nag or go quiet for a week over a problem
+     * that cleared overnight.
+     */
+    public static function not_due_reason(?int $now = null): string
+    {
+        if (Claudpress_Feedback::count_unsent() < 1) {
+            return 'Nothing has gone wrong since the last report. Say nothing.';
+        }
+        if (($now ?? time()) < Claudpress_Feedback::retry_after()) {
+            return 'A report is ready, but the project\'s endpoint was at its daily limit. Holding until tomorrow. Say nothing — this is not a problem with this site.';
+        }
+        return 'A report was already offered within the last 7 days. Say nothing.';
+    }
+
+    /**
      * Record the answer.
      *
      * The clock is reset either way. A refusal resets it for the same reason an
@@ -119,9 +137,9 @@ final class Claudpress_Tools_Feedback
     public static function send(array $args): array
     {
         $approved = !empty($args['approved']);
-        Claudpress_Feedback::mark_offered();
 
         if (!$approved) {
+            Claudpress_Feedback::mark_offered();
             return [
                 'success' => true,
                 'sent'    => false,
@@ -130,20 +148,49 @@ final class Claudpress_Tools_Feedback
         }
 
         if (!Claudpress_Feedback::enabled()) {
+            Claudpress_Feedback::mark_offered();
             return ['success' => false, 'error' => 'The feedback log is switched off on this site.'];
         }
 
         $report = Claudpress_Feedback::build_report();
-        $ok     = Claudpress_Feedback::send($report);
+        $result = Claudpress_Feedback::send($report);
 
-        // A failure is reported as a fact and then dropped. No retry, no queue:
-        // a failed report is worth far less than a session derailed by an error
-        // about a report.
+        // THE THROTTLED CASE IS NOT A FAILURE, and the difference is why the
+        // clock is not touched here.
+        //
+        // The endpoint allows a limited number of reports a day per outbound
+        // address, and an agency or a shared host has many sites behind one. So
+        // a 429 does not mean "your report was bad", it means "somebody else on
+        // your address got there first today". The report is still in the log
+        // and still worth sending.
+        //
+        // Marking the offer as spent would burn this site's one chance a week
+        // on a request that never arrived. Instead the offer stays unspent and
+        // a short hold is set, so it comes back tomorrow. The person will be
+        // asked again — deliberately. An approval stored on disk to be replayed
+        // later is the first step toward "remember my answer and stop asking",
+        // which is where this stops being consent.
+        if (!empty($result['throttled'])) {
+            Claudpress_Feedback::mark_retry_after();
+            return [
+                'success'   => true,
+                'sent'      => false,
+                'throttled' => true,
+                'events'    => count($report['events']),
+                'message'   => 'Not sent — the project\'s endpoint is at its daily limit for this server\'s network address, which happens when several sites share one address. Nothing is wrong with the report and nothing was lost; it is still saved here. Tell the user in ONE line that it will be offered again tomorrow, then move on. Do not retry in this session and do not treat this as an error on their site.',
+            ];
+        }
+
+        // Every other failure is reported as a fact and then dropped. No retry,
+        // no queue: a failed report is worth far less than a session derailed by
+        // an error about a report.
+        Claudpress_Feedback::mark_offered();
+
         return [
             'success' => true,
-            'sent'    => $ok,
+            'sent'    => (bool) $result['ok'],
             'events'  => count($report['events']),
-            'message' => $ok
+            'message' => !empty($result['ok'])
                 ? 'Sent. Thank them briefly and move on.'
                 : 'The send did not go through. Say so in one line and move on — do not retry.',
         ];

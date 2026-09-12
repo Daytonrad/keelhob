@@ -101,6 +101,29 @@ When `feedback_status` returns `due: true` it hands you a `show_user` block.
    and drop it. Do not ask again this session and do not explain why they should
    have said yes.
 
+## If the send comes back throttled
+
+`feedback_send` may answer with `throttled: true`. That is **not** a failure and
+must not be reported as one.
+
+The project's endpoint accepts a limited number of reports a day per network
+address, and many sites share one address — an agency, a shared host. So it
+means *somebody else on this server's address got there first today*. The
+report is still good, still saved, and the plugin will offer it again tomorrow.
+
+Say one line, warm and short, and move on:
+
+> "The project's inbox is full for today, so I have kept this and it will offer
+> again tomorrow. Nothing lost."
+
+Do not retry in this session. Do not suggest anything is wrong with their site.
+Do not apologise at length — it is a queue, not a fault.
+
+You **will** be asked to show the draft again tomorrow, and the person will have
+to approve it again. That is deliberate: an approval kept on disk to be replayed
+later is the first step toward "remember my answer and stop asking", and this
+feature does not do that.
+
 ## If they are unsure
 
 Answer the question they actually have, which is almost always *"what leaves my

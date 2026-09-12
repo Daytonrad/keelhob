@@ -43,6 +43,17 @@ final class Claudpress_Feedback
     /** When the agent last offered to send, whatever the answer was. */
     const OPTION_LAST_OFFER = 'claudpress_feedback_last_offer';
 
+    /**
+     * The earliest the agent may offer again after a throttled send.
+     *
+     * Separate from OPTION_LAST_OFFER because the two mean different things. A
+     * completed offer means "this person has been asked". A throttled send
+     * means "nobody has been asked yet, the server was simply busy" — and
+     * collapsing them would spend the whole week's single offer on a request
+     * that never arrived.
+     */
+    const OPTION_RETRY_AFTER = 'claudpress_feedback_retry_after';
+
     const ENDPOINT = 'https://api.claudpress.com/v1/feedback';
 
     /**
@@ -56,6 +67,16 @@ final class Claudpress_Feedback
 
     /** At most one offer a week. A nag is what gets the setting switched off. */
     const OFFER_INTERVAL = 604800;
+
+    /**
+     * How long to wait after the server said "too many".
+     *
+     * The endpoint's limit is per day and shared by every site behind the same
+     * outbound address, so the only useful answer is to come back tomorrow.
+     * Retrying sooner cannot succeed and retrying later loses nothing, because
+     * the rows are still in the log.
+     */
+    const RETRY_AFTER_THROTTLED = 86400;
 
     /**
      * Report shape. Five events of 200 characters, not one 600-character blob:
@@ -487,7 +508,13 @@ final class Claudpress_Feedback
         if (self::count_unsent() < 1) {
             return false;
         }
-        return self::offer_due(self::last_offer(), $now ?? time());
+        $now = $now ?? time();
+        // A throttled send left the week's offer unspent, but there is no point
+        // asking again before the server's own window has rolled over.
+        if ($now < self::retry_after()) {
+            return false;
+        }
+        return self::offer_due(self::last_offer(), $now);
     }
 
     /** The pure half of should_offer(), so the clock can be tested without a clock. */
@@ -499,6 +526,25 @@ final class Claudpress_Feedback
     public static function last_offer(): int
     {
         return (int) get_option(self::OPTION_LAST_OFFER, 0);
+    }
+
+    public static function retry_after(): int
+    {
+        return (int) get_option(self::OPTION_RETRY_AFTER, 0);
+    }
+
+    /**
+     * Hold off until the server's window has rolled over.
+     *
+     * Deliberately does NOT store the approval that was just given. The person
+     * will be asked again, and that is the point: an approval kept on disk to
+     * be replayed later is the first step toward "remember my answer and stop
+     * asking", which is the line where this stops being consent and becomes
+     * telemetry.
+     */
+    public static function mark_retry_after(?int $now = null): void
+    {
+        update_option(self::OPTION_RETRY_AFTER, ($now ?? time()) + self::RETRY_AFTER_THROTTLED, false);
     }
 
     /**
@@ -570,10 +616,10 @@ final class Claudpress_Feedback
      * Failure is swallowed on purpose. No retry, no queue: a failed report is
      * worth far less than a session interrupted by an error about a report.
      */
-    public static function send(array $report): bool
+    public static function send(array $report): array
     {
         if (empty($report['events'])) {
-            return false;
+            return ['ok' => false, 'status' => 0, 'throttled' => false];
         }
         $res = wp_remote_post(self::ENDPOINT, [
             'timeout'  => 5,
@@ -581,13 +627,24 @@ final class Claudpress_Feedback
             'headers'  => ['Content-Type' => 'application/json'],
             'body'     => wp_json_encode(self::payload($report)),
         ]);
-        $ok = !is_wp_error($res) && (int) wp_remote_retrieve_response_code($res) === 200;
+
+        $status = is_wp_error($res) ? 0 : (int) wp_remote_retrieve_response_code($res);
+        $ok     = $status === 200;
+
+        // 429 is told apart from every other failure on purpose. Everything
+        // else means the report is gone and there is nothing to be done about
+        // it; 429 means the report is still perfectly good and the server was
+        // simply busy. Treating the two the same would silently discard the one
+        // failure that is worth coming back from — and it would discard it most
+        // often for the agency and shared-host callers who share one outbound
+        // address, who are exactly the ones worth hearing from.
+        $throttled = $status === 429;
 
         if ($ok) {
             global $wpdb;
             $wpdb->query("UPDATE " . self::table() . " SET sent = 1");
         }
-        return $ok;
+        return ['ok' => $ok, 'status' => $status, 'throttled' => $throttled];
     }
 
     /**

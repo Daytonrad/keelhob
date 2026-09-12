@@ -428,7 +428,7 @@ friction, and confirm the local log stays empty.
 
 Two deviations, both deliberate, both recorded here rather than quietly absorbed.
 
-### The rate limit is 30 an hour, not 5
+### The rate limit is 30 a DAY, not 5 an hour
 
 Section 3.2 said 5 per hour per IP, on the reasoning that a site sends at most
 one report a week.
@@ -439,8 +439,19 @@ WordPress installs behind one outbound IP. At five, the fourth agency site's
 report is dropped — and dropped *silently*, because the plugin deliberately
 never shows the user an error about a report.
 
-30 an hour is still a ceiling no honest caller reaches, and it is the same
-argument the version route's docblock already makes for its own limit.
+It went to 30 an hour first, which fixed the burst — and then to **30 a day**,
+because 30 an hour permits 720 a day from one address, which is a generous
+budget for anyone who wants to steer the roadmap. 30 a day absorbs a whole
+afternoon's burst from a large agency and caps abuse at roughly a twentieth of
+the hourly version.
+
+**A per-day limit is only safe because a throttle is now a delay rather than a
+loss.** Section 3.2 said "always 200, drop on failure", and under that rule a
+daily limit would quietly silence the biggest callers. So the plugin reads 429
+specifically: the rows stay in the local log, the site's weekly offer is NOT
+spent, a 24-hour hold is set, and the agent is told it is a queue and not a
+fault on the owner's site. The person approves again tomorrow — deliberately, so
+that no approval is ever stored to be replayed later.
 
 Found by the HTTP test, not by review: the suite tripped the limit while posting
 its own garbage cases.

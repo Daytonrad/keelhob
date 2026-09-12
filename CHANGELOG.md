@@ -94,10 +94,28 @@ public. When the two disagree, this file is correct.
   tier. Adding auth back is a decision, not a detail, so it is named here rather
   than half-done.
 
-- **`POST /v1/feedback` is rate limited at 30/hour per address, not the 5 the
-  plan wrote.** Five assumed one site per address. Agencies and shared hosts put
-  dozens of installs behind one outbound IP, and they are exactly the callers
-  worth hearing from — five would silently drop the fourth one's report.
+- **`POST /v1/feedback` is rate limited at 30 a DAY per address**, not the 5 an
+  hour the plan wrote.
+
+  Three numbers were considered. 5/hour assumed one site per address, which is
+  false for the callers most worth hearing from — agencies and shared hosts put
+  dozens of installs behind one outbound IP — and reports arrive in bursts, so a
+  round of maintenance across twenty sites on one afternoon would mostly be
+  thrown away. 30/hour fixed the burst but allowed 720 a day from one address,
+  a generous budget for anyone wanting to skew the roadmap. 30/day absorbs the
+  burst and caps abuse at roughly a twentieth of that.
+
+  **A throttled report is delayed, never lost**, and that is what makes a daily
+  limit safe. `Claudpress_Feedback::send()` returns the status rather than a
+  bool, and `feedback_send` tells 429 apart from every other failure: the rows
+  stay in the local log, the site's weekly offer is **not** spent, a 24-hour
+  hold is set, and the agent is told in words that it is a queue and not a fault
+  on their site. `tests/unit/test-feedback-throttle.php` asserts all of it; a
+  `send()` that cannot see a 429 fails 6 of its assertions.
+
+  The person is asked again the next day rather than the approval being stored
+  and replayed. Storing it would be the first step toward "remember my answer
+  and stop asking", which is the line where this stops being consent.
 
 ## [1.0.3] - 2026-09-08
 

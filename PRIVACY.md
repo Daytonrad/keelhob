@@ -197,6 +197,17 @@ sent. Redaction catches addresses and keys; it cannot know that "Acme Dental" is
 a customer. It is your own text, it is on screen in front of you when you are
 asked, and it goes as written. That is the honest limit of this design.
 
+### If the project's inbox is full
+
+The endpoint accepts at most 30 reports a day from any one network address,
+because many sites share one — an agency, a shared host. If yours is the
+thirty-first, the plugin is told so specifically, keeps your notes, does **not**
+use up your site's one offer a week, and offers again the next day.
+
+You will be asked to approve it again then. That is deliberate: an approval
+stored to be replayed later would be the first step toward remembering your
+answer and stopping asking, which is the line where this stops being consent.
+
 ### What the endpoint does with it
 
 Stores the fields above, keyed by `site_id`. **No IP address is logged.** Rows
