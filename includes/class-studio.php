@@ -25,26 +25,34 @@ final class Claudpress_Studio
     /** Tab slug => label. Order is the order they render in. */
     public static function tabs(): array
     {
-        $tabs = [
+        /*
+         * THREE TABS. There was very nearly a fourth.
+         *
+         * A Library tab shipped here for a long time, shown only when
+         * Claudpress_Studio_Library::has_items() said there was something to
+         * show. It never said yes on any install, because has_items() asks
+         * Claudpress_Snippet_Library - a class that was never written. So the
+         * tab could not appear, and the 135-line screen behind it could not be
+         * reached, and both shipped in every zip anyway.
+         *
+         * Hiding it was the right first move when it was found. Deleting it is
+         * the right second one: a repo about to be read by strangers should not
+         * contain a screen that cannot be opened.
+         *
+         * What was deliberately KEPT: `source = 'library'` in
+         * Claudpress_Snippets::SOURCES and its badge below. That is stored
+         * data, not UI. Sites that used the old private library still have rows
+         * carrying it, and removing the badge would render their history wrong.
+         *
+         * `?tab=library` still lands on the list rather than erroring -
+         * current_tab() falls back for anything it does not recognise - so an
+         * old bookmark is not a dead end.
+         */
+        return [
             'all'     => __('All Snippets', 'claudpress'),
             'edit'    => __('Add Snippet', 'claudpress'),
             'compose' => __('AI Compose', 'claudpress'),
         ];
-
-        // The Library tab appears only when there is a library. The bundled
-        // snippet set was never actually built - Claudpress_Snippet_Library
-        // does not exist - so on every install today this tab led to the words
-        // "the bundled library is empty in this build", which is a worse
-        // answer than no tab at all.
-        //
-        // There used to be a second sub-tab here backed by a private library on
-        // our server, and it was removed for exactly this reason when that
-        // server went away. Leaving this one visible would have been the same
-        // mistake with a different cause.
-        if (Claudpress_Studio_Library::has_items()) {
-            $tabs['library'] = __('Library', 'claudpress');
-        }
-        return $tabs;
     }
 
     /**
@@ -119,9 +127,6 @@ final class Claudpress_Studio
                 case 'compose':
                     Claudpress_Studio_Compose::render();
                     break;
-                case 'library':
-                    Claudpress_Studio_Library::render();
-                    break;
                 default:
                     Claudpress_Studio_List::render();
             }
@@ -144,7 +149,6 @@ final class Claudpress_Studio
             'activated'  => ['success', __('Snippet saved and switched on.', 'claudpress')],
             'deactivated' => ['info', __('Snippet switched off.', 'claudpress')],
             'deleted'    => ['success', __('Snippet deleted.', 'claudpress')],
-            'imported'   => ['success', __('Added to this site, switched off. Review it, then activate.', 'claudpress')],
             'lint'       => ['error', __('That code does not parse, so it was saved switched OFF. The error is shown on the snippet.', 'claudpress')],
             'moved'      => ['warning', __('Saved, but moved to a location that can run it. CSS, JS and HTML are only output in the header, the footer, before or after content, or from a shortcode — at "everywhere", "admin only", "front end only" or "page template" nothing would have printed them.', 'claudpress')],
         ];

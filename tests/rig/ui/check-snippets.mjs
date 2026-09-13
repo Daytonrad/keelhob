@@ -329,12 +329,46 @@ async function checkListControls(page) {
   if (r.failures.length) await shoot(page, 'list-controls');
 }
 
-/** B13 — the dead "Browse the library" button. */
-async function checkNoDeadControls(page) {
+/** B13 — nothing on this screen leads somewhere that does not exist. */
+async function checkNoDeadControls(page, ids) {
   const dead = await page.evaluate(() =>
     [...document.querySelectorAll('a')].filter((a) => /browse the library/i.test(a.textContent)).length
   );
   r.check('B13', 'no dead "Browse the library" button', dead === 0);
+
+  // The Library TAB, not just the button. It could never appear - has_items()
+  // asked a class nobody ever wrote - and the 135-line screen behind it shipped
+  // in every zip regardless.
+  await page.goto(`${STUDIO}&tab=all`, { waitUntil: 'load' });
+  const tabs = await page.evaluate(() =>
+    [...document.querySelectorAll('.nav-tab')].map((a) => a.textContent.trim())
+  );
+  r.check('B13', 'the Library tab is gone, not merely hidden', !tabs.some((t) => /library/i.test(t)), tabs.join(' | '));
+
+  // An old bookmark must still land somewhere useful.
+  await page.goto(`${STUDIO}&tab=library`, { waitUntil: 'load' });
+  const fallback = await page.evaluate(() => ({
+    table: !!document.querySelector('table.wp-list-table'),
+    fatal: /fatal error/i.test(document.body.innerText),
+  }));
+  r.check('B13', 'an old ?tab=library link falls back to the list, not an error', fallback.table && !fallback.fatal);
+
+  // The agent-facing id, carried over from the deleted second screen.
+  await page.goto(`${STUDIO}&tab=all&s=${encodeURIComponent(PREFIX)}`, { waitUntil: 'load' });
+  const idShown = await page.evaluate(
+    (id) => [...document.querySelectorAll('.cp-snippet-id')].some((el) => el.textContent.trim() === `#${id}`),
+    ids[0]
+  );
+  r.check('—', 'each row shows the number you would say to the agent', idShown);
+
+  await page.goto(`${STUDIO}&tab=edit&snippet=${ids[0]}`, { waitUntil: 'load' });
+  const hint = await page.evaluate(() => document.querySelector('.cp-ask-hint')?.textContent.trim() || '');
+  r.check('—', 'and the edit screen explains it once', /tell me about snippet/i.test(hint), hint.slice(0, 70));
+
+  // ...but not on a new snippet, where there is no number yet.
+  await page.goto(`${STUDIO}&tab=edit`, { waitUntil: 'load' });
+  const onNew = await page.evaluate(() => !!document.querySelector('.cp-ask-hint'));
+  r.check('—', 'and says nothing on a snippet that has no number yet', !onNew);
 }
 
 /** B11 — how many times one screen asks for money. */
@@ -527,7 +561,7 @@ try {
     ['editor', () => checkEditor(page, seeded.ids)],
     ['toggle', () => checkToggle(page, seeded.ids)],
     ['list controls', () => checkListControls(page)],
-    ['dead controls', () => checkNoDeadControls(page)],
+    ['dead controls', () => checkNoDeadControls(page, seeded.ids)],
     ['donate', () => checkDonate(page)],
     ['compose', () => checkCompose(page)],
     ['abilities banner', () => checkBanner(page)],

@@ -280,6 +280,22 @@ final class Claudpress_Studio_List
         <tr>
             <td>
                 <strong><a href="<?php echo esc_url($edit); ?>"><?php echo esc_html($row['name'] !== '' ? $row['name'] : __('(untitled)', 'claudpress')); ?></a></strong>
+                <?php
+                /*
+                 * The id, in the list, on purpose.
+                 *
+                 * This screen and the agent are the same system, and the id is
+                 * how a person crosses between them - "switch off snippet 7"
+                 * works in chat, and until now the number was not written
+                 * anywhere on the screen that shows the snippets.
+                 *
+                 * Just the number here. The sentence that explains it lives on
+                 * the edit screen, once. The screen this idea came from printed
+                 * the whole sentence on every row, which on a twenty-row table
+                 * is twenty copies of it.
+                 */
+                ?>
+                <span class="cp-snippet-id" title="<?php esc_attr_e('Ask your agent about this snippet by number', 'claudpress'); ?>">#<?php echo (int) $id; ?></span>
                 <?php if ($error !== '') : ?>
                     <br><span style="color:#d63638;font-size:12px;">&#9888; <?php echo esc_html(mb_substr($error, 0, 140)); ?></span>
                 <?php elseif (trim((string) ($row['description'] ?? '')) !== '') : ?>
@@ -368,6 +384,7 @@ final class Claudpress_Studio_List
         wp_register_style('claudpress-studio-list', false, [], CLAUDPRESS_VERSION);
         wp_enqueue_style('claudpress-studio-list');
         wp_add_inline_style('claudpress-studio-list', '
+            .cp-snippet-id { color: #8c8f94; font-size: 12px; font-variant-numeric: tabular-nums; }
             .cp-toggle-form { margin: 0; }
             .cp-switch { display: inline-flex; align-items: center; gap: 7px; background: none; border: 0; padding: 2px 0; cursor: pointer; font-size: 13px; }
             .cp-switch-track { width: 30px; height: 16px; border-radius: 8px; background: #c3c4c7; position: relative; transition: background .12s ease; flex: none; }

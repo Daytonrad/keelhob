@@ -101,6 +101,36 @@ final class Claudpress_Studio_Edit
                 </p>
             </div>
 
+            <?php
+            /*
+             * "You can also just ask."
+             *
+             * Carried over from the second Snippets screen that was deleted in
+             * 1.2.0 - the one genuinely good idea it had that this screen did
+             * not. It says out loud that the page and the agent are the same
+             * system, which is the thing people take longest to work out about
+             * this plugin.
+             *
+             * Only for a saved snippet. On a new one there is no number yet,
+             * and an id of 0 would be a worse hint than none.
+             */
+            ?>
+            <?php if ($id > 0) : ?>
+                <p class="cp-ask-hint">
+                    <?php
+                    printf(
+                        /* translators: %s: the phrase to say to the agent, already quoted. */
+                        esc_html__('You can also just ask your agent: %s', 'claudpress'),
+                        '<code>' . esc_html(sprintf(
+                            /* translators: %d: snippet ID. */
+                            __('tell me about snippet %d', 'claudpress'),
+                            $id
+                        )) . '</code>'
+                    );
+                    ?>
+                </p>
+            <?php endif; ?>
+
             <div id="cp-editor-warning" hidden></div>
 
             <label class="screen-reader-text" for="cp-code"><?php esc_html_e('Code', 'claudpress'); ?></label>
@@ -310,6 +340,8 @@ final class Claudpress_Studio_Edit
             .cp-state { font-weight: 600; }
             .cp-state-on { color: #00794b; }
             .cp-state-off { color: #777; }
+            .cp-ask-hint { margin: 0 0 10px; color: #646970; font-size: 12px; }
+            .cp-ask-hint code { font-size: 12px; background: #f0f0f1; padding: 1px 6px; border-radius: 3px; }
             .cp-edit-details { margin: 14px 0; border: 1px solid #dcdcde; border-radius: 4px; background: #fff; }
             .cp-edit-details > summary { cursor: pointer; padding: 10px 14px; font-weight: 600; }
             .cp-edit-details[open] > summary { border-bottom: 1px solid #dcdcde; }

@@ -75,8 +75,6 @@ final class Claudpress_Studio_Actions
             case 'restore':
                 $this->restore($id, isset($_POST['revision_id']) ? (int) $_POST['revision_id'] : 0);
                 break;
-            case 'use_library':
-                $this->use_library(isset($_POST['library_key']) ? sanitize_key(wp_unslash($_POST['library_key'])) : '');
                 break;
             default:
                 Claudpress_Studio::redirect('all', 'saved');
@@ -220,39 +218,6 @@ final class Claudpress_Studio_Actions
             'active' => 0,
         ]);
         Claudpress_Studio::redirect('edit', 'saved', ['snippet' => $id]);
-    }
-
-    private function use_library(string $key): void
-    {
-        if ($key === '' || !class_exists('Claudpress_Snippet_Library')) {
-            Claudpress_Studio::redirect('library', 'saved');
-        }
-        $item = Claudpress_Snippet_Library::get($key);
-        if (!$item) {
-            Claudpress_Studio::redirect('library', 'saved');
-        }
-
-        // Library items carry their own location, which for a css item may
-        // predate the check. Same treatment as a duplicate: land it somewhere
-        // it runs rather than refuse an import the owner asked for.
-        $item_type     = (string) ($item['type'] ?? 'php');
-        $item_location = (string) ($item['location'] ?? Claudpress_Snippets::default_location_for_type($item_type));
-        if ($item_type !== 'php' && !in_array($item_location, Claudpress_Snippets::EMITTING_LOCATIONS, true)) {
-            $item_location = Claudpress_Snippets::default_location_for_type($item_type);
-        }
-
-        $result = Claudpress_Snippets::save([
-            'name'         => (string) ($item['title'] ?? $key),
-            'description'  => (string) ($item['description'] ?? ''),
-            'code'         => (string) ($item['code'] ?? ''),
-            'snippet_type' => $item_type,
-            'location'     => $item_location,
-            'tags'         => (string) ($item['tags'] ?? ''),
-            'source'       => 'library',
-            'origin_uid'   => $key,
-            'active'       => 0,
-        ]);
-        Claudpress_Studio::redirect('edit', 'imported', ['snippet' => (int) ($result['id'] ?? 0)]);
     }
 
     // ---- AJAX ------------------------------------------------------------

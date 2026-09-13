@@ -50,7 +50,15 @@ foreach (['all', 'edit', 'compose', 'library'] as $tab) {
     }
     check('tab "' . $tab . '" renders', $err === '' && strlen($out) > 400, $err ?: strlen($out) . ' bytes');
     check('  no notice leaked into "' . $tab . '"', stripos($out, 'Warning:') === false && stripos($out, 'Fatal') === false);
-    check('  all four tabs are linked from "' . $tab . '"', substr_count($out, 'nav-tab') >= 5);
+    // Three tabs now, not four: the Library tab was deleted in 1.2.0 because it
+    // could never appear. Counted from Claudpress_Studio::tabs() rather than
+    // hard-coded, so adding a real tab does not need this line edited - the
+    // previous version said "four" long after there were three.
+    check(
+        '  every tab is linked from "' . $tab . '"',
+        substr_count($out, 'nav-tab ') >= count(Claudpress_Studio::tabs()),
+        count(Claudpress_Studio::tabs()) . ' expected, ' . substr_count($out, 'nav-tab ') . ' found'
+    );
 }
 
 // --- the list ---
@@ -78,21 +86,30 @@ check('compose renders with no key configured', strpos($compose, 'cp-compose-pro
 check('...and says so rather than hiding', strpos($compose, 'No AI provider is connected') !== false || trim((string) Claudpress::instance()->get('agent_api_key')) !== '');
 
 // --- library ---
-// These four checks used to assert a device-code pairing screen for a private
-// library held on our server. That server went away, the sub-tab navigation
-// went with it, and Claudpress_Studio::tabs() now hides the tab entirely while
-// the bundled library has no items - see the comment there. The rig asserts
-// whichever of those two states is really true instead of a screen that no
-// longer exists.
+// The Library tab is GONE, not hidden.
+//
+// It used to be shown only when Claudpress_Studio_Library::has_items() said so,
+// and that could never be true: has_items() asked Claudpress_Snippet_Library,
+// a class nobody ever wrote. An unreachable screen shipped in every zip.
+//
+// This asserts the two things that matter after deleting it: the tab is not
+// offered, and an old ?tab=library bookmark still lands somewhere useful rather
+// than erroring - current_tab() falls back to the list for anything it does not
+// recognise.
 $library = $render('library');
-if (Claudpress_Studio_Library::has_items()) {
-    check('the Library tab is offered', array_key_exists('library', Claudpress_Studio::tabs()));
-    check('...and lists the bundled snippets', strpos($library, 'wp-list-table') !== false);
-} else {
-    check('an empty library is not advertised as a tab', !array_key_exists('library', Claudpress_Studio::tabs()));
-    check('...and ?tab=library falls back to the list, not an error',
-        strpos($library, 'Studio rig snippet') !== false && stripos($library, 'Fatal') === false);
-}
+check('the Library tab is not offered', !array_key_exists('library', Claudpress_Studio::tabs()));
+check('...and Claudpress_Studio_Library is gone from the build', !class_exists('Claudpress_Studio_Library'));
+check('...and an old ?tab=library link falls back to the list, not an error',
+    strpos($library, 'Studio rig snippet') !== false && stripos($library, 'Fatal') === false);
+
+// Stored data is NOT UI. Sites that used the old private library still have
+// rows whose source is 'library', and the badge that renders them must survive
+// the removal of the screen that once created them.
+check('a snippet whose source is "library" still renders its badge',
+    strpos(Claudpress_Studio::source_badge('library'), 'Library') !== false);
+check('...and "library" is still a valid stored source',
+    in_array('library', Claudpress_Snippets::SOURCES, true));
+
 // The pairing flow made this promise in words. It is gone; the promise is not.
 check('no Studio screen asks for a password',
     strpos($all . $edit . $compose . $library, 'type="password"') === false);

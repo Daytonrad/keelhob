@@ -641,16 +641,30 @@ linter at 100/100, the readme drift check, and the zip build.
 Two of those three were mistakes made *while building this plan*. That is the
 argument for the browser layer, stated as plainly as it can be.
 
-### Two things deliberately left
+### The two things left overnight — both done 2026-09-14
 
-- **`includes/class-studio-library.php`** (135 lines) and the `install` branch in
-  `class-studio-actions.php` are unreachable: `Claudpress_Studio_Library::has_items()`
-  can only return false, because `Claudpress_Snippet_Library` was never written.
-  Same category as the deleted second Snippets screen, and a fair candidate for
-  the same treatment — but it was not on this plan's list, and widening scope
-  unattended is how a tidy-up becomes an outage. Its own change.
-- **The per-row "ask your agent about snippet 7" hint** from the deleted screen
-  was a genuinely good idea and is not yet carried over to the Studio row.
+- **`includes/class-studio-library.php` is deleted**, with the `use_library`
+  action and the Library tab. It could never appear: `has_items()` asked
+  `Claudpress_Snippet_Library`, a class nobody ever wrote. 135 lines of screen
+  plus an install path, shipping in every zip, reachable by nobody.
+
+  **Kept on purpose:** `source = 'library'` in `Claudpress_Snippets::SOURCES` and
+  its badge. That is stored data, not UI — sites that used the old private
+  library still have rows carrying it, and dropping the badge would render their
+  own history wrong. `?tab=library` still falls back to the list, so an old
+  bookmark is not a dead end. Both asserted in `checks-studio.php`.
+
+- **The "ask your agent" hint is carried over**, split rather than copied. The
+  deleted screen printed `Ask your agent: "tell me about snippet 7"` on every
+  row; on a twenty-row table that is twenty copies of one sentence, which is the
+  kind of noise this plan exists to remove. So the **id** goes in the list, small
+  and grey, because the number is the part you need while scanning — and the
+  **sentence** goes on the edit screen, once, where you are looking at a single
+  snippet. It is suppressed on a new snippet, which has no number yet.
+
+  It matters because it is the clearest statement the UI makes that the screen
+  and the agent are the same system, which is the thing people take longest to
+  work out about this plugin.
 
 ### The measure that is not in this table
 
