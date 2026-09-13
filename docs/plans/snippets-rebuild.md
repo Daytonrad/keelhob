@@ -1,7 +1,10 @@
 # Snippets — stop it being embarrassing
 
-**Version 2.** Rewritten 2026-09-13 after measuring the current screen on the
-rig instead of describing it.
+**Version 2. BUILT AND VERIFIED 2026-09-13.** Shipped as 1.2.0 on
+`feature/snippets-polish`.
+
+Written after measuring the current screen on the rig instead of describing it,
+then built against those measurements. Results at the bottom.
 
 Version 1 of this plan proposed absorbing VibeSnip into Claudpress: five tabs, a
 conditional-logic rule builder, a signed snippet Library, an importer, and a
@@ -589,3 +592,69 @@ node tests/rig/ui/check-snippets.mjs --wp http://localhost:8899
 The browser run is the acceptance test for this plan. Every row of the success
 table in 8.3 is one of its assertions, and it tears down every fixture it created
 in the same run that asserted on them — including when it fails.
+
+---
+
+## Results
+
+Built 2026-09-13. Every row below is a browser measurement, before and after.
+
+| # | Measured | Before | After |
+|---|---|---|---|
+| B1 | `.CodeMirror` on the edit screen | absent | present, with line numbers |
+| B1 | Distinct syntax-colour tokens | 0 | 4 |
+| B2 | `cpStudioEditorSettings` | undefined | `object`, `mode: text/x-php` |
+| B3/B4 | Scroll before the code is visible | 636 px | **0 px** |
+| B5 | Fields above the code box | 6 | **2** |
+| B6/B7 | On/off control visible without hover | no (`left: -129987px`) | yes (`left: 1246px`) |
+| B7 | Clicking it changes the stored state | n/a | `active 0 -> 1` |
+| B8 | Sortable headers | 0 | **3** |
+| B9 | Priority column | absent | present, sortable, shown only when in use |
+| B10 | Errored filter | absent | present, returns exactly the errored snippet |
+| B11 | Donate buttons beside an `<h1>` | 7 | **1** (Connect), plus the Donate page |
+| B12 | Files implementing the Snippets screen | 2 | **1** |
+| B13 | Dead controls | 1 | **0** |
+| B14 | Ways out of an unwanted AI plan | 0 | **2** |
+| B15 | Save offered beside a failed parse | yes | disabled until acknowledged |
+| B16 | Banner dismissible, chip survives, returns on change | no / n/a / n/a | yes / yes / yes |
+
+**Browser checks: 29 of 34 red on the first run, 36 of 36 green at the end.**
+
+Also green: 2343 unit assertions, PHPStan, all 3 rig check files, the skills
+linter at 100/100, the readme drift check, and the zip build.
+
+### Three bugs the browser layer found that nothing else could
+
+1. **The code editor had never loaded on any install** — the bug this plan was
+   reorganised around. Part 1.
+2. **The chip guard could not work where it was placed.** Asking the toolbar for
+   its nodes from `admin_notices` returns nothing, because the toolbar has not
+   been built yet. A rig probe printed `nodes=0 claudpress=no` on a page whose
+   toolbar rendered correctly moments later. Shipped as written, the guard would
+   have removed the dismiss option entirely while reading like a careful safety
+   check.
+3. **The banner did not return after an off/on cycle.** `notice_fingerprint()`
+   hashes state, so the cycle restores the old hash and the old dismissal still
+   matched. A unit test had been written asserting exactly that, it passed, and
+   it described the bug as though it were the feature.
+
+Two of those three were mistakes made *while building this plan*. That is the
+argument for the browser layer, stated as plainly as it can be.
+
+### Two things deliberately left
+
+- **`includes/class-studio-library.php`** (135 lines) and the `install` branch in
+  `class-studio-actions.php` are unreachable: `Claudpress_Studio_Library::has_items()`
+  can only return false, because `Claudpress_Snippet_Library` was never written.
+  Same category as the deleted second Snippets screen, and a fair candidate for
+  the same treatment — but it was not on this plan's list, and widening scope
+  unattended is how a tidy-up becomes an outage. Its own change.
+- **The per-row "ask your agent about snippet 7" hint** from the deleted screen
+  was a genuinely good idea and is not yet carried over to the Studio row.
+
+### The measure that is not in this table
+
+`?days=N` on `/v1/feedback/summary` is built and tested, and the snippet-tool
+counts for the 30 days before release still need recording before 1.2.0 ships.
+Without that snapshot there is nothing to compare the next 30 days against, and
+the honest measure in 8.3 cannot be taken at all.
