@@ -1,0 +1,13 @@
+{
+  "name": "claudpress-dev",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Dev tooling only. The plugin itself is PHP and ships no JavaScript dependencies; nothing here is copied into the release zip by bin/build-zip.sh.",
+  "type": "module",
+  "scripts": {
+    "check:ui": "node tests/rig/ui/check-snippets.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.56.1"
+  }
+}

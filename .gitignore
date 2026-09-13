@@ -53,3 +53,7 @@ docs/ops/
 docs/plans/free-pro-split.md
 docs/plans/rebrand.md
 docs/design-system-brief.md
+
+# Browser-check artifacts. Regenerated on every failing run.
+tests/rig/ui/failures/
+node_modules/
