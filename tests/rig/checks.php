@@ -145,6 +145,15 @@ check('...each with why and how', !empty($first['why_unavailable']) && !empty($f
 check('...and "how" names a setting, not a purchase', strpos((string) ($first['how_to_enable'] ?? ''), 'Settings') !== false);
 
 // -------------------------------------------------------- snippet log -----
+//
+// BOTH OF THESE ARE DELETED AGAIN BELOW, and that is not tidiness.
+//
+// On CI the rig is thrown away, so leftovers cost nothing. On a rig kept
+// between sessions - which is how this is actually used - they accumulate, and
+// one of them carries a deliberate syntax error. That left two permanently
+// errored snippets sitting on the development rig, which then failed an
+// unrelated check in tests/rig/ui/check-snippets.mjs that counts errored rows.
+// A test fixture that outlives its test becomes somebody else's bug.
 $snip = Claudpress_Snippets::save(['name' => 'Rig test snippet', 'code' => '<?php add_filter("the_content", fn($c) => $c);', 'snippet_type' => 'php']);
 $events = $wpdb->get_col("SELECT event FROM {$wpdb->prefix}claudpress_snippet_log ORDER BY id DESC LIMIT 3");
 check('Snippet activity is recorded', in_array('created', $events, true), implode(',', $events));
@@ -152,6 +161,17 @@ check('Snippet activity is recorded', in_array('created', $events, true), implod
 // --------------------------------------------------------- safety loop ----
 $bad = Claudpress_Snippets::save(['name' => 'Broken snippet', 'code' => '<?php function ( { syntax error', 'snippet_type' => 'php', 'active' => 1]);
 check('A snippet that does not parse cannot activate', empty($bad['active']) || !empty($bad['error']) || !empty($bad['lint']), wp_json_encode(array_intersect_key($bad, array_flip(['active', 'error', 'lint']))));
+
+// Teardown, in the same file that asserted on them. The log rows stay - the
+// assertion above is about the log, and deleting the history would be deleting
+// the evidence.
+$removed = 0;
+foreach ([$snip['id'] ?? 0, $bad['id'] ?? 0] as $id) {
+    if ((int) $id > 0 && Claudpress_Snippets::delete((int) $id)) {
+        $removed++;
+    }
+}
+check('...and the rig is left as it was found', $removed === 2, $removed . ' of 2 fixtures removed');
 
 printf("\n%d passed, %d failed\n", $GLOBALS['cp_rig_pass'], $GLOBALS['cp_rig_fail']);
 if ($GLOBALS['cp_rig_fail'] > 0) {

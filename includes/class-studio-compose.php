@@ -23,6 +23,8 @@ final class Claudpress_Studio_Compose
 {
     public static function render(): void
     {
+        self::enqueue();
+
         $ready = Claudpress_Provider_Settings_Ready();
         ?>
         <h2><?php esc_html_e('Describe what you want', 'claudpress'); ?></h2>
@@ -47,66 +49,41 @@ final class Claudpress_Studio_Compose
             <span id="cp-compose-status" style="margin-left:10px;color:#666;"></span>
         </p>
 
-        <div id="cp-compose-plan-box" style="display:none;margin-top:8px;"></div>
-        <div id="cp-compose-code-box" style="display:none;margin-top:16px;"></div>
-
-        <script>
-        (function () {
-            var nonce  = <?php echo wp_json_encode(wp_create_nonce(Claudpress_Studio::NONCE)); ?>;
-            var status = document.getElementById('cp-compose-status');
-            var planBox = document.getElementById('cp-compose-plan-box');
-            var codeBox = document.getElementById('cp-compose-code-box');
-            var approvedPlan = '';
-
-            function post(action, fields) {
-                var body = new FormData();
-                body.append('action', action);
-                body.append('nonce', nonce);
-                Object.keys(fields).forEach(function (k) { body.append(k, fields[k]); });
-                return fetch(ajaxurl, { method: 'POST', body: body, credentials: 'same-origin' })
-                    .then(function (r) { return r.json(); });
-            }
-
-            function busy(msg) { status.textContent = msg; }
-
-            document.getElementById('cp-compose-plan').addEventListener('click', function () {
-                var prompt = document.getElementById('cp-compose-prompt').value.trim();
-                if (!prompt) { alert(<?php echo wp_json_encode(__('Describe what you want first.', 'claudpress')); ?>); return; }
-                busy(<?php echo wp_json_encode(__('Thinking…', 'claudpress')); ?>);
-                codeBox.style.display = 'none';
-                post('claudpress_studio_plan', { prompt: prompt }).then(function (json) {
-                    busy('');
-                    if (!json || !json.success) {
-                        planBox.innerHTML = '<div class="notice notice-error inline"><p>' +
-                            ((json && json.data && json.data.message) || 'Could not reach the AI.') + '</p></div>';
-                        planBox.style.display = 'block';
-                        return;
-                    }
-                    approvedPlan = json.data.plan_text || '';
-                    planBox.innerHTML = json.data.html;
-                    planBox.style.display = 'block';
-                    var build = document.getElementById('cp-compose-build');
-                    if (build) {
-                        build.addEventListener('click', function () {
-                            busy(<?php echo wp_json_encode(__('Writing the code…', 'claudpress')); ?>);
-                            post('claudpress_studio_build', {
-                                prompt: document.getElementById('cp-compose-prompt').value.trim(),
-                                plan: approvedPlan
-                            }).then(function (res) {
-                                busy('');
-                                codeBox.innerHTML = (res && res.success)
-                                    ? res.data.html
-                                    : '<div class="notice notice-error inline"><p>' +
-                                      ((res && res.data && res.data.message) || 'Could not reach the AI.') + '</p></div>';
-                                codeBox.style.display = 'block';
-                            });
-                        });
-                    }
-                });
-            });
-        }());
-        </script>
+        <div id="cp-compose-plan-box" hidden></div>
+        <div id="cp-compose-code-box" hidden></div>
         <?php
+    }
+
+    /**
+     * The script, as a file.
+     *
+     * It was an inline <script> printed in the page body. That is the same
+     * mistake that left the snippet editor without a code editor on every
+     * install for as long as it existed: an inline block prints before
+     * everything the render callback enqueued. Nothing here depended on a
+     * footer script yet, so it happened to work - it was one dependency away
+     * from breaking in silence.
+     */
+    private static function enqueue(): void
+    {
+        wp_enqueue_script(
+            'claudpress-studio-compose',
+            CLAUDPRESS_URL . 'assets/js/studio-compose.js',
+            [],
+            CLAUDPRESS_VERSION,
+            true
+        );
+
+        wp_localize_script('claudpress-studio-compose', 'cpStudioCompose', [
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'nonce'   => wp_create_nonce(Claudpress_Studio::NONCE),
+            'i18n'    => [
+                'thinking'      => __('Thinking…', 'claudpress'),
+                'writing'       => __('Writing the code…', 'claudpress'),
+                'describeFirst' => __('Describe what you want first.', 'claudpress'),
+                'unreachable'   => __('Could not reach the AI.', 'claudpress'),
+            ],
+        ]);
     }
 
     /** The plan, rendered for a human to approve or reject. */
@@ -136,7 +113,24 @@ final class Claudpress_Studio_Compose
             <?php endif; ?>
 
             <p style="color:#666;"><?php esc_html_e('No code has been written and nothing has been saved. Read the plan, then decide.', 'claudpress'); ?></p>
+
+            <?php
+            /*
+             * THREE ANSWERS, not one.
+             *
+             * This card used to offer only "write the code". If the plan was
+             * wrong, the way out was to scroll 300px back up to the prompt, or
+             * to reload the page - and in practice people reloaded. A screen
+             * that can only say yes is not asking a question.
+             *
+             * Discard and Plan again cost nothing: no network call, no server
+             * state, because nothing has been stored yet. That is exactly why
+             * they can be offered freely.
+             */
+            ?>
             <button type="button" class="button button-primary" id="cp-compose-build"><?php esc_html_e('Looks right — write the code', 'claudpress'); ?></button>
+            <button type="button" class="button" id="cp-compose-replan"><?php esc_html_e('Plan again with changes', 'claudpress'); ?></button>
+            <button type="button" class="button-link" id="cp-compose-discard" style="margin-left:10px;color:#b32d2e;"><?php esc_html_e('Discard', 'claudpress'); ?></button>
         </div>
         <?php
         return (string) ob_get_clean();
@@ -175,7 +169,38 @@ final class Claudpress_Studio_Compose
                 <input type="text" name="name" class="regular-text" required
                        value="<?php echo esc_attr(wp_trim_words($prompt, 7, '')); ?>"
                        placeholder="<?php esc_attr_e('Name this snippet', 'claudpress'); ?>">
-                <button class="button button-primary"><?php esc_html_e('Save it (switched off)', 'claudpress'); ?></button>
+
+                <?php
+                /*
+                 * A FAILED PARSE GETS AN ACKNOWLEDGEMENT, NOT A REFUSAL.
+                 *
+                 * This card used to print "Syntax check: failed" and then offer
+                 * exactly the same Save button it offers on success, as though
+                 * it had not just said that. Incoherent, though never unsafe:
+                 * save() parses again on the server and stores failing code
+                 * switched off.
+                 *
+                 * Refusing outright would be worse. The AI wrote it, the person
+                 * may want to fix one missing semicolon by hand, and throwing
+                 * the work away to protect them from an error they can already
+                 * read is patronising. So: say it plainly, make them tick a box,
+                 * then get out of the way.
+                 */
+                ?>
+                <?php if (!$ok) : ?>
+                    <p style="margin:10px 0 6px;">
+                        <label>
+                            <input type="checkbox" id="cp-compose-ack">
+                            <?php esc_html_e('I have read the error and want to keep this code.', 'claudpress'); ?>
+                        </label>
+                    </p>
+                <?php endif; ?>
+
+                <button id="cp-compose-save" class="button button-primary" <?php disabled(!$ok); ?>><?php
+                    echo $ok
+                        ? esc_html__('Save it (switched off)', 'claudpress')
+                        : esc_html__('Save anyway (it will stay switched off)', 'claudpress');
+                ?></button>
             </form>
 
             <p style="color:#666;margin-bottom:0;">

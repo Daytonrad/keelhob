@@ -34,6 +34,8 @@ final class Claudpress_Admin
         Claudpress_Brand::hooks();
         add_action('admin_post_claudpress_save', [$this, 'handle_save']);
         add_action('admin_bar_menu', [$this, 'admin_bar'], 100);
+        // Runs LAST, after anything that could remove the node. See chip_watchdog().
+        add_action('admin_bar_menu', [$this, 'chip_watchdog'], PHP_INT_MAX);
         add_action('admin_notices', [$this, 'notice']);
         add_action('admin_notices', [$this, 'upgrade_notice']);
         // Both of these accept an API key so an unsaved one can be tested;
@@ -65,18 +67,211 @@ final class Claudpress_Admin
         Claudpress_Donate::menu();
     }
 
+    /**
+     * The meta key that remembers one administrator's dismissal.
+     *
+     * PER USER, NOT PER SITE, and that is not a detail. One administrator
+     * hiding a safety warning must not hide it from a colleague who has never
+     * seen it and does not know an AI agent is attached to this site.
+     */
+    const HIDE_NOTICE_META = 'claudpress_hide_abilities_notice';
+
+    /**
+     * "AI abilities are ON", on Claudpress screens, and now dismissible.
+     *
+     * WHY IT IS SAFE TO LET SOMEBODY HIDE THIS. Because there is a second
+     * indicator that cannot be hidden: admin_bar() puts `Claudpress: ON` in the
+     * WordPress toolbar, and that is a better warning than this banner - always
+     * present, never dismissible, and on screens this banner never reaches.
+     *
+     * The obvious objection is that a snippet can remove the toolbar. It was
+     * measured rather than argued: a live snippet running
+     * add_filter('show_admin_bar', '__return_false') removed the toolbar on the
+     * FRONT END and left it completely intact inside wp-admin, because
+     * WordPress forces it there and show_admin_bar does not apply. This banner
+     * only ever appears inside wp-admin, so the chip is guaranteed exactly
+     * where the banner lives.
+     *
+     * That measurement is the whole argument. Without the chip, the answer to
+     * "can I hide this?" is no.
+     *
+     * THE HOLE THE MEASUREMENT LEFT. A snippet could still call
+     * remove_node('claudpress'), or inject admin CSS hiding #wpadminbar.
+     *
+     * The intended guard was to ask the toolbar, here, whether our node exists.
+     * That does not work, and the browser layer is how we found out: at
+     * admin_notices the toolbar has not been built, so `get_node('claudpress')`
+     * returns null on EVERY request. A probe on the rig reported
+     * `nodes=0 claudpress=no` on a page whose toolbar rendered correctly
+     * moments later. Shipped as written, it would have removed the dismiss
+     * option entirely while reading like a careful safety check.
+     *
+     * So the hole is closed one page load later instead, by chip_watchdog() -
+     * which runs on admin_bar_menu at PHP_INT_MAX, after anything that could
+     * remove the node, and clears the dismissal when the node is gone. Stated
+     * plainly: a removed chip costs one more banner-free page, not every
+     * subsequent one.
+     */
     public function notice(): void
     {
         $screen = get_current_screen();
         if (!$screen || strpos($screen->id, 'claudpress') === false) {
             return;
         }
-        if (Claudpress::instance()->abilities_enabled()) {
-            printf(
-                '<div class="notice notice-warning"><p><strong>%s</strong> %s</p></div>',
-                esc_html__('Claudpress AI abilities are ON.', 'claudpress'),
-                esc_html__('A connected AI agent can read and modify everything on this site. Use development/staging sites only.', 'claudpress')
-            );
+        if (!Claudpress::instance()->abilities_enabled()) {
+            return;
+        }
+
+        if (!empty($_GET['claudpress_hide_abilities']) && check_admin_referer('claudpress_hide_abilities')) {
+            update_user_meta(get_current_user_id(), self::HIDE_NOTICE_META, self::notice_fingerprint());
+        }
+
+        $hideable = self::chip_present();
+        if ($hideable && (string) get_user_meta(get_current_user_id(), self::HIDE_NOTICE_META, true) === self::notice_fingerprint()) {
+            return;
+        }
+
+        printf(
+            '<div class="notice notice-warning claudpress-abilities-notice"><p><strong>%s</strong> %s%s</p></div>',
+            esc_html__('Claudpress AI abilities are ON.', 'claudpress'),
+            esc_html__('A connected AI agent can read and modify everything on this site. Use development/staging sites only.', 'claudpress'),
+            $hideable ? self::hide_link() : ''
+        );
+    }
+
+    /** The "hide this" link. A GET with a nonce; it changes nothing but one user's preference. */
+    private static function hide_link(): string
+    {
+        return sprintf(
+            ' <a href="%s" id="cp-hide-abilities-notice" style="margin-left:8px;">%s</a><br><span style="color:#646970;font-size:12px;">%s</span>',
+            esc_url(wp_nonce_url(add_query_arg('claudpress_hide_abilities', '1'), 'claudpress_hide_abilities')),
+            esc_html__('Hide this notice', 'claudpress'),
+            esc_html__('The toolbar will still show "Claudpress: ON" on every screen, so the site never stops telling you.', 'claudpress')
+        );
+    }
+
+    /**
+     * What this dismissal was about.
+     *
+     * A warning silenced about one situation must not stay silent about a
+     * different one. The fingerprint covers the three things that change what
+     * an agent is actually allowed to do here:
+     *
+     *   - whether abilities are on at all (so off-and-on-again re-warns)
+     *   - which capability groups are enabled (so switching on Payments re-warns)
+     *   - the plugin version (so an update that changes the rules re-warns)
+     *
+     * Public because tests/rig/ui/check-snippets.mjs sets the meta directly to
+     * assert the banner returns; a private fingerprint could only be tested by
+     * reimplementing it, which would test the copy rather than the code.
+     */
+    public static function notice_fingerprint(): string
+    {
+        $enabled = [];
+        foreach (array_keys(Claudpress_Capabilities::groups()) as $group) {
+            if (Claudpress_Capabilities::is_group_enabled($group)) {
+                $enabled[] = $group;
+            }
+        }
+        sort($enabled);
+
+        return substr(md5((string) wp_json_encode([
+            'on'      => Claudpress::instance()->abilities_enabled(),
+            'groups'  => $enabled,
+            'version' => CLAUDPRESS_VERSION,
+        ])), 0, 16);
+    }
+
+    /**
+     * A change to what an agent may do cancels every dismissal, for everybody.
+     *
+     * WHY THE FINGERPRINT WAS NOT ENOUGH, and the browser layer is how this was
+     * found. notice_fingerprint() hashes the current state, so switching
+     * abilities OFF and back ON returns the hash to the value it had before -
+     * and a dismissal recorded before the cycle still matched afterwards. The
+     * banner stayed hidden through exactly the event it most needs to reappear
+     * for. A unit test asserting "off then on returns to the first value" had
+     * been written, passed, and described that bug as if it were the feature.
+     *
+     * So the clearing is driven by the CHANGE, not by the resulting state. Any
+     * write to the settings option that alters abilities or the capability
+     * groups deletes every stored dismissal.
+     *
+     * EVERY USER, not just the one who made the change. The person who turns
+     * abilities on is rarely the only administrator, and the colleague who
+     * dismissed this warning last month agreed to a different site.
+     *
+     * REGISTERED FROM Claudpress::boot(), NOT from hooks(), and static for that
+     * reason. hooks() only runs behind is_admin(), so hooking it there meant a
+     * change made over WP-CLI, over the REST route, or by an agent through
+     * manage_option left every dismissal standing - which is to say it did not
+     * fire for any of the callers most likely to switch abilities on. Found by
+     * the browser checks, which toggle abilities through WP-CLI.
+     */
+    public static function rewarn_on_change($old, $new): void
+    {
+        $old = is_array($old) ? $old : [];
+        $new = is_array($new) ? $new : [];
+
+        $shape = static function (array $s): string {
+            $caps = (array) ($s['capabilities'] ?? []);
+            ksort($caps);
+            return (string) wp_json_encode([!empty($s['abilities_enabled']), $caps]);
+        };
+
+        if ($shape($old) === $shape($new)) {
+            return;
+        }
+
+        // $delete_all = true. One query, and the alternative - looping every
+        // administrator - is slower and misses anyone whose role changed since.
+        delete_metadata('user', 0, self::HIDE_NOTICE_META, '', true);
+    }
+
+    /**
+     * Will the unhideable indicator be on this page?
+     *
+     * THE OBVIOUS IMPLEMENTATION DOES NOT WORK, and it was measured rather than
+     * reasoned about. Asking `$GLOBALS['wp_admin_bar']->get_node('claudpress')`
+     * from `admin_notices` returns null on every request: the toolbar has not
+     * been built yet at that point. A probe printed at admin_notices on the rig
+     * reported `nodes=0 claudpress=no` on a page whose toolbar rendered
+     * perfectly a few lines later.
+     *
+     * Shipped as written, that guard would have permanently removed the dismiss
+     * option while looking like a careful safety check. It is exactly the class
+     * of bug the browser layer exists for.
+     *
+     * So this asks the two conditions admin_bar() itself checks, which ARE
+     * knowable here. What it cannot see is a snippet that removes the node
+     * later in the same request - and node_removed() below covers that, one
+     * page load afterwards.
+     */
+    private static function chip_present(): bool
+    {
+        return is_admin_bar_showing() && current_user_can('manage_options');
+    }
+
+    /**
+     * If something removed the chip, un-dismiss the banner.
+     *
+     * Registered on `admin_bar_menu` at a very late priority, so it runs after
+     * anything that might call remove_node('claudpress') - a snippet, another
+     * plugin, a theme. By then the banner for this request has already printed,
+     * which is why this cannot prevent one bad page; it makes sure there is not
+     * a second one.
+     *
+     * Deleting the meta rather than storing a "chip missing" flag keeps this
+     * self-healing in both directions: whatever removed the chip goes away, the
+     * owner simply dismisses the banner again.
+     */
+    public function chip_watchdog($bar): void
+    {
+        if (!current_user_can('manage_options') || !is_object($bar) || !method_exists($bar, 'get_node')) {
+            return;
+        }
+        if ($bar->get_node('claudpress') === null) {
+            delete_user_meta(get_current_user_id(), self::HIDE_NOTICE_META);
         }
     }
 

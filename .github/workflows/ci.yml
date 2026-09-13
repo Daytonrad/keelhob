@@ -215,6 +215,92 @@ jobs:
           path: rig.log
           if-no-files-found: warn
 
+  browser:
+    name: Browser checks (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # ADVISORY, NOT A GATE - for now.
+    #
+    # A browser layer is flaky before it is trustworthy, and a flaky gate on a
+    # one-person project blocks the one person. So this reports and does not
+    # block.
+    #
+    # THE FLAG COMES OFF once this job has been green for seven consecutive days
+    # on main. Write that date into the PR that removes it, or this line quietly
+    # becomes permanent and the checks stop meaning anything.
+    #
+    # The PHP rig job above stays blocking. This is a new layer, not a
+    # replacement for one.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite, sqlite3, sodium, openssl
+          coverage: none
+          tools: wp-cli:2.12.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache the rig downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/claudpress-rig
+          key: rig-downloads-${{ hashFiles('tests/rig/build-rig.sh') }}
+          restore-keys: rig-downloads-
+
+      - name: Build the rig
+        run: CP_RIG_CACHE="$HOME/.cache/claudpress-rig" bash tests/rig/build-rig.sh "$RUNNER_TEMP/rig"
+
+      # playwright-core ships no browsers on purpose - a PHP plugin repo should
+      # not carry 150MB of Chromium in its dev dependencies - so the browser is
+      # installed separately here. The harness finds whatever is present.
+      - name: Install the checker and a browser
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Serve the rig
+        run: |
+          cd "$RUNNER_TEMP/rig/wordpress"
+          # Extra workers: WordPress makes loopback requests to itself, and a
+          # single-worker built-in server deadlocks waiting for a response it is
+          # not free to serve.
+          PHP_CLI_SERVER_WORKERS=4 php -S localhost:8899 >/dev/null 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -sf http://localhost:8899/wp-login.php >/dev/null && break
+            sleep 1
+          done
+          curl -sf http://localhost:8899/wp-login.php >/dev/null
+
+      - name: Run the browser checks
+        run: |
+          node tests/rig/ui/check-snippets.mjs \
+            --wp http://localhost:8899 \
+            --rig "$RUNNER_TEMP/rig/wordpress" \
+            --user admin --pass rigpass | tee browser.log
+
+      # The screenshots are the point of a failing run. A line saying "the
+      # toggle was not visible" is much less useful than the picture of it not
+      # being visible.
+      - name: Upload failure screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-failures
+          path: |
+            tests/rig/ui/failures/
+            browser.log
+          if-no-files-found: ignore
+
   package:
     name: Build the installable zip
     runs-on: ubuntu-latest

@@ -5,7 +5,7 @@ Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
 Donate link: https://ko-fi.com/claudpress
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -301,6 +301,53 @@ under Claudpress > Automation. Pick your provider there — the model guide next
 the exact model IDs to type for each one.
 
 == Changelog ==
+
+= 1.2.0 =
+
+* Fixed: **the code editor on the Snippets screen has never worked.** It was
+  meant to give you line numbers and colour-coded code; on every install since it
+  was added, it silently gave you a plain text box instead. It works now. This
+  was found by a new test that opens the page in a real browser and looks at it -
+  reading the code could not have found it, and did not.
+* Fixed: PHP snippets were not colour-coded even once the editor loaded, because
+  the editor was told to expect a web page with PHP inside it rather than plain
+  PHP. Snippets are plain PHP.
+* Changed: **the code comes first when you open a snippet.** Six fields used to
+  sit above the code box, which pushed the code off the bottom of the screen on
+  an ordinary laptop - every time, on every snippet. Name and type stay at the
+  top; description, where it runs, priority and tags moved below the code, folded
+  away unless you are using them.
+* Changed: **Save is now the blue button.** "Save and switch on" was, which meant
+  the loudest button on the screen was the one that changes what runs on your
+  live site. It is still there, and now only appears when the snippet is off.
+* New: **an on/off switch you can actually see.** Switching a snippet on or off
+  was hidden until you hovered the row - the most-used control on the page, and
+  the hardest one to find. It is a visible switch in the Status column now.
+* New: **an "Errored" filter.** A snippet that crashed and switched itself off
+  used to look exactly like one you turned off on purpose. Now you can list just
+  the broken ones, and the filter only appears when something has actually
+  broken.
+* New: sortable columns - name, priority and when it last changed - and a
+  Priority column, shown once any snippet is using a priority other than the
+  default.
+* New: **a way out of an AI plan you do not want.** AI Compose would only ever
+  replace a plan, never clear one, so the only ways out were to plan something
+  else or reload. There is now Discard, and Plan again, both next to the plan.
+* Changed: when the AI writes code that does not parse, Save is switched off
+  until you tick a box saying you have read the error. It still saves - your work
+  is never thrown away over a typo - it just stops pretending it did not
+  say "failed".
+* New: **you can hide the "AI abilities are ON" banner.** Per person, not per
+  site, so hiding it does not hide it from a colleague. It comes back whenever
+  what the AI is allowed to do changes. The toolbar still says "Claudpress: ON"
+  on every screen, and that cannot be hidden - which is the only reason the
+  banner may be.
+* Changed: the Donate button is on the Connect screen and the Donate page, and
+  nowhere else. It used to be beside every page title, which is not what a free
+  plugin should look like.
+* Removed: a "Browse the library" button that had never worked, and a second,
+  unreachable copy of the Snippets screen that was shipping inside the plugin
+  without being used.
 
 = 1.1.0 =
 

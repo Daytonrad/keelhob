@@ -56,6 +56,59 @@ function delete_option(string $name): bool
     return true;
 }
 
+// ---- in-memory user-meta store ---------------------------------------------
+//
+// Added for tests/unit/test-abilities-notice.php. The abilities banner stores
+// its dismissal PER USER rather than per site, precisely so one administrator
+// cannot hide a safety warning from a colleague - and a suite that could only
+// model site options would have had no way to assert that.
+//
+// Keyed [user_id][meta_key], single values only. Claudpress stores one string
+// per user here and nothing else.
+
+$GLOBALS['cp_test_user_meta'] = [];
+
+function get_user_meta(int $user_id, string $key = '', bool $single = false)
+{
+    $value = $GLOBALS['cp_test_user_meta'][$user_id][$key] ?? '';
+    return $single ? $value : ($value === '' ? [] : [$value]);
+}
+
+function update_user_meta(int $user_id, string $key, $value): bool
+{
+    $GLOBALS['cp_test_user_meta'][$user_id][$key] = $value;
+    return true;
+}
+
+function delete_user_meta(int $user_id, string $key, $value = ''): bool
+{
+    unset($GLOBALS['cp_test_user_meta'][$user_id][$key]);
+    return true;
+}
+
+/**
+ * The whole-site clear.
+ *
+ * Only the $delete_all shape Claudpress uses - object type 'user', id 0, and
+ * $delete_all true. Anything narrower is not modelled, because nothing in the
+ * plugin asks for it and a stub that pretends to support what it has not
+ * implemented is how a test passes against behaviour that does not exist.
+ */
+function delete_metadata(string $meta_type, int $object_id, string $meta_key, $meta_value = '', bool $delete_all = false): bool
+{
+    if ($meta_type !== 'user' || !$delete_all) {
+        return false;
+    }
+    foreach ($GLOBALS['cp_test_user_meta'] as $uid => $_) {
+        unset($GLOBALS['cp_test_user_meta'][$uid][$meta_key]);
+    }
+    return true;
+}
+
+// No get_current_user_id() here: this file already defines one further down,
+// and tests drive it to switch between "an administrator" and "nobody signed
+// in". A second definition shadowed it and quietly broke three unrelated tests.
+
 // ---- WordPress helpers used by the code under test -------------------------
 
 /**
@@ -740,3 +793,30 @@ require_once CLAUDPRESS_DIR . 'includes/class-notifier.php';
 // Studio helpers are pure functions, so they belong in the fast suite
 // rather than only in the rig.
 require_once CLAUDPRESS_DIR . 'includes/class-studio-ai.php';
+
+/**
+ * A stand-in for WP_Admin_Bar.
+ *
+ * Only the two methods Claudpress touches. It exists so
+ * tests/unit/test-abilities-notice.php can assert the `Claudpress: ON` chip is
+ * really registered — the chip is the entire reason the abilities banner is
+ * allowed to be dismissed, so "it is still there" has to be a test rather than
+ * a belief.
+ */
+class CP_Test_Admin_Bar
+{
+    /** @var array<string, array<string, mixed>> */
+    public array $nodes = [];
+
+    /** @param array<string, mixed> $node */
+    public function add_node(array $node): void
+    {
+        $this->nodes[(string) ($node['id'] ?? '')] = $node;
+    }
+
+    /** @return array<string, mixed>|null */
+    public function get_node(string $id): ?array
+    {
+        return $this->nodes[$id] ?? null;
+    }
+}

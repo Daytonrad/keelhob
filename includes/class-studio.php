@@ -1,6 +1,6 @@
 <?php
 /**
- * The Snippets Studio — one page, four tabs.
+ * The Snippets Studio — one page, three tabs.
  *
  * The snippet ENGINE is free: an agent can write, lint, activate and run
  * snippets on any install. What Pro adds is the ability to see and manage them

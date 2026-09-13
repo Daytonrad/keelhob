@@ -278,6 +278,14 @@ final class Claudpress
         // Crash-recovery sandbox loader (runs AI-written persistent PHP safely).
         Claudpress_Sandbox::init();
 
+        // A change to what an agent may do cancels every "hide that warning"
+        // dismissal. OUTSIDE is_admin() on purpose: abilities get switched on
+        // over WP-CLI, over the REST route and by agents through manage_option
+        // at least as often as through the settings screen, and a safety
+        // warning that only re-arms for one of those paths is not a safety
+        // warning. See Claudpress_Admin::rewarn_on_change().
+        add_action('update_option_' . self::OPTION_SETTINGS, ['Claudpress_Admin', 'rewarn_on_change'], 10, 2);
+
         // Admin UI.
         if (is_admin()) {
             (new Claudpress_Admin())->hooks();

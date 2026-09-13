@@ -10,7 +10,140 @@ file is the one written for developers: it names files, says what broke and why,
 and keeps the pre-release history that `readme.txt` presents as if it were
 public. When the two disagree, this file is correct.
 
-## [1.1.0] - unreleased
+## [1.2.0] - unreleased
+
+### Fixed
+
+- **The Snippets code editor never loaded, on any install.**
+  `includes/class-studio-edit.php`, `assets/js/studio-edit.js`.
+
+  `render()` called `wp_enqueue_code_editor()`, enqueued `wp-codemirror`, called
+  `wp.codeEditor.initialize()` and wired a mode switcher to the type selector.
+  Read the source and the screen had a syntax-highlighting editor. Render it and
+  it had a `<textarea>`.
+
+  Everything enqueued from a screen render callback prints in the FOOTER, so the
+  inline init block ran as script 9 of 85 while `code-editor.min.js` loaded as
+  script 74. `wp.codeEditor` did not exist yet, and this swallowed it:
+
+      var editor = wp.codeEditor && wp.codeEditor.initialize ? ... : null;
+
+  Two more consequences of the same block. `window.cpStudioEditorSettings` was
+  never defined anywhere in the codebase, so a correctly-ordered init would still
+  have received `{}` rather than the mode and `lineNumbers` it needed. And the
+  "Ask AI" handler reads `editor.codemirror.getValue()` when an editor exists and
+  falls back to the textarea otherwise — so it has taken the fallback path
+  forever, and the branch written for the real editor had never once run.
+
+  It is a real file now with a declared `code-editor` dependency. WordPress
+  orders the graph. The truthy guard is gone: if the editor cannot start, the
+  page says so.
+
+  **How it was found.** `tests/rig/ui/check-snippets.mjs`, added in the same
+  release, opens the page in Chrome and asserts on `.CodeMirror`. Neither
+  `tests/run.php` nor `tests/rig/checks-studio.php` could see it, and
+  `checks-studio.php` was written specifically to exercise this screen.
+
+- **PHP snippets were not syntax-coloured even once the editor worked.**
+
+  `wp_get_code_editor_settings()` maps `application/x-httpd-php` to CodeMirror
+  mode `php`, which is the HTML-with-embedded-PHP mode: everything before a
+  `<?php` is treated as HTML. Snippet code is stored and `eval`'d WITHOUT an
+  opening tag, so an entire snippet rendered as unhighlighted text. The mode is
+  overridden to `text/x-php` on the returned settings, because the type branch
+  inside WordPress `array_merge`s over anything passed in.
+
+  Measured before and after: 0 distinct token colours, then 4.
+
+- **The abilities banner did not return after abilities were toggled off and
+  on.** `includes/class-admin.php`.
+
+  `notice_fingerprint()` hashes current state, so an off/on cycle returns the
+  hash to the value it had before, and a dismissal recorded beforehand still
+  matched. The banner stayed hidden through exactly the event it most needs to
+  reappear for. A unit test asserting "off then on returns to the first value"
+  had been written, passed, and described the bug as though it were the feature.
+
+  `rewarn_on_change()` now clears every dismissal on any settings write that
+  alters abilities or capability groups — driven by the change, not the resulting
+  state, and for all users rather than the one who made it.
+
+### Added
+
+- **A browser test layer.** `tests/rig/ui/`, `package.json`, CI job `browser`.
+
+  `playwright-core` driving Chrome against the rig, asserting computed styles and
+  bounding boxes rather than markup. Its first run against the unfixed screen was
+  29 of 34 red, reproducing every baseline measurement in
+  `docs/plans/snippets-rebuild.md`.
+
+  `onScreen()` compares bounding boxes against the viewport because WordPress's
+  `.row-actions` are `visibility: visible`, have real dimensions, and sit at
+  `left: -129987px`. Every naive visibility test passes on them.
+
+  Fixtures are torn down in the same run that asserts on them, from a `finally`
+  that also runs after a thrown error.
+
+  Advisory in CI (`continue-on-error: true`) until it has been green for seven
+  consecutive days on `main`. The existing PHP rig job stays blocking.
+
+- **A visible on/off switch in the Snippets list.** `includes/class-studio-list.php`.
+  Still a POST in a form with a nonce — a GET that switches code on gets fired by
+  browser prefetch, security scanners and email clients following links.
+
+- **An `Errored` status filter**, a **Priority column** and **sortable headers**.
+  The sorting logic already existed in `Claudpress_Studio_List::sort()` and
+  `filters()` already read `?orderby`; there were simply zero sortable headers in
+  the markup, so none of it was reachable. Priority and Errored appear only when
+  a snippet on the site is actually using them.
+
+- **Discard and Plan again on an AI Compose plan**, plus an acknowledgement
+  checkbox before Save on a failed syntax check.
+  `includes/class-studio-compose.php`, `assets/js/studio-compose.js`.
+
+- **A dismissible abilities banner**, per user, with `chip_watchdog()` clearing
+  the dismissal if anything removes the toolbar indicator.
+
+- **`?days=N` on `/v1/feedback/summary`** (claudpress-api). The counts were
+  lifetime, which can only go up, so they could not answer whether a problem got
+  rarer after a release.
+
+- `tests/unit/test-abilities-notice.php`, and user-meta stubs in
+  `tests/bootstrap.php`.
+
+### Changed
+
+- **The snippet editor is code-first.** Six `form-table` rows pushed the code box
+  to 736px down a 674px viewport — measured, not estimated. Name, type and state
+  stay above; description, location, priority and tags moved into a `<details>`
+  below, `open` when any is non-default. Now 267px and two fields.
+
+- **`Save` is `button-primary`**; `Save & switch on` is secondary and only
+  rendered while the snippet is off.
+
+- **Donate call sites cut from 7 to 1** (Connect), plus the Donate page and the
+  Plugins-row link. `tests/unit/test-donate.php` previously enforced the
+  opposite, with `$heads === $found`; it now scans all of `includes/` so a stray
+  button cannot creep back.
+
+- `tests/rig/checks.php` deletes the two snippets it creates. One carries a
+  deliberate syntax error, and on a rig kept between sessions they accumulated
+  and failed an unrelated check. A fixture that outlives its test becomes
+  somebody else's bug.
+
+### Removed
+
+- `includes/class-admin-snippets.php` — 337 lines implementing a complete second
+  Snippets screen that nothing instantiated and no menu pointed at, shipping in
+  the zip. `tests/unit/test-admin-render.php` was the only thing keeping it
+  alive.
+
+- The "Browse the library" button in the empty state. It pointed at
+  `tab=library`, which `current_tab()` does not recognise when the Library tab is
+  absent, so it silently returned you to All Snippets. It has never worked:
+  `Claudpress_Snippet_Library` was never written.
+
+## [1.1.0]
 
 ### Added
 

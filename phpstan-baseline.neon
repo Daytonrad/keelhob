@@ -1,4 +1,4 @@
-# PHPStan baseline — 51 findings at level 1, none of them bugs.
+# PHPStan baseline — 53 findings at level 1, none of them bugs.
 #
 # What is in here, and why each group is noise rather than substance:
 #
@@ -7,7 +7,7 @@
 #       php-stubs/woocommerce-stubs would remove all 44 and is a reasonable
 #       future change; it was left out to keep the dev dependency list at two.
 #
-#    6  CLAUDPRESS_DIR / CLAUDPRESS_URL / CLAUDPRESS_BASENAME "not found". PHPStan
+#    8  CLAUDPRESS_DIR / CLAUDPRESS_URL / CLAUDPRESS_BASENAME "not found". PHPStan
 #       does not carry define() across files. All three are defined unconditionally
 #       in claudpress.php before anything that uses them loads.
 #
@@ -32,6 +32,20 @@ parameters:
 			identifier: constant.notFound
 			count: 1
 			path: includes/class-brand.php
+
+		# Same cause as class-brand.php above: the two Studio screens now enqueue
+		# real JavaScript files, which need the plugin URL to build their src.
+		-
+			message: '#^Constant CLAUDPRESS_URL not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: includes/class-studio-edit.php
+
+		-
+			message: '#^Constant CLAUDPRESS_URL not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: includes/class-studio-compose.php
 
 		-
 			message: '#^Function get_woocommerce_currency not found\.$#'

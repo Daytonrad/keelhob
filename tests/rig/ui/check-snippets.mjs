@@ -309,15 +309,21 @@ async function checkListControls(page) {
   }
 
   // The Errored filter must return exactly the errored fixture.
-  await page.goto(`${STUDIO}&tab=all&active=error`, { waitUntil: 'load' });
-  const errRows = await page.evaluate(() =>
-    [...document.querySelectorAll('tbody tr')].map((tr) => tr.textContent.trim().slice(0, 60))
+  // Scoped to this run's fixtures. tests/rig/checks.php leaves two deliberately
+  // broken snippets on a kept rig, so an unscoped count fails for a reason that
+  // has nothing to do with the filter under test.
+  await page.goto(`${STUDIO}&tab=all&active=error&s=${encodeURIComponent(PREFIX)}`, { waitUntil: 'load' });
+  const errRows = await page.evaluate((prefix) =>
+    [...document.querySelectorAll('tbody tr')]
+      .map((tr) => tr.textContent.trim())
+      .filter((text) => text.includes(prefix)),
+    PREFIX
   );
   r.check(
     'B10',
-    'the Errored filter returns the errored snippet and nothing else',
+    'the Errored filter returns the errored fixture and no other fixture',
     errRows.length === 1 && errRows[0].includes('delta errored'),
-    `${errRows.length} row(s)`
+    `${errRows.length} fixture row(s)`
   );
 
   if (r.failures.length) await shoot(page, 'list-controls');
@@ -381,6 +387,15 @@ async function checkCompose(page) {
   const hasDiscard = await page.evaluate(() => !!document.getElementById('cp-compose-discard'));
   r.check('B14', 'the AI plan can be discarded', hasDiscard);
 
+  // Asserted BEFORE the discard click below. Discarding empties the card, so
+  // checking afterwards asked whether a button existed inside markup that had
+  // just been deleted - and reported a missing feature that was there.
+  r.check(
+    'B14',
+    'the plan card offers a way to plan again',
+    await page.evaluate(() => !!document.getElementById('cp-compose-replan'))
+  );
+
   if (hasDiscard) {
     await page.click('#cp-compose-discard');
     const cleared = await page.evaluate(() => {
@@ -391,13 +406,6 @@ async function checkCompose(page) {
   } else {
     r.fail('B14', 'discarding clears the plan with no page reload', 'no discard control');
   }
-
-  r.check(
-    'B14',
-    'the plan card offers a way to plan again',
-    await page.evaluate(() => !!document.getElementById('cp-compose-replan')),
-    ''
-  );
 
   // A failed lint must not offer a bare Save button.
   const badHtml = wpEval(
@@ -544,7 +552,18 @@ try {
       r.fail('—', 'fixture teardown', e.message);
     }
   }
-  if (browser) await browser.close();
+  // close() with a deadline. On Windows it can hang after a run that opened
+  // many pages, and a check suite that prints all its results and then never
+  // exits is indistinguishable from one that is stuck.
+  if (browser) {
+    await Promise.race([
+      browser.close(),
+      new Promise((resolve) => setTimeout(resolve, 5000)),
+    ]).catch(() => {});
+  }
 }
 
-process.exit(r.print() ? 0 : 1);
+const green = r.print();
+// process.exit rather than letting the event loop drain: a browser that did not
+// close leaves handles open, and they would hold the process forever.
+process.exit(green ? 0 : 1);

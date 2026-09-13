@@ -215,6 +215,28 @@ final class Claudpress_Studio_Edit
             ],
         ]);
 
+        /*
+         * PHP SNIPPETS NEED text/x-php, NOT WordPress's default of 'php'.
+         *
+         * wp_get_code_editor_settings() maps application/x-httpd-php to
+         * mode 'php', which is CodeMirror's HTML-with-embedded-PHP mode:
+         * everything before a `<?php` is treated as HTML. Snippet code is
+         * stored and eval'd WITHOUT an opening tag, so an entire snippet came
+         * out as unhighlighted plain text.
+         *
+         * Measured, not assumed: zero syntax-coloured tokens on a page whose
+         * editor was otherwise working correctly. That is exactly the failure
+         * the previous editor bug had, one layer further in.
+         *
+         * Overridden here rather than passed in, because the type branch inside
+         * wp_get_code_editor_settings() array_merges over anything we send. The
+         * rest of WordPress's settings - matchBrackets, autoCloseTags, the lint
+         * hooks - are kept.
+         */
+        if (is_array($settings) && $type === 'php') {
+            $settings['codemirror']['mode'] = 'text/x-php';
+        }
+
         $deps = ['jquery'];
         if (false !== $settings) {
             wp_enqueue_style('wp-codemirror');
@@ -242,7 +264,14 @@ final class Claudpress_Studio_Edit
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce'   => wp_create_nonce(Claudpress_Studio::NONCE),
             'modes'   => [
-                'php'  => 'application/x-httpd-php',
+                // text/x-php, NOT application/x-httpd-php.
+                //
+                // Snippet code is stored and eval'd WITHOUT an opening tag, and
+                // the httpd mode treats everything before a `<?php` as HTML -
+                // so a whole snippet highlighted as plain text. Measured: zero
+                // syntax-coloured tokens on a page whose editor was otherwise
+                // working perfectly.
+                'php'  => 'text/x-php',
                 'css'  => 'text/css',
                 'js'   => 'text/javascript',
                 'html' => 'text/html',
