@@ -1,538 +1,591 @@
-# Plan — absorb VibeSnip into Claudpress
+# Snippets — stop it being embarrassing
 
-**Status: PLAN ONLY. Nothing here is built. Do not start until the owner says so.**
+**Version 2.** Rewritten 2026-09-13 after measuring the current screen on the
+rig instead of describing it.
 
-VibeSnip is a finished snippets product. Claudpress's Snippets Studio is a
-three-tab sketch of the same idea with most of the substance missing. This plan
-replaces the sketch with the finished thing, and retires VibeSnip.
-
-Everything below was decided deliberately. Where a choice was close, the
-rejected option is named with its reason.
-
----
-
-## What is actually being moved
-
-The important finding, because it decides the size of this job:
-
-**The two databases are already almost the same table.**
-
-| VibeSnip column | Claudpress column | |
-|---|---|:---:|
-| `title` | `name` | ✅ |
-| `code`, `type`, `location`, `priority` | same | ✅ |
-| `status` | `active` | ✅ |
-| `tags`, `source`, `ai_prompt`, `ai_model`, `ai_review`, `ai_review_at` | same names | ✅ |
-| `error_last` | `last_error` | ✅ |
-| `conditions` | `conditions_json` | ⚠️ **different shape — see 3.4** |
-| revisions table | `claudpress_snippet_revisions` | ✅ |
-
-Claudpress also carries `target_id`, `purpose`, `impact`, `uid`, `origin_site`
-and `origin_uid`, which VibeSnip has no equivalent of.
-
-**So this is a face transplant, not a heart transplant.** The screens move; the
-engine stays.
-
-### Why the engine stays — the decision that makes everything else possible
-
-Claudpress's snippet engine is what the AI agent talks to: `snippet_save`,
-`snippet_get`, `snippet_list`, `snippet_toggle`, `snippet_delete`, the undo
-layer, the post-write front-end check that reloads the home page as a logged-out
-visitor, and the fatal-error auto-deactivation. Replacing it with VibeSnip's
-would break every one of those, and they are the parts that make an *agent*
-safe to point at a live site.
-
-**Rejected:** importing VibeSnip's engine wholesale. It would be a truer "clone"
-and it would cost the product its entire reason to exist.
+Version 1 of this plan proposed absorbing VibeSnip into Claudpress: five tabs, a
+conditional-logic rule builder, a signed snippet Library, an importer, and a
+What's New screen. That plan is withdrawn. What replaces it is narrower, aimed
+at one thing, and every item in it is backed by a number taken from the running
+product.
 
 ---
 
-## Part 1 — One page, five tabs
+## Why v1 was withdrawn
 
-The `Snippets` menu item becomes **`VibeSnip`**. `claudpress-studio` keeps its
-slug so existing bookmarks and the agent's own links do not break; only the
-label and the tab set change.
+Three decisions, in the owner's words, reshaped the scope:
 
-Tab order is the owner's, and it is deliberately not the current order:
+1. **Timing: before the repo goes public**, not after. That makes the job
+   "nothing here should make me wince when a stranger reads it", not "reach
+   feature parity with another plugin".
+2. **The page stays called Snippets.** Nobody outside this workspace knows what
+   a VibeSnip is, and VibeSnip has no users to carry the name for it.
+3. **Scope C — the embarrassment fix.** Library, Import, What's New and the rule
+   builder are all out.
 
-| # | Tab | What changes |
+Dropping the rule builder removed the single most dangerous item in v1. Two
+incompatible `conditions_json` formats meant an old snippet opened in a new rule
+editor would either be silently rewritten — turning "members only" into
+"everyone" without telling anybody — or refuse to open at all. With no rule
+builder, Claudpress keeps the flat format it already has, which has no UI, is
+only ever written by an agent over MCP, and is touched by nothing in this plan.
+
+**Success is no longer "matches VibeSnip".** Nobody asked for VibeSnip. See
+Part 8 for what replaces it.
+
+---
+
+## The baseline
+
+Taken 2026-09-13 against the kept rig at `C:\wp-rig` (Claudpress 1.1.0, six
+seeded snippets, Chrome at 1536x674), by rendering the page and reading the
+DOM and computed styles — not by reading the source.
+
+| # | Measured | Value |
 |---|---|---|
-| 1 | **All Snippets** | Rebuilt to VibeSnip's list — see 1.1 |
-| 2 | **AI Compose** | Rebuilt — see 1.2 |
-| 3 | **Add Snippet** | Rebuilt — see 1.3 |
-| 4 | **Library** | Built for the first time — see 1.4 |
-| 5 | **Import** | Built for the first time — see 1.5 |
+| B1 | `.CodeMirror` element on the Add Snippet screen | **absent** |
+| B2 | Inline init script position vs `code-editor.min.js` | **script 9 of 85 vs script 74** |
+| B3 | Code box top, from document top | **736 px** |
+| B4 | Scroll needed before the code box is in view | **636 px** |
+| B5 | Fields rendered above the code box | **6** (Name, Description, Type, Runs where, Priority, Tags) |
+| B6 | `.row-actions` computed position | **`left: -129987px`** — off-screen until hover |
+| B7 | Inline on/off controls in the table body | **0** |
+| B8 | Sortable column headers | **0** |
+| B9 | Priority column in the table | **absent** |
+| B10 | Status filter options | **Any status / On / Off** — no Errored |
+| B11 | `Claudpress_Donate::button()` call sites | **7**, across 5 files |
+| B12 | `class-admin-snippets.php` — a second, complete Snippets screen | **337 lines, referenced by nothing, shipped in the zip** |
+| B13 | "Browse the library" button target | `tab=library` -> falls back to All Snippets. Silent no-op. |
+| B14 | Ways to dismiss an AI plan without reloading | **0** |
+| B15 | Save button shown when the syntax check says *failed* | **yes**, unchanged from the passing case |
+| B16 | `Claudpress: ON` toolbar chip, in wp-admin, with `show_admin_bar` filtered false by a live snippet | **still present** |
 
-Activity does **not** become a tab. Claudpress already has an Activity screen
-with a "Snippet activity" section; VibeSnip's log merges into it (Part 4).
-
-### 1.1 All Snippets
-
-What it gains, all of it currently missing:
-
-- **A one-click on/off toggle in every row.** This is the single most-used
-  action on a snippets screen and today it is a hover-to-find text link.
-- **Sortable columns** — name, priority, last updated.
-- **Status filters** — All / Active / Inactive / **Errored**. `last_error`
-  already exists and nothing has ever surfaced it, so a snippet that fatalled
-  and was auto-switched-off is currently invisible.
-- **Priority column**, and **pagination**.
-- **Default sort order** as a setting — the owner's call, and it belongs here
-  rather than in Settings so it can be changed where it is seen.
-
-Kept from Claudpress: the **Source** column (hand-written vs AI), which VibeSnip
-has no equivalent of and which matters more here because an agent writes
-snippets unattended.
-
-### 1.2 AI Compose
-
-Today: prompt → plan → code → save. Three things are missing and each one is a
-dead end for the user.
-
-- **"What I understood"** — a restatement in the AI's own words. A misreading is
-  obvious in a restatement and invisible in a plan.
-- **"I had to assume…"** — where a misunderstanding actually hides.
-- **"Not quite — let me rephrase"** — today the only way out of a wrong plan is
-  reloading the page. The rephrase keeps the earlier wording so the second
-  attempt is a correction rather than a fresh start.
-- **A Discard button** on the result. Today there is only Save.
-- **The result shows what it is**: title, type, where it runs, an explanation,
-  and the safety review. Today it is an unlabelled grey box.
-- **Syntax-check failure blocks Save.** Today a snippet whose own syntax check
-  failed still offers a Save button. Observed on the rig.
-
-**Recommended addition (mine, not in VibeSnip):** the compose result should
-record `ai_prompt` and `ai_model` on the saved row. Both columns already exist
-on both sides and nothing writes them, so "why does this snippet exist" has no
-answer six months later.
-
-### 1.3 Add Snippet
-
-- **A real code editor.** CodeMirror with line numbers and syntax colours.
-  WordPress ships it and it is *already being enqueued on this screen* and going
-  unused — the field is a plain `<textarea class="large-text code">`.
-- **Code first, settings in a sidebar.** Today the code box sits below five
-  metadata fields, roughly 900px down the page: you scroll past everything to
-  reach the only thing you came for.
-- **The conditional-logic rule builder** — see 3.4 for the migration.
-- **Save / Save & activate.** The owner asked me to decide which is primary.
-
-  **"Save" is primary. "Save & activate" is secondary.** VibeSnip has this the
-  wrong way round: the blue default button is the one that starts running code
-  on a live site. The riskier action must never be the one a tired person
-  presses by reflex. VibeSnip's own setting for choosing the primary button is
-  **not** carried across — a setting whose wrong value is dangerous is not a
-  setting, it is a trap.
-
-**Recommended addition:** keep Claudpress's existing "Ask AI what this does"
-button, which VibeSnip also has, and show its report inline rather than in an
-alert.
-
-### 1.4 Library
-
-The owner's specification, and it differs from VibeSnip:
-
-- **No sub-tabs.** VibeSnip splits "VibeSnip Library" and "Private Library";
-  both go. Private Library is a leftover label from the cancelled paid tier and
-  means nothing now.
-- **One heading: "Verified snippets."**
-- **A search box**, and the existing category grouping.
-- Everything installed from it lands **switched off**. Code arriving from
-  elsewhere is exactly the code somebody should read before it runs.
-
-**This tab has never worked.** `Claudpress_Studio_Library` calls
-`Claudpress_Snippet_Library::all()` — a class that was never written. That is
-why the tab hides itself and why the empty-state button "Browse the library"
-leads nowhere. VibeSnip has a real library of 13 snippets; they move across.
-
-**Delivery: signed, from GitHub releases.** The same path the skills already
-use — a signed file on a release, verified before it is trusted, with the host
-removed from the trust chain. The signing infrastructure exists, so this costs
-a feed file rather than a system.
-
-**Rejected:** bundling the library in the zip. Simpler, but a new verified
-snippet would then wait for a plugin release, which is the thing that stops a
-library from growing.
-
-### 1.5 Import
-
-VibeSnip reads **WPCode** and **Code Snippets** JSON exports. This is the single
-feature most likely to win someone over, because it removes the reason they
-stay where they are.
-
-Everything arrives **inactive**, per snippet, reviewable.
-
-**New, and required by Part 5:** a **VibeSnip importer** that reads
-`wp_vibesnip_snippets` directly on a site where both plugins are installed. No
-export file is needed — VibeSnip was never released to anyone, so the only sites
-carrying its table are the author's own, and those have the plugin installed
-rather than a file.
+What the baseline is **not**: broken everywhere. Pagination already works (20 a
+page). The `.subsubsub` type tabs already work and already hide filters that can
+only return nothing. Sorting is already implemented in
+`Claudpress_Studio_List::sort()` — it simply has no UI to reach it.
+`Claudpress_Snippets::save()` already parse-checks and already refuses to let
+unparsed PHP go active. The engine is sound. This is a surface problem.
 
 ---
 
-## Part 2 — Settings
+## Part 1 — The code editor has never worked
 
-Everything AI already exists in Claudpress: provider, key, endpoint, model,
-budget caps. VibeSnip's AI settings **do not move**; the page reads Claudpress's.
+**The most important item in this plan, and it is a bug, not a feature.**
 
-| VibeSnip setting | Where it goes |
-|---|---|
-| AI enable / provider / key / model | Already in Claudpress. Reuse. |
-| Which save button is primary | **Dropped** — see 1.3 |
-| Default snippet sort order | Moves to **All Snippets** (1.1) |
-| Hide donation footer | **Dropped** — see Part 6 |
-| Delete all data on uninstall | Already in Claudpress |
-| Agent/API access | Already in Claudpress capability groups |
-| **Permissions** tab | **Dropped for now** — see below |
-| **Debug** tab | Becomes a small Maintenance block — see below |
+`Claudpress_Studio_Edit::render()` calls `wp_enqueue_code_editor()`, enqueues
+`wp-theme-plugin-editor`, enqueues `wp-codemirror`, and then emits an inline
+`<script>` in the page body that calls `wp.codeEditor.initialize(...)`.
 
-### Permissions — dropped, deliberately, and this is written down so it is a decision
+That inline script is **script 9**. `code-editor.min.js` is **script 74**,
+because everything enqueued from a screen render callback prints in the footer.
+So at the moment the init runs, `wp.codeEditor` does not exist yet, the guard
 
-VibeSnip has a role-by-role matrix for "Manage snippets" and "Use AI features".
-Claudpress is `manage_options` everywhere.
-
-Anyone who can reach this plugin can already execute arbitrary PHP through the
-agent. A role that may write snippets but may not do *that* is a distinction the
-product cannot actually enforce, so offering it would be a security theatre
-checkbox — and a new surface on a plugin that hands out code execution.
-
-**Revisit if a real user asks.** There are three installs.
-
-### Debug — two buttons, not a tab
-
-VibeSnip's Debug tab is "Upgrade database tables" and "Reset caches". Both are
-genuinely useful when an update half-applies, and neither needs a tab. They
-become a **Maintenance** block at the bottom of Claudpress → Connect, beside the
-existing health information.
-
----
-
-## Part 3 — The engine work
-
-### 3.1 Nothing about the stored shape changes
-
-No new table. No renamed column. Claudpress's snippet row already holds every
-field these screens need, and `Claudpress_Snippets::save()` is a *merge* update,
-so a screen that posts a subset of fields cannot blank the rest.
-
-### 3.2 The MCP tools widen
-
-`snippet_save` gains `tags` and `conditions`; `snippet_list` gains status and
-error filters. Two new read/write tools:
-
-- `snippet_library_list` — what verified snippets exist (read-only)
-- `snippet_library_install` — install one, switched off
-
-Without these, the agent cannot do what the human on the page can, which is the
-gap that makes an agent feel stupid.
-
-### 3.3 The `errored` state becomes real
-
-`last_error` is written on a fatal and then never read. It gains a filter, a
-row badge, and a place in the snippet log.
-
-### 3.4 Conditions — the one genuine incompatibility
-
-The two formats are **not** the same, and this is the only part of the merge
-that can silently break a live site.
-
-```
-Claudpress (today)   {"logged_in":true,"post_types":["page"],"front_page":false}
-VibeSnip             {"enabled":true,"relation":"AND","rules":[{type,operator,value}]}
+```js
+var editor = wp.codeEditor && wp.codeEditor.initialize ? ... : null;
 ```
 
-VibeSnip's is far richer — user status, user role, device, page type, post type,
-URL path, with `is`/`is_not`/`contains`/`starts_with`/`equals` and AND/OR.
+evaluates to `null`, and the page silently keeps its plain `<textarea>`.
+No error, no warning, no line numbers, no syntax colour.
 
-**Plan:**
+Proved on the rig by running the same call by hand after load — it initialised
+immediately and `.CodeMirror` appeared. The code is correct. Its timing is not.
 
-1. Port `VibeSnip_Conditions` as `Claudpress_Snippet_Conditions`.
-2. `conditions_pass()` **reads both shapes.** The old flat format keeps working
-   for ever — it is on live sites and a snippet that silently stops running (or
-   silently starts) is the worst outcome this plan could produce.
-3. New rules are written in the rule format. No migration, no rewrite of stored
-   rows.
-4. A test plants one of each shape and asserts both evaluate correctly.
+There is a second, quieter consequence. `window.cpStudioEditorSettings` is
+**never defined anywhere in the codebase**, so even on a page where the timing
+worked, `initialize()` would receive `{}` instead of the settings object
+`wp_enqueue_code_editor()` returns — losing the mode, the line numbers and the
+lint hooks that call is there to configure.
 
-**This is the highest-risk item in the plan.** It decides whether somebody's
-members-only snippet keeps hiding from logged-out visitors.
+And a third. The same inline block attaches the **"Ask AI what this does"**
+click handler. That part does run, because it only needs the DOM. But it reads
+the code from `editor.codemirror.getValue()` when an editor exists and falls back
+to the textarea when it does not — so today it silently takes the fallback path
+forever, and the branch written for the real editor has never executed anywhere.
 
----
+### The fix
 
-## Part 4 — Activity
+1. Return the settings array from `wp_enqueue_code_editor()` and pass it to the
+   page through `wp_add_inline_script`, under the real name
+   `cpStudioEditorSettings`. It must carry the CodeMirror mode for the snippet's
+   type, `lineNumbers: true`, and `indentUnit: 4`.
+2. Move the whole inline block out of the template and into
+   `wp_add_inline_script( 'wp-theme-plugin-editor', ... )`, so WordPress
+   guarantees it prints **after** the library rather than 65 scripts before it.
+3. Delete the `wp.codeEditor && wp.codeEditor.initialize` guard. It is not a
+   safety net; it is what turned a load-order bug into a silent one. If the
+   editor cannot initialise after this change, the page should say so in a
+   `notice-warning`, not shrug.
+4. Keep the type-selector mode switch. It is correct and it has never run.
 
-VibeSnip's activity log merges into Claudpress → Activity, which already has a
-"Snippet activity" section backed by `Claudpress_Snippet_Log`. It gains
-VibeSnip's columns where they are missing: the result of the action, and the
-auto-rollback reason.
+### The rule that comes out of this
 
-No new screen. No new table.
-
----
-
-## Part 5 — Retiring VibeSnip
-
-### 5.1 No final release is needed
-
-**Updated after this plan was first written: VibeSnip has no users.** It was
-never released to anyone, so there is nobody to notify and nothing to migrate
-off. That removes the whole migrate-notice release this section originally
-planned.
-
-The repository is archived with a README pointing at Claudpress, and that is the
-entire retirement.
-
-**Kept anyway:** the VibeSnip reader in the importer (1.5) and the both-installed
-notice below. They cost little, and the one person who certainly does have
-VibeSnip installed is the author — on the rig, and on any machine where it was
-being developed.
-
-### 5.2 Both plugins installed at once
-
-Two snippet engines both executing PHP on every page load is a real problem:
-the same snippet can run twice, and two fatal-error handlers will fight over
-which one deactivates it.
-
-Claudpress detects an active VibeSnip and shows an admin notice:
-
-> VibeSnip is installed and is now part of Claudpress. Your snippets can be
-> imported here, then VibeSnip can be deactivated.
-> **[Import them] [Not now]**
-
-The import is the reader from 1.5. Claudpress **never** deactivates VibeSnip
-itself — a plugin that switches off another plugin is a plugin nobody trusts.
-
-### 5.3 The repository
-
-Archived, with a README that points at Claudpress. `vibesnip-vital/` stays as
-it is; nothing in this plan touches it.
+**A feature that degrades silently will degrade silently forever.** The guard
+was added so the page could not throw. What it actually bought was a broken
+editor nobody noticed, including in a rig check written specifically to exercise
+this screen. Part 8 exists because of this bug.
 
 ---
 
-## Part 6 — The donation buttons
+## Part 2 — Code first
 
-Claudpress puts a pink Donate button beside the `<h1>` on **seven** screens.
-VibeSnip prints a four-line donation paragraph on every screen. Both are too
-much, and the Claudpress one is this project's own doing.
+The code box begins **736 px** down a page whose viewport is 674 px tall
+(B3, B4). On an ordinary laptop, opening a snippet to look at its code shows you
+six form fields and no code. Every single time.
 
-**A button on every screen is not seen more often — it is learned and ignored,
-and it makes a free plugin feel like a trial.**
+Six fields (B5) sit above it: Name, Description, Type, Runs where, Priority,
+Tags. Of those, exactly one — Name — is required. The other five are set once
+and almost never revisited.
 
-| Keep | Where |
-|---|---|
-| The Donate menu item | sidebar, one line |
-| The real ask | the Donate page |
-| One quiet line | bottom of Connect |
-| The Plugins-screen row link | outside the plugin's own pages, where people look for links |
+### The layout
 
-**Remove:** `Claudpress_Donate::button()` from every page heading, and do not
-carry VibeSnip's footer across at all.
+```
++-------------------------------------------------------------+
+| Name  [_______________________]     Type [PHP v]   [ ] On   |  <- one row
++-------------------------------------------------------------+
+|                                                             |
+|   1  <?php                                                  |
+|   2  add_filter( 'the_content', function ( $html ) {        |  <- code, at once
+|   3      return $html;                                      |
+|   4  } );                                                   |
+|                                                             |
++-------------------------------------------------------------+
+| > Details — description, runs where, priority, tags         |  <- collapsed
++-------------------------------------------------------------+
+| [ Save ]   [ Save & switch on ]       Ask AI what this does |
++-------------------------------------------------------------+
+```
 
-The docblock at the top of `class-donate.php` argues for the button-on-every-
-screen. It is a good argument and it is wrong at seven screens; the file's
-comment gets rewritten rather than quietly contradicted.
+- **Name, Type and the on/off state** stay above the code, on one line. They are
+  the three things you cannot write a snippet without.
+- **Description, Runs where, Priority and Tags** move into a collapsed
+  `<details>` below the code, open by default when any of them is non-default so
+  an existing snippet never hides settings that are actually in use.
+- **Target: the first line of code is visible on load with zero scrolling**, at
+  1536x674. That is the acceptance test, not a design opinion.
+
+### Save becomes the primary button
+
+Today the primary (blue) button is **Save & switch on** and the secondary is
+**Save (leave off)**. That is backwards for the most common action on this
+screen, which is editing code that is already live: the visually loudest button
+is the one that changes the site's running state.
+
+- `Save` becomes `button-primary`.
+- `Save & switch on` becomes a secondary button, and appears **only when the
+  snippet is currently off**. Offering "switch on" for something already on is
+  noise.
+- No confirmation dialogs are added. Saving is already parse-checked and already
+  refuses to activate code that does not parse.
+
+**Not in scope:** versioning, drafts, autosave, or an undo. The editor says
+plainly today that edits are not versioned. That sentence stays, and it stays
+honest.
 
 ---
 
-## Part 6a — The "abilities are ON" warning becomes dismissible
+## Part 3 — An on/off switch you can see
 
-### What it actually is today
+`.row-actions` computes to `left: -129987px` (B6). The Switch on / Switch off
+control is genuinely on the page and genuinely unreachable without first
+discovering that hovering a table row reveals hidden links. There are **zero**
+inline toggles in the table body (B7).
 
-`Claudpress_Admin::notice()` prints a yellow warning on **Claudpress screens
-only** — not across the whole admin, which is worth correcting because it
-changes how bad the nagging really is. It cannot be dismissed and it never goes
-away while abilities are on.
+### The change
 
-### Why it is safe to let people hide it
+A **Status column containing a real control**, not a word plus a hidden link.
 
-**Because there is already a permanent indicator that cannot be hidden.**
+- A `<form>` per row posting to the existing `claudpress_studio` handler with
+  `studio_action=activate|deactivate` — the POST-with-nonce rule stays exactly as
+  it is. **State changes must never become GET links.** A GET that switches code
+  on will be fired by a browser prefetch, a security scanner, or an email client
+  following a link in a notification.
+- The button is styled as a switch and is **visible at rest**. Measured
+  acceptance: the control's bounding box intersects the viewport without a hover
+  event.
+- It is **keyboard reachable** — it is a `<button>` in a form, so it already is,
+  but the test asserts it.
+- `Edit`, `Duplicate` and `Delete` stay in `.row-actions` where WordPress puts
+  them. They are not the common action and hiding them is the correct WordPress
+  convention. The toggle is the one that has to come out.
+
+**Rejected: a checkbox that toggles over AJAX.** It would be one fewer page load,
+and it would mean the most consequential control on the screen has no visible
+confirmation that anything happened. A full reload after a state change is slow
+and completely unambiguous. Speed is not what this screen is short of.
+
+**Rejected: bulk actions.** Selecting twelve snippets and switching them all on
+at once is a way to take a site down in one click. Out of scope, and it should
+stay out.
+
+---
+
+## Part 4 — Find the one that broke
+
+Three gaps, all small, all measured.
+
+### 4.1 An "Errored" status filter
+
+The status filter offers Any / On / Off (B10). A snippet that crashed and
+switched itself off is indistinguishable from one you deliberately switched off
+— which is the exact moment somebody most needs to find it.
+
+`last_error` is already stored, already rendered in the row, and already drives
+the warning marker. Add a fourth option, `active=error`, filtering on
+`last_error != ''`.
+
+It appears in the `.subsubsub` bar alongside the type tabs, following the same
+rule those already follow: **a filter that can only return nothing is not
+shown.** No snippets have errored -> no Errored tab.
+
+### 4.2 Sortable column headers
+
+`Claudpress_Studio_List::sort()` already handles `name`, `priority` and
+`updated`. `filters()` already reads `?orderby=` and `?order=`. There are zero
+sortable headers in the markup (B8), so none of it is reachable.
+
+Add WordPress's own `sortable` / `sorted` classes and header links. This is
+markup only — no new query logic, no new sort code.
+
+### 4.3 A Priority column
+
+There is no priority column (B9), yet priority is the field that decides which of
+two snippets wins when both touch the same thing. Add it, narrow, sortable, and
+only visible once at least one snippet on the site has a non-default priority.
+Showing a column of identical `10`s teaches nothing.
+
+**Not in scope:** drag-to-reorder, saved views, per-user column preferences.
+
+---
+
+## Part 5 — AI Compose needs a way out
+
+Two findings, one real and one smaller than it first looked.
+
+### 5.1 There is no way to dismiss a plan (B14)
+
+Once `cp-compose-plan-box` is populated it is only ever replaced, never cleared.
+If the AI proposes something you do not want, your options are to plan something
+else or reload the page.
+
+Add a **Discard** button inside the plan card, next to "Looks right — write the
+code". It clears both boxes, resets `approvedPlan` to `''`, and returns focus to
+the prompt textarea. No network call, no state on the server.
+
+Rephrasing already works — edit the prompt, press "Plan it" again, and the code
+box is hidden on the way — but the prompt is 300 px above the plan you are
+reacting to, so nobody finds it. **Plan again with changes** sits beside Discard
+and scrolls the prompt back into view with its text selected.
+
+### 5.2 Save is offered beside a failed syntax check (B15)
+
+`Claudpress_Studio_Compose::code_html()` renders "Syntax check: **failed**" and
+then renders exactly the same Save form it renders on success.
+
+This is **not** dangerous — `save()` parse-checks again on the server and stores
+failing code switched off, which is the correct behaviour and must not change
+(losing somebody's work over a typo is its own bug). But it is incoherent: the
+screen says the code is broken and then invites you to accept it, with no
+acknowledgement that you have read the failure.
+
+The fix is honesty, not a block:
+
+- On failure, the Save button is `disabled` and carries the label
+  **"Save anyway (it will stay switched off)"**.
+- A checkbox above it — *"I have read the error and want to keep this code"* —
+  enables it.
+- The success path is untouched.
+
+**Rejected: refusing to save failing code at all.** The AI produced it, the
+person may want to fix the one missing semicolon by hand, and throwing the work
+away to protect them from a parse error they can already see is patronising.
+
+**Not in scope:** streaming, conversation history, retry-with-the-error-fed-back,
+or multi-file snippets.
+
+---
+
+## Part 6 — Delete the dead things
+
+### 6.1 `includes/class-admin-snippets.php` — 337 lines, referenced by nothing
+
+A complete second Snippets screen: filters, a table, a details panel, an editor,
+delete forms. Nothing instantiates it. Nothing registers a menu item for it.
+`grep -rn Claudpress_Admin_Snippets --include=*.php` outside `tests/` returns the
+class declaration and its copy under `build/` — **and nothing else** (B12).
+
+The first person to read this repo after it goes public will find two complete
+implementations of the same screen and have to work out which one runs.
+
+**Delete the file.** Move anything worth keeping first — its per-row
+"Ask your agent: *tell me about snippet 7*" hint is a genuinely good idea the
+Studio does not have, and it should be carried over to the Studio row before the
+file goes. Delete its render test with it, or repoint the test at the Studio.
+
+### 6.2 "Browse the library"
+
+The empty state offers three buttons. The third points at `tab=library`, which
+`Claudpress_Studio::current_tab()` does not recognise when the Library tab is
+absent, so it silently returns you to All Snippets (B13). It has never worked,
+because `Claudpress_Snippet_Library` was never written.
+
+Delete the button. The empty state keeps two honest choices: describe one to the
+AI, or write one yourself.
+
+### 6.3 Seven Donate buttons
+
+`Claudpress_Donate::button()` is called **7 times across 5 files** (B11) — beside
+the `<h1>` of Connect, Guide, Activity, Skills, Automation, the dead Snippets
+screen and the Studio. A free plugin that asks for money at the top of every
+screen reads as a plugin that is about the money.
+
+Cut to **two placements**:
+
+1. The Connect page, where somebody has just finished setting the thing up and it
+   has demonstrably worked.
+2. The Donate page itself.
+
+The Plugins-row link stays — it is WordPress's own convention and costs nothing.
+`Claudpress_Donate::button()` stays as a method; only the call sites go. That
+keeps the diff reversible and keeps one place to change the markup.
+
+**Not a money decision.** `claudpress-vital/FUNDING-AND-SPONSORS.md` is the
+document that decides funding. This is a decision about how many times one screen
+may ask.
+
+---
+
+## Part 7 — The abilities banner becomes dismissible
+
+### What it actually is
+
+`Claudpress_Admin::notice()` prints a yellow warning gated on
+`strpos($screen->id, 'claudpress')`. It is on **Claudpress screens only**, not
+across wp-admin — worth stating plainly, because it makes the nagging much
+smaller than it sounds. It cannot be dismissed and it never goes away while
+abilities are on.
+
+### Why hiding it is safe — measured, not assumed
 
 `Claudpress_Admin::admin_bar()` puts **`Claudpress: ON`** in the WordPress
-toolbar, on every page of the site, front end and admin, for every
-administrator. That is a better warning than the banner: it is always there, it
-cannot be dismissed, and it appears on screens the banner never reaches.
+toolbar. The obvious objection is that a snippet can remove the toolbar, so the
+chip is not a reliable fallback.
 
-The banner is therefore **redundant with something stronger**, and that is what
-makes a dismiss checkbox defensible rather than reckless. Without the toolbar
-indicator, the answer to this request would be no.
+Tested on the rig. A live snippet running
+`add_filter('show_admin_bar', '__return_false')` everywhere produced:
 
-### The rule
+| Where | Toolbar |
+|---|---|
+| Front end | **removed** — the snippet worked |
+| Inside wp-admin | **present, chip intact** |
+
+WordPress forces the toolbar on inside wp-admin; `show_admin_bar` does not apply
+there. The banner only ever appears inside wp-admin. **The chip is guaranteed
+exactly where the banner lives**, which is what makes a dismiss checkbox
+defensible rather than reckless.
+
+### The guard the test did not remove
+
+A snippet could still call `remove_node('claudpress')`, or inject admin CSS
+hiding `#wpadminbar`. So: **the dismiss checkbox is only offered while the chip is
+actually rendering.** `Claudpress_Admin::notice()` checks that the toolbar node
+was registered for this request; if it was not, the banner shows and cannot be
+hidden. Cheap, and it closes the one hole the measurement left open.
+
+### The rules
 
 A checkbox on Connect, beside the other "what leaves this site" settings:
 
 > [ ] **Hide the "AI abilities are ON" banner**
-> The toolbar still shows `Claudpress: ON` on every page, so the site never
-> stops telling you.
+> The toolbar still shows `Claudpress: ON`, so the site never stops telling you.
 
 Three rules that are not negotiable:
 
 1. **Per user, not per site.** Stored in user meta. One administrator hiding a
    safety warning must not hide it from a colleague who has never seen it.
-2. **It comes back when the risk changes.** Abilities switched off and on again,
-   a new capability group enabled, or a plugin version change all clear the
-   dismissal. A warning silenced about one situation must not stay silent about
-   a different one.
-3. **The toolbar indicator is never hideable.** If anyone ever proposes a
-   setting for that, the answer is no. That is the line where this stops being a
-   preference and becomes a way to forget an AI agent is attached to production.
+2. **It comes back when the risk changes.** Abilities toggled off and on, a new
+   capability group enabled, or a plugin version change all clear the dismissal.
+   A warning silenced about one situation must not stay silent about a different
+   one.
+3. **The toolbar chip is never hideable.** If anyone proposes a setting for it,
+   the answer is no.
 
-**Rejected:** removing the banner entirely. The first run matters; somebody who
+**Rejected: removing the banner entirely.** The first run matters. Somebody who
 has just switched abilities on should be told once, loudly, on the screen where
 they did it.
 
 ---
 
-## Part 6b — A "What's New" screen
+## Part 8 — How this gets measured
 
-### The verdict: yes, and it must be generated, not written
+Two instruments. Both are built **before** the work in Parts 1-7, because a
+baseline taken after the change is not a baseline.
 
-The danger is not the page. It is that the changelog would then live in **three
-places** — `CHANGELOG.md` for developers, `readme.txt` for the person clicking
-update, and a third hand-written copy on a screen. Three copies is how a
-changelog starts lying, and this project has already been bitten by
-hand-maintained duplicates: the README/readme.txt shared sections, the skill
-counts, the router table. All of them are generated now, for exactly this
-reason.
+### 8.1 `tests/rig/ui/` — assert what renders, not what is in the file
 
-So: **`bin/build-whats-new.php` generates a PHP array from `readme.txt`'s
-changelog**, and CI runs it followed by `git diff --exit-code`. Identical to the
-pattern `bin/build-readme-txt.php` already uses. No new source of truth and
-nothing extra to remember at release time.
+Every number in the baseline table came from a browser reading computed styles.
+Every one of them would have been invisible to grep. The editor bug in Part 1 is
+the proof: the source enqueues CodeMirror, calls `initialize`, and sets up a mode
+switcher. Grep says the editor works. The page says it has never once loaded.
 
-`readme.txt` is the right source rather than `CHANGELOG.md` because
-`CONTRIBUTING.md` already says what each is for: `CHANGELOG.md` names files and
-is for developers, and `readme.txt`'s changelog is "for the person clicking
-update". That is exactly this screen's audience.
+**`tests/rig/ui/check-snippets.mjs`** — `playwright-core` driving Chrome against
+the rig at `localhost:8899`. One command:
 
-**Rejected:** hand-writing it the way VibeSnip does. VibeSnip's entries are
-better written — headline, what changed, why it matters — and that quality
-cannot be generated. But it is a third copy maintained by hand, and the honest
-fix is to write `readme.txt`'s entries that well in the first place, where
-everybody sees them.
+```bash
+node tests/rig/ui/check-snippets.mjs --wp http://localhost:8899 --user admin --pass rigpass
+```
 
-### It must not be a permanent menu item
+`playwright-core` directly, not the gstack `/browse` daemon, which dies with
+`EPERM` on its temp state file on this machine.
 
-Same mistake as the Donate button, and as VibeSnip's own permanent What's New
-entry: a screen people read **once per update** does not deserve a line in the
-navigation for the other 364 days.
+It seeds its own fixtures, asserts, and **deletes them in the same run** —
+including on failure, via `try/finally`. A rig left holding `ZZ TEST` snippets is
+a rig that fails its own next run for the wrong reason.
 
-- The menu item appears **only when the stored last-seen version is older than
-  the running version**, and removes itself once the page has been viewed.
-- One dismissible notice after an update: *"Claudpress 1.2.0 — see what
-  changed."*
-- Always reachable from the Guide, so nothing is lost — just not permanent.
+The assertions, each mapped to the baseline it replaces:
 
-### Why it is worth building at all
+| Asserts | Baseline it moves |
+|---|---|
+| `.CodeMirror` exists; `.CodeMirror-linenumber` exists; a `.cm-keyword` has a non-default computed colour | B1 |
+| `cpStudioEditorSettings` is an object carrying `codemirror.mode` | B2 |
+| The first code line's bounding box is inside the viewport with `scrollY === 0` | B3, B4 |
+| The status control's computed box intersects the viewport **without** dispatching a hover | B6, B7 |
+| Clicking it flips the row to On **and** the stored `active` is 1 | B7 |
+| `thead th.sortable` count > 0; clicking one reorders the first row's name | B8 |
+| The Errored tab appears only after a snippet has a `last_error`, and filters to exactly it | B10 |
+| `Save` carries `button-primary`; `Save & switch on` does not | — |
+| A Discard button exists, and clicking it empties the plan box with no reload | B14 |
+| With a planted lint failure, Save is `disabled` until the acknowledgement box is ticked | B15 |
+| No donate markup beside any `<h1>` except Connect and Donate | B11 |
+| The banner hides after dismissal, **returns** after abilities are toggled, and the chip is present throughout | B16 |
 
-Two real reasons beyond looking finished.
+A failing check writes a full-page screenshot to
+`tests/rig/ui/failures/<name>.png`. A red line saying "the toggle was not
+visible" is much less useful than the picture of it not being visible.
 
-**It closes the feedback loop.** `docs/plans/feedback-log.md` promises that
-somebody who sends a friction report finds out it mattered, and the mechanism it
-chose was a line in the changelog: *"Fixes 4 things reported from sites like
-yours."* Today that line appears only on the WordPress updates screen, which
-people scroll past. This gives it a page.
+**CI: advisory first, then a hard gate.** A new browser layer will be flaky
+before it is trustworthy, and a flaky test that blocks merges on a one-person
+project blocks the one person. So the CI job runs with `continue-on-error: true`
+and prints its findings. **Once it has been green for seven consecutive days on
+`main`, the flag is removed** — that date goes in the PR description so it does
+not quietly never happen. The existing `wp eval-file` checks stay as they are and
+stay blocking; this is a new layer, not a replacement.
 
-**It is where a risky change gets explained.** This plugin changes what an AI
-agent may do on somebody's site. "Nine capability groups now ship switched off"
-deserves more than a bullet.
+### 8.2 A time window on the feedback summary
 
-### The rule that keeps it honest
+`/v1/feedback/summary` already returns `COUNT(DISTINCT site_id)` grouped by
+`friction, tool, skill`. The tool-name breakdown this measure needs **already
+exists** — a smaller change than assumed.
 
-**It says what broke, not only what improved.** A What's New screen carrying
-nothing but good news is an advertisement, and people stop reading
-advertisements. If a release removes something, changes a default, or breaks a
-workflow, that goes on the page in the same voice as everything else.
+What is missing is **time**. The counts are lifetime, so "did snippet friction
+fall after we shipped this?" cannot be answered from them at all.
 
----
+Add an optional `?days=N` (default: unbounded, so nothing about today's behaviour
+changes), applied as `received_at >= now() - N days`. Clamp N to 1-90, matching
+`FEEDBACK_RETENTION_DAYS`.
 
-## Part 7 — Tests
+The public shape stays exactly as it is: grouped counts of distinct sites, never
+a note, never anything that identifies a site. `?days=` narrows the window; it
+does not widen what is returned.
 
-- **`test-snippet-conditions.php`** — both stored shapes evaluate correctly;
-  a planted old-format row does not change behaviour. This is the file that
-  protects live sites.
-- **`test-snippet-library.php`** — the feed's signature is verified before
-  anything is trusted; an unsigned feed installs nothing; installed items arrive
-  inactive.
-- **`test-snippet-import.php`** — WPCode, Code Snippets and VibeSnip files each
-  import; everything arrives inactive; a malformed file imports nothing and
-  errors cleanly.
-- **`test-studio-render.php`** — extend: the toggle exists in a row, the filters
-  exist, the editor is initialised rather than a bare textarea, Save is primary
-  and Save-and-activate is not, and a failed syntax check leaves no Save button.
-- **`test-donate.php`** — extend: the heading button appears on **no** screen,
-  and the Donate page and the Plugins row link still do.
-- **`test-abilities-notice.php`** — the banner shows by default; dismissal is
-  stored per user and not site-wide; it returns after abilities are toggled,
-  after a capability group is enabled, and after a version change; and the
-  toolbar indicator is present regardless of the dismissal.
-- **`test-whats-new.php`** — the generated file matches `readme.txt` (the drift
-  check, as a test as well as in CI); the menu item is absent once the page has
-  been seen at the current version and present again after a version bump.
-- **Rig** — the real check. Render every tab, click the toggle, install from the
-  library, import a file, and assert against the rendered page rather than the
-  source. Grepping HTML has already let an unstyled page ship once.
+### 8.3 What success actually means
+
+| Measure | Baseline (measured) | Target | How it is checked |
+|---|---|---|---|
+| Working code editor | **none** (B1) | present, with line numbers and colour | `check-snippets.mjs` |
+| Scroll before code is visible | **636 px** (B4) | **0 px** | `check-snippets.mjs` |
+| Fields above the code box | **6** (B5) | **3** | `check-snippets.mjs` |
+| On/off control visible without hover | **no** (B6) | **yes** | computed box vs viewport |
+| Sortable headers | **0** (B8) | **3** (name, priority, updated) | `check-snippets.mjs` |
+| Ways to find an errored snippet | **0** (B10) | **1 click** | `check-snippets.mjs` |
+| Ways out of an unwanted AI plan without reloading | **0** (B14) | **2** (discard, re-plan) | `check-snippets.mjs` |
+| Donate buttons beside an `<h1>` | **7** (B11) | **2** | `check-snippets.mjs` |
+| Shipped files implementing the Snippets screen | **2** (B12) | **1** | `grep`, in CI |
+| Dead controls that silently do nothing | **1** (B13) | **0** | code review |
+
+And the honest one, which no test can assert and which is the only measure here
+taken from real sites rather than from the rig:
+
+> **`feedback_reports` rows whose `tool` names a snippet tool should fall in the
+> 30 days after release, compared with the 30 days before.**
+
+The instrument for this is 8.2, and it exists because 1.1.0 shipped the feedback
+log. It is the difference between "the page got prettier" and "the page got
+better". If it does not move, this plan was cosmetics, and that is worth knowing.
+
+**Caveat, stated up front so it is not discovered later as a disappointment:**
+this signal needs sites sending reports, and the public count is small today. If
+the sample is too thin to read, that is the answer — *not enough data* — and it
+must not be written up as *no change* or, worse, as *it worked*.
 
 ---
 
 ## Order of work
 
-Shipped **all at once**, per the owner. Built in this order because each step
-makes the next testable.
+Instruments before changes, then the bug, then the rest.
 
-1. `Claudpress_Snippet_Conditions` + its tests — the risky part first, alone,
-   where a mistake is visible
-2. The list: toggle, sort, status filters, priority, pagination
-3. The editor: CodeMirror, code-first layout, save buttons, rule builder
-4. AI Compose: understanding, assumptions, rephrase, discard, labelled result,
-   syntax-check gate
-5. `Claudpress_Snippet_Library` + the signed feed + the Library tab
-6. The importer + the Import tab, including the VibeSnip reader
-7. MCP tools, Activity merge, Maintenance block
-8. Menu rename to **VibeSnip**, the dead "Browse the library" button removed
-9. The donate reduction, and the dismissible abilities banner (6a)
-10. `bin/build-whats-new.php`, the screen, and the version-gated menu item (6b)
-11. VibeSnip's repo archive
+1. **`tests/rig/ui/check-snippets.mjs`**, written against today's screen, with
+   every assertion **expected to fail**. A red first run is the baseline table
+   reproducing itself, and proof the harness can see what it claims to see.
+2. **`?days=N` on `/v1/feedback/summary`** (8.2), plus a recorded snapshot of the
+   snippet-tool counts for the 30 days before any of this ships.
+3. **Part 1 — the code editor.** The only real bug in the list. It lands first,
+   and on its own, so the browser test flips from red to green on exactly one
+   change and there is no doubt about what fixed it.
+4. **Part 6 — delete the dead things.** Pure subtraction, no behaviour to test.
+   Cheapest possible win before the repo goes public.
+5. **Part 3 — the visible on/off switch.** Most-used control, biggest gap.
+6. **Part 2 — code-first layout**, including the Save-primary swap.
+7. **Part 4 — Errored filter, sortable headers, priority column.**
+8. **Part 5 — Discard, re-plan, and the failed-lint acknowledgement.**
+9. **Part 7 — the dismissible banner**, with the chip-present guard.
+10. Version bump, `readme.txt` changelog, `bin/build-readme-txt.php` drift check.
+11. Archive the VibeSnip repository with a README pointing at Claudpress.
+
+Steps 3-9 are each independently shippable and each flip a specific row of the
+success table. If the work is interrupted, whatever is finished is still worth
+having.
 
 ---
 
-## Risks, said out loud
+## Risks
 
-| # | Risk | What is done about it |
+| # | Risk | What holds it |
 |---|---|---|
-| 1 | **The conditions format change silently alters which snippets run** | 3.4 — both shapes read for ever, planted-failure test. The only item that can hurt an existing site. |
-| 2 | A site has both plugins and code runs twice | 5.2 — detect, warn, import. Never deactivate for them. |
-| 3 | The signed library feed is one more thing to maintain | It reuses the skills signing path exactly. If that breaks, both break, and both fail closed. |
-| 4 | This is a large change landing in one release | Accepted, at the owner's direction. Mitigated by the rig checks in Part 7 — the parts most likely to break are the parts a stub test cannot see. |
-| 5 | Removing the donate buttons reduces donations | Probably true in the short term. A free plugin that reads as a trial costs more than it earns. |
-| 6 | "VibeSnip" as a page name inside Claudpress confuses people who knew VibeSnip the plugin | This is exactly why 5.1 exists: the retirement notice is what makes the name a continuation rather than a collision. |
-| 7 | **A dismissed safety banner means somebody forgets an agent is attached to production** | 6a — the toolbar indicator is permanent and unhideable, dismissal is per user, and it returns whenever the risk changes. The banner is redundant with something stronger, which is the only reason this is allowed. |
-| 8 | **What's New becomes a third copy of the changelog and starts lying** | 6b — generated from `readme.txt` with a CI drift check. Never hand-written. |
-| 9 | The agent writes a snippet with conditions it does not understand | 3.2 — the tool schema names the rule vocabulary explicitly rather than accepting free-form JSON. |
+| 1 | **Part 1 moves the inline script, which changes when *both* the editor and the Ask-AI handler run.** The Ask-AI handler works today. | The browser test asserts the Ask-AI button still binds and still posts, not only that CodeMirror appeared. Fixing one and breaking the other is the obvious way for this change to go wrong. |
+| 2 | **Deleting `class-admin-snippets.php` deletes code nobody has read recently.** | `grep` proves nothing references it. Its one good idea — the per-row "ask your agent" hint — is carried over *before* deletion, not after. |
+| 3 | **A dismissed safety banner means somebody forgets an agent is attached to production.** | Part 7: the chip is permanent, dismissal is per user, it returns when the risk changes, and it is only offered while the chip actually renders. |
+| 4 | **The browser test is flaky and blocks a solo developer's own merges.** | Advisory for seven green days before it becomes a gate. The date is written into the PR. |
+| 5 | **The friction measure reads as a result when the sample is too small.** | Written into 8.3: too thin to read is reported as *not enough data*, never as a win. |
+| 6 | **Changing the primary button changes muscle memory** for the one person who uses this daily. | That person is the author, and they asked for it. Noted, not mitigated. |
+| 7 | **Scope creep back toward v1.** Library, Import, What's New and the rule builder are each one sentence away from returning. | They are out. If one comes back, it comes back as its own plan, after the repo is public, with its own measurements. |
+
+**Not a risk, and worth recording so it is not re-litigated:** the conditions
+format. With no rule builder in scope, nothing in this plan reads or writes
+`conditions_json`. The incompatibility that dominated v1's risk list cannot fire.
 
 ---
 
 ## Verification
 
 ```bash
-cd Claudpress
-php tests/run.php && composer analyse && php bin/lint-skills.php
+cd "c:/Users/FLINTSBWOY/Documents/antiGrav/Claudpress"
+
+php tests/run.php                 # full unit suite green
+composer analyse                  # PHPStan clean
+php bin/build-readme-txt.php && git diff --exit-code
+bash bin/build-zip.sh             # class-admin-snippets.php is NOT in the zip
 bash tests/rig/sync-plugin.sh /c/wp-rig/wordpress
 ```
 
-Then on the rig, rendered rather than grepped:
+Then, with the rig served at `http://localhost:8899`:
 
-1. Every tab loads; the menu says **VibeSnip**.
-2. Click the row toggle — the snippet activates, the page says so.
-3. Sort by priority; filter by Errored with a deliberately fatalled snippet.
-4. The editor shows line numbers; Save is primary.
-5. Compose: send a wrong prompt, use **rephrase**, then discard.
-6. Install one library snippet — it arrives **off**.
-7. Import a WPCode file and a VibeSnip file.
-8. A snippet carrying the **old** flat conditions format still runs exactly as
-   it did before. Plant it, assert it, then tear it down in the same step.
-9. No Donate button beside any `<h1>`; the Donate page still works.
-10. The abilities banner shows, is dismissed, stays dismissed for that user, and
-    **comes back** after toggling abilities off and on. The toolbar still reads
-    `Claudpress: ON` throughout.
-11. `php bin/build-whats-new.php && git diff --exit-code` is clean; the menu item
-    appears after a version bump and disappears once the page is viewed.
+```bash
+cd /c/wp-rig/wordpress && PHP_CLI_SERVER_WORKERS=4 php -S localhost:8899 &
+bash tests/rig/run-all.sh /c/wp-rig/wordpress     # existing checks still pass
+node tests/rig/ui/check-snippets.mjs --wp http://localhost:8899
+```
+
+The browser run is the acceptance test for this plan. Every row of the success
+table in 8.3 is one of its assertions, and it tears down every fixture it created
+in the same run that asserted on them — including when it fails.
