@@ -130,12 +130,34 @@ CP_Test::contains("if (!defined('CLAUDPRESS_DONATE_URL'))", $plugin, 'and can be
 CP_Test::ok(strpos($src, 'site_id') === false, 'the donate link carries no identifiers');
 CP_Test::ok(strpos($src, 'home_url') === false, 'and does not attach the site address');
 
-CP_Test::group('Donate — the plugins row gets Donate and Settings');
+CP_Test::group('Donate — the plugins row gets Donate, Settings and Snippets');
 
 $links = Claudpress_Donate::action_link(['deactivate' => '<a href="#">Deactivate</a>']);
-CP_Test::same(3, count($links), 'Donate and Settings are added alongside Deactivate');
+CP_Test::same(4, count($links), 'three links are added alongside Deactivate');
 CP_Test::contains('ko-fi.com', $links[0], 'Donate comes first');
 CP_Test::contains('page=claudpress', $links[1], 'Settings second');
+
+/*
+ * Snippets on the Plugins row, and ORDER MATTERS here.
+ *
+ * It is the one screen in this plugin a person uses without an agent: a real
+ * code editor, an on/off switch per snippet, and a syntax check that refuses
+ * to let broken PHP run. None of it needs a connection or abilities switched
+ * on, so somebody who installed this for the snippets alone should not have to
+ * find it through a settings page about MCP.
+ *
+ * Third, though. Settings is what most people came for, and a row of links
+ * that buries it has made itself worse.
+ */
+CP_Test::contains('Snippets', $links[2], 'Snippets third');
+CP_Test::contains('page=' . Claudpress_Studio::SLUG, $links[2], 'and it points at the real Studio slug');
+
+// Built from the constant, not typed out. Renaming the page must not leave a
+// dead link on the Plugins screen - the one place nobody thinks to re-check.
+CP_Test::ok(
+    strpos(php_strip_whitespace(CLAUDPRESS_DIR . 'includes/class-donate.php'), "page=claudpress-studio") === false,
+    'the Snippets slug is taken from Claudpress_Studio::SLUG, never hard-coded'
+);
 
 // Never rewrite somebody else's plugin row.
 $other = Claudpress_Donate::row_meta(['x'], 'some-other-plugin/other.php');

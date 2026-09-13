@@ -399,6 +399,59 @@ async function checkDonate(page) {
   }
 }
 
+/**
+ * The Plugins screen row.
+ *
+ * The snippets engine is the one part of this plugin a person uses without an
+ * agent, and the Plugins screen never said so - the description described a
+ * thing that hands an AI control of the site, full stop. Somebody who installed
+ * it for the snippets alone had to find them through a settings page about MCP.
+ *
+ * Asserted in a browser because WordPress runs plugin descriptions through
+ * wp_kses before printing them. Whether <strong> survives that filter is a
+ * property of WordPress, not of our string, and the only honest way to know is
+ * to render it.
+ */
+async function checkPluginsRow(page) {
+  await page.goto(`${WP}/wp-admin/plugins.php`, { waitUntil: 'load' });
+
+  const row = await page.evaluate(() => {
+    const tr = document.querySelector('tr[data-plugin*="claudpress"]');
+    if (!tr) return { found: false };
+    const desc = tr.querySelector('.plugin-description, .column-description');
+    const snippets = [...tr.querySelectorAll('a')].find((a) => a.textContent.trim() === 'Snippets');
+    return {
+      found: true,
+      links: [...tr.querySelectorAll('.row-actions a')].map((a) => a.textContent.trim()),
+      snippetsHref: snippets ? snippets.getAttribute('href') : null,
+      strongSurvived: !!desc?.querySelector('strong'),
+      saysStandalone: /snippets engine also works on its own/i.test(desc?.innerText || ''),
+    };
+  });
+
+  r.check('—', 'the plugin row is on the Plugins screen', row.found);
+  r.check('—', 'the row links to Snippets', !!row.snippetsHref, row.links.join(' | '));
+  r.check(
+    '—',
+    'and Settings still comes before it',
+    row.links.indexOf('Settings') > -1 && row.links.indexOf('Settings') < row.links.indexOf('Snippets'),
+    row.links.join(' | ')
+  );
+  r.check('—', 'the description says the snippets engine works without an agent', row.saysStandalone);
+  r.check('—', 'and WordPress did not strip its emphasis', row.strongSurvived);
+
+  if (row.snippetsHref) {
+    await page.goto(new URL(row.snippetsHref, WP).href, { waitUntil: 'load' });
+    const landed = await page.evaluate(() => ({
+      tabs: [...document.querySelectorAll('.nav-tab')].length,
+      fatal: /fatal error/i.test(document.body.innerText),
+    }));
+    r.check('—', 'and the link lands on the real Snippets screen', landed.tabs > 0 && !landed.fatal);
+  } else {
+    r.fail('—', 'and the link lands on the real Snippets screen', 'no link to follow');
+  }
+}
+
 /** B14, B15 — AI Compose needs a way out. */
 async function checkCompose(page) {
   await page.goto(`${STUDIO}&tab=compose`, { waitUntil: 'load' });
@@ -563,6 +616,7 @@ try {
     ['list controls', () => checkListControls(page)],
     ['dead controls', () => checkNoDeadControls(page, seeded.ids)],
     ['donate', () => checkDonate(page)],
+    ['plugins row', () => checkPluginsRow(page)],
     ['compose', () => checkCompose(page)],
     ['abilities banner', () => checkBanner(page)],
   ];

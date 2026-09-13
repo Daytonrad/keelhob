@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Claudpress
  * Plugin URI:        https://github.com/calflint/claudpress
- * Description:        Self-contained MCP server that gives an AI agent (Claude Code, Claude Desktop, Cursor, Codex…) full, programmatic control of WordPress & WooCommerce — PHP execution, filesystem, content, store, SEO, a code-snippets engine, Elementor building, updates/email, AI/stock images, cross-session memory and a skills engine. No external dependencies. For development & staging sites.
+ * Description:        Self-contained MCP server that gives an AI agent (Claude Code, Claude Desktop, Cursor, Codex…) full, programmatic control of WordPress & WooCommerce — PHP execution, filesystem, content, store, SEO, a code-snippets engine, Elementor building, updates/email, AI/stock images, cross-session memory and a skills engine. <strong>The snippets engine also works on its own:</strong> write PHP, CSS, JS or HTML by hand under Claudpress → Snippets, with a real code editor, a per-snippet on/off switch and a syntax check that will not let broken PHP go live — no AI connected, no abilities switched on. No external dependencies. For development & staging sites.
  * Version:           1.2.0
  * Requires at least: 6.3
  * Requires PHP:      8.0

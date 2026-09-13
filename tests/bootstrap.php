@@ -792,6 +792,10 @@ require_once CLAUDPRESS_DIR . 'includes/class-notifier.php';
 
 // Studio helpers are pure functions, so they belong in the fast suite
 // rather than only in the rig.
+// Claudpress_Studio is needed for its SLUG constant: the Plugins-row links
+// point at the Snippets screen, and hard-coding the slug there would make
+// renaming the page silently produce a dead link on the Plugins screen.
+require_once CLAUDPRESS_DIR . 'includes/class-studio.php';
 require_once CLAUDPRESS_DIR . 'includes/class-studio-ai.php';
 
 /**

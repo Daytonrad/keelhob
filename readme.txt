@@ -345,6 +345,13 @@ the exact model IDs to type for each one.
 * Changed: the Donate button is on the Connect screen and the Donate page, and
   nowhere else. It used to be beside every page title, which is not what a free
   plugin should look like.
+* New: the Plugins screen now links straight to **Snippets**, and says out loud
+  that the snippets engine works on its own - write PHP, CSS, JS or HTML by
+  hand, with a real code editor and a syntax check, without connecting any AI
+  and without switching abilities on. That was always true and the plugin never
+  said it.
+* Changed: the 1.0.3 entry below now says plainly that there was never a
+  separate 1.0.3 download - that work shipped inside 1.1.0.
 * Removed: a "Browse the library" button that had never worked, and a second,
   unreachable copy of the Snippets screen that was shipping inside the plugin
   without being used.
@@ -372,7 +379,11 @@ the exact model IDs to type for each one.
 * Privacy: PRIVACY.md now documents the feedback report field by field, including
   the part it is fair to be uneasy about.
 
-= 1.0.3 =
+= 1.0.3 - included in 1.1.0 =
+
+There was never a separate 1.0.3 download. This work shipped as part of 1.1.0,
+so if you are on 1.1.0 or later you already have all of it.
+
 * New: three skills. A whole-site SEO audit that scores your site, fixes what it finds and shows you
   a before-and-after report page you can open on your phone. A design skill covering animation and
   scroll effects, so pages stop coming out flat. And a launch check covering cookie consent, privacy,

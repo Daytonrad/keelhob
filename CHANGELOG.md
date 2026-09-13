@@ -14,6 +14,12 @@ public. When the two disagree, this file is correct.
 
 ### Fixed
 
+- **1.0.3 is labelled honestly.** It carried a date, which reads as "released on
+  this day", and it never was — there is no 1.0.3 tag and no 1.0.3 release. It
+  was written on 2026-09-08 and folded into 1.1.0, which shipped all of its code
+  on 2026-09-13. The heading now says so in both changelogs, so its absence from
+  the releases page reads as the decision it was rather than as a gap.
+
 - **The Snippets code editor never loaded, on any install.**
   `includes/class-studio-edit.php`, `assets/js/studio-edit.js`.
 
@@ -131,6 +137,26 @@ public. When the two disagree, this file is correct.
   and failed an unrelated check. A fixture that outlives its test becomes
   somebody else's bug.
 
+- **The Plugins screen now says the snippets engine works on its own**, and
+  links straight to it. `claudpress.php` header, `includes/class-donate.php`.
+
+  The description described one product: a thing that hands an AI agent control
+  of a site. True, and incomplete. The snippets engine has a real code editor,
+  a per-snippet on/off switch, search, filters and a parse check that refuses to
+  let broken PHP run — and none of it needs an agent connected or abilities
+  switched on. Somebody who wants a code-snippets plugin and nothing else has
+  one here, and the one screen where they would look never said so.
+
+  The row link is third, after Donate and Settings. Settings is what most people
+  came for, and a row of links that buries it has made itself worse. The slug
+  comes from `Claudpress_Studio::SLUG` rather than being typed out, so renaming
+  the page cannot leave a dead link on the Plugins screen — the one place nobody
+  thinks to re-check.
+
+  Asserted in a browser: WordPress runs plugin descriptions through `wp_kses`,
+  so whether the emphasis survives is a property of WordPress rather than of our
+  string, and reading the source could not answer it.
+
 ### Removed
 
 - `includes/class-admin-snippets.php` — 337 lines implementing a complete second
@@ -143,7 +169,7 @@ public. When the two disagree, this file is correct.
   absent, so it silently returned you to All Snippets. It has never worked:
   `Claudpress_Snippet_Library` was never written.
 
-## [1.1.0]
+## [1.1.0] - 2026-09-13
 
 ### Added
 
@@ -250,7 +276,21 @@ public. When the two disagree, this file is correct.
   and replayed. Storing it would be the first step toward "remember my answer
   and stop asking", which is the line where this stops being consent.
 
-## [1.0.3] - 2026-09-08
+## [1.0.3] - never released on its own; shipped inside 1.1.0
+
+> **There is no 1.0.3 tag and no 1.0.3 release, on purpose.**
+>
+> It was written on 2026-09-08 and never published. 1.0.4 was cut the same day
+> and folded straight back into it (`0f1cae4`), under a rule worth repeating:
+> *a version number is a promise to people holding the old one, and nobody held
+> 1.0.3.* Renumber freely until something is published; never after.
+>
+> Then 1.1.0 shipped on 2026-09-13 carrying all of this code. So everything
+> below IS running on every install of 1.1.0 and later — it simply arrived
+> under a different number. The entries stay here, under their own heading,
+> because renaming them to 1.1.0 now would rewrite a release that is already
+> out and put this file out of step with the `readme.txt` inside the zip people
+> already have.
 
 ### Security
 

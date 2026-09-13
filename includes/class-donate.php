@@ -81,6 +81,22 @@ final class Claudpress_Donate
             sprintf('<a href="%s">%s</a>',
                 esc_url(admin_url('admin.php?page=claudpress')),
                 esc_html__('Settings', 'claudpress')
+            ),
+            /*
+             * Snippets, on the Plugins row.
+             *
+             * The one screen here a person uses without an agent: a real code
+             * editor, an on/off switch per snippet, and a syntax check that
+             * refuses to let broken PHP run. It needs no connection and no
+             * abilities, so somebody who installed this for the snippets alone
+             * should not have to find it through a settings page about MCP.
+             *
+             * Third, not first. Settings is what most people came for, and a
+             * row of links that buries it has made itself worse.
+             */
+            sprintf('<a href="%s">%s</a>',
+                esc_url(admin_url('admin.php?page=' . Claudpress_Studio::SLUG)),
+                esc_html__('Snippets', 'claudpress')
             )
         );
         return $links;
