@@ -163,8 +163,10 @@ stay where they are.
 Everything arrives **inactive**, per snippet, reviewable.
 
 **New, and required by Part 5:** a **VibeSnip importer** that reads
-`wp_vibesnip_snippets` directly on a site where both plugins are installed, plus
-the export file the final VibeSnip release produces.
+`wp_vibesnip_snippets` directly on a site where both plugins are installed. No
+export file is needed — VibeSnip was never released to anyone, so the only sites
+carrying its table are the author's own, and those have the plugin installed
+rather than a file.
 
 ---
 
@@ -270,19 +272,20 @@ No new screen. No new table.
 
 ## Part 5 — Retiring VibeSnip
 
-### 5.1 A final VibeSnip release
+### 5.1 No final release is needed
 
-One last version whose admin notice says, plainly:
+**Updated after this plan was first written: VibeSnip has no users.** It was
+never released to anyone, so there is nobody to notify and nothing to migrate
+off. That removes the whole migrate-notice release this section originally
+planned.
 
-> VibeSnip is now part of Claudpress. This plugin will not be updated again.
+The repository is archived with a README pointing at Claudpress, and that is the
+entire retirement.
 
-It ships two things: a **link to Claudpress**, and an **Export** button that
-writes every snippet to a JSON file the Claudpress importer reads.
-
-**Why this and not a silent archive.** VibeSnip's updater reaches those sites
-already, so this is the only route that actually tells the people using it.
-A project whose whole pitch is trustworthiness does not let its users find out
-by having something break.
+**Kept anyway:** the VibeSnip reader in the importer (1.5) and the both-installed
+notice below. They cost little, and the one person who certainly does have
+VibeSnip installed is the author — on the rig, and on any machine where it was
+being developed.
 
 ### 5.2 Both plugins installed at once
 
@@ -331,6 +334,117 @@ comment gets rewritten rather than quietly contradicted.
 
 ---
 
+## Part 6a — The "abilities are ON" warning becomes dismissible
+
+### What it actually is today
+
+`Claudpress_Admin::notice()` prints a yellow warning on **Claudpress screens
+only** — not across the whole admin, which is worth correcting because it
+changes how bad the nagging really is. It cannot be dismissed and it never goes
+away while abilities are on.
+
+### Why it is safe to let people hide it
+
+**Because there is already a permanent indicator that cannot be hidden.**
+
+`Claudpress_Admin::admin_bar()` puts **`Claudpress: ON`** in the WordPress
+toolbar, on every page of the site, front end and admin, for every
+administrator. That is a better warning than the banner: it is always there, it
+cannot be dismissed, and it appears on screens the banner never reaches.
+
+The banner is therefore **redundant with something stronger**, and that is what
+makes a dismiss checkbox defensible rather than reckless. Without the toolbar
+indicator, the answer to this request would be no.
+
+### The rule
+
+A checkbox on Connect, beside the other "what leaves this site" settings:
+
+> [ ] **Hide the "AI abilities are ON" banner**
+> The toolbar still shows `Claudpress: ON` on every page, so the site never
+> stops telling you.
+
+Three rules that are not negotiable:
+
+1. **Per user, not per site.** Stored in user meta. One administrator hiding a
+   safety warning must not hide it from a colleague who has never seen it.
+2. **It comes back when the risk changes.** Abilities switched off and on again,
+   a new capability group enabled, or a plugin version change all clear the
+   dismissal. A warning silenced about one situation must not stay silent about
+   a different one.
+3. **The toolbar indicator is never hideable.** If anyone ever proposes a
+   setting for that, the answer is no. That is the line where this stops being a
+   preference and becomes a way to forget an AI agent is attached to production.
+
+**Rejected:** removing the banner entirely. The first run matters; somebody who
+has just switched abilities on should be told once, loudly, on the screen where
+they did it.
+
+---
+
+## Part 6b — A "What's New" screen
+
+### The verdict: yes, and it must be generated, not written
+
+The danger is not the page. It is that the changelog would then live in **three
+places** — `CHANGELOG.md` for developers, `readme.txt` for the person clicking
+update, and a third hand-written copy on a screen. Three copies is how a
+changelog starts lying, and this project has already been bitten by
+hand-maintained duplicates: the README/readme.txt shared sections, the skill
+counts, the router table. All of them are generated now, for exactly this
+reason.
+
+So: **`bin/build-whats-new.php` generates a PHP array from `readme.txt`'s
+changelog**, and CI runs it followed by `git diff --exit-code`. Identical to the
+pattern `bin/build-readme-txt.php` already uses. No new source of truth and
+nothing extra to remember at release time.
+
+`readme.txt` is the right source rather than `CHANGELOG.md` because
+`CONTRIBUTING.md` already says what each is for: `CHANGELOG.md` names files and
+is for developers, and `readme.txt`'s changelog is "for the person clicking
+update". That is exactly this screen's audience.
+
+**Rejected:** hand-writing it the way VibeSnip does. VibeSnip's entries are
+better written — headline, what changed, why it matters — and that quality
+cannot be generated. But it is a third copy maintained by hand, and the honest
+fix is to write `readme.txt`'s entries that well in the first place, where
+everybody sees them.
+
+### It must not be a permanent menu item
+
+Same mistake as the Donate button, and as VibeSnip's own permanent What's New
+entry: a screen people read **once per update** does not deserve a line in the
+navigation for the other 364 days.
+
+- The menu item appears **only when the stored last-seen version is older than
+  the running version**, and removes itself once the page has been viewed.
+- One dismissible notice after an update: *"Claudpress 1.2.0 — see what
+  changed."*
+- Always reachable from the Guide, so nothing is lost — just not permanent.
+
+### Why it is worth building at all
+
+Two real reasons beyond looking finished.
+
+**It closes the feedback loop.** `docs/plans/feedback-log.md` promises that
+somebody who sends a friction report finds out it mattered, and the mechanism it
+chose was a line in the changelog: *"Fixes 4 things reported from sites like
+yours."* Today that line appears only on the WordPress updates screen, which
+people scroll past. This gives it a page.
+
+**It is where a risky change gets explained.** This plugin changes what an AI
+agent may do on somebody's site. "Nine capability groups now ship switched off"
+deserves more than a bullet.
+
+### The rule that keeps it honest
+
+**It says what broke, not only what improved.** A What's New screen carrying
+nothing but good news is an advertisement, and people stop reading
+advertisements. If a release removes something, changes a default, or breaks a
+workflow, that goes on the page in the same voice as everything else.
+
+---
+
 ## Part 7 — Tests
 
 - **`test-snippet-conditions.php`** — both stored shapes evaluate correctly;
@@ -347,6 +461,13 @@ comment gets rewritten rather than quietly contradicted.
   and Save-and-activate is not, and a failed syntax check leaves no Save button.
 - **`test-donate.php`** — extend: the heading button appears on **no** screen,
   and the Donate page and the Plugins row link still do.
+- **`test-abilities-notice.php`** — the banner shows by default; dismissal is
+  stored per user and not site-wide; it returns after abilities are toggled,
+  after a capability group is enabled, and after a version change; and the
+  toolbar indicator is present regardless of the dismissal.
+- **`test-whats-new.php`** — the generated file matches `readme.txt` (the drift
+  check, as a test as well as in CI); the menu item is absent once the page has
+  been seen at the current version and present again after a version bump.
 - **Rig** — the real check. Render every tab, click the toggle, install from the
   library, import a file, and assert against the rendered page rather than the
   source. Grepping HTML has already let an unstyled page ship once.
@@ -368,8 +489,9 @@ makes the next testable.
 6. The importer + the Import tab, including the VibeSnip reader
 7. MCP tools, Activity merge, Maintenance block
 8. Menu rename to **VibeSnip**, the dead "Browse the library" button removed
-9. The donate reduction
-10. VibeSnip's final release and repo archive
+9. The donate reduction, and the dismissible abilities banner (6a)
+10. `bin/build-whats-new.php`, the screen, and the version-gated menu item (6b)
+11. VibeSnip's repo archive
 
 ---
 
@@ -383,7 +505,9 @@ makes the next testable.
 | 4 | This is a large change landing in one release | Accepted, at the owner's direction. Mitigated by the rig checks in Part 7 — the parts most likely to break are the parts a stub test cannot see. |
 | 5 | Removing the donate buttons reduces donations | Probably true in the short term. A free plugin that reads as a trial costs more than it earns. |
 | 6 | "VibeSnip" as a page name inside Claudpress confuses people who knew VibeSnip the plugin | This is exactly why 5.1 exists: the retirement notice is what makes the name a continuation rather than a collision. |
-| 7 | The agent writes a snippet with conditions it does not understand | 3.2 — the tool schema names the rule vocabulary explicitly rather than accepting free-form JSON. |
+| 7 | **A dismissed safety banner means somebody forgets an agent is attached to production** | 6a — the toolbar indicator is permanent and unhideable, dismissal is per user, and it returns whenever the risk changes. The banner is redundant with something stronger, which is the only reason this is allowed. |
+| 8 | **What's New becomes a third copy of the changelog and starts lying** | 6b — generated from `readme.txt` with a CI drift check. Never hand-written. |
+| 9 | The agent writes a snippet with conditions it does not understand | 3.2 — the tool schema names the rule vocabulary explicitly rather than accepting free-form JSON. |
 
 ---
 
@@ -407,3 +531,8 @@ Then on the rig, rendered rather than grepped:
 8. A snippet carrying the **old** flat conditions format still runs exactly as
    it did before. Plant it, assert it, then tear it down in the same step.
 9. No Donate button beside any `<h1>`; the Donate page still works.
+10. The abilities banner shows, is dismissed, stays dismissed for that user, and
+    **comes back** after toggling abilities off and on. The toolbar still reads
+    `Claudpress: ON` throughout.
+11. `php bin/build-whats-new.php && git diff --exit-code` is clean; the menu item
+    appears after a version bump and disappears once the page is viewed.
