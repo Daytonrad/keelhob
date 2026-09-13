@@ -413,7 +413,7 @@ final class Claudpress_Admin_Screens
         $h = 'margin:28px 0 10px;';
         ?>
         <div class="wrap" style="max-width:1000px;">
-            <h1><?php echo Claudpress_Brand::heading_mark(); ?><?php esc_html_e('Claudpress — Master Guide', 'claudpress'); ?></h1><?php Claudpress_Donate::button(); ?>
+            <h1><?php echo Claudpress_Brand::heading_mark(); ?><?php esc_html_e('Claudpress — Master Guide', 'claudpress'); ?></h1>
             <p style="font-size:15px;max-width:800px;"><?php esc_html_e('Everything this plugin lets your AI do, in plain English. Read this once and you\'ll know what to turn on, what to leave off, and how to get the best out of it — no coding required.', 'claudpress'); ?></p>
 
             <div class="notice notice-warning" style="max-width:800px;"><p><strong><?php esc_html_e('Golden rule:', 'claudpress'); ?></strong> <?php esc_html_e('use this on a development or staging site with backups. When AI abilities are ON, a connected agent can change anything. Don\'t point it at a live store you can\'t afford to have edited without review.', 'claudpress'); ?></p></div>
@@ -628,7 +628,7 @@ final class Claudpress_Admin_Screens
         };
         ?>
         <div class="wrap">
-            <h1><?php echo Claudpress_Brand::heading_mark(); ?><?php esc_html_e('Claudpress · Activity', 'claudpress'); ?></h1><?php Claudpress_Donate::button(); ?>
+            <h1><?php echo Claudpress_Brand::heading_mark(); ?><?php esc_html_e('Claudpress · Activity', 'claudpress'); ?></h1>
 
             <?php
             // The feedback log, shown in full and first.

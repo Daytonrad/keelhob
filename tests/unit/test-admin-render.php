@@ -87,29 +87,6 @@ $cp->memory = new CP_Test_Bag([
     ['key' => 'brand.accent', 'category' => 'design', 'value' => '#f8ca50', 'updated_at' => '2026-08-08 09:00:00'],
 ]);
 
-// The Snippets page reads rows from the database, which the bootstrap does not
-// have. Feed it fixtures instead, so the row + detail markup is exercised for
-// real — an empty table would render but prove nothing about either.
-Claudpress_Admin_Snippets::$source = static function (array $filters): array {
-    return [
-        [
-            'id' => 12, 'uid' => 'cps_abc123', 'name' => 'Sticky header', 'description' => 'Keeps the header pinned while scrolling.',
-            'tags' => ',header,design,', 'purpose' => 'The client asked for a persistent nav.', 'impact' => 'Header stays on screen on every page.',
-            'code' => "if (true) { echo '<b>ok</b>'; }", 'snippet_type' => 'php', 'location' => 'everywhere', 'target_id' => 0,
-            'priority' => 10, 'active' => 1, 'last_error' => null, 'origin_site' => '', 'origin_uid' => '',
-            'created_at' => '2026-08-01 10:00:00', 'updated_at' => '2026-08-02 11:00:00',
-        ],
-        [
-            // A crashed copy from another site, with no notes — the legacy path.
-            'id' => 3, 'uid' => 'cps_def456', 'name' => 'Promo banner', 'description' => '',
-            'tags' => '', 'purpose' => '', 'impact' => '',
-            'code' => '.promo { color: red; }', 'snippet_type' => 'css', 'location' => 'header', 'target_id' => 0,
-            'priority' => 10, 'active' => 0, 'last_error' => 'Call to undefined function foo()', 'origin_site' => 'Pranknologia', 'origin_uid' => 'cps_src999',
-            'created_at' => null, 'updated_at' => '2026-08-03 09:00:00',
-        ],
-    ];
-};
-
 $admin = new Claudpress_Admin();
 $pages = [
     'render'            => 'Connect',
@@ -120,16 +97,6 @@ $pages = [
 
 /** @var array<string, string> $html Rendered markup per page, for later assertions. */
 $html = [];
-
-// The Snippets screen moved to the Pro add-on, so it is no longer a method on
-// Claudpress_Admin. It is still rendered here - the assertions below are about
-// the markup, and the markup did not move.
-if (class_exists('Claudpress_Admin_Snippets')) {
-    ob_start();
-    (new Claudpress_Admin_Snippets())->render();
-    $html['Snippets'] = (string) ob_get_clean();
-    CP_Test::ok($html['Snippets'] !== '', 'Snippets renders from the add-on');
-}
 
 foreach ($pages as $method => $label) {
     $out    = '';
@@ -176,29 +143,69 @@ foreach ($pages as $method => $label) {
     CP_Test::ok(strpos($out, '<?=') === false, $label . ' leaks no short-echo tags');
 }
 
-CP_Test::group('Admin — the Snippets page shows what the AI installed');
+CP_Test::group('Admin — the Snippets screen is the Studio, and only the Studio');
 
-$snips = $html['Snippets'] ?? '';
-foreach ([
-    'Sticky header'                       => 'the snippet name',
-    'The client asked for a persistent nav.' => 'the purpose the agent recorded',
-    'Header stays on screen on every page.'  => 'the impact the agent recorded',
-    'cps_abc123'                          => 'the portable uid',
-    'Pranknologia'                        => 'the site a snippet was copied from',
-    'Call to undefined function foo()'    => 'the error that switched a snippet off',
-    'Auto-disabled'                       => 'the auto-disabled status',
-    'value="snippet_toggle"'              => 'the per-row toggle control',
-    'value="snippet_update"'              => 'the edit form',
-    'value="snippet_delete"'              => 'the delete control',
-] as $needle => $what) {
-    CP_Test::contains($needle, $snips, 'Snippets page shows ' . $what);
+/*
+ * WHAT USED TO BE HERE, and why it is gone.
+ *
+ * This group rendered includes/class-admin-snippets.php and asserted twenty
+ * things about its markup. That file was a complete second Snippets screen -
+ * filters, a table, a details panel, an editor, delete forms - that NOTHING
+ * instantiated and NO menu item pointed at. `grep -rn Claudpress_Admin_Snippets`
+ * outside tests/ returned the class declaration and nothing else.
+ *
+ * It shipped in the zip regardless, so the first person to read this repo after
+ * it goes public would have found two full implementations of one screen and
+ * had to work out which one runs. This test was the only thing keeping it
+ * alive, which is the worst reason for code to exist.
+ *
+ * The file is deleted. Claudpress_Studio is the Snippets screen, and it is
+ * asserted in two places that are stronger than this one was:
+ *
+ *   tests/rig/checks-studio.php      - against real WordPress and a real $wpdb
+ *   tests/rig/ui/check-snippets.mjs  - in a real browser, computed styles and all
+ *
+ * The browser layer matters here specifically. This test passed for the whole
+ * life of a screen whose code editor never once loaded.
+ */
+
+CP_Test::ok(
+    !class_exists('Claudpress_Admin_Snippets'),
+    'there is exactly one Snippets screen, and the dead duplicate is gone'
+);
+CP_Test::ok(
+    !file_exists(CLAUDPRESS_DIR . 'includes/class-admin-snippets.php'),
+    'and its file is not shipped'
+);
+
+/*
+ * One guarantee from the deleted group is worth keeping at source level,
+ * because it is the one that corrupts somebody's work when it breaks.
+ *
+ * Snippet code must reach the textarea through esc_textarea and NOTHING else.
+ * sanitize_textarea_field turns && into &amp;&amp; and eats angle brackets,
+ * handing the owner a silently broken snippet. No rendering test catches that
+ * reliably - the output still looks like code - so it is asserted against the
+ * template.
+ */
+$edit = (string) file_get_contents(CLAUDPRESS_DIR . 'includes/class-studio-edit.php');
+CP_Test::contains(
+    "echo esc_textarea((string) \$s['code']);",
+    $edit,
+    'the editor escapes snippet code for display and does not filter it'
+);
+// Comments stripped, for the same reason test-donate.php strips them: the
+// template explains AT LENGTH why it must not call these, and a naive scan of
+// the whole file finds those words in the warning and fails. The question is
+// what the code does, not what the prose says about it. (This test failed
+// exactly that way on its first run.)
+$edit_code = php_strip_whitespace(CLAUDPRESS_DIR . 'includes/class-studio-edit.php');
+foreach (['sanitize_textarea_field', 'wp_kses', 'sanitize_text_field('] as $forbidden) {
+    CP_Test::ok(
+        strpos($edit_code, $forbidden) === false,
+        'the editor never runs ' . $forbidden . ' anywhere near the code field'
+    );
 }
-
-// Legacy rows have no notes; the page must say so rather than render blank.
-CP_Test::contains('Legacy snippet', $snips, 'Snippets page explains a snippet with no recorded notes');
-
-// The code must reach the textarea intact — a sanitiser here would corrupt it.
-CP_Test::contains('&lt;b&gt;ok&lt;/b&gt;', $snips, 'snippet code is HTML-escaped for display, not stripped');
 
 CP_Test::group('Admin — every form is nonce-protected');
 

@@ -695,7 +695,6 @@ require_once CLAUDPRESS_DIR . 'includes/class-admin-providers.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin-settings.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin-screens.php';
 require_once CLAUDPRESS_DIR . 'includes/class-admin-automation.php';
-require_once CLAUDPRESS_DIR . 'includes/class-admin-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-filesystem.php';
 
 // --- notifier -------------------------------------------------------------

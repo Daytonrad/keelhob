@@ -196,6 +196,11 @@ export async function launch(opts = {}) {
     viewport: { width: 1536, height: 674 },
     ignoreHTTPSErrors: true,
   });
+  // Ten seconds, not Playwright's default thirty. A control that is present but
+  // unclickable should fail its own check in ten seconds, not stall a run of
+  // thirty-four checks for half a minute each time.
+  context.setDefaultTimeout(10_000);
+  context.setDefaultNavigationTimeout(15_000);
   return { browser, context };
 }
 

@@ -58,10 +58,15 @@ function seed() {
     `
     $ids = [];
     $specs = [
-      ['${PREFIX} alpha active php', 'php', '<?php add_action("init", function () {});', 'everywhere', 1, 5],
-      ['${PREFIX} bravo inactive php', 'php', '<?php add_action("init", function () {});', 'everywhere', 0, 10],
+      // NO OPENING TAG. Snippet code is eval'd, and eval() rejects <?php. With
+      // one, every active fixture crashed on init, the crash guard correctly
+      // switched it off and stamped last_error - so the toggle check read
+      // 0 -> 0 and the Errored filter found three snippets instead of one.
+      // The fixtures were wrong; the product was right.
+      ['${PREFIX} alpha active php', 'php', 'add_action("init", function () { return true; });', 'everywhere', 1, 5],
+      ['${PREFIX} bravo inactive php', 'php', 'add_action("init", function () { return true; });', 'everywhere', 0, 10],
       ['${PREFIX} charlie css', 'css', 'body { color: #123456; }', 'header', 1, 10],
-      ['${PREFIX} delta errored', 'php', '<?php add_action("init", function () {});', 'everywhere', 0, 20],
+      ['${PREFIX} delta errored', 'php', 'add_action("init", function () { return true; });', 'everywhere', 0, 20],
     ];
     foreach ($specs as $s) {
       $res = Claudpress_Snippets::save([
@@ -115,25 +120,41 @@ const isActive = (id) =>
  * runs 65 scripts too early. Asserting on `.CodeMirror` is the only way to tell
  * the difference.
  */
-async function checkEditor(page) {
-  await page.goto(`${STUDIO}&tab=edit`, { waitUntil: 'load' });
-  await page.waitForTimeout(600); // CodeMirror initialises after the footer scripts.
+async function checkEditor(page, ids) {
+  // An EXISTING snippet, not the blank Add screen. A blank editor has no
+  // tokens, so "is the code syntax-coloured?" would pass vacuously by finding
+  // nothing to be wrong with — which is worse than no check at all.
+  await page.goto(`${STUDIO}&tab=edit&snippet=${ids[0]}`, { waitUntil: 'load' });
+  await page.waitForTimeout(800); // CodeMirror initialises after the footer scripts.
 
   const info = await page.evaluate(() => {
     const cm = document.querySelector('.CodeMirror');
     const first = cm?.querySelector('.CodeMirror-line');
     const rect = (first || cm || document.getElementById('cp-code'))?.getBoundingClientRect();
-    const tok = cm?.querySelector('.cm-keyword, .cm-variable, .cm-def, .cm-string');
     return {
       hasCodeMirror: !!cm,
       hasLineNumbers: !!cm?.querySelector('.CodeMirror-linenumber'),
-      tokenColour: tok ? getComputedStyle(tok).color : null,
+      // Distinct colours, not one token's colour. Plenty of PHP tokens are
+      // legitimately black, so "this token is not black" is a weak and flaky
+      // signal. More than one colour on a line can only happen when the
+      // highlighter is genuinely running.
+      tokenColours: cm
+        ? [...new Set([...cm.querySelectorAll('.CodeMirror-line span[class^=cm-]')].map((el) => getComputedStyle(el).color))]
+        : [],
       settingsType: typeof window.cpStudioEditorSettings,
       settingsMode: window.cpStudioEditorSettings?.codemirror?.mode ?? null,
       scrollY: window.scrollY,
       codeTop: rect ? Math.round(rect.top) : null,
       viewportH: window.innerHeight,
-      fieldsAboveCode: document.querySelectorAll('table.form-table tr').length,
+      // Counted by POSITION, not by container. The fields that were moved sit
+      // in a collapsed <details> BELOW the code, and they are still
+      // `table.form-table tr` — counting the selector would report them as
+      // still being in the way when the whole point is that they no longer are.
+      fieldsAboveCode: (() => {
+        const codeTop = rect ? rect.top + window.scrollY : Infinity;
+        return [...document.querySelectorAll('#cp-studio-form input:not([type=hidden]), #cp-studio-form select, #cp-studio-form textarea:not(#cp-code)')]
+          .filter((el) => el.getBoundingClientRect().top + window.scrollY < codeTop).length;
+      })(),
       askAiButton: !!document.getElementById('cp-ask-ai'),
     };
   });
@@ -142,9 +163,9 @@ async function checkEditor(page) {
   r.check('B1', 'the editor shows line numbers', info.hasLineNumbers);
   r.check(
     'B1',
-    'code is syntax-coloured, not left at the default text colour',
-    !!info.tokenColour && !['rgb(0, 0, 0)', 'rgb(51, 51, 51)'].includes(info.tokenColour),
-    info.tokenColour || 'no token found'
+    'code is syntax-coloured, not one flat colour',
+    info.tokenColours.length >= 2,
+    `${info.tokenColours.length} distinct token colour(s)`
   );
   r.check(
     'B2',
@@ -162,7 +183,7 @@ async function checkEditor(page) {
     'B5',
     'at most three fields sit above the code box',
     info.fieldsAboveCode <= 3,
-    `${info.fieldsAboveCode} form-table rows`
+    `${info.fieldsAboveCode} field(s) above the code`
   );
 
   // Risk 1 in the plan: moving the inline script could fix the editor and
@@ -187,7 +208,11 @@ async function checkEditor(page) {
 async function checkToggle(page, ids) {
   await page.goto(`${STUDIO}&tab=all&s=${encodeURIComponent(PREFIX)}`, { waitUntil: 'load' });
 
-  const sel = `tr:has-text("${PREFIX} bravo") button[data-cp-toggle], tr:has-text("${PREFIX} bravo") .cp-status-toggle button`;
+  // Addressed by the snippet id the button carries, not by matching row text.
+  // A text match is one renamed fixture away from silently selecting the wrong
+  // row, and `:has-text` on a whole <tr> matches substrings of other rows too.
+  const toggle = page.locator(`button[data-cp-toggle="${ids[1]}"]`);
+
   const box = await page.evaluate((prefix) => {
     const row = [...document.querySelectorAll('tbody tr')].find((tr) =>
       tr.textContent.includes(`${prefix} bravo`)
@@ -225,12 +250,13 @@ async function checkToggle(page, ids) {
     !box.found || (box.isButton && box.inForm)
   );
 
-  if (box.found && box.onScreen) {
+  if (box.found && box.onScreen && (await toggle.count())) {
     const before = isActive(ids[1]);
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'load' }).catch(() => {}),
-      page.click(sel.split(',')[1].trim()).catch(() => page.click(sel.split(',')[0].trim())),
-    ]);
+    // A short, explicit timeout. The default is 30s, and a control that is
+    // present but unclickable would otherwise stall the whole run rather than
+    // failing the one check that is actually wrong.
+    await toggle.click({ timeout: 5000 }).catch(() => {});
+    await page.waitForLoadState('load', { timeout: 10000 }).catch(() => {});
     const after = isActive(ids[1]);
     r.check(
       'B7',
@@ -274,7 +300,8 @@ async function checkListControls(page) {
   const firstBefore = await page.evaluate(() => document.querySelector('tbody tr td a')?.textContent.trim());
   const nameHeader = page.locator('thead th.sortable a, thead th.sorted a').first();
   if (await nameHeader.count()) {
-    await Promise.all([page.waitForNavigation({ waitUntil: 'load' }).catch(() => {}), nameHeader.click()]);
+    await nameHeader.click({ timeout: 5000 }).catch(() => {});
+    await page.waitForLoadState('load', { timeout: 10000 }).catch(() => {});
     const firstAfter = await page.evaluate(() => document.querySelector('tbody tr td a')?.textContent.trim());
     r.check('B8', 'clicking a sortable header reorders the rows', !!firstAfter, `${firstBefore} -> ${firstAfter}`);
   } else {
@@ -486,13 +513,23 @@ try {
   browser = launched.browser;
   const page = await login(launched.context, { wp: WP, user: USER, pass: PASS });
 
-  await checkEditor(page);
-  await checkToggle(page, seeded.ids);
-  await checkListControls(page);
-  await checkNoDeadControls(page);
-  await checkDonate(page);
-  await checkCompose(page);
-  await checkBanner(page);
+  // Progress is printed as each group starts. Without it a stalled run prints
+  // nothing at all and there is no way to tell which check is stuck.
+  const groups = [
+    ['editor', () => checkEditor(page, seeded.ids)],
+    ['toggle', () => checkToggle(page, seeded.ids)],
+    ['list controls', () => checkListControls(page)],
+    ['dead controls', () => checkNoDeadControls(page)],
+    ['donate', () => checkDonate(page)],
+    ['compose', () => checkCompose(page)],
+    ['abilities banner', () => checkBanner(page)],
+  ];
+  for (const [name, run] of groups) {
+    process.stdout.write(`  ... ${name}
+`);
+    // One group must never be able to take the whole run down with it.
+    await run().catch((e) => r.fail('—', `the ${name} checks`, e.message));
+  }
 } catch (err) {
   r.fail('—', 'the run itself', err.message);
 } finally {

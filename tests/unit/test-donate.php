@@ -8,28 +8,86 @@
  * still a button — no modal, no dismissal state, no timer.
  */
 
-CP_Test::group('Donate — the button is on every Claudpress screen');
+CP_Test::group('Donate — the ask appears twice, not on every screen');
 
-// Every admin screen this plugin renders. If a new one is added without the
-// button, this list is where you find that out.
+/*
+ * THIS TEST USED TO ASSERT THE OPPOSITE, and the reversal is the point.
+ *
+ * It required a donate button beside EVERY <h1> - seven of them, across five
+ * files - and it enforced that with `$heads === $found`, so adding a screen
+ * without a button failed the build. The reasoning was that a free project
+ * with no visible way to fund it quietly dies.
+ *
+ * That is true, and it does not follow that the ask belongs on every screen.
+ * Seven asks do not raise seven times the money; they change what the plugin
+ * looks like. A tool that asks for money at the top of the Activity log, the
+ * Guide, the Skills list and the Automation screen reads as a tool that is
+ * about the money, and that impression costs more than the extra placements
+ * can earn.
+ *
+ * Two placements, both at a moment that makes sense:
+ *   1. Connect - somebody has just set the thing up and watched it work.
+ *   2. The Donate page itself.
+ *
+ * The Plugins-row link stays. It is WordPress's own convention, it is where
+ * people look, and it interrupts nothing.
+ */
+
+$allowed = [
+    'includes/class-admin-screens.php' => 1,  // Connect only. Guide and Activity no longer ask.
+];
+
 $screens = [
-    'includes/class-admin-screens.php' => 3,  // Connect, Guide, Activity
-    'includes/class-admin-automation.php' => 1,
-    'includes/class-admin-skills.php'  => 1,
-    'includes/class-admin-snippets.php' => 1,
-    'includes/class-studio.php'        => 1,
+    'includes/class-admin-screens.php',
+    'includes/class-admin-automation.php',
+    'includes/class-admin-skills.php',
+    'includes/class-studio.php',
+    'includes/class-studio-list.php',
+    'includes/class-studio-edit.php',
+    'includes/class-studio-compose.php',
 ];
 
 $total = 0;
-foreach ($screens as $file => $expected) {
-    $src   = file_get_contents(CLAUDPRESS_DIR . $file);
-    $found = substr_count($src, 'Claudpress_Donate::button()');
-    $heads = preg_match_all('/<h1[^>]*>/', $src);
-    CP_Test::same($expected, $found, basename($file) . ' renders the donate button on each of its screens');
-    CP_Test::same($heads, $found, basename($file) . ' has a button for every page title, so a new screen cannot miss one');
+foreach ($screens as $file) {
+    $src      = file_get_contents(CLAUDPRESS_DIR . $file);
+    $found    = substr_count($src, 'Claudpress_Donate::button()');
+    $expected = $allowed[$file] ?? 0;
+    CP_Test::same($expected, $found, basename($file) . ' asks for money exactly ' . $expected . ' time(s)');
     $total += $found;
 }
-CP_Test::same(7, $total, 'seven screens, seven buttons');
+CP_Test::same(1, $total, 'one button across every admin screen, on Connect');
+
+// The button itself is untouched. Removing call sites must not quietly remove
+// the ability to ask at all - that is a different decision, and not this one.
+CP_Test::ok(
+    method_exists('Claudpress_Donate', 'button'),
+    'the button still exists as a method, so this is reversible in one line per screen'
+);
+CP_Test::ok(
+    method_exists('Claudpress_Donate', 'action_link'),
+    'and the Plugins-row link, which is convention rather than a plea, is untouched'
+);
+
+// The Donate page is the second placement and must actually be reachable.
+CP_Test::ok(method_exists('Claudpress_Donate', 'menu'), 'the Donate page is still in the menu');
+CP_Test::ok(method_exists('Claudpress_Donate', 'render'), 'and still renders');
+
+CP_Test::group('Donate — no screen was missed');
+
+// A file-by-file list goes stale the moment somebody adds a screen. This asks
+// the whole includes/ directory instead, so a new screen with a button has to
+// be a deliberate decision rather than an oversight in either direction.
+$stray = [];
+foreach (glob(CLAUDPRESS_DIR . 'includes/*.php') as $file) {
+    $rel = 'includes/' . basename($file);
+    if (($allowed[$rel] ?? 0) > 0 || basename($file) === 'class-donate.php') {
+        continue;
+    }
+    if (strpos((string) file_get_contents($file), 'Claudpress_Donate::button()') !== false) {
+        $stray[] = basename($file);
+    }
+}
+CP_Test::same([], $stray, 'no file outside the two agreed placements asks for money');
 
 CP_Test::group('Donate — it is a button, not a nag');
 
