@@ -48,9 +48,18 @@ final class Claudpress_Studio
          * current_tab() falls back for anything it does not recognise - so an
          * old bookmark is not a dead end.
          */
+        /*
+         * The second tab is named for what it is about to do.
+         *
+         * It always said "Add Snippet", so opening an existing snippet gave you
+         * a highlighted tab reading "Add Snippet" directly above a heading
+         * reading "Edit Snippet". Two labels for one screen, disagreeing.
+         */
+        $editing = !empty($_GET['snippet']);
+
         return [
             'all'     => __('All Snippets', 'claudpress'),
-            'edit'    => __('Add Snippet', 'claudpress'),
+            'edit'    => $editing ? __('Edit Snippet', 'claudpress') : __('Add Snippet', 'claudpress'),
             'compose' => __('AI Compose', 'claudpress'),
         ];
     }
@@ -92,6 +101,28 @@ final class Claudpress_Studio
             self::SLUG,
             [$this, 'render'],
             2
+        );
+    }
+
+    /**
+     * The Studio stylesheet.
+     *
+     * One file for all three tabs, registered once and enqueued by whichever
+     * one renders. It replaced two separate wp_add_inline_style() blocks — one
+     * in the list, one in the editor — that styled the same product in the same
+     * screen and had already started to disagree with each other.
+     *
+     * Safe to call more than once: wp_enqueue_style() on an already-enqueued
+     * handle is a no-op, which matters because the editor calls it from
+     * enqueue() and the list from render().
+     */
+    public static function enqueue_styles(): void
+    {
+        wp_enqueue_style(
+            'claudpress-studio',
+            CLAUDPRESS_URL . 'assets/css/studio.css',
+            [],
+            CLAUDPRESS_VERSION
         );
     }
 

@@ -24,7 +24,18 @@ final class Claudpress_Tools_Snippets
                 'target_id'    => ['type' => 'integer', 'description' => 'For page_template: the page/post ID this template serves.'],
                 'priority'     => ['type' => 'integer', 'default' => 10],
                 'active'       => ['type' => 'boolean', 'default' => false],
-                'conditions'   => ['type' => 'object', 'description' => 'Optional load rules: {logged_in:bool, front_page:bool, post_types:[..], post_ids:[..]}.'],
+                'conditions'   => [
+                    'type'        => 'object',
+                    'description' => 'Optional load rules. {enabled:true, relation:"AND"|"OR", '
+                        . 'rules:[{type,operator,value}]}. type is one of user_status, user_role, '
+                        . 'page_type, post_type, post_id, url_path, device. operator is "is"/"is_not" '
+                        . '(or "contains"/"equals"/"starts_with" for url_path). value may be an array, '
+                        . 'meaning "any of these". Example: {"enabled":true,"relation":"AND","rules":'
+                        . '[{"type":"user_status","operator":"is","value":"logged_out"},'
+                        . '{"type":"page_type","operator":"is","value":"front_page"}]}. '
+                        . 'The older flat shape {logged_in, front_page, post_types, post_ids} is still '
+                        . 'accepted and is converted on read, so existing snippets keep working.',
+                ],
                 'tags'         => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Short lowercase labels the owner filters by, e.g. ["seo","header"]. Max 10.'],
                 'purpose'      => ['type' => 'string', 'description' => 'Why this snippet exists, in plain English for the site owner.'],
                 'impact'       => ['type' => 'string', 'description' => 'What it changes on the site, and what breaks if it is switched off.'],

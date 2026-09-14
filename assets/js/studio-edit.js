@@ -34,9 +34,11 @@
 		return;
 	}
 
-	/* ---------------------------------------------------------------- */
-	/* The code editor                                                   */
-	/* ---------------------------------------------------------------- */
+	var i18n = cfg.i18n || {};
+
+	/* ================================================================== */
+	/* The code editor                                                     */
+	/* ================================================================== */
 
 	function warn(message) {
 		var box = document.getElementById('cp-editor-warning');
@@ -54,12 +56,12 @@
 			editor = null;
 		}
 		if (!editor || !editor.codemirror) {
-			warn(cfg.i18n.editorFailed);
+			warn(i18n.editorFailed);
 		}
 	} else if (settings) {
 		// Settings exist, so the person has NOT turned highlighting off; the
 		// library genuinely failed to arrive. Worth saying out loud.
-		warn(cfg.i18n.editorFailed);
+		warn(i18n.editorFailed);
 	}
 	// settings === false means the user switched syntax highlighting off in
 	// their own profile. That is a choice, not a fault, and it gets no notice.
@@ -69,38 +71,235 @@
 		return editor && editor.codemirror ? editor.codemirror.getValue() : textarea.value;
 	}
 
-	/**
-	 * Switching the type must re-highlight.
-	 *
-	 * Without it, changing a snippet from PHP to CSS leaves you typing CSS into
-	 * a PHP highlighter, which reads as the editor being broken. This branch has
-	 * existed for as long as the bug above and has never once executed.
-	 */
+	/* ================================================================== */
+	/* The editor chrome follows the type                                  */
+	/* ================================================================== */
+
 	var typeEl = document.getElementById('cp-type');
-	if (typeEl && editor && editor.codemirror) {
+	var barEl = document.getElementById('cp-editor-bar');
+	var nameEl = document.getElementById('cp-file-name');
+	var pillEl = document.getElementById('cp-lang-pill');
+
+	/**
+	 * Keep the bar honest.
+	 *
+	 * The dot colour, the filename extension and the pill all describe the
+	 * selected type. If they stop agreeing with the dropdown, the bar is worse
+	 * than not having one — it is a label that lies.
+	 */
+	function syncChrome(type) {
+		if (barEl) {
+			barEl.className = barEl.className.replace(/\bcp-lang-\S+/g, '').trim();
+			barEl.className += ' cp-lang-' + type;
+		}
+		if (nameEl) {
+			nameEl.textContent = 'snippet.' + ((cfg.ext && cfg.ext[type]) || 'txt');
+		}
+		if (pillEl) {
+			pillEl.textContent = type.toUpperCase();
+		}
+	}
+
+	if (typeEl) {
 		typeEl.addEventListener('change', function () {
-			editor.codemirror.setOption('mode', cfg.modes[this.value] || 'text/plain');
+			syncChrome(this.value);
+			// Switching the type must re-highlight. Without it, changing a
+			// snippet from PHP to CSS leaves you typing CSS into a PHP
+			// highlighter, which reads as the editor being broken.
+			if (editor && editor.codemirror) {
+				editor.codemirror.setOption('mode', (cfg.modes && cfg.modes[this.value]) || 'text/plain');
+			}
 		});
 	}
 
-	/* ---------------------------------------------------------------- */
-	/* Ask AI what this does                                             */
-	/* ---------------------------------------------------------------- */
+	/* ================================================================== */
+	/* Conditional logic — the rule builder                                */
+	/* ================================================================== */
+
+	(function conditions() {
+		var enable = document.getElementById('cp-cond-enabled');
+		var body = document.getElementById('cp-cond-body');
+		var list = document.getElementById('cp-cond-rules');
+		var add = document.getElementById('cp-cond-add');
+		var data = cfg.conditions || {};
+		var conf = data.config || {};
+
+		if (!enable || !body || !list || !add || !conf.types) {
+			return;
+		}
+
+		list.setAttribute('data-empty', i18n.noRules || '');
+
+		enable.addEventListener('change', function () {
+			body.hidden = !this.checked;
+			// Ticking the box with nothing in it should give you something to
+			// fill in, not an empty panel with one button in it.
+			if (this.checked && !list.children.length) {
+				addRow();
+			}
+		});
+
+		function el(tag, attrs, children) {
+			var node = document.createElement(tag);
+			Object.keys(attrs || {}).forEach(function (k) {
+				if (k === 'class') {
+					node.className = attrs[k];
+				} else if (k === 'text') {
+					node.textContent = attrs[k];
+				} else {
+					node.setAttribute(k, attrs[k]);
+				}
+			});
+			(children || []).forEach(function (c) {
+				node.appendChild(c);
+			});
+			return node;
+		}
+
+		function option(value, label, selected) {
+			var o = el('option', { value: value, text: label });
+			if (selected) {
+				o.selected = true;
+			}
+			return o;
+		}
+
+		/** Operators depend on the rule type: URL path is the odd one out. */
+		function operatorsFor(type) {
+			return (conf.operators && conf.operators[type]) || (conf.operators && conf.operators['default']) || [];
+		}
+
+		/**
+		 * Build the third field.
+		 *
+		 * A dropdown when the type has a fixed option set, a text box when it
+		 * does not (URL path, post ID). This is the whole reason the builder is
+		 * JavaScript: the field's KIND depends on the value of the field before
+		 * it, so it cannot be printed once server-side.
+		 */
+		function valueField(type, current) {
+			var opts = conf.values ? conf.values[type] : null;
+			if (!opts) {
+				return el('input', {
+					type: 'text',
+					name: 'cond_value[]',
+					class: 'cp-cond-value regular-text',
+					value: current == null ? '' : current,
+					placeholder: i18n.valuePlaceholder || ''
+				});
+			}
+			var sel = el('select', { name: 'cond_value[]', class: 'cp-cond-value' });
+			opts.forEach(function (pair) {
+				sel.appendChild(option(pair[0], pair[1], String(current) === String(pair[0])));
+			});
+			return sel;
+		}
+
+		function addRow(rule) {
+			rule = rule || {};
+			var types = Object.keys(conf.types);
+			var type = rule.type && conf.types[rule.type] ? rule.type : types[0];
+
+			var row = el('div', { class: 'cp-cond-rule' });
+
+			var typeSel = el('select', { name: 'cond_type[]', class: 'cp-cond-type' });
+			types.forEach(function (slug) {
+				typeSel.appendChild(option(slug, conf.types[slug], slug === type));
+			});
+
+			var opSel = el('select', { name: 'cond_operator[]', class: 'cp-cond-op' });
+			operatorsFor(type).forEach(function (pair) {
+				opSel.appendChild(option(pair[0], pair[1], pair[0] === rule.operator));
+			});
+
+			// An array value means "any of these" and only legacy data and
+			// agents write one. The builder edits one value per row, so show the
+			// first and let a save rewrite it rather than silently dropping the
+			// rest without saying so.
+			var current = Array.isArray(rule.value) ? rule.value[0] : rule.value;
+			var valField = valueField(type, current);
+
+			var remove = el('button', {
+				type: 'button',
+				class: 'cp-cond-remove',
+				text: i18n.remove || 'Remove',
+				'aria-label': i18n.removeRule || 'Remove this rule'
+			});
+
+			typeSel.addEventListener('change', function () {
+				var next = this.value;
+
+				var newOps = el('select', { name: 'cond_operator[]', class: 'cp-cond-op' });
+				operatorsFor(next).forEach(function (pair) {
+					newOps.appendChild(option(pair[0], pair[1], false));
+				});
+				row.replaceChild(newOps, opSel);
+				opSel = newOps;
+
+				var newVal = valueField(next, '');
+				row.replaceChild(newVal, valField);
+				valField = newVal;
+			});
+
+			remove.addEventListener('click', function () {
+				row.parentNode.removeChild(row);
+			});
+
+			row.appendChild(typeSel);
+			row.appendChild(opSel);
+			row.appendChild(valField);
+			row.appendChild(remove);
+			list.appendChild(row);
+		}
+
+		add.addEventListener('click', function () {
+			addRow();
+		});
+
+		// Draw what is stored. Done here rather than server-side so the markup
+		// for a saved rule and a freshly added one is produced by exactly one
+		// piece of code — two would drift, and the drift would only show up on
+		// a rule somebody had already saved.
+		(data.rules || []).forEach(addRow);
+	})();
+
+	/* ================================================================== */
+	/* Ask AI what this does                                               */
+	/* ================================================================== */
 
 	var btn = document.getElementById('cp-ask-ai');
 	if (!btn) {
 		return;
 	}
 
+	/**
+	 * The button is disabled until there is something to ask about.
+	 *
+	 * Previously it was always live and answered an empty editor with an
+	 * alert(). A button that can only tell you off is worse than one that is
+	 * plainly not ready yet.
+	 */
+	function syncAskState() {
+		var empty = !codeValue().trim();
+		btn.disabled = empty;
+		btn.title = empty ? i18n.writeSomethingFirst || '' : '';
+	}
+
+	syncAskState();
+	if (editor && editor.codemirror) {
+		editor.codemirror.on('change', syncAskState);
+	} else {
+		textarea.addEventListener('input', syncAskState);
+	}
+
 	btn.addEventListener('click', function () {
 		var code = codeValue();
 		if (!code.trim()) {
-			window.alert(cfg.i18n.writeSomethingFirst);
 			return;
 		}
 
 		btn.disabled = true;
-		btn.textContent = cfg.i18n.asking;
+		btn.textContent = i18n.asking;
 
 		var body = new FormData();
 		body.append('action', 'claudpress_studio_review');
@@ -118,16 +317,16 @@
 					json && json.data && json.data.html
 						? json.data.html
 						: '<div class="notice notice-warning inline"><p>' +
-							((json && json.data && json.data.message) || cfg.i18n.unreachable) +
+							((json && json.data && json.data.message) || i18n.unreachable) +
 							'</p></div>';
 			})
 			.catch(function () {
 				document.getElementById('cp-ai-report').innerHTML =
-					'<div class="notice notice-warning inline"><p>' + cfg.i18n.unreachableSafe + '</p></div>';
+					'<div class="notice notice-warning inline"><p>' + i18n.unreachableSafe + '</p></div>';
 			})
 			.finally(function () {
-				btn.disabled = false;
-				btn.textContent = cfg.i18n.askAi;
+				btn.textContent = i18n.askAi;
+				syncAskState();
 			});
 	});
 })();

@@ -304,6 +304,27 @@ the exact model IDs to type for each one.
 
 = 1.2.0 =
 
+* New: **the Snippets screen looks and works like a code editor.** The code now
+  takes the whole left side, inside a proper editor frame with a coloured dot for
+  the language, the filename and a PHP/CSS/JS/HTML badge. Everything that is a
+  setting rather than the work - type, where it runs, priority, tags - moved to a
+  panel down the right, always open. Nothing you have switched on is hidden
+  behind a fold-away any more.
+* New: **conditional logic you can actually set.** Only run a snippet for logged
+  in visitors, or a role, or one page type, or on mobile, or on URLs starting
+  with /shop - and match ALL or ANY of your rules. The engine existed before but
+  had no screen, so only a connected AI could set a condition. Now you can, and
+  the list tells you at a glance which snippets have rules.
+* New: **revisions are on the edit screen**, in the panel on the right, with a
+  Restore button on each one. They have been recorded on every edit for a long
+  time; they were at the very bottom of the page, so nobody found them.
+* Fixed: **deleting a snippet left its old versions in the database for ever** -
+  including a full copy of the code. If you deleted a snippet because of what was
+  in it, it was not actually gone. Deleting now removes its history with it.
+* Fixed: **"delete all data on uninstall" did not delete all the data.** Four of
+  the ten tables were missed, including the one holding every past version of
+  every snippet. It now removes everything the plugin ever wrote, and nothing
+  else.
 * Fixed: **the code editor on the Snippets screen has never worked.** It was
   meant to give you line numbers and colour-coded code; on every install since it
   was added, it silently gave you a plain text box instead. It works now. This

@@ -322,8 +322,37 @@ final class Claudpress_Studio_List
                  */
                 ?>
             </td>
-            <td><code><?php echo esc_html((string) $row['snippet_type']); ?></code></td>
-            <td><?php echo esc_html(str_replace('_', ' ', (string) $row['location'])); ?></td>
+            <td>
+                <?php
+                /*
+                 * The same language pill the editor's toolbar wears, with the
+                 * same dot colour. Two screens describing one snippet should
+                 * not label it two different ways — the list said `php` in a
+                 * grey <code> box while the editor said PHP next to a purple
+                 * dot, and nothing tied them together.
+                 */
+                $row_type = (string) $row['snippet_type'];
+                ?>
+                <span class="cp-type-pill cp-lang-<?php echo esc_attr($row_type); ?>">
+                    <span class="cp-lang-dot" aria-hidden="true"></span><?php echo esc_html(strtoupper($row_type)); ?>
+                </span>
+            </td>
+            <td>
+                <?php echo esc_html(str_replace('_', ' ', (string) $row['location'])); ?>
+                <?php
+                /*
+                 * A snippet with rules does NOT run everywhere its location
+                 * says it does, and the list used to claim otherwise. Somebody
+                 * reading "everywhere" next to a snippet that only fires for
+                 * logged-out mobile visitors has been told something false by
+                 * the screen whose job is to tell them what is running.
+                 */
+                $cond_summary = Claudpress_Snippet_Conditions::summary($row['conditions_json'] ?? null);
+                ?>
+                <?php if ($cond_summary !== '') : ?>
+                    <br><span class="cp-cond-badge" title="<?php esc_attr_e('This snippet only runs when its rules match.', 'claudpress'); ?>"><?php echo esc_html($cond_summary); ?></span>
+                <?php endif; ?>
+            </td>
             <td><?php echo wp_kses_post(Claudpress_Studio::source_badge((string) ($row['source'] ?? 'manual'))); ?></td>
             <td>
                 <?php
@@ -378,25 +407,18 @@ final class Claudpress_Studio_List
         <?php
     }
 
-    /** The handful of rules the switch needs. Inline: one screen, under 30 lines. */
+    /**
+     * The Studio stylesheet.
+     *
+     * These rules were an inline block here until 1.2.0, when the editor screen
+     * grew a two-column layout and a rule builder and the CSS outgrew what
+     * belongs in a PHP string. Both screens now share assets/css/studio.css, so
+     * the switch on this list and the status badge in the editor cannot drift
+     * apart.
+     */
     private static function styles(): void
     {
-        wp_register_style('claudpress-studio-list', false, [], CLAUDPRESS_VERSION);
-        wp_enqueue_style('claudpress-studio-list');
-        wp_add_inline_style('claudpress-studio-list', '
-            .cp-snippet-id { color: #8c8f94; font-size: 12px; font-variant-numeric: tabular-nums; }
-            .cp-toggle-form { margin: 0; }
-            .cp-switch { display: inline-flex; align-items: center; gap: 7px; background: none; border: 0; padding: 2px 0; cursor: pointer; font-size: 13px; }
-            .cp-switch-track { width: 30px; height: 16px; border-radius: 8px; background: #c3c4c7; position: relative; transition: background .12s ease; flex: none; }
-            .cp-switch-knob { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: left .12s ease; }
-            .cp-switch-on .cp-switch-track { background: #00794b; }
-            .cp-switch-on .cp-switch-knob { left: 16px; }
-            .cp-switch-label { color: #50575e; }
-            .cp-switch-on .cp-switch-label { color: #00794b; font-weight: 600; }
-            .cp-switch:focus-visible { outline: 2px solid #2271b1; outline-offset: 2px; border-radius: 4px; }
-            .cp-switch:hover .cp-switch-track { background: #8c8f94; }
-            .cp-switch-on:hover .cp-switch-track { background: #00603b; }
-        ');
+        Claudpress_Studio::enqueue_styles();
     }
 
     /**

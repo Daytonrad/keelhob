@@ -83,6 +83,29 @@ function seed() {
       ['last_error' => 'Fixture error: syntax error, unexpected end of file'],
       ['id' => $ids[3]]
     );
+
+    /*
+     * alpha is the snippet every edit-screen check opens, so it carries the two
+     * things the 1.2.0 rebuild added: stored conditions, and a history.
+     *
+     * Both have to be REAL rather than injected straight into the columns. A
+     * revision row written by hand would prove the panel can render a row, not
+     * that saving records one — and "the feature exists but never fires" is
+     * precisely the failure mode this whole file was written for.
+     */
+    Claudpress_Snippets::save([
+      'id' => $ids[0],
+      'conditions' => ['enabled' => true, 'relation' => 'AND', 'rules' => [
+        ['type' => 'user_status', 'operator' => 'is', 'value' => 'logged_in'],
+        ['type' => 'device', 'operator' => 'is', 'value' => 'mobile'],
+      ]],
+    ]);
+    // A different body, so save() records a revision the way an edit would.
+    Claudpress_Snippets::save([
+      'id' => $ids[0],
+      'code' => 'add_action("init", function () { return true; }); // v2',
+    ]);
+
     echo json_encode(['ids' => $ids]);
   `,
     wpOpts
@@ -190,8 +213,17 @@ async function checkEditor(page, ids) {
   // silently break the button that shares the block.
   r.check('B1', 'the "Ask AI" button survived the script move', info.askAiButton);
 
+  /*
+   * Every submit button in the editor form, wherever the layout has put it.
+   *
+   * This used to look in `p.submit`, which is where the buttons were before the
+   * 1.2.0 two-column rebuild moved them into the sidebar's Save panel. The
+   * guarantee being asserted — Save is the loud one, "switch on" is the quiet
+   * one — has nothing to do with which box they sit in, so the check should not
+   * have been pinned to one. Anchored on the form instead.
+   */
   const buttons = await page.evaluate(() =>
-    [...document.querySelectorAll('p.submit button')].map((b) => ({
+    [...document.querySelectorAll('#cp-studio-form button[type="submit"]')].map((b) => ({
       text: b.textContent.trim(),
       primary: b.className.includes('button-primary'),
     }))
@@ -200,6 +232,84 @@ async function checkEditor(page, ids) {
   const activate = buttons.find((b) => /switch on/i.test(b.text));
   r.check('—', 'Save is the primary button', !!save?.primary, save ? save.text : 'no Save button');
   r.check('—', '"Save & switch on" is not the primary button', !activate || !activate.primary);
+
+  /*
+   * B17-B19 — the 1.2.0 rebuild.
+   *
+   * All three were reported as MISSING by somebody using the plugin. Two of
+   * them existed and were merely unfindable; the third had an engine and no
+   * screen. The lesson these checks encode is that "shipped" and "reachable"
+   * are different claims, so each one asserts a measured position or a real
+   * populated control, never the presence of markup.
+   */
+  const layout = await page.evaluate(() => {
+    const rect = (s) => {
+      const e = document.querySelector(s);
+      return e ? e.getBoundingClientRect() : null;
+    };
+    const main = rect('.cp-main');
+    const side = rect('.cp-side');
+    const bar = rect('.cp-editor-bar');
+    const cm = rect('.cp-editor-shell .CodeMirror');
+    return {
+      hasGrid: !!(main && side),
+      // A real two-column layout, not two stacked blocks with a grid class on
+      // them: the rail starts at or after the main column's right edge, and
+      // they share a top.
+      sideOnTheRight: !!(main && side) && side.x >= main.x + main.width - 1 && Math.abs(side.y - main.y) < 4,
+      barAboveCode: !!(bar && cm) && bar.y + bar.height <= cm.y + 1,
+      fileName: document.getElementById('cp-file-name')?.textContent || '',
+      pill: document.getElementById('cp-lang-pill')?.textContent || '',
+      dotPainted: (() => {
+        const d = document.querySelector('.cp-lang-dot');
+        if (!d) return false;
+        const c = getComputedStyle(d).backgroundColor;
+        // Not transparent, and not the default grey — the dot must be saying
+        // something about the language rather than just existing.
+        return c !== 'rgba(0, 0, 0, 0)' && c !== 'rgb(140, 143, 148)';
+      })(),
+      panels: [...document.querySelectorAll('.cp-panel h3')].map((e) => e.textContent.trim()),
+      condRows: document.querySelectorAll('.cp-cond-rule').length,
+      condBodyVisible: !document.getElementById('cp-cond-body')?.hidden,
+      // A populated rule row: three controls, all with a value.
+      condRowComplete: (() => {
+        const row = document.querySelector('.cp-cond-rule');
+        if (!row) return false;
+        const fields = [...row.querySelectorAll('select, input')];
+        return fields.length >= 3 && fields.slice(0, 3).every((f) => f.value !== '');
+      })(),
+      revisionRows: document.querySelectorAll('.cp-revisions li').length,
+      restoreWired: [...document.querySelectorAll('.cp-rev-restore')].every(
+        (b) => b.getAttribute('form') === 'cp-restore-form'
+      ),
+    };
+  });
+
+  r.check('B17', 'the editor screen is two columns, settings on the right', layout.sideOnTheRight);
+  r.check('B17', 'the code has an editor toolbar above it', layout.barAboveCode);
+  r.check(
+    'B17',
+    'the toolbar names the file and the language',
+    /^snippet\.(php|css|js|html)$/.test(layout.fileName) && layout.pill.length > 0,
+    `${layout.fileName} / ${layout.pill}`
+  );
+  r.check('B17', 'and the language dot is actually coloured for that language', layout.dotPainted);
+  r.check(
+    'B18',
+    'the sidebar carries Save, Behaviour and Revisions',
+    ['Save', 'Behaviour', 'Revisions'].every((p) => layout.panels.includes(p)),
+    layout.panels.join(' | ')
+  );
+  r.check(
+    'B18',
+    'revisions are listed on the edit screen, not buried below the fold',
+    layout.revisionRows > 0,
+    `${layout.revisionRows} revision(s)`
+  );
+  r.check('B18', 'each Restore button is wired to the restore form', layout.restoreWired);
+  r.check('B19', 'stored conditions open the rule builder', layout.condBodyVisible);
+  r.check('B19', 'and draw one row per stored rule', layout.condRows === 2, `${layout.condRows} row(s)`);
+  r.check('B19', 'with every field in the row actually filled in', layout.condRowComplete);
 
   if (r.failures.length) await shoot(page, 'edit-screen');
 }

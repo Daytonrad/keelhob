@@ -1,0 +1,573 @@
+/**
+ * Snippets Studio — the editor and the list.
+ *
+ * A real stylesheet rather than wp_add_inline_style(), which is what this used
+ * to be. Inline was defensible at thirty lines; the two-column editor, the
+ * editor chrome and the rule builder are three hundred, and three hundred lines
+ * of CSS inside a PHP heredoc is a file nobody can read and no tool can lint.
+ *
+ * Written against WordPress admin's own variables where they exist, so the
+ * screen still looks right in the admin colour schemes and does not need a
+ * second copy of every colour. Where a colour IS named here it is one of
+ * WordPress core's own admin greys, not a new palette — a snippets screen that
+ * invents its own look reads as a different product bolted on.
+ */
+
+/* ========================================================================== */
+/* The two-column shell                                                       */
+/* ========================================================================== */
+
+.cp-edit-title {
+	margin: 16px 0 12px;
+}
+
+.cp-grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 320px;
+	gap: 20px;
+	align-items: start;
+}
+
+/*
+ * One column below 1100px.
+ *
+ * `minmax(0, 1fr)` above and not plain `1fr`: a grid track sized `1fr` will not
+ * shrink below the intrinsic width of its content, and CodeMirror reports a
+ * very wide intrinsic width on a long line. Without the minmax the editor
+ * pushed the sidebar off screen on any narrow window.
+ */
+@media screen and (max-width: 1100px) {
+	.cp-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.cp-main {
+	min-width: 0;
+}
+
+.cp-side {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+/* ========================================================================== */
+/* The name field                                                             */
+/* ========================================================================== */
+
+.cp-title-input {
+	width: 100%;
+	padding: 10px 12px;
+	font-size: 18px;
+	line-height: 1.4;
+	margin: 0 0 12px;
+}
+
+/* ========================================================================== */
+/* The editor frame                                                           */
+/* ========================================================================== */
+
+.cp-editor-shell {
+	border: 1px solid #c3c4c7;
+	border-radius: 6px;
+	overflow: hidden;
+	background: #fff;
+}
+
+/*
+ * The bar above the code.
+ *
+ * This is the single change that made the screen read as an editor rather than
+ * as a form with a big box in it: a coloured dot for the language, a filename,
+ * and a language pill. None of it is functional. All of it is why somebody
+ * looks at the screen and knows what they are looking at.
+ */
+.cp-editor-bar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 9px 14px;
+	background: #f6f7f7;
+	border-bottom: 1px solid #dcdcde;
+	font-size: 13px;
+}
+
+.cp-lang-dot {
+	width: 11px;
+	height: 11px;
+	border-radius: 50%;
+	background: #8c8f94;
+	flex: 0 0 auto;
+}
+
+/* Language colours, borrowed from the conventions people already know. */
+.cp-lang-php .cp-lang-dot { background: #8892bf; }
+.cp-lang-css .cp-lang-dot { background: #2965f1; }
+.cp-lang-js .cp-lang-dot { background: #d6ba32; }
+.cp-lang-html .cp-lang-dot { background: #e34c26; }
+
+.cp-file-name {
+	font-family: Consolas, Monaco, "Andale Mono", monospace;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.cp-lang-pill {
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	padding: 2px 8px;
+	border-radius: 10px;
+	background: #e8e9ea;
+	color: #50575e;
+}
+
+/* Pushed to the right end of the bar. */
+.cp-ask-btn {
+	margin-left: auto;
+	background: none;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 3px 12px;
+	font-size: 12px;
+	line-height: 1.8;
+	color: #2271b1;
+	cursor: pointer;
+}
+
+.cp-ask-btn:hover:not(:disabled) {
+	border-color: #2271b1;
+	background: #f0f6fc;
+}
+
+.cp-ask-btn:disabled {
+	color: #a7aaad;
+	cursor: default;
+}
+
+/*
+ * The code area itself.
+ *
+ * No border and no radius: the shell above owns those, and a second border here
+ * drew a box inside a box. The height is on .CodeMirror rather than the
+ * textarea because once the editor starts, the textarea is hidden and
+ * CodeMirror's own element is what has a size.
+ */
+.cp-editor-shell .CodeMirror {
+	height: 420px;
+	border: 0;
+	border-radius: 0;
+}
+
+.cp-editor-shell textarea.cp-code {
+	display: block;
+	width: 100%;
+	min-height: 420px;
+	border: 0;
+	border-radius: 0;
+	padding: 10px 12px;
+	font-family: Consolas, Monaco, "Andale Mono", monospace;
+	font-size: 13px;
+	line-height: 1.6;
+	resize: vertical;
+}
+
+#cp-editor-warning .notice {
+	margin: 0;
+	border-radius: 0;
+}
+
+.cp-hint {
+	margin: 6px 2px 14px;
+	min-height: 1em;
+	color: #646970;
+	font-size: 12px;
+}
+
+.cp-hint.cp-hint-warn {
+	color: #8c5e00;
+}
+
+/* ========================================================================== */
+/* Fields in the main column                                                  */
+/* ========================================================================== */
+
+.cp-field-label {
+	display: block;
+	margin: 16px 0 5px;
+	font-weight: 600;
+}
+
+.cp-ask-hint {
+	margin: 10px 0;
+	color: #646970;
+	font-size: 12px;
+}
+
+.cp-ask-hint code {
+	font-size: 12px;
+	background: #f0f0f1;
+	padding: 1px 6px;
+	border-radius: 3px;
+}
+
+/* ========================================================================== */
+/* Sidebar panels                                                             */
+/* ========================================================================== */
+
+.cp-panel {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 6px;
+	padding: 14px 16px 16px;
+}
+
+.cp-panel h3 {
+	margin: 0 0 12px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: #646970;
+}
+
+.cp-panel .cp-field-label:first-of-type {
+	margin-top: 0;
+}
+
+.cp-panel select.widefat,
+.cp-panel input.widefat {
+	max-width: 100%;
+}
+
+.cp-microcopy {
+	margin: 8px 0 0;
+	color: #646970;
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+.cp-status-line {
+	margin: 0 0 12px;
+	font-size: 13px;
+}
+
+.cp-status {
+	display: inline-block;
+	margin-left: 4px;
+	padding: 2px 9px;
+	border-radius: 10px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.cp-status-on {
+	background: #edfaef;
+	color: #00713b;
+}
+
+.cp-status-off {
+	background: #f0f0f1;
+	color: #646970;
+}
+
+.cp-status-error {
+	background: #fcf0f1;
+	color: #b32d2e;
+}
+
+.cp-save-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/* ========================================================================== */
+/* Revisions                                                                  */
+/* ========================================================================== */
+
+.cp-revisions {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.cp-revisions li {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	grid-template-areas:
+		"note button"
+		"meta button";
+	align-items: center;
+	gap: 0 10px;
+	padding: 8px 0;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.cp-revisions li:last-child {
+	border-bottom: 0;
+	padding-bottom: 0;
+}
+
+.cp-rev-note {
+	grid-area: note;
+	font-size: 13px;
+	color: #1d2327;
+	overflow-wrap: anywhere;
+}
+
+.cp-rev-meta {
+	grid-area: meta;
+	font-size: 11px;
+	color: #646970;
+}
+
+.cp-rev-restore {
+	grid-area: button;
+}
+
+.cp-restore-form {
+	margin: 0;
+}
+
+/* ========================================================================== */
+/* The AI report                                                              */
+/* ========================================================================== */
+
+.cp-review {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 6px;
+	padding: 14px 18px;
+	margin: 0 0 14px;
+}
+
+.cp-review > :first-child {
+	margin-top: 0;
+}
+
+.cp-review > :last-child {
+	margin-bottom: 0;
+}
+
+.cp-review-aside {
+	color: #646970;
+}
+
+.cp-review-aside::before {
+	content: "— ";
+}
+
+.cp-review-risks-head {
+	margin-bottom: 4px;
+}
+
+.cp-review-risks {
+	margin: 0 0 8px 18px;
+	list-style: disc;
+}
+
+.cp-verdict-safe { color: #00713b; }
+.cp-verdict-caution { color: #8c5e00; }
+.cp-verdict-unsafe { color: #b32d2e; }
+
+/* ========================================================================== */
+/* Conditional logic                                                          */
+/* ========================================================================== */
+
+.cp-conditions {
+	margin: 20px 0 0;
+	padding: 14px 16px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 6px;
+}
+
+.cp-cond-enable {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.cp-cond-body {
+	margin-top: 14px;
+	padding-top: 14px;
+	border-top: 1px solid #f0f0f1;
+}
+
+.cp-cond-relation {
+	margin: 0 0 10px;
+}
+
+.cp-cond-rules:empty::before {
+	content: attr(data-empty);
+	display: block;
+	padding: 8px 0 10px;
+	color: #646970;
+	font-size: 12px;
+}
+
+.cp-cond-rule {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	padding: 7px 0;
+}
+
+.cp-cond-rule select,
+.cp-cond-rule input[type="text"] {
+	max-width: 100%;
+}
+
+.cp-cond-rule .cp-cond-type { min-width: 140px; }
+.cp-cond-rule .cp-cond-op { min-width: 120px; }
+.cp-cond-rule .cp-cond-value { min-width: 180px; flex: 1 1 180px; }
+
+.cp-cond-remove {
+	background: none;
+	border: 0;
+	padding: 4px 6px;
+	color: #b32d2e;
+	cursor: pointer;
+	font-size: 13px;
+	line-height: 1;
+}
+
+.cp-cond-remove:hover {
+	text-decoration: underline;
+}
+
+/* ========================================================================== */
+/* The list screen                                                            */
+/* ========================================================================== */
+
+.cp-snippet-id {
+	color: #8c8f94;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The on/off switch, as a switch.
+ *
+ * It used to live inside .row-actions, which WordPress positions at
+ * left: -129987px until the row is hovered. On a touch screen there is no
+ * hover, so the control that turns a snippet on and off was unreachable —
+ * while still reporting itself as visible to any naive test, because it has
+ * real dimensions and `visibility: visible` the whole time.
+ *
+ * These rules were inline in class-studio-list.php until 1.2.0. They moved here
+ * so the two Studio screens share one stylesheet rather than shipping two
+ * inline blocks that style the same product.
+ */
+.cp-toggle-form {
+	margin: 0;
+}
+
+.cp-switch {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	background: none;
+	border: 0;
+	padding: 2px 0;
+	cursor: pointer;
+	font-size: 13px;
+}
+
+.cp-switch-track {
+	position: relative;
+	width: 30px;
+	height: 16px;
+	border-radius: 8px;
+	background: #c3c4c7;
+	transition: background 0.12s ease;
+	flex: none;
+}
+
+.cp-switch-knob {
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	background: #fff;
+	transition: left 0.12s ease;
+}
+
+.cp-switch-on .cp-switch-track {
+	background: #00794b;
+}
+
+.cp-switch-on .cp-switch-knob {
+	left: 16px;
+}
+
+.cp-switch-label {
+	color: #50575e;
+}
+
+.cp-switch-on .cp-switch-label {
+	color: #00794b;
+	font-weight: 600;
+}
+
+.cp-switch:hover .cp-switch-track {
+	background: #8c8f94;
+}
+
+.cp-switch-on:hover .cp-switch-track {
+	background: #00603b;
+}
+
+.cp-switch:focus-visible {
+	outline: 2px solid #2271b1;
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
+/* A snippet whose rules mean it does not run everywhere says so in the list. */
+.cp-cond-badge {
+	display: inline-block;
+	margin-top: 3px;
+	padding: 1px 7px;
+	border-radius: 9px;
+	background: #f0f6fc;
+	border: 1px solid #c5d9ed;
+	color: #2271b1;
+	font-size: 11px;
+	white-space: nowrap;
+}
+
+/*
+ * The type pill in the list.
+ *
+ * Same shape and same dot colour as the editor toolbar, so a snippet looks
+ * like the same snippet on both screens. .cp-lang-* above already carries the
+ * dot colours; this only supplies the pill around it.
+ */
+.cp-type-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 9px 2px 7px;
+	border-radius: 10px;
+	background: #f0f0f1;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	color: #50575e;
+	white-space: nowrap;
+}
+
+.cp-type-pill .cp-lang-dot {
+	width: 8px;
+	height: 8px;
+}

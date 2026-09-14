@@ -472,6 +472,125 @@ function wp_nonce_field($action = '') { echo '<input type="hidden" name="_wpnonc
 function wp_parse_url($url, $component = -1) { return parse_url($url, $component); }
 function wp_timezone_string() { return 'UTC'; }
 function wp_next_scheduled($hook) { return time() + 3600; }
+
+/* ---- a fake request, for the snippet conditions engine ---------------------
+ *
+ * Conditional tags are the only way to ask "what page is this?", and they read
+ * global query state that does not exist outside WordPress. So the whole of it
+ * is one array, $GLOBALS['cp_test_request'], and cp_test_request() sets it.
+ *
+ * Everything defaults to false / empty, which is a 404-ish request nobody is
+ * logged in to. A test then names only what it cares about, and a rule that
+ * accidentally depends on something else fails loudly instead of passing
+ * because the fixture happened to be true.
+ */
+function cp_test_request(array $state = []): void
+{
+    $GLOBALS['cp_test_request'] = $state + [
+        'logged_in'  => false,
+        'roles'      => [],
+        'mobile'     => false,
+        'singular'   => false,
+        'front_page' => false,
+        'home'       => false,
+        'single'     => false,
+        'page'       => false,
+        'archive'    => false,
+        'search'     => false,
+        'is_404'     => false,
+        'post_type'  => '',
+        'object_id'  => 0,
+        'uri'        => '/',
+    ];
+    $_SERVER['REQUEST_URI'] = $GLOBALS['cp_test_request']['uri'];
+}
+
+function cp_test_req(string $key)
+{
+    if (!isset($GLOBALS['cp_test_request'])) {
+        cp_test_request();
+    }
+    return $GLOBALS['cp_test_request'][$key] ?? null;
+}
+
+function is_user_logged_in() { return (bool) cp_test_req('logged_in'); }
+function wp_get_current_user() { return (object) ['roles' => (array) cp_test_req('roles')]; }
+function wp_is_mobile() { return (bool) cp_test_req('mobile'); }
+function is_singular($t = '') { return (bool) cp_test_req('singular'); }
+function is_front_page() { return (bool) cp_test_req('front_page'); }
+function is_home() { return (bool) cp_test_req('home'); }
+function is_single($p = '') { return (bool) cp_test_req('single'); }
+function is_page($p = '') { return (bool) cp_test_req('page'); }
+function is_archive() { return (bool) cp_test_req('archive'); }
+function is_search() { return (bool) cp_test_req('search'); }
+function is_404() { return (bool) cp_test_req('is_404'); }
+function get_queried_object_id() { return (int) cp_test_req('object_id'); }
+/**
+ * Two callers, one stub.
+ *
+ * test-undo-and-events.php keeps a table of fake posts in $GLOBALS['cp_posts']
+ * and asks for a specific post's type by id. The conditions engine asks about
+ * the CURRENT request and passes the queried object id. Both go through
+ * get_post_type(), so a second copy in a test file is a fatal redeclare — which
+ * is exactly what happened when this one was added.
+ *
+ * A real post wins, because naming an id is the more specific question.
+ */
+function get_post_type($post = null)
+{
+    $id = is_object($post) ? (int) ($post->ID ?? 0) : (int) $post;
+    if ($id && isset($GLOBALS['cp_posts'][$id])) {
+        return $GLOBALS['cp_posts'][$id]->post_type;
+    }
+    if (!empty($GLOBALS['cp_posts']) && $id) {
+        return false; // the undo test's world: an id it does not know is not a post
+    }
+    return cp_test_req('post_type') ?: false;
+}
+
+function wp_roles()
+{
+    return new class {
+        /** @return array<string, string> */
+        public function get_names(): array
+        {
+            return ['administrator' => 'Administrator', 'editor' => 'Editor', 'subscriber' => 'Subscriber'];
+        }
+    };
+}
+
+function get_post_types($args = [], $output = 'names')
+{
+    $types = [
+        'post' => (object) ['name' => 'post', 'labels' => (object) ['singular_name' => 'Post']],
+        'page' => (object) ['name' => 'page', 'labels' => (object) ['singular_name' => 'Page']],
+    ];
+    return $output === 'objects' ? $types : array_keys($types);
+}
+
+/*
+ * Cron, as an in-memory array.
+ *
+ * Only uninstall.php reads it, to unschedule this plugin's own jobs before the
+ * plugin files go away. $GLOBALS['cp_test_cron'] is the whole store, shaped the
+ * way WordPress shapes it: timestamp => hook => signature => event.
+ */
+function _get_cron_array() { return $GLOBALS['cp_test_cron'] ?? []; }
+function wp_unschedule_event($timestamp, $hook, $args = [])
+{
+    foreach (($GLOBALS['cp_test_cron'][$timestamp][$hook] ?? []) as $sig => $_) {
+        unset($GLOBALS['cp_test_cron'][$timestamp][$hook][$sig]);
+    }
+    if (empty($GLOBALS['cp_test_cron'][$timestamp][$hook])) {
+        unset($GLOBALS['cp_test_cron'][$timestamp][$hook]);
+    }
+    return true;
+}
+function delete_site_option($name)
+{
+    unset($GLOBALS['cp_test_site_options'][$name]);
+    return true;
+}
 function human_time_diff($from, $to = 0) { return '1 hour'; }
 function get_current_screen() { return null; }
 function get_permalink($id = 0) { return 'https://example.test/?p=' . (int) $id; }
@@ -724,6 +843,7 @@ require_once CLAUDPRESS_DIR . 'includes/class-rest.php';
 require_once CLAUDPRESS_DIR . 'includes/class-tasks.php';
 require_once CLAUDPRESS_DIR . 'includes/class-migration.php';
 require_once CLAUDPRESS_DIR . 'includes/class-health.php';
+require_once CLAUDPRESS_DIR . 'includes/class-snippet-conditions.php';
 require_once CLAUDPRESS_DIR . 'includes/class-snippets.php';
 require_once CLAUDPRESS_DIR . 'includes/class-skills.php';
 require_once CLAUDPRESS_DIR . 'includes/class-skills-remote.php';

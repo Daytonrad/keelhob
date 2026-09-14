@@ -12,7 +12,99 @@ public. When the two disagree, this file is correct.
 
 ## [1.2.0] - unreleased
 
+### Added
+
+- **The Snippets editor is an editor now.** `includes/class-studio-edit.php`,
+  `assets/css/studio.css`, `assets/js/studio-edit.js`.
+
+  It was one column: a name field, a bare `<textarea>`, five settings collapsed
+  behind a `<details>`, then the buttons, then the history table right at the
+  bottom. Every piece worked. It still read as "a form with a big box in it",
+  and the feedback that prompted this rebuild was a user reporting two features
+  as MISSING that had shipped months earlier — because they were below the fold.
+
+  Now two columns. The code takes the whole left side inside a proper editor
+  frame: a language dot in the language's own colour, a `snippet.php` filename,
+  a `PHP` pill, and the "Ask AI" button in the toolbar where it belongs. All
+  three follow the type dropdown live. Everything that is a *setting* rather
+  than the work moved to a 320px right-hand rail, in labelled panels that are
+  always open — nothing that is switched on is hidden behind a disclosure
+  triangle any more.
+
+- **Revisions are visible.** They existed since 1.9.0 and were rendered after
+  the submit buttons at the bottom of a long page, which is why they were
+  reported as a missing feature. They are now a panel in the rail, next to
+  everything else about the snippet, with the Restore button on each row.
+
+  Restore is driven by a single form outside the editor form (forms cannot
+  nest), reached with the HTML5 `form` attribute; each button carries its own
+  revision id as its own submitted value.
+
+- **Smart conditional logic, with a UI.**
+  `includes/class-snippet-conditions.php` (new).
+
+  The old engine was twenty-five lines inside `class-snippets.php`: four rule
+  kinds, implicit AND, and **no screen at all** — only an agent could set a
+  condition, through `snippet_save`. A person could not.
+
+  The new engine has seven rule kinds (user status, user role, page type, post
+  type, post ID, URL path, device), `is` / `is not`, `contains` / `equals` /
+  `starts with` for paths, and an explicit ALL/ANY relation. The editor has a
+  repeatable rule builder, and the list screen shows a badge summarising the
+  rules — because a snippet whose location says "everywhere" but which only runs
+  for logged-out mobile visitors was being described falsely by the one screen
+  whose job is to say what is running.
+
+  **There is no migration, on purpose.** Conditions written before 1.2.0 are
+  lifted into the new shape every time they are read, so nothing in the database
+  is rewritten, no upgrade step can half-run, and a site that rolls back still
+  works. `snippet_save` also still accepts the old flat shape.
+
+  One subtlety is pinned by tests: the old `post_types` and `post_ids` checks
+  were wrapped in `is_singular()`, so on an archive they did not *fail*, they
+  did not *apply*. Read as ordinary rules they would newly fail there, and a
+  header snippet that had always shown on category pages would vanish on update
+  for a site whose owner changed nothing. Lifted rules carry `only_singular` and
+  behave exactly as they did; rules built in the new UI do not.
+
+- **The list screen wears the same language pill as the editor**, dot and all,
+  instead of a grey `<code>php</code>` that looked like a different product.
+
 ### Fixed
+
+- **Deleting a snippet left its revisions behind, for ever.**
+  `includes/class-snippets.php`.
+
+  `delete()` removed the snippet row and nothing else. Every edit records a
+  revision, so a snippet edited twenty times and deleted left twenty rows keyed
+  to an id nothing would ever look up again: unreachable from any screen or
+  tool, growing without limit, and **each one holding a full copy of the code**.
+
+  That last part is why this is not merely untidy. Somebody who deletes a
+  snippet because it contained a key, a password or a customer's data has been
+  told the snippet is gone. It was not.
+
+  Found by a teardown step that deleted a test snippet and counted what
+  remained: `snippets left: 0, revisions left: 7`.
+
+- **Uninstall did not delete everything it promised to.** `uninstall.php`.
+
+  Two hand-written lists, and they had drifted. By 1.2.0 the plugin created TEN
+  tables and the list named six, so `claudpress_snippet_revisions`,
+  `claudpress_chat`, `claudpress_agent_runs` and `claudpress_feedback` survived
+  a delete the owner had explicitly ticked "delete all data" for — the revisions
+  table still holding every version of every snippet. Nine options, every
+  transient, the user meta and the cron jobs were in the same position.
+
+  Replaced with a prefix sweep, which cannot drift because nothing has to be
+  remembered: every table, option, transient and meta key this plugin writes is
+  prefixed, and a new feature that follows that convention is now cleaned up on
+  the day it is written. Every pattern is anchored and escaped, and the table
+  sweep is fenced to this site's own `$wpdb->prefix`.
+
+- **The second Studio tab said "Add Snippet" while editing.** Opening an
+  existing snippet gave a highlighted tab reading "Add Snippet" directly above a
+  heading reading "Edit Snippet" — two labels for one screen, disagreeing.
 
 - **1.0.3 is labelled honestly.** It carried a date, which reads as "released on
   this day", and it never was — there is no 1.0.3 tag and no 1.0.3 release. It

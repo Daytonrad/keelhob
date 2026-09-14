@@ -49,3 +49,36 @@ CP_Test::ok(
     'the snapshot is taken BEFORE the write'
 );
 CP_Test::contains('Claudpress_Snippet_Log::actor()', $src, 'and it records whether a human or the agent made the change');
+
+CP_Test::group('Snippets — deleting a snippet takes its revisions with it');
+
+/*
+ * Every edit writes a revision, and delete() used to remove only the snippet
+ * row. A snippet edited twenty times and then deleted left twenty rows keyed to
+ * an id nothing would ever look up again: unreachable through any screen or
+ * tool, growing without limit, and each one holding a FULL COPY OF THE CODE.
+ *
+ * That last part is why this is not merely untidy. Somebody who deletes a
+ * snippet because it contained a key, a password or a customer's data has been
+ * told the snippet is gone. It was not.
+ *
+ * Found by a teardown step that deleted a test snippet and counted what
+ * remained: "snippets left: 0, revisions left: 7".
+ *
+ * Asserted against the source rather than a live database, in keeping with the
+ * rest of this file — the suite has no MySQL, and the ordering (inside the
+ * `$deleted && $snip` branch, so a delete that hit nothing wipes nothing) is
+ * the part worth pinning.
+ */
+$delete_body = substr($src, strpos($src, 'public static function delete(int $id)'));
+$delete_body = substr($delete_body, 0, strpos($delete_body, 'const EMITTING_LOCATIONS'));
+
+CP_Test::contains(
+    "\$wpdb->delete(self::revisions_table(), ['snippet_id' => \$id]);",
+    $delete_body,
+    'delete() clears the revisions for that snippet'
+);
+CP_Test::ok(
+    strpos($delete_body, 'if ($deleted && $snip) {') < strpos($delete_body, 'self::revisions_table()'),
+    '...and only when a row was actually deleted, so a miss cannot wipe another snippet\'s history'
+);

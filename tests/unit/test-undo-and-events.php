@@ -35,10 +35,12 @@ function get_post($id = null, $output = null)
     return $GLOBALS['cp_posts'][(int) $id] ?? null;
 }
 
-function get_post_type($id = null)
-{
-    return isset($GLOBALS['cp_posts'][(int) $id]) ? $GLOBALS['cp_posts'][(int) $id]->post_type : false;
-}
+/*
+ * get_post_type() used to be declared here. It now lives in tests/bootstrap.php,
+ * because the snippet-conditions engine needs one too and a second declaration
+ * is a fatal redeclare, not a shadow. The shared version still reads
+ * $GLOBALS['cp_posts'] first, so this file's behaviour is unchanged.
+ */
 
 function wp_update_post($data = [], $wp_error = false)
 {

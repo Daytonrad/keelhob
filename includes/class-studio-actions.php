@@ -113,6 +113,17 @@ final class Claudpress_Studio_Actions
             // save() and the crash guard at runtime.
             'code'         => wp_unslash($_POST['code'] ?? ''),
             'active'       => $activate ? 1 : 0,
+            /*
+             * Always sent, even when empty, and that is deliberate.
+             *
+             * Claudpress_Snippets::save() only writes conditions when the key is
+             * PRESENT, so that `snippet_save({id, tags})` from an agent cannot
+             * silently wipe rules it never mentioned. This form is the opposite
+             * case: it always shows the whole rule builder, so whatever it
+             * submits IS the complete intent — including "I unticked everything
+             * and there are no rules now", which must actually clear them.
+             */
+            'conditions'   => Claudpress_Snippet_Conditions::from_form(wp_unslash($_POST)),
         ]);
 
         $id = (int) ($result['id'] ?? $id);

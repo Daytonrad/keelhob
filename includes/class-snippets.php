@@ -567,32 +567,19 @@ final class Claudpress_Snippets
 
     // ---- conditions -------------------------------------------------------
 
+    /**
+     * The rules engine moved to Claudpress_Snippet_Conditions in 1.2.0, when it
+     * grew AND/OR, user roles, devices, URL paths and a builder UI. It stays
+     * reachable from here because every execution path already calls it by this
+     * name, and a rename would have touched six call sites to say the same thing.
+     *
+     * The old flat shape this method used to read is still understood — see the
+     * header of class-snippet-conditions.php. Nothing in the database was
+     * rewritten.
+     */
     private static function conditions_pass(object $snip): bool
     {
-        if (empty($snip->conditions_json)) {
-            return true;
-        }
-        $cond = json_decode($snip->conditions_json, true);
-        if (!is_array($cond) || empty($cond)) {
-            return true;
-        }
-        if (isset($cond['logged_in']) && (bool) $cond['logged_in'] !== is_user_logged_in()) {
-            return false;
-        }
-        if (!empty($cond['post_types']) && is_singular()) {
-            if (!in_array(get_post_type(), (array) $cond['post_types'], true)) {
-                return false;
-            }
-        }
-        if (!empty($cond['post_ids']) && is_singular()) {
-            if (!in_array(get_queried_object_id(), array_map('intval', (array) $cond['post_ids']), true)) {
-                return false;
-            }
-        }
-        if (isset($cond['front_page']) && (bool) $cond['front_page'] !== is_front_page()) {
-            return false;
-        }
-        return true;
+        return Claudpress_Snippet_Conditions::passes($snip->conditions_json ?? null);
     }
 
     // ---- CRUD -------------------------------------------------------------
@@ -929,6 +916,21 @@ final class Claudpress_Snippets
         $snip    = self::get($id);
         $deleted = $wpdb->delete(self::table(), ['id' => $id]);
         if ($deleted && $snip) {
+            /*
+             * The revisions go with it.
+             *
+             * They never used to. Every edit records one, so a snippet edited
+             * twenty times and then deleted left twenty rows behind, keyed to an
+             * id nothing will ever look up again. Nothing reads them, nothing
+             * can reach them, and they hold a FULL COPY OF THE CODE — so a
+             * snippet deleted because it contained something it should not have
+             * was not actually gone.
+             *
+             * Found by a teardown step that deleted a test snippet and then
+             * counted what was left: "snippets left: 0, revisions left: 7".
+             */
+            $wpdb->delete(self::revisions_table(), ['snippet_id' => $id]);
+
             Claudpress_Snippet_Log::record((string) ($snip['uid'] ?? ''), (string) ($snip['name'] ?? ''), 'deleted');
         }
         return ['success' => (bool) $deleted, 'id' => $id];

@@ -9,6 +9,29 @@
  *
  * Ask AI is advisory and gates nothing. See the two-verdict block below; that
  * distinction is the most important thing on the page.
+ *
+ * ---------------------------------------------------------------------------
+ * THE LAYOUT, AND WHY IT CHANGED AGAIN IN 1.2.0
+ *
+ * Before this, everything was one column: name, a bare textarea, a collapsed
+ * <details> holding five settings, then the buttons, then the history table
+ * right at the bottom. Every one of those pieces existed and worked. The
+ * screen still read as "a form with a big box in it" rather than as an editor,
+ * and two real features were effectively invisible:
+ *
+ *   - Revisions were rendered, but below the fold, after the submit buttons, on
+ *     a screen most people never scrolled. Somebody asked for revisions to be
+ *     ADDED to a plugin that already had them.
+ *   - Conditions had an engine and no UI at all, so only an agent could set
+ *     them.
+ *
+ * So: two columns. The code, which is what you came for, gets the whole left
+ * side with a proper editor frame around it — a coloured language dot, a
+ * filename, a language pill. Everything that is a SETTING rather than the work
+ * moves to a narrow right-hand rail, in labelled panels, always open. Nothing
+ * that is switched on is ever hidden behind a disclosure triangle.
+ *
+ * The revisions panel and the conditions builder are both first-class here.
  */
 
 if (!defined('ABSPATH')) {
@@ -17,6 +40,9 @@ if (!defined('ABSPATH')) {
 
 final class Claudpress_Studio_Edit
 {
+    /** File extension per snippet type, for the editor's filename chip. */
+    private const EXT = ['php' => 'php', 'css' => 'css', 'js' => 'js', 'html' => 'html'];
+
     public static function render(): void
     {
         $id      = isset($_GET['snippet']) ? (int) $_GET['snippet'] : 0;
@@ -27,6 +53,7 @@ final class Claudpress_Studio_Edit
             'name' => '', 'description' => '', 'code' => '', 'snippet_type' => 'php',
             'location' => 'everywhere', 'priority' => 10, 'tags' => '', 'active' => 0,
             'source' => 'manual', 'last_error' => '', 'ai_review' => '', 'ai_review_at' => null,
+            'conditions_json' => null,
         ];
         $s = array_merge($defaults, $snippet ?: []);
 
@@ -41,14 +68,14 @@ final class Claudpress_Studio_Edit
             }
         }
 
-        self::enqueue((string) $s['snippet_type']);
+        $type = (string) $s['snippet_type'];
+        $cond = Claudpress_Snippet_Conditions::normalize($s['conditions_json']);
 
-        $has_details = trim((string) $s['description']) !== ''
-            || (string) $s['location'] !== 'everywhere'
-            || (int) $s['priority'] !== 10
-            || trim((string) $s['tags']) !== '';
+        self::enqueue($type, $cond);
         ?>
-        <h2><?php echo $is_new ? esc_html__('Add Snippet', 'claudpress') : esc_html__('Edit Snippet', 'claudpress'); ?></h2>
+        <h2 class="cp-edit-title">
+            <?php echo $is_new ? esc_html__('Add Snippet', 'claudpress') : esc_html__('Edit Snippet', 'claudpress'); ?>
+        </h2>
 
         <?php self::error_notice((string) $s['last_error']); ?>
 
@@ -59,161 +86,315 @@ final class Claudpress_Studio_Edit
             <input type="hidden" name="snippet_id" value="<?php echo esc_attr((string) $id); ?>">
             <input type="hidden" name="source" value="<?php echo esc_attr((string) $s['source']); ?>">
 
-            <?php
-            /*
-             * THE CODE COMES FIRST, and this is the whole reason the layout was
-             * changed.
-             *
-             * The old screen put six form-table rows above the editor: Name,
-             * Description, Type, Runs where, Priority, Tags. Measured on a
-             * 1536x674 laptop, that pushed the code box to 736px down the page,
-             * so opening a snippet to look at its code showed six fields and no
-             * code, every single time.
-             *
-             * Of those six, exactly one is required. The other five are set once
-             * and almost never revisited, so they sit below the code now, in a
-             * <details> that opens itself when any of them is actually in use.
-             * An existing snippet must never hide a setting that is doing
-             * something.
-             */
-            ?>
-            <div class="cp-edit-head">
-                <p class="cp-edit-field cp-edit-name">
-                    <label for="cp-name"><?php esc_html_e('Name', 'claudpress'); ?></label>
-                    <input name="name" id="cp-name" type="text" class="regular-text" required
-                           value="<?php echo esc_attr((string) $s['name']); ?>"
-                           placeholder="<?php esc_attr_e('What this snippet does, in a few words', 'claudpress'); ?>">
-                </p>
-                <p class="cp-edit-field">
-                    <label for="cp-type"><?php esc_html_e('Type', 'claudpress'); ?></label>
-                    <select name="snippet_type" id="cp-type">
-                        <?php foreach (['php' => 'PHP', 'css' => 'CSS', 'js' => 'JavaScript', 'html' => 'HTML'] as $v => $l) : ?>
-                            <option value="<?php echo esc_attr($v); ?>" <?php selected($s['snippet_type'], $v); ?>><?php echo esc_html($l); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </p>
-                <p class="cp-edit-field cp-edit-state">
-                    <?php if ((int) $s['active'] === 1) : ?>
-                        <span class="cp-state cp-state-on"><?php esc_html_e('Switched on', 'claudpress'); ?></span>
-                    <?php else : ?>
-                        <span class="cp-state cp-state-off"><?php esc_html_e('Switched off', 'claudpress'); ?></span>
-                    <?php endif; ?>
-                </p>
-            </div>
-
-            <?php
-            /*
-             * "You can also just ask."
-             *
-             * Carried over from the second Snippets screen that was deleted in
-             * 1.2.0 - the one genuinely good idea it had that this screen did
-             * not. It says out loud that the page and the agent are the same
-             * system, which is the thing people take longest to work out about
-             * this plugin.
-             *
-             * Only for a saved snippet. On a new one there is no number yet,
-             * and an id of 0 would be a worse hint than none.
-             */
-            ?>
-            <?php if ($id > 0) : ?>
-                <p class="cp-ask-hint">
+            <div class="cp-grid">
+                <div class="cp-main">
                     <?php
-                    printf(
-                        /* translators: %s: the phrase to say to the agent, already quoted. */
-                        esc_html__('You can also just ask your agent: %s', 'claudpress'),
-                        '<code>' . esc_html(sprintf(
-                            /* translators: %d: snippet ID. */
-                            __('tell me about snippet %d', 'claudpress'),
-                            $id
-                        )) . '</code>'
-                    );
+                    /*
+                     * `required`, so the browser stops the submit and points at
+                     * this box. Without it an untitled row lands in the list and
+                     * is then genuinely hard to find again.
+                     */
                     ?>
-                </p>
-            <?php endif; ?>
+                    <label class="screen-reader-text" for="cp-name"><?php esc_html_e('Snippet name', 'claudpress'); ?></label>
+                    <input name="name" id="cp-name" type="text" class="cp-title-input" required
+                           value="<?php echo esc_attr((string) $s['name']); ?>"
+                           placeholder="<?php esc_attr_e('Snippet name — required', 'claudpress'); ?>">
 
-            <div id="cp-editor-warning" hidden></div>
+                    <div class="cp-editor-shell">
+                        <div class="cp-editor-bar cp-lang-<?php echo esc_attr($type); ?>" id="cp-editor-bar">
+                            <span class="cp-lang-dot" aria-hidden="true"></span>
+                            <span class="cp-file-name" id="cp-file-name">snippet.<?php echo esc_html(self::EXT[$type] ?? 'txt'); ?></span>
+                            <span class="cp-lang-pill" id="cp-lang-pill"><?php echo esc_html(strtoupper($type)); ?></span>
+                            <button type="button" class="cp-ask-btn" id="cp-ask-ai">
+                                <?php esc_html_e('Ask AI what this does', 'claudpress'); ?>
+                            </button>
+                        </div>
 
-            <label class="screen-reader-text" for="cp-code"><?php esc_html_e('Code', 'claudpress'); ?></label>
-            <textarea name="code" id="cp-code" rows="18" class="large-text code"
-                      spellcheck="false"><?php
-                /*
-                 * esc_textarea and nothing else. Do NOT add sanitize_textarea_field,
-                 * wp_kses or any other filter here: they mangle valid code (&&
-                 * becomes &amp;&amp;, angle brackets vanish) and hand the owner a
-                 * silently broken snippet. The safety net is the manage_options
-                 * check, the nonce, the parse in save(), and the runtime crash
-                 * guard - never sanitising the source.
-                 */
-                echo esc_textarea((string) $s['code']);
-            ?></textarea>
+                        <div id="cp-editor-warning" hidden></div>
 
-            <details class="cp-edit-details" <?php echo $has_details ? 'open' : ''; ?>>
-                <summary><?php esc_html_e('Details — description, where it runs, priority, tags', 'claudpress'); ?></summary>
-                <table class="form-table" role="presentation">
-                    <tr>
-                        <th scope="row"><label for="cp-desc"><?php esc_html_e('Description', 'claudpress'); ?></label></th>
-                        <td>
-                            <textarea name="description" id="cp-desc" rows="2" class="large-text"><?php echo esc_textarea((string) $s['description']); ?></textarea>
-                            <p class="description"><?php esc_html_e('Optional. Write it for whoever finds this in six months.', 'claudpress'); ?></p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><label for="cp-location"><?php esc_html_e('Runs where', 'claudpress'); ?></label></th>
-                        <td>
-                            <select name="location" id="cp-location">
-                                <?php foreach (self::locations() as $v => $l) : ?>
-                                    <option value="<?php echo esc_attr($v); ?>" <?php selected($s['location'], $v); ?>><?php echo esc_html($l); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><label for="cp-priority"><?php esc_html_e('Priority', 'claudpress'); ?></label></th>
-                        <td>
-                            <input name="priority" id="cp-priority" type="number" class="small-text" value="<?php echo esc_attr((string) $s['priority']); ?>">
-                            <p class="description"><?php esc_html_e('Lower runs first. Leave at 10 unless one snippet has to beat another.', 'claudpress'); ?></p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><label for="cp-tags"><?php esc_html_e('Tags', 'claudpress'); ?></label></th>
-                        <td><input name="tags" id="cp-tags" type="text" class="regular-text"
-                                   value="<?php echo esc_attr(implode(', ', Claudpress_Snippets::tags_array($s['tags']))); ?>"
-                                   placeholder="<?php esc_attr_e('checkout, seo', 'claudpress'); ?>"></td>
-                    </tr>
-                </table>
-            </details>
+                        <label class="screen-reader-text" for="cp-code"><?php esc_html_e('Code', 'claudpress'); ?></label>
+                        <textarea name="code" id="cp-code" rows="18" class="cp-code"
+                                  spellcheck="false"><?php
+                            /*
+                             * esc_textarea and nothing else. Do NOT add
+                             * sanitize_textarea_field, wp_kses or any other filter
+                             * here: they mangle valid code (&& becomes &amp;&amp;,
+                             * angle brackets vanish) and hand the owner a silently
+                             * broken snippet. The safety net is the manage_options
+                             * check, the nonce, the parse in save(), and the runtime
+                             * crash guard — never sanitising the source.
+                             */
+                            echo esc_textarea((string) $s['code']);
+                        ?></textarea>
+                    </div>
 
-            <div id="cp-ai-report"><?php self::review_panel($s); ?></div>
+                    <p class="cp-hint" id="cp-hint"></p>
 
-            <?php
-            /*
-             * SAVE IS THE PRIMARY BUTTON, and it used not to be.
-             *
-             * The loudest button on this screen was "Save & switch on" - the one
-             * that changes what code is running on a live site - while the
-             * common action, editing something already live, was the quiet grey
-             * one. That is backwards.
-             *
-             * "Save & switch on" is offered only while the snippet is off.
-             * Offering to switch on something already on is noise.
-             */
-            ?>
-            <p class="submit">
-                <button type="submit" name="and_activate" value="<?php echo (int) $s['active'] === 1 ? '1' : '0'; ?>"
-                        class="button button-primary"><?php esc_html_e('Save', 'claudpress'); ?></button>
-                <?php if ((int) $s['active'] !== 1) : ?>
-                    <button type="submit" name="and_activate" value="1" class="button"><?php esc_html_e('Save & switch on', 'claudpress'); ?></button>
-                <?php endif; ?>
-                <button type="button" class="button" id="cp-ask-ai"><?php esc_html_e('Ask AI what this does', 'claudpress'); ?></button>
-                <a href="<?php echo esc_url(Claudpress_Studio::url('all')); ?>" class="button-link" style="margin-left:12px;"><?php esc_html_e('Cancel', 'claudpress'); ?></a>
-            </p>
+                    <div id="cp-ai-report"><?php self::review_panel($s); ?></div>
+
+                    <?php
+                    /*
+                     * "You can also just ask."
+                     *
+                     * Carried over from the second Snippets screen that was deleted
+                     * in 1.2.0 — the one genuinely good idea it had that this screen
+                     * did not. It says out loud that the page and the agent are the
+                     * same system, which is the thing people take longest to work
+                     * out about this plugin.
+                     *
+                     * Only for a saved snippet. On a new one there is no number yet,
+                     * and an id of 0 would be a worse hint than none.
+                     */
+                    ?>
+                    <?php if ($id > 0) : ?>
+                        <p class="cp-ask-hint">
+                            <?php
+                            printf(
+                                /* translators: %s: the phrase to say to the agent, already quoted. */
+                                esc_html__('You can also just ask your agent: %s', 'claudpress'),
+                                '<code>' . esc_html(sprintf(
+                                    /* translators: %d: snippet ID. */
+                                    __('tell me about snippet %d', 'claudpress'),
+                                    $id
+                                )) . '</code>'
+                            );
+                            ?>
+                        </p>
+                    <?php endif; ?>
+
+                    <label class="cp-field-label" for="cp-desc"><?php esc_html_e('Notes', 'claudpress'); ?></label>
+                    <textarea name="description" id="cp-desc" rows="2" class="widefat"
+                              placeholder="<?php esc_attr_e('What does this snippet do? Write it for whoever finds this in six months. (optional)', 'claudpress'); ?>"><?php echo esc_textarea((string) $s['description']); ?></textarea>
+
+                    <?php self::conditions_block($cond); ?>
+                </div>
+
+                <div class="cp-side">
+                    <?php
+                    self::panel_save($s);
+                    self::panel_behaviour($s, $id);
+                    self::panel_revisions($id);
+                    ?>
+                </div>
+            </div>
         </form>
 
+        <?php
+        /*
+         * The restore form lives OUTSIDE the editor form, because forms cannot
+         * nest. Each Restore button in the sidebar points at it with the HTML5
+         * `form` attribute and carries its own revision id as the submit
+         * button's own value — which is submitted, so one form serves every row.
+         */
+        ?>
         <?php if (!$is_new) : ?>
-            <?php self::history($id); ?>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                  id="cp-restore-form" class="cp-restore-form"
+                  onsubmit="return confirm('<?php echo esc_js(__('Restore this version? The current code is saved to history first, and the snippet is switched off until you review it.', 'claudpress')); ?>');">
+                <?php wp_nonce_field(Claudpress_Studio::NONCE); ?>
+                <input type="hidden" name="action" value="claudpress_studio">
+                <input type="hidden" name="studio_action" value="restore">
+                <input type="hidden" name="snippet_id" value="<?php echo esc_attr((string) $id); ?>">
+            </form>
         <?php endif; ?>
         <?php
     }
+
+    // ---- the right-hand rail ----------------------------------------------
+
+    /**
+     * Save.
+     *
+     * SAVE IS THE PRIMARY BUTTON, and it used not to be. The loudest button on
+     * this screen was "Save & switch on" — the one that changes what code is
+     * running on a live site — while the common action, editing something
+     * already live, was the quiet grey one. That is backwards.
+     *
+     * "Save & switch on" is offered only while the snippet is off. Offering to
+     * switch on something already on is noise.
+     *
+     * @param array<string, mixed> $s
+     */
+    private static function panel_save(array $s): void
+    {
+        $active  = (int) $s['active'] === 1;
+        $errored = trim((string) $s['last_error']) !== '';
+        ?>
+        <div class="cp-panel">
+            <h3><?php esc_html_e('Save', 'claudpress'); ?></h3>
+            <p class="cp-status-line">
+                <?php esc_html_e('Status:', 'claudpress'); ?>
+                <?php if ($errored) : ?>
+                    <span class="cp-status cp-status-error"><?php esc_html_e('Errored', 'claudpress'); ?></span>
+                <?php elseif ($active) : ?>
+                    <span class="cp-status cp-status-on"><?php esc_html_e('Active', 'claudpress'); ?></span>
+                <?php else : ?>
+                    <span class="cp-status cp-status-off"><?php esc_html_e('Inactive', 'claudpress'); ?></span>
+                <?php endif; ?>
+            </p>
+
+            <div class="cp-save-buttons">
+                <button type="submit" name="and_activate" value="<?php echo $active ? '1' : '0'; ?>"
+                        class="button button-primary"><?php esc_html_e('Save', 'claudpress'); ?></button>
+                <?php if (!$active) : ?>
+                    <button type="submit" name="and_activate" value="1"
+                            class="button"><?php esc_html_e('Save & switch on', 'claudpress'); ?></button>
+                <?php endif; ?>
+            </div>
+
+            <p class="cp-microcopy">
+                <?php esc_html_e('PHP is parsed before it can go active. If a live snippet ever crashes the site, Claudpress switches it off by itself.', 'claudpress'); ?>
+            </p>
+            <p class="cp-microcopy">
+                <a href="<?php echo esc_url(Claudpress_Studio::url('all')); ?>"><?php esc_html_e('Back to all snippets', 'claudpress'); ?></a>
+            </p>
+        </div>
+        <?php
+    }
+
+    /**
+     * Behaviour: the five settings that used to be behind a disclosure triangle.
+     *
+     * @param array<string, mixed> $s
+     */
+    private static function panel_behaviour(array $s, int $id): void
+    {
+        ?>
+        <div class="cp-panel">
+            <h3><?php esc_html_e('Behaviour', 'claudpress'); ?></h3>
+
+            <label class="cp-field-label" for="cp-type"><?php esc_html_e('Type', 'claudpress'); ?></label>
+            <select name="snippet_type" id="cp-type" class="widefat">
+                <?php foreach (['php' => 'PHP', 'css' => 'CSS', 'js' => 'JavaScript', 'html' => 'HTML'] as $v => $l) : ?>
+                    <option value="<?php echo esc_attr($v); ?>" <?php selected($s['snippet_type'], $v); ?>><?php echo esc_html($l); ?></option>
+                <?php endforeach; ?>
+            </select>
+
+            <label class="cp-field-label" for="cp-location"><?php esc_html_e('Where it runs', 'claudpress'); ?></label>
+            <select name="location" id="cp-location" class="widefat">
+                <?php foreach (self::locations() as $v => $l) : ?>
+                    <option value="<?php echo esc_attr($v); ?>" <?php selected($s['location'], $v); ?>><?php echo esc_html($l); ?></option>
+                <?php endforeach; ?>
+            </select>
+
+            <label class="cp-field-label" for="cp-priority"><?php esc_html_e('Priority', 'claudpress'); ?></label>
+            <input name="priority" id="cp-priority" type="number" class="small-text"
+                   value="<?php echo esc_attr((string) $s['priority']); ?>">
+            <span class="cp-microcopy"><?php esc_html_e('Lower runs first.', 'claudpress'); ?></span>
+
+            <label class="cp-field-label" for="cp-tags"><?php esc_html_e('Tags', 'claudpress'); ?></label>
+            <input name="tags" id="cp-tags" type="text" class="widefat"
+                   value="<?php echo esc_attr(implode(', ', Claudpress_Snippets::tags_array($s['tags']))); ?>"
+                   placeholder="<?php esc_attr_e('checkout, seo', 'claudpress'); ?>">
+
+            <?php if ((string) $s['location'] === 'shortcode' && $id) : ?>
+                <p class="cp-microcopy">
+                    <?php esc_html_e('Shortcode:', 'claudpress'); ?>
+                    <code>[claudpress_snippet id="<?php echo (int) $id; ?>"]</code>
+                </p>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Revisions.
+     *
+     * This existed before 1.2.0 and was rendered below the submit buttons, at
+     * the very bottom of a long single-column page. It was reported as a missing
+     * feature by somebody using the plugin, which is as clear a verdict on where
+     * it was as anyone could give.
+     */
+    private static function panel_revisions(int $id): void
+    {
+        if ($id <= 0) {
+            return;
+        }
+        $revisions = Claudpress_Snippets::revisions($id, 10);
+        if (!$revisions) {
+            return;
+        }
+        ?>
+        <div class="cp-panel">
+            <h3><?php esc_html_e('Revisions', 'claudpress'); ?></h3>
+            <ul class="cp-revisions">
+                <?php foreach ($revisions as $rev) : ?>
+                    <li>
+                        <span class="cp-rev-note"><?php echo esc_html((string) $rev['note']); ?></span>
+                        <span class="cp-rev-meta">
+                            <?php
+                            echo esc_html((string) $rev['created_at']);
+                            echo ' · ';
+                            echo esc_html($rev['author_type'] === 'agent'
+                                ? __('the agent', 'claudpress')
+                                : self::user_name((int) $rev['user_id']));
+                            ?>
+                        </span>
+                        <button type="submit" form="cp-restore-form" name="revision_id"
+                                value="<?php echo esc_attr((string) $rev['id']); ?>"
+                                class="button button-small cp-rev-restore"><?php esc_html_e('Restore', 'claudpress'); ?></button>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+            <p class="cp-microcopy">
+                <?php esc_html_e('What this snippet looked like before each change. Recorded on every edit, by anyone — you or the agent.', 'claudpress'); ?>
+            </p>
+        </div>
+        <?php
+    }
+
+    // ---- conditions --------------------------------------------------------
+
+    /**
+     * The rule builder.
+     *
+     * The rows themselves are drawn by JavaScript from the config handed over in
+     * `cpStudioEdit.conditions`, because a row's third field depends on its
+     * first: choosing "User role" needs a dropdown of roles, "URL path" needs a
+     * text box. Rendering that server-side would mean printing every possible
+     * third field for every row and hiding all but one.
+     *
+     * What is NOT left to JavaScript is the saved state: it is serialised into
+     * the page so a reload shows exactly what is stored, and so the block can be
+     * opened already populated rather than flashing empty first.
+     *
+     * @param array{enabled: bool, relation: string, rules: array<int, array<string, mixed>>} $cond
+     */
+    private static function conditions_block(array $cond): void
+    {
+        ?>
+        <div class="cp-conditions" id="cp-conditions">
+            <label class="cp-cond-enable">
+                <input type="checkbox" name="conditions_enabled" id="cp-cond-enabled" value="1"
+                       <?php checked($cond['enabled']); ?>>
+                <span><?php esc_html_e('Smart conditional logic — only run when these rules match', 'claudpress'); ?></span>
+            </label>
+
+            <div class="cp-cond-body" id="cp-cond-body" <?php echo $cond['enabled'] ? '' : 'hidden'; ?>>
+                <p class="cp-cond-relation">
+                    <?php esc_html_e('Match', 'claudpress'); ?>
+                    <select name="conditions_relation" id="cp-cond-relation">
+                        <option value="AND" <?php selected($cond['relation'], 'AND'); ?>><?php esc_html_e('ALL', 'claudpress'); ?></option>
+                        <option value="OR" <?php selected($cond['relation'], 'OR'); ?>><?php esc_html_e('ANY', 'claudpress'); ?></option>
+                    </select>
+                    <?php esc_html_e('of the rules below:', 'claudpress'); ?>
+                </p>
+
+                <div id="cp-cond-rules" class="cp-cond-rules"></div>
+
+                <button type="button" class="button" id="cp-cond-add">
+                    + <?php esc_html_e('Add rule', 'claudpress'); ?>
+                </button>
+
+                <p class="cp-microcopy">
+                    <?php esc_html_e('A rule can only be judged once WordPress knows what page this is, so a PHP snippet with conditions runs slightly later in the request than one without.', 'claudpress'); ?>
+                </p>
+            </div>
+        </div>
+        <?php
+    }
+
+    // ---- assets ------------------------------------------------------------
 
     /**
      * Load the code editor properly.
@@ -233,8 +414,10 @@ final class Claudpress_Studio_Edit
      * highlighting off in their own profile. That is a preference, not a fault -
      * the textarea still works, the script still loads so the Ask AI button
      * keeps working, and no warning is shown.
+     *
+     * @param array{enabled: bool, relation: string, rules: array<int, array<string, mixed>>} $cond
      */
-    private static function enqueue(string $type): void
+    private static function enqueue(string $type, array $cond): void
     {
         $settings = wp_enqueue_code_editor([
             'type'       => self::mime($type),
@@ -273,6 +456,8 @@ final class Claudpress_Studio_Edit
             $deps[] = 'code-editor';
         }
 
+        Claudpress_Studio::enqueue_styles();
+
         wp_enqueue_script(
             'claudpress-studio-edit',
             CLAUDPRESS_URL . 'assets/js/studio-edit.js',
@@ -306,6 +491,12 @@ final class Claudpress_Studio_Edit
                 'js'   => 'text/javascript',
                 'html' => 'text/html',
             ],
+            'ext'     => self::EXT,
+            // Everything the rule builder draws itself from, plus what is stored.
+            'conditions' => [
+                'config' => Claudpress_Snippet_Conditions::ui_config(),
+                'rules'  => $cond['rules'],
+            ],
             'i18n'    => [
                 'askAi'               => __('Ask AI what this does', 'claudpress'),
                 'asking'              => __('Asking…', 'claudpress'),
@@ -313,43 +504,15 @@ final class Claudpress_Studio_Edit
                 'unreachable'         => __('The AI could not be reached.', 'claudpress'),
                 'unreachableSafe'     => __('The AI could not be reached. Your code is untouched.', 'claudpress'),
                 'editorFailed'        => __('The code editor could not start, so this is a plain text box. Your code is safe and saving still works, but there are no line numbers and no syntax colouring. Reload the page to try again.', 'claudpress'),
+                'remove'              => __('Remove', 'claudpress'),
+                'removeRule'          => __('Remove this rule', 'claudpress'),
+                'valuePlaceholder'    => __('value', 'claudpress'),
+                'noRules'             => __('No rules yet. The snippet runs everywhere until you add one.', 'claudpress'),
             ],
         ]);
-
-        self::styles();
     }
 
-    /**
-     * The few rules the code-first layout needs.
-     *
-     * Printed rather than shipped as a stylesheet: under thirty lines, one
-     * screen, and a separate file would be a second request and a second thing
-     * to keep in step with this template.
-     */
-    private static function styles(): void
-    {
-        wp_register_style('claudpress-studio-edit', false, [], CLAUDPRESS_VERSION);
-        wp_enqueue_style('claudpress-studio-edit');
-        wp_add_inline_style('claudpress-studio-edit', '
-            .cp-edit-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 18px; margin: 12px 0 10px; }
-            .cp-edit-field { margin: 0; display: flex; flex-direction: column; gap: 4px; }
-            .cp-edit-field label { font-weight: 600; }
-            .cp-edit-name { flex: 1 1 320px; }
-            .cp-edit-name input { width: 100%; }
-            .cp-edit-state { align-self: flex-end; padding-bottom: 4px; }
-            .cp-state { font-weight: 600; }
-            .cp-state-on { color: #00794b; }
-            .cp-state-off { color: #777; }
-            .cp-ask-hint { margin: 0 0 10px; color: #646970; font-size: 12px; }
-            .cp-ask-hint code { font-size: 12px; background: #f0f0f1; padding: 1px 6px; border-radius: 3px; }
-            .cp-edit-details { margin: 14px 0; border: 1px solid #dcdcde; border-radius: 4px; background: #fff; }
-            .cp-edit-details > summary { cursor: pointer; padding: 10px 14px; font-weight: 600; }
-            .cp-edit-details[open] > summary { border-bottom: 1px solid #dcdcde; }
-            .cp-edit-details .form-table { margin: 0 14px 8px; }
-            #cp-code, .CodeMirror { border: 1px solid #8c8f94; border-radius: 4px; }
-            .CodeMirror { height: 340px; }
-        ');
-    }
+    // ---- the rest ----------------------------------------------------------
 
     private static function error_notice(string $error): void
     {
@@ -377,6 +540,8 @@ final class Claudpress_Studio_Edit
      * and a dishonest one: it would let a confident model talk someone into
      * switching on code the parser rejected, or scare them away from code that
      * is fine.
+     *
+     * @param array<string, mixed> $s
      */
     public static function review_panel(array $s): void
     {
@@ -385,27 +550,27 @@ final class Claudpress_Studio_Edit
             return;
         }
         $verdicts = [
-            'safe'    => ['#00794b', __('safe', 'claudpress')],
-            'caution' => ['#8c5e00', __('caution', 'claudpress')],
-            'unsafe'  => ['#d63638', __('unsafe', 'claudpress')],
+            'safe'    => ['cp-verdict-safe', __('safe', 'claudpress')],
+            'caution' => ['cp-verdict-caution', __('caution', 'claudpress')],
+            'unsafe'  => ['cp-verdict-unsafe', __('unsafe', 'claudpress')],
         ];
         $v = (string) ($review['verdict'] ?? 'caution');
-        [$colour, $label] = $verdicts[$v] ?? $verdicts['caution'];
+        [$class, $label] = $verdicts[$v] ?? $verdicts['caution'];
         ?>
-        <div class="card" style="max-width:none;padding:14px 18px;">
-            <p style="margin-top:0;">
+        <div class="cp-review">
+            <p class="cp-review-line">
                 <strong><?php esc_html_e('Syntax check', 'claudpress'); ?>:</strong>
                 <?php if (trim((string) ($s['last_error'] ?? '')) === '') : ?>
-                    <span style="color:#00794b;"><?php esc_html_e('passed', 'claudpress'); ?></span>
+                    <span class="cp-verdict-safe"><?php esc_html_e('passed', 'claudpress'); ?></span>
                 <?php else : ?>
-                    <span style="color:#d63638;"><?php esc_html_e('failed', 'claudpress'); ?></span>
+                    <span class="cp-verdict-unsafe"><?php esc_html_e('failed', 'claudpress'); ?></span>
                 <?php endif; ?>
-                <span style="color:#666;">— <?php esc_html_e('a real parse. This is what decides whether the snippet may run.', 'claudpress'); ?></span>
+                <span class="cp-review-aside"><?php esc_html_e('a real parse. This is what decides whether the snippet may run.', 'claudpress'); ?></span>
             </p>
-            <p>
+            <p class="cp-review-line">
                 <strong><?php esc_html_e('AI assessment', 'claudpress'); ?>:</strong>
-                <span style="color:<?php echo esc_attr($colour); ?>;"><?php echo esc_html($label); ?></span>
-                <span style="color:#666;">— <?php esc_html_e('an opinion. It does not gate anything.', 'claudpress'); ?></span>
+                <span class="<?php echo esc_attr($class); ?>"><?php echo esc_html($label); ?></span>
+                <span class="cp-review-aside"><?php esc_html_e('an opinion. It does not gate anything.', 'claudpress'); ?></span>
             </p>
 
             <?php if (!empty($review['summary'])) : ?>
@@ -415,8 +580,8 @@ final class Claudpress_Studio_Edit
                 <p><strong><?php esc_html_e('Effect on the site', 'claudpress'); ?>:</strong> <?php echo esc_html((string) $review['site_impact']); ?></p>
             <?php endif; ?>
             <?php if (!empty($review['risks']) && is_array($review['risks'])) : ?>
-                <p style="margin-bottom:4px;"><strong><?php esc_html_e('Watch out for', 'claudpress'); ?>:</strong></p>
-                <ul style="margin:0 0 8px 18px;list-style:disc;">
+                <p class="cp-review-risks-head"><strong><?php esc_html_e('Watch out for', 'claudpress'); ?>:</strong></p>
+                <ul class="cp-review-risks">
                     <?php foreach ($review['risks'] as $risk) : ?>
                         <li><?php echo esc_html((string) $risk); ?></li>
                     <?php endforeach; ?>
@@ -427,7 +592,7 @@ final class Claudpress_Studio_Edit
             <?php endif; ?>
 
             <?php if (!empty($s['ai_review_at'])) : ?>
-                <p style="color:#777;font-size:12px;margin-bottom:0;">
+                <p class="cp-microcopy">
                     <?php
                     /* translators: %s: how long ago, e.g. "3 hours". */
                     echo esc_html(sprintf(__('Reviewed %s ago. If you have edited the code since, ask again.', 'claudpress'),
@@ -436,46 +601,6 @@ final class Claudpress_Studio_Edit
                 </p>
             <?php endif; ?>
         </div>
-        <?php
-    }
-
-    private static function history(int $id): void
-    {
-        $revisions = Claudpress_Snippets::revisions($id, 10);
-        if (!$revisions) {
-            return;
-        }
-        ?>
-        <h3><?php esc_html_e('History', 'claudpress'); ?></h3>
-        <p class="description"><?php esc_html_e('What this snippet looked like before each change. Recorded on every edit, by anyone.', 'claudpress'); ?></p>
-        <table class="wp-list-table widefat striped">
-            <thead><tr>
-                <th><?php esc_html_e('When', 'claudpress'); ?></th>
-                <th><?php esc_html_e('By', 'claudpress'); ?></th>
-                <th><?php esc_html_e('Note', 'claudpress'); ?></th>
-                <th style="width:110px;"></th>
-            </tr></thead>
-            <tbody>
-            <?php foreach ($revisions as $rev) : ?>
-                <tr>
-                    <td><?php echo esc_html((string) $rev['created_at']); ?></td>
-                    <td><?php echo esc_html($rev['author_type'] === 'agent' ? __('the agent', 'claudpress') : self::user_name((int) $rev['user_id'])); ?></td>
-                    <td><?php echo esc_html((string) $rev['note']); ?></td>
-                    <td>
-                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-                              onsubmit="return confirm('<?php echo esc_js(__('Restore this version? The current code is saved to history first, and the snippet is switched off until you review it.', 'claudpress')); ?>');">
-                            <?php wp_nonce_field(Claudpress_Studio::NONCE); ?>
-                            <input type="hidden" name="action" value="claudpress_studio">
-                            <input type="hidden" name="studio_action" value="restore">
-                            <input type="hidden" name="snippet_id" value="<?php echo esc_attr((string) $id); ?>">
-                            <input type="hidden" name="revision_id" value="<?php echo esc_attr((string) $rev['id']); ?>">
-                            <button class="button button-small"><?php esc_html_e('Restore', 'claudpress'); ?></button>
-                        </form>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
         <?php
     }
 
@@ -488,6 +613,7 @@ final class Claudpress_Studio_Edit
         return $user ? $user->user_login : __('a deleted user', 'claudpress');
     }
 
+    /** @return array<string, string> */
     private static function locations(): array
     {
         return [
