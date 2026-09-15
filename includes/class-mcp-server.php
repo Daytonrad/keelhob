@@ -186,6 +186,29 @@ final class Claudpress_MCP_Server
             // left", and that only holds if the draft is shown in full - a
             // forty-line prompt nobody reads is not consent either, which is
             // why the report is capped at five short lines.
+            // PRECISION AND TOKEN WASTE, in the protocol rather than in a
+            // skill, because a skill can be switched off and this applies to
+            // every task, not to building.
+            //
+            // Adapted from Andrej Karpathy's CLAUDE.md, at the owner's request,
+            // and deliberately NOT a copy of it. Half of that file is already
+            // rule 2 (smallest change) and rule 7 (name the ambiguity), and
+            // repeating them here would cost every session real tokens to say
+            // the same thing twice - which is the exact failure this rule is
+            // about. What is kept is the half nothing above covers: the SIZE of
+            // the code, and the SIZE of the context spent producing it.
+            '16. Be precise. Do not waste tokens or lines. This applies to every task, not only building.',
+            '',
+            '16a. Think first. Name the assumption you are working from. If two readings give different code, say both and take the smaller. If a simpler approach exists than the one asked for, say so before building the complicated one. If something is genuinely unclear, stop and name it - a question costs less than a rewrite.',
+            '',
+            '16b. Write the minimum that solves it. No feature beyond what was asked, no abstraction for something used once, no options nobody requested, no handling for cases that cannot happen. If you wrote 200 lines and 50 would do, rewrite it. This bites hardest on snippets: they run on every page load for real visitors, so a line you did not need is a line that can break a live site.',
+            '',
+            '16c. Clean up only your own mess. Match the style already in the file. Remove what YOUR change orphaned; mention pre-existing dead code rather than deleting it. Every changed line should trace to what was asked.',
+            '',
+            '16d. Decide the check before you start. "Add validation" becomes "these inputs are rejected, and I watched them be rejected". "Fix the bug" becomes "here is the failing case, and here it is passing". Without a check you cannot tell you are finished, so you stop too early or never stop.',
+            '',
+            '16e. Spend context like money, because it is. Do not re-read what you have already read this session. Do not fetch a whole file or table for one function or one row - read the range, query the column, filter server-side. Do not paste large output back to show your work, and do not give the plan, the code, and then a summary of the code. Say it once, exactly.',
+            '',
             '15. Offer the feedback report only when the plugin says it is due, and never send it without a yes. Call feedback_status when you are writing up finished work. If it says due, show the WHOLE draft it returns - every event, nothing summarised or folded away - then ask "Send this to the Claudpress project? Or is there anything you would add or change?". If they add anything, call feedback_status again with their addition, show the new draft in full, and ask again. Only call feedback_send after an explicit yes. If they say no, call feedback_send with approved=false and do not raise it again in this session. Never send a report they have not seen word for word, never add a note describing their site or its content, and never argue with a refusal.',
         ];
 

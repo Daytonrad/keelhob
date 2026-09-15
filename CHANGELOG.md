@@ -14,6 +14,32 @@ public. When the two disagree, this file is correct.
 
 ### Added
 
+- **Operating-protocol rule 16: precision, and not wasting the owner's tokens.**
+  `includes/class-mcp-server.php`.
+
+  Adapted from Andrej Karpathy's `CLAUDE.md` at the owner's request, and
+  deliberately not a copy of it: half that file is already rule 2 (smallest
+  change) and rule 7 (name the ambiguity), and restating them would cost every
+  session tokens to say the same thing twice — which is the exact failure the
+  rule is about. What is kept is the half nothing above covered: the size of the
+  code, and the size of the context spent producing it.
+
+  `16a` think first and name the assumption · `16b` write the minimum, with
+  snippets called out as the sharpest case because they run on every page load ·
+  `16c` clean up only your own mess · `16d` decide the check before you start ·
+  `16e` spend context like money — do not re-read, do not fetch a whole file for
+  one function, do not give the plan, the code and then a summary of the code.
+
+  It is in PHP rather than in a skill for the same reason as rules 9–15: a site
+  can switch a skill off, and this applies to every task rather than to
+  building. `operating_protocol()` is the single source both pipes read, so it
+  reaches interactive MCP sessions and unattended automation runs alike —
+  asserted on both in `tests/unit/test-agent-runtime.php`, and verified over
+  real HTTP through `initialize`.
+
+  Cost, stated plainly: +1,656 bytes, about **414 tokens per session**. The
+  protocol is now ~2,500 tokens, and a test fails the build if it passes 12 KB.
+
 - **AI Compose is a conversation, not a three-step wizard.**
   New `includes/class-studio-chat.php`; rewritten `includes/class-studio-compose.php`
   and `assets/js/studio-compose.js`; chat styles appended to `assets/css/studio.css`;

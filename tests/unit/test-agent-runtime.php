@@ -114,6 +114,27 @@ CP_Test::contains('pre-launch-audit', $interactive_prompt, 'the definition-of-do
 CP_Test::contains('Never invent facts', $interactive_prompt, 'the no-invented-facts rule reaches interactive sessions');
 CP_Test::contains('build-standard', $interactive_prompt, 'the build-standard load rule reaches interactive sessions');
 
+// --- rule 16: precision, and not wasting the owner's tokens -----------------
+//
+// Added at the owner's request, adapted from Andrej Karpathy's CLAUDE.md. It
+// lives in the protocol rather than in a skill for the same reason as rules
+// 9-15: a skill can be switched off, and this one applies to EVERY task rather
+// than to building. It must therefore reach agents on both pipes, which is what
+// the three blocks below check.
+CP_Test::contains('16. Be precise', $protocol, 'the precision rule is present');
+CP_Test::contains('minimum that solves it', $protocol, 'and says to write the minimum');
+CP_Test::contains('every page load for real visitors', $protocol, 'and names snippets as the sharpest case');
+CP_Test::contains('Clean up only your own mess', $protocol, 'and forbids tidying code it was not asked to touch');
+CP_Test::contains('Decide the check before you start', $protocol, 'and demands a success criterion up front');
+CP_Test::contains('Spend context like money', $protocol, 'and treats context as a cost');
+
+CP_Test::contains('16. Be precise', $unattended_prompt, 'the precision rule reaches unattended runs');
+CP_Test::contains('16. Be precise', $interactive_prompt, 'and interactive sessions');
+
+// It is a rule about waste, so it has to be worth its own weight. Every session
+// pays for these bytes, whether or not the agent ever writes a line of code.
+CP_Test::ok(strlen($protocol) < 12000, 'the whole protocol stays under 12 KB (~3,000 tokens per session)');
+
 // A filter lets a site tighten the rules; it must not be able to vanish silently.
 add_filter('claudpress_operating_protocol', static fn($p) => $p . "\n9. House rule.");
 CP_Test::contains('House rule', Claudpress_MCP_Server::operating_protocol(), 'sites can extend the protocol via filter');
