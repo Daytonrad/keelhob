@@ -351,13 +351,24 @@ the exact model IDs to type for each one.
 * New: sortable columns - name, priority and when it last changed - and a
   Priority column, shown once any snippet is using a priority other than the
   default.
-* New: **a way out of an AI plan you do not want.** AI Compose would only ever
-  replace a plan, never clear one, so the only ways out were to plan something
-  else or reload. There is now Discard, and Plan again, both next to the plan.
-* Changed: when the AI writes code that does not parse, Save is switched off
-  until you tick a box saying you have read the error. It still saves - your work
-  is never thrown away over a typo - it just stops pretending it did not
-  say "failed".
+* New: **AI Compose is a chat.** It used to be three steps - describe, approve a
+  plan, get code - and each step forgot the one before it. So if the code came
+  back with a typo you could not say "fix that": your only choices were to save
+  broken code or start again from an empty box. And if the AI answered in
+  ordinary sentences instead of the exact shape the screen expected, you got
+  "The AI replied, but not in a form this screen could read" over a perfectly
+  good answer.
+  Now you just talk to it. It remembers the whole conversation, so you can ask
+  for changes, point out a mistake, or ask why it did something. Every piece of
+  code it sends is syntax-checked on the spot and the result is shown right
+  there - and if the check fails, the error is handed straight back to the AI to
+  fix, automatically, once. Every block of code gets its own Save button.
+  Nothing is saved until you click Save, and it still always saves switched off.
+  Leaving the tab clears the conversation; an accidental page refresh does not.
+* New: **the AI is told about your site.** Compose now sends your WordPress and
+  PHP versions, your theme, your active plugins and whether WooCommerce is
+  installed. It used to send none of that and then be judged on whether the code
+  fitted.
 * New: **you can hide the "AI abilities are ON" banner.** Per person, not per
   site, so hiding it does not hide it from a colleague. It comes back whenever
   what the AI is allowed to do changes. The toolbar still says "Claudpress: ON"

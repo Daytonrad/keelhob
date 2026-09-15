@@ -571,3 +571,258 @@
 	width: 8px;
 	height: 8px;
 }
+
+/* ---------------------------------------------------------------------------
+   AI Compose — chat
+   ---------------------------------------------------------------------------
+   The transcript scrolls; the composer does not. A page-length transcript with
+   the input box at the bottom of it means the thing you type into walks further
+   away with every message, which is the single most common way a chat screen
+   built out of ordinary page flow ends up unusable.
+   --------------------------------------------------------------------------- */
+
+.cp-chat-wrap {
+	max-width: 900px;
+}
+
+.cp-chat-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.cp-chat-head h2 {
+	margin: 0;
+}
+
+.cp-chat-clear {
+	color: #b32d2e;
+	text-decoration: none;
+}
+
+.cp-chat {
+	/*
+	 * THE NUMBER THAT WAS WRONG, AND HOW IT WAS FOUND.
+	 *
+	 * This was 58vh, which sounds conservative and is not: the transcript is
+	 * not the only thing above the composer. The admin bar, the page heading,
+	 * the tab strip and the status line all come first, so on a 674px-tall
+	 * window a full transcript pushed the message box to y=682 — eight pixels
+	 * below the fold, on the one control the screen exists for.
+	 *
+	 * Nothing but a browser could have caught that. The markup was correct, the
+	 * styles applied, and every server-side test passed.
+	 *
+	 * 380px is the measured cost of that chrome plus the composer itself, with
+	 * room to spare. min-height keeps an empty chat from collapsing to nothing.
+	 */
+	min-height: 200px;
+	max-height: calc(100vh - 380px);
+	overflow-y: auto;
+	padding: 14px;
+	margin: 12px 0 10px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+}
+
+.cp-chat-empty {
+	color: #646970;
+	max-width: 60ch;
+}
+
+.cp-chat-empty p {
+	margin: 0 0 8px;
+}
+
+.cp-msg {
+	margin: 0 0 16px;
+}
+
+.cp-msg:last-child {
+	margin-bottom: 0;
+}
+
+.cp-msg-who {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+	color: #646970;
+	margin-bottom: 4px;
+}
+
+.cp-msg-body {
+	border-radius: 6px;
+	padding: 10px 12px;
+}
+
+.cp-msg-you .cp-msg-body {
+	background: #f0f0f1;
+}
+
+.cp-msg-ai .cp-msg-body {
+	background: #f6f7f7;
+	border-left: 3px solid #2271b1;
+}
+
+.cp-msg-text {
+	/* Model output contains indented code even outside fences, and collapsing
+	   that whitespace turns a readable answer into one long line. */
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.cp-msg-note {
+	font-size: 12px;
+	color: #646970;
+	padding: 6px 12px;
+	border-left: 3px solid #dcdcde;
+}
+
+.cp-msg-error {
+	color: #b32d2e;
+	border-left-color: #d63638;
+}
+
+/* ---- a code block inside a message ---- */
+
+.cp-code {
+	margin: 12px 0 0;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	overflow: hidden;
+	background: #fff;
+}
+
+.cp-code-bad {
+	border-color: #d63638;
+}
+
+.cp-code-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 10px;
+	background: #f6f7f7;
+	border-bottom: 1px solid #dcdcde;
+	font-size: 12px;
+}
+
+.cp-code-lang {
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: #646970;
+}
+
+.cp-lint-ok {
+	color: #00794b;
+}
+
+.cp-lint-bad {
+	color: #d63638;
+	font-weight: 600;
+}
+
+.cp-code-body {
+	/* Its own scroller. Long lines of PHP are the one thing on this screen
+	   allowed to be wider than the page, and only inside this box. */
+	margin: 0;
+	padding: 12px;
+	max-height: 380px;
+	overflow: auto;
+	background: #1d2327;
+	color: #f0f0f1;
+	font-size: 12px;
+	line-height: 1.6;
+}
+
+.cp-code-body code {
+	background: none;
+	color: inherit;
+	padding: 0;
+	font-size: inherit;
+	white-space: pre;
+}
+
+.cp-lint-detail {
+	margin: 10px 12px 0;
+}
+
+.cp-lint-detail code {
+	color: #b32d2e;
+	background: #fcf0f1;
+	display: block;
+	padding: 6px 8px;
+	word-break: break-word;
+}
+
+.cp-code .cp-chat-fix {
+	margin: 0 12px;
+}
+
+.cp-code-save {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px;
+	border-top: 1px solid #f0f0f1;
+}
+
+.cp-code-save input[type="text"] {
+	flex: 1 1 220px;
+	min-width: 0;
+}
+
+/* ---- the composer ---- */
+
+.cp-chat-status {
+	color: #646970;
+	font-style: italic;
+	margin: 0 0 8px;
+}
+
+.cp-chat-composer {
+	/*
+	 * Belt and braces for the same failure. If the window is short enough that
+	 * even the clamped transcript overflows, the composer rides the bottom of
+	 * the viewport instead of scrolling away. It needs its own background —
+	 * wp-admin's page colour — or the transcript shows through it.
+	 */
+	position: sticky;
+	bottom: 0;
+	background: #f0f0f1;
+	padding: 8px 0;
+}
+
+.cp-chat-composer textarea {
+	width: 100%;
+	font-size: 14px;
+}
+
+.cp-chat-send-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: 6px;
+}
+
+.cp-chat-foot {
+	margin-top: 10px;
+	max-width: 70ch;
+}
+
+@media screen and (max-width: 782px) {
+	.cp-chat {
+		max-height: none;
+	}
+
+	.cp-chat-send-row {
+		flex-direction: column;
+		align-items: stretch;
+	}
+}

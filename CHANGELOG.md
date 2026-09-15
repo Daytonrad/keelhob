@@ -14,6 +14,77 @@ public. When the two disagree, this file is correct.
 
 ### Added
 
+- **AI Compose is a conversation, not a three-step wizard.**
+  New `includes/class-studio-chat.php`; rewritten `includes/class-studio-compose.php`
+  and `assets/js/studio-compose.js`; chat styles appended to `assets/css/studio.css`;
+  new `ajax_chat` and `ajax_render` in `includes/class-studio-actions.php`.
+
+  Compose was plan → approve → build: three separate one-shot requests, each
+  carrying exactly one message. The model had no memory of the step before, and
+  that produced two failures with no way out from the screen.
+
+  **One.** `plan()` demanded a JSON object back and returned
+  `WP_Error('…not in a form this screen could read')` for anything else. A model
+  answering in ordinary sentences — the normal thing for a model asked to think
+  out loud — had its whole reply discarded, and no amount of rephrasing could
+  help, because the instruction asking for JSON is a request and not a
+  guarantee. That error string no longer exists anywhere in the plugin.
+
+  **Two.** When generated code failed the parse gate, the error was rendered for
+  the PERSON and never shown to the MODEL, because there was no next turn to put
+  it in. A missing semicolon was therefore a dead end: save it broken, or start
+  again from a blank prompt.
+
+  Both are the same root cause, so both are fixed by the same change. The
+  browser holds the transcript and posts all of it on every send; the server
+  normalises it, trims it to a budget, and keeps none of it. Code arrives in
+  fenced blocks rather than JSON — a model told to answer with a fenced block
+  complies far more often, and a malformed fence still leaves readable prose on
+  screen where malformed JSON left nothing at all. Every block is linted with
+  the same `Claudpress_Snippets::lint_php()` the save path uses, the result is
+  shown as a badge, and a failure is posted back to the model automatically,
+  ONCE, then offered as a button. Once, not a loop: a loop that keeps resending
+  a parse error spends real money while looking like progress.
+
+  Every code block carries its own Save, so a reply containing a PHP snippet and
+  the CSS that styles it is two snippets rather than one plus a copy-paste.
+
+  The model is also told where it is — WordPress and PHP versions, active theme
+  and plugins, whether WooCommerce exists, the snippet types and locations, and
+  the rule it most often breaks: snippets are stored as BARE code with no
+  opening `<?php` tag. Compose previously sent none of this.
+
+  Nothing about the safety promise moved: nothing is written to the snippets
+  table until a person clicks Save, and Save still stores the snippet switched
+  OFF. The chat itself is never persisted — no table, no option, no post meta.
+  It is mirrored into `sessionStorage` so a stray reload does not lose it, and
+  restored only when Navigation Timing says the load WAS a reload; a fresh
+  navigation clears it. Only plain text is stored and the markup is rebuilt
+  server-side on restore, because storing rendered HTML and injecting it back is
+  how a stored-XSS bug gets written.
+
+  Removed with it: `Claudpress_Studio_AI::plan()` and `::build()`,
+  `Claudpress_Studio_Compose::plan_html()` and `::code_html()`, and the
+  `claudpress_studio_plan` / `claudpress_studio_build` AJAX actions.
+
+### Fixed
+
+- **The Compose message box could sit below the fold.** `assets/css/studio.css`.
+  The transcript was capped at `58vh`, which sounds conservative and is not: the
+  admin bar, page heading, tab strip and status line all come before it, so on a
+  674px-tall window a full transcript pushed the message box to y=682 — eight
+  pixels off screen, on the one control the screen exists for. Now
+  `calc(100vh - 380px)`, with the composer `position: sticky` at the bottom as a
+  second guard. Found by `tests/rig/ui/check-compose.mjs`; no server-side test
+  could have seen it.
+
+- **"Ask AI" threw away a review that arrived as prose.**
+  `includes/class-studio-ai.php`. `review()` returned the same
+  "not in a form this screen could read" error as `plan()` did. It now keeps the
+  words and says plainly that the structured fields are missing, with the verdict
+  defaulting to `caution` rather than `safe` — an unparsed review has not
+  established that anything is fine.
+
 - **The Snippets editor is an editor now.** `includes/class-studio-edit.php`,
   `assets/css/studio.css`, `assets/js/studio-edit.js`.
 

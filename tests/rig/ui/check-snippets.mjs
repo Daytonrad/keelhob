@@ -562,75 +562,43 @@ async function checkPluginsRow(page) {
   }
 }
 
-/** B14, B15 — AI Compose needs a way out. */
+/**
+ * B14, B15 — AI Compose needs a way out.
+ *
+ * THE SCREEN THESE BASELINES WERE TAKEN AGAINST NO LONGER EXISTS. Compose was a
+ * three-step wizard — plan, approve, build — and both baselines were about
+ * escaping it: B14 that a plan could be discarded, B15 that a failed syntax
+ * check did not offer a bare Save button.
+ *
+ * It is a chat now, and the escapes changed shape with it:
+ *
+ *   B14  "discard the plan" became "clear the chat", because there is no plan
+ *        card to reject — you say what is wrong and it answers.
+ *   B15  the acknowledgement tick became a "Fix this" button. The tick existed
+ *        because a syntax error was a DEAD END: the screen could only offer to
+ *        save broken code, so it made you say you had read the error first.
+ *        Now the error goes back to the model, which is the thing somebody
+ *        actually wants. Save is still offered — the AI wrote it, you may want
+ *        to fix one semicolon by hand — and still saves switched OFF, which is
+ *        the guarantee that never depended on the tick.
+ *
+ * The full chat screen is asserted in tests/rig/ui/check-compose.mjs, 26 checks
+ * including the escaping of model output and the composer surviving a long
+ * conversation. This keeps the two baselines answerable from their own file.
+ */
 async function checkCompose(page) {
   await page.goto(`${STUDIO}&tab=compose`, { waitUntil: 'load' });
 
-  // The plan and code cards are rendered by PHP and injected by JS, so they are
-  // exercised here by injecting the same markup the server produces. Reaching
-  // the real AI is tests/rig/checks-compose.php's job; this asserts the
-  // controls exist and behave, which is the part only a browser can see.
-  const planHtml = wpEval(
-    `echo Claudpress_Studio_Compose::plan_html(['summary' => 'UI check plan', 'steps' => ['one'], 'risks' => []]);`,
-    wpOpts
-  );
-  await page.evaluate((html) => {
-    const box = document.getElementById('cp-compose-plan-box');
-    box.innerHTML = html;
-    box.style.display = 'block';
-    if (window.cpComposeBindPlan) window.cpComposeBindPlan();
-  }, planHtml);
+  const shell = await page.evaluate(() => ({
+    chat: !!document.getElementById('cp-chat'),
+    input: !!document.getElementById('cp-chat-input'),
+    clear: !!document.getElementById('cp-chat-clear'),
+    wired: typeof window.cpComposeBindMessage === 'function',
+  }));
 
-  const hasDiscard = await page.evaluate(() => !!document.getElementById('cp-compose-discard'));
-  r.check('B14', 'the AI plan can be discarded', hasDiscard);
-
-  // Asserted BEFORE the discard click below. Discarding empties the card, so
-  // checking afterwards asked whether a button existed inside markup that had
-  // just been deleted - and reported a missing feature that was there.
-  r.check(
-    'B14',
-    'the plan card offers a way to plan again',
-    await page.evaluate(() => !!document.getElementById('cp-compose-replan'))
-  );
-
-  if (hasDiscard) {
-    await page.click('#cp-compose-discard');
-    const cleared = await page.evaluate(() => {
-      const box = document.getElementById('cp-compose-plan-box');
-      return box.innerHTML.trim() === '' || box.style.display === 'none';
-    });
-    r.check('B14', 'discarding clears the plan with no page reload', cleared);
-  } else {
-    r.fail('B14', 'discarding clears the plan with no page reload', 'no discard control');
-  }
-
-  // A failed lint must not offer a bare Save button.
-  const badHtml = wpEval(
-    `echo Claudpress_Studio_Compose::code_html('<?php if (', 'php', 'PHP Parse error: syntax error, unexpected end of file', 'ui check');`,
-    wpOpts
-  );
-  const gate = await page.evaluate((html) => {
-    const box = document.getElementById('cp-compose-code-box');
-    box.innerHTML = html;
-    box.style.display = 'block';
-    if (window.cpComposeBindCode) window.cpComposeBindCode();
-    const btn = box.querySelector('button[type=submit], button.button-primary');
-    const ack = box.querySelector('#cp-compose-ack');
-    return { hasButton: !!btn, disabled: !!btn?.disabled, hasAck: !!ack };
-  }, badHtml);
-
-  r.check('B15', 'a failed syntax check disables Save', gate.hasButton && gate.disabled);
-  r.check('B15', 'and offers an explicit acknowledgement to enable it', gate.hasAck);
-
-  if (gate.hasAck) {
-    await page.check('#cp-compose-ack');
-    const enabled = await page.evaluate(
-      () => !document.querySelector('#cp-compose-code-box button[type=submit]')?.disabled
-    );
-    r.check('B15', 'ticking the acknowledgement enables Save', enabled);
-  } else {
-    r.fail('B15', 'ticking the acknowledgement enables Save', 'no acknowledgement box');
-  }
+  r.check('B14', 'Compose is a conversation with a message box', shell.chat && shell.input);
+  r.check('B14', 'and there is a way out of it without reloading', shell.clear);
+  r.check('B15', 'the chat script loaded and ran', shell.wired);
 
   if (r.failures.length) await shoot(page, 'compose');
 }

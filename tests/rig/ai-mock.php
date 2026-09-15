@@ -120,14 +120,66 @@ function claudpress_rig_answer(string $prompt): string {
         ]);
     }
 
-    if (strpos($p, 'do not write any code yet') !== false) {
-        return wp_json_encode([
-            'summary' => 'Add a small PHP snippet that appends a note to post content.',
-            'steps'   => ['Hook the_content', 'Append the note', 'Return the content'],
-            'risks'   => ['Runs on every front-end request'],
-            'type'    => 'php',
-            'location' => 'everywhere',
-        ]);
+    /*
+     * AI COMPOSE, WHICH IS NOW A CHAT.
+     *
+     * Compose used to be plan-then-build, and each call demanded a JSON object
+     * back. That is gone: it is a conversation, the model answers in ordinary
+     * sentences, and code arrives in a fenced block. The mock answers the same
+     * way, so what the rig exercises is what a real model would send.
+     */
+    if (strpos($p, 'you are talking in a chat window') !== false) {
+
+        // The correction turn. This is the branch worth having: the site posts
+        // its parse error back and the model is expected to return FIXED code.
+        // Without it, nothing tests the one loop the whole rewrite exists for.
+        if (strpos($p, 'did not parse') !== false) {
+            return "Sorry - I left off the closing brace. Here it is corrected:
+
+"
+                . "```php
+"
+                . "add_filter('the_content', function (\$content) {
+    return \$content . '<!-- fixed snippet -->';
+});
+"
+                . "```
+
+That parses now.";
+        }
+
+        // An explicit request for broken code, so a test can drive the failure
+        // path on purpose rather than by corrupting a good answer afterwards.
+        if (strpos($p, 'give me broken code') !== false) {
+            return "Here you go:
+
+```php
+add_filter('the_content', function (\$content) {
+    return \$content;
+```
+
+That should do it.";
+        }
+
+        // A question with no code in the answer. The old screen threw a reply
+        // like this away for not being JSON and showed "not in a form this
+        // screen could read" instead.
+        if (strpos($p, 'why') === 0 || strpos($p, 'explain') !== false) {
+            return 'Because the cart total is not known at that hook yet, so the banner would render before the number exists.';
+        }
+
+        return "Sure. This appends a note to every post's content:
+
+"
+            . "```php
+"
+            . "add_filter('the_content', function (\$content) {
+    return \$content . '<!-- mocked snippet -->';
+});
+"
+            . "```
+
+It runs on every front-end request, so keep it small.";
     }
 
     // Default: a snippet. Deliberately valid PHP, so the lint gate passes and the

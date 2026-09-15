@@ -24,7 +24,24 @@ cd /c/wp-rig/wordpress && PHP_CLI_SERVER_WORKERS=4 php -S localhost:8899 &
 
 npm install                 # once: playwright-core, nothing else
 node tests/rig/ui/check-snippets.mjs --wp http://localhost:8899 --rig /c/wp-rig/wordpress
+node tests/rig/ui/check-compose.mjs  --wp http://localhost:8899 --rig /c/wp-rig/wordpress
 ```
+
+Two files, because they cover two screens:
+
+| File | Screen | Checks |
+|---|---|---|
+| `check-snippets.mjs` | the snippet list and the editor | 54 |
+| `check-compose.mjs`  | AI Compose, which is a chat | 26 |
+
+`check-compose.mjs` makes **no AI call**. Every assistant turn it asserts on is
+server-rendered markup injected through the same path the live screen uses, so
+the run is free and deterministic — what is under test is the screen, not the
+model. It is also the only layer that can see two things nothing else can: that
+model output is ESCAPED rather than executed (a snippet containing a `<script>`
+tag must not run inside wp-admin), and that the message box is still on screen
+after twenty messages. The second one failed on its first run, at y=682 in a
+674px window.
 
 Options: `--user`, `--pass`, `--chrome <path to an executable>`, `--headed`,
 `--cli "php /c/wp-cli/wp-cli.phar"`.

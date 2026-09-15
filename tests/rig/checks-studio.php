@@ -82,7 +82,13 @@ check('the code is escaped, not stripped', strpos($edit, '&lt;?php') !== false);
 
 // --- compose ---
 $compose = $render('compose');
-check('compose renders with no key configured', strpos($compose, 'cp-compose-prompt') !== false);
+// Compose is a CHAT now, not a three-step wizard. The old id was
+// cp-compose-prompt, a single textarea that fed a one-shot plan request; it had
+// no memory of its own last answer, which is what made a syntax error a dead
+// end and made a prose reply look like a failure.
+check('compose renders the transcript', strpos($compose, 'id="cp-chat"') !== false);
+check('compose renders with no key configured', strpos($compose, 'cp-chat-input') !== false);
+check('...and a Send button next to it', strpos($compose, 'cp-chat-send') !== false);
 check('...and says so rather than hiding', strpos($compose, 'No AI provider is connected') !== false || trim((string) Claudpress::instance()->get('agent_api_key')) !== '');
 
 // --- library ---

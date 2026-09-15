@@ -18,8 +18,8 @@ final class Claudpress_Studio_Actions
     {
         add_action('admin_post_claudpress_studio', [$this, 'handle']);
         add_action('wp_ajax_claudpress_studio_review', [$this, 'ajax_review']);
-        add_action('wp_ajax_claudpress_studio_plan', [$this, 'ajax_plan']);
-        add_action('wp_ajax_claudpress_studio_build', [$this, 'ajax_build']);
+        add_action('wp_ajax_claudpress_studio_chat', [$this, 'ajax_chat']);
+        add_action('wp_ajax_claudpress_studio_render', [$this, 'ajax_render']);
     }
 
     /**
@@ -259,45 +259,108 @@ final class Claudpress_Studio_Actions
         wp_send_json_success(['html' => (string) ob_get_clean()]);
     }
 
-    public function ajax_plan(): void
+    /**
+     * Re-render stored assistant turns after a browser reload.
+     *
+     * NO AI CALL, and that is the point. The transcript is mirrored into
+     * sessionStorage as plain text, never as rendered HTML — storing markup and
+     * injecting it back on load is precisely how a stored-XSS bug gets written.
+     * So the text comes back here to be parsed and escaped by the same server
+     * code that rendered it the first time, and the reload costs nothing.
+     *
+     * The parse gate is re-run rather than remembered, so a restored block
+     * cannot show a stale "passed" badge over code that does not parse.
+     */
+    public function ajax_render(): void
     {
         self::guard_ajax();
 
-        $prompt = sanitize_textarea_field(wp_unslash($_POST['prompt'] ?? ''));
-        if (trim($prompt) === '') {
-            wp_send_json_error(['message' => __('Describe what you want first.', 'claudpress')]);
+        $raw = wp_unslash($_POST['texts'] ?? '');
+        $raw = is_string($raw) ? json_decode($raw, true) : null;
+        if (!is_array($raw)) {
+            wp_send_json_error(['message' => __('That conversation could not be read.', 'claudpress')]);
         }
 
-        $plan = Claudpress_Studio_AI::plan($prompt);
-        if (is_wp_error($plan)) {
-            wp_send_json_error(['message' => $plan->get_error_message()]);
+        $out = [];
+        foreach (array_slice($raw, 0, Claudpress_Studio_Chat::MAX_TURNS) as $text) {
+            if (!is_string($text) || trim($text) === '') {
+                $out[] = '';
+                continue;
+            }
+            $text     = mb_substr($text, 0, Claudpress_Studio_Chat::MAX_TURN_CHARS);
+            $segments = Claudpress_Studio_Chat::segments($text);
+            foreach ($segments as $i => $seg) {
+                if (($seg['kind'] ?? '') === 'code') {
+                    $segments[$i]['error'] = Claudpress_Snippets::lint_php((string) $seg['code'], (string) $seg['type']);
+                }
+            }
+            $out[] = Claudpress_Studio_Compose::message_html($segments);
         }
 
-        wp_send_json_success([
-            'html'      => Claudpress_Studio_Compose::plan_html($plan),
-            'plan_text' => wp_json_encode($plan),
-        ]);
+        wp_send_json_success(['html' => $out]);
     }
 
-    public function ajax_build(): void
+    /**
+     * One turn of AI Compose.
+     *
+     * The browser posts the WHOLE transcript every time and the server keeps
+     * none of it. That is not laziness — it is what makes "leave the tab and it
+     * is gone" true rather than merely claimed, and it means a screen that can
+     * generate PHP stores nothing at all until somebody clicks Save.
+     *
+     * The transcript is untrusted input. It is never executed and never stored;
+     * it is forwarded to the provider and rendered back escaped. The caps in
+     * Claudpress_Studio_Chat are what stop a tampered post turning one click
+     * into an enormous bill.
+     */
+    public function ajax_chat(): void
     {
         self::guard_ajax();
 
-        $prompt = sanitize_textarea_field(wp_unslash($_POST['prompt'] ?? ''));
-        $plan   = (string) wp_unslash($_POST['plan'] ?? '');
+        $raw = wp_unslash($_POST['turns'] ?? '');
+        $raw = is_string($raw) ? json_decode($raw, true) : null;
+        if (!is_array($raw)) {
+            wp_send_json_error(['message' => __('That conversation could not be read.', 'claudpress')]);
+        }
 
-        $built = Claudpress_Studio_AI::build($prompt, $plan);
-        if (is_wp_error($built)) {
-            wp_send_json_error(['message' => $built->get_error_message()]);
+        $turns = Claudpress_Studio_Chat::normalize($raw);
+        if (empty($turns)) {
+            wp_send_json_error(['message' => __('Type something first.', 'claudpress')]);
+        }
+
+        $budget = Claudpress_Studio_Chat::trim_history($turns);
+        $reply  = Claudpress_Studio_Chat::reply($budget['turns']);
+
+        if (is_wp_error($reply)) {
+            wp_send_json_error(['message' => $reply->get_error_message()]);
+        }
+
+        $text     = (string) $reply['text'];
+        $segments = Claudpress_Studio_Chat::segments($text);
+
+        // Lint in place, so the badge on screen and the error sent back to the
+        // model come from the same parse — the one the save path will run too.
+        foreach ($segments as $i => $seg) {
+            if (($seg['kind'] ?? '') === 'code') {
+                $segments[$i]['error'] = Claudpress_Snippets::lint_php((string) $seg['code'], (string) $seg['type']);
+            }
+        }
+
+        $blocks = [];
+        foreach ($segments as $seg) {
+            if (($seg['kind'] ?? '') === 'code') {
+                $blocks[] = $seg;
+            }
         }
 
         wp_send_json_success([
-            'html' => Claudpress_Studio_Compose::code_html(
-                $built['code'],
-                $built['type'],
-                Claudpress_Snippets::lint_php($built['code'], $built['type']),
-                $prompt
-            ),
+            'text'      => $text,
+            'html'      => Claudpress_Studio_Compose::message_html($segments),
+            'has_error' => Claudpress_Studio_Chat::has_error($blocks),
+            'fix_turn'  => Claudpress_Studio_Chat::has_error($blocks)
+                ? Claudpress_Studio_Chat::error_turn($blocks)
+                : '',
+            'dropped'   => (int) $budget['dropped'],
         ]);
     }
 }

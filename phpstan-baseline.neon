@@ -41,10 +41,12 @@ parameters:
 			count: 1
 			path: includes/class-studio-edit.php
 
+		# Compose enqueues two: the shared Studio stylesheet (its chat bubbles
+		# live there) and its own script.
 		-
 			message: '#^Constant CLAUDPRESS_URL not found\.$#'
 			identifier: constant.notFound
-			count: 1
+			count: 2
 			path: includes/class-studio-compose.php
 
 		# And the shared Studio stylesheet, enqueued from Claudpress_Studio so

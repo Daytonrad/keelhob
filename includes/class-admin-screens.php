@@ -572,6 +572,10 @@ final class Claudpress_Admin_Screens
                         <td><?php esc_html_e('Every change to the code keeps a copy of what was there before, listed in the panel on the right with a Restore button. Restoring saves your current code to the history first, and leaves the snippet switched off so you can read it before it runs.', 'claudpress'); ?></td>
                     </tr>
                     <tr>
+                        <td><strong><?php esc_html_e('Write one by talking to an AI', 'claudpress'); ?></strong></td>
+                        <td><?php esc_html_e('The AI Compose tab is a chat. Say what you want in plain English and keep talking — ask for changes, point out a mistake, ask why it did something. It remembers the whole conversation. Every block of code it sends is syntax-checked on the spot, and if the check fails the error is handed straight back to the AI to fix. Nothing is saved until you click Save on a block, and it always saves switched off. Leaving the tab clears the chat. This one needs an AI key under Automation.', 'claudpress'); ?></td>
+                    </tr>
+                    <tr>
                         <td><strong><?php esc_html_e('Your agent can use it too', 'claudpress'); ?></strong></td>
                         <td><?php esc_html_e('If you do connect an AI, the same snippets are the snippet_save, snippet_list and snippet_toggle tools — so "add a banner for logged-out visitors on mobile" and the rule builder are two doors into one thing. Say "tell me about snippet 7" to have it explain one.', 'claudpress'); ?></td>
                     </tr>

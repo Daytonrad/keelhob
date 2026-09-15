@@ -47,74 +47,32 @@ final class Claudpress_Studio_AI
             return $text;
         }
         $parsed = self::json($text);
-
-        return is_array($parsed) ? $parsed : new WP_Error(
-            'claudpress_studio_parse',
-            __('The AI replied, but not in a form this screen could read. Nothing was changed.', 'claudpress')
-        );
-    }
-
-    /**
-     * Turn a plain-English request into a plan a person can approve.
-     *
-     * No code is produced here on purpose. The gap between "here is what I
-     * intend" and "here is the code" is the one moment where somebody can read
-     * the intent and say no, before there is a tempting block of code on screen.
-     *
-     * @return array|WP_Error
-     */
-    public static function plan(string $prompt) {
-        $system = 'You are planning a small WordPress code snippet for a site owner. '
-            . 'Do NOT write any code yet. Describe what you would do, in plain English, in a few short steps. '
-            . 'Name any risk that matters — anything that runs on every request, touches checkout or payments, '
-            . 'changes what visitors see, or could be slow. '
-            . 'Reply with ONLY a JSON object with keys: summary, steps (array of strings), risks (array of strings), '
-            . 'type (php|css|js|html), location.';
-
-        $text = self::ask($system, $prompt);
-        if (is_wp_error($text)) {
-            return $text;
-        }
-        $parsed = self::json($text);
-
-        return is_array($parsed) ? $parsed : new WP_Error(
-            'claudpress_studio_parse',
-            __('The AI replied, but not in a form this screen could read. Nothing was changed.', 'claudpress')
-        );
-    }
-
-    /**
-     * Write the code for a plan the person has already approved.
-     *
-     * @return array{code:string,type:string}|WP_Error
-     */
-    public static function build(string $prompt, string $approved_plan) {
-        $system = 'You are writing a single WordPress code snippet. '
-            . 'Return ONLY the code — no explanation, no markdown fences, no commentary. '
-            . 'Do NOT include an opening <?php tag and do NOT include a closing ?> tag - snippets are stored as bare PHP. '
-            . 'Write it to be dropped into a snippet manager: no function name collisions, '
-            . 'guard anything that assumes a plugin is present, and fail quietly rather than fatally.';
-
-        $user = "What the owner asked for:\n" . $prompt
-            . "\n\nThe plan they approved:\n" . $approved_plan;
-
-        $text = self::ask($system, $user);
-        if (is_wp_error($text)) {
-            return $text;
+        if (is_array($parsed)) {
+            return $parsed;
         }
 
-        $code = self::strip_fences($text);
-
-        // Type first, THEN strip the tag. guess_type() reads the opening <?php
-        // to recognise PHP, so stripping before guessing would make every PHP
-        // snippet look like something else.
-        $type = self::guess_type($code);
-        $code = self::strip_php_tags($code, $type);
-
-        if (trim($code) === '') {
-            return new WP_Error('claudpress_studio_empty', __('The AI returned nothing usable.', 'claudpress'));
-        }
-        return ['code' => $code, 'type' => $type];
+        /*
+         * A PROSE ANSWER IS AN ANSWER.
+         *
+         * This used to return WP_Error('...not in a form this screen could
+         * read'), which threw away a perfectly good review because it arrived
+         * as sentences instead of as JSON. The person saw a failure over a
+         * reply that was sitting right there, and had no way to make the model
+         * comply -- the prompt asking for JSON is a request, not a guarantee.
+         *
+         * So: keep the words, and be honest that the structured fields are
+         * missing. verdict is 'caution' rather than 'safe' on purpose. An
+         * unparsed review has not established that anything is fine, and a
+         * screen that defaults to "safe" when it does not know is worse than a
+         * screen that says nothing.
+         */
+        return [
+            'summary'      => $text,
+            'verdict'      => 'caution',
+            'what_it_does' => '',
+            'risks'        => [],
+            'notes'        => __('The AI answered in plain words rather than the structured form this panel expects, so only its summary is shown. The syntax check below is unaffected — that is run by the site, not the AI.', 'claudpress'),
+        ];
     }
 
     /**

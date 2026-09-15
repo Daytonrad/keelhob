@@ -37,35 +37,73 @@ $table  = Claudpress_Snippets::table();
 $before = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
 $digest = (string) $wpdb->get_var("SELECT COALESCE(GROUP_CONCAT(id || ':' || updated_at), '') FROM {$table}");
 
-// ---- 1. Plan. Pure. -------------------------------------------------------
-$plan = Claudpress_Studio_AI::plan('Add a free shipping banner to the cart when the total is over 200.');
+// ---- 1. A conversation, not a wizard. -------------------------------------
+//
+// Compose used to be plan-then-build: two one-shot calls, neither of which
+// could see the other. Every assertion here is about the thing that replaced
+// it -- the model gets the whole transcript, answers in ordinary sentences,
+// and puts code in a fenced block.
 
-check('plan() returns a plan', !is_wp_error($plan) && is_array($plan), is_wp_error($plan) ? $plan->get_error_message() : '');
-if (!is_wp_error($plan)) {
-    check('  the plan has a summary a person can read', !empty($plan['summary']));
-    check('  the plan has steps', !empty($plan['steps']) && is_array($plan['steps']));
-    check('  the plan names risks', array_key_exists('risks', $plan));
-    check('  the plan contains NO code', empty($plan['code']) && strpos(wp_json_encode($plan), '<?php') === false);
-}
+$turns = [['role' => 'user', 'text' => 'Add a note to the end of every post.']];
+$reply = Claudpress_Studio_Chat::reply($turns);
 
-check('planning wrote nothing', (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table}") === $before);
+check('a chat turn gets a reply', !is_wp_error($reply) && !empty($reply['text']),
+    is_wp_error($reply) ? $reply->get_error_message() : '');
 
-// ---- 2. Build. Also pure. -------------------------------------------------
-$built = Claudpress_Studio_AI::build('Free shipping banner over 200', wp_json_encode($plan));
+$segments = Claudpress_Studio_Chat::segments((string) $reply['text']);
+$blocks   = Claudpress_Studio_Chat::lint_blocks(Claudpress_Studio_Chat::blocks((string) $reply['text']));
 
-check('build() returns code', !is_wp_error($built) && !empty($built['code']), is_wp_error($built) ? $built->get_error_message() : '');
-if (!is_wp_error($built)) {
-    check('  the type was inferred from the code', $built['type'] === 'php', 'got ' . $built['type']);
-    check('  the code has no markdown fences left', strpos($built['code'], '```') === false);
-    check('  the code passes the real parse gate', Claudpress_Snippets::lint_php($built['code'], $built['type']) === '');
-}
+check('  the prose around the code is kept', count($segments) > count($blocks));
+check('  one code block is found', count($blocks) === 1, 'got ' . count($blocks));
+check('  its type came from the fence', ($blocks[0]['type'] ?? '') === 'php', (string) ($blocks[0]['type'] ?? ''));
+check('  no markdown fence survives into the code', strpos((string) ($blocks[0]['code'] ?? ''), '```') === false);
+check('  and it passes the real parse gate', trim((string) ($blocks[0]['error'] ?? '')) !== '' ? false : true);
 
-// THE PROMISE. Two AI round trips have happened and the table has not moved -
-// not one new row, not one changed timestamp.
+// ---- 2. A reply with NO code is still an answer. --------------------------
+//
+// THE BUG THIS REWRITE EXISTS FOR. The old plan() demanded a JSON object and
+// returned WP_Error('...not in a form this screen could read') for anything
+// else -- so a model answering a question in plain sentences produced a
+// failure message over a perfectly good reply, and there was no way out.
+
+$asked = Claudpress_Studio_Chat::reply([['role' => 'user', 'text' => 'Why will that not work at that hook? explain please']]);
+check('a prose-only reply is NOT an error', !is_wp_error($asked) && !empty($asked['text']),
+    is_wp_error($asked) ? $asked->get_error_message() : '');
+check('  and yields no code blocks rather than failing', count(Claudpress_Studio_Chat::blocks((string) $asked['text'])) === 0);
+
+// ---- 3. The model is shown its own syntax error, and fixes it. -----------
+//
+// The second thing that had no way out. A parse error used to be rendered for
+// the PERSON and never shown to the MODEL, because there was no next turn to
+// put it in.
+
+$broken_reply = Claudpress_Studio_Chat::reply([['role' => 'user', 'text' => 'give me broken code please']]);
+$broken       = Claudpress_Studio_Chat::lint_blocks(Claudpress_Studio_Chat::blocks((string) $broken_reply['text']));
+
+check('code that does not parse is caught in the chat', Claudpress_Studio_Chat::has_error($broken));
+
+$correction = Claudpress_Studio_Chat::error_turn($broken);
+check('  the correction turn carries the real parse error', strlen($correction) > 40);
+
+$fixed_reply = Claudpress_Studio_Chat::reply([
+    ['role' => 'user',      'text' => 'give me broken code please'],
+    ['role' => 'assistant', 'text' => (string) $broken_reply['text']],
+    ['role' => 'user',      'text' => $correction],
+]);
+$fixed = Claudpress_Studio_Chat::lint_blocks(Claudpress_Studio_Chat::blocks((string) $fixed_reply['text']));
+
+check('  sending it back produces code that parses', !Claudpress_Studio_Chat::has_error($fixed));
+check('  and the whole transcript reached the provider', !is_wp_error($fixed_reply));
+
+// THE PROMISE. Several AI round trips have happened and the table has not
+// moved - not one new row, not one changed timestamp.
 $after_digest = (string) $wpdb->get_var("SELECT COALESCE(GROUP_CONCAT(id || ':' || updated_at), '') FROM {$table}");
-check('BUILDING WROTE NOTHING EITHER', (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table}") === $before);
+check('TALKING WROTE NOTHING', (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table}") === $before);
 check('  and no existing row was touched', $after_digest === $digest);
 
+$built = ['code' => (string) $blocks[0]['code'], 'type' => (string) $blocks[0]['type']];
+
+// ---- 4. Save. The only thing that writes. ---------------------------------
 // ---- 3. Save. The only thing that writes. ---------------------------------
 $saved = Claudpress_Snippets::save([
     'name'         => 'Rig composed snippet',
@@ -86,7 +124,7 @@ check('  it is marked as AI-written', ($row['source'] ?? '') === 'ai');
 check('  the prompt is kept with it', trim((string) ($row['ai_prompt'] ?? '')) !== '');
 check('  the model is recorded', ($row['ai_model'] ?? '') === 'mock-model-newest');
 
-// ---- 4. Ask AI. Advisory, and it does not touch the row. ------------------
+// ---- 5. Ask AI. Advisory, and it does not touch the row. ------------------
 $review = Claudpress_Studio_AI::review((string) $row['code'], 'php');
 check('review() returns a verdict', !is_wp_error($review) && !empty($review['verdict']), is_wp_error($review) ? $review->get_error_message() : '');
 if (!is_wp_error($review)) {
@@ -95,7 +133,7 @@ if (!is_wp_error($review)) {
 }
 check('reviewing did not change the snippet', (string) Claudpress_Snippets::get($id)['code'] === (string) $row['code']);
 
-// ---- 5. The gate still refuses broken code. -------------------------------
+// ---- 6. The gate still refuses broken code. -------------------------------
 $bad = Claudpress_Snippets::save([
     'name'         => 'Rig broken snippet',
     'code'         => '<?php function ( { this does not parse',
@@ -108,9 +146,9 @@ check('code that does not parse cannot go live', empty($bad_row['active']));
 check('  and the reason is recorded on it', trim((string) $bad_row['last_error']) !== '');
 check('  but the work is not thrown away', strpos((string) $bad_row['code'], 'does not parse') !== false);
 
-// ---- 6. A provider failure is survivable. ---------------------------------
+// ---- 7. A provider failure is survivable. ---------------------------------
 add_filter('pre_http_request', static fn() => new WP_Error('http_request_failed', 'Simulated outage.'), 1);
-$failed = Claudpress_Studio_AI::plan('anything at all');
+$failed = Claudpress_Studio_Chat::reply([['role' => 'user', 'text' => 'anything at all']]);
 remove_all_filters('pre_http_request', 1);
 
 check('a provider outage returns an error, not an exception', is_wp_error($failed));

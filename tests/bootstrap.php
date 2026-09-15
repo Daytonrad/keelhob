@@ -917,6 +917,7 @@ require_once CLAUDPRESS_DIR . 'includes/class-notifier.php';
 // renaming the page silently produce a dead link on the Plugins screen.
 require_once CLAUDPRESS_DIR . 'includes/class-studio.php';
 require_once CLAUDPRESS_DIR . 'includes/class-studio-ai.php';
+require_once CLAUDPRESS_DIR . 'includes/class-studio-chat.php';
 
 /**
  * A stand-in for WP_Admin_Bar.

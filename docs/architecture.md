@@ -52,7 +52,7 @@ includes/
   class-admin-settings.php    Saving, secrets, consent, channels
   class-admin-snippets.php  the Snippets page: what the AI installed, and its off switch
   class-admin-skills.php    the Skills page
-  class-studio*.php         the Snippets Studio: list, edit, compose, actions, library, AI
+  class-studio*.php         the Snippets Studio: list, edit, compose (a chat), actions, AI
   class-updater.php         updates from GitHub releases + the anonymous site count
   class-donate.php          the donate button, and the page behind it
   tools/                    core, filesystem, content, site, woocommerce, seo, memory, skills,
