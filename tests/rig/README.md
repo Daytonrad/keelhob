@@ -236,3 +236,59 @@ lines in a suite with nothing wrong with it.
 
 It tears down everything it creates, including on failure, and including the one
 capability it temporarily switches off.
+
+---
+
+## Upgrading an old release (`tests/rig/upgrade-check.sh`)
+
+```bash
+bash tests/rig/upgrade-check.sh v1.1.0 /c/wp-rig/wordpress
+```
+
+Every other suite tests ONE version of the plugin in isolation. This is the only
+one that tests the thing that actually happens to real people: an existing site,
+carrying data written by an OLDER schema, being handed new files by an automatic
+update. A migration that drops a column, a read path that assumes a shape only
+the new version writes, or an upgrade that quietly switches capabilities on —
+none of that shows up on a fresh install, which is all a rig normally is.
+
+**It is destructive on purpose.** Step 1 wipes every `claudpress_*` table and
+option, because `maybe_upgrade()` returns early when `claudpress_db_version`
+already matches: copying old files over a new database would mean the migration
+under test never runs, and every assertion after it passes for the wrong reason.
+The wipe is scoped to the prefix, and the run asserts at the end that the
+neighbouring plugin's tables, the posts and the users are all still there.
+
+Two details that are load-bearing:
+
+- **Fixtures are seeded through the OLD version's own `save()`**, never by
+  INSERTing rows. A hand-written fixture encodes what you BELIEVE the old shape
+  was; the old code encodes what it was. A guess would be written from the same
+  misunderstanding that caused the bug, and would hide it.
+- **The new version arrives as the real release zip**, unpacked over the
+  directory with no deactivate/reactivate — which is exactly what WordPress's
+  updater does.
+
+It tears its fixtures down in the same run that asserts on them, pass or fail,
+and leaves the rig on the working tree.
+
+**v1.1.0 → 1.2.0 result: 62 passed, 0 failed.** The assertions worth knowing
+about:
+
+| What | Why it matters |
+|---|---|
+| every snippet's `active` flag is UNCHANGED | an update that switches somebody's code ON is worse than one that loses it — they notice missing things |
+| `conditions_json` is **not rewritten** | 1.2.0 lifts the old flat shape at READ time; rewriting the column would make a downgrade impossible |
+| no capability group gained or lost | an automatic update must never hand a site payments, users, comms or deploy |
+| the live snippet still RUNS | surviving as a database row is not the same as working |
+| the old flat conditions lift to 4 rules with `only_singular` preserved | 1.1.0 wrapped post_type/post_id in `is_singular()`, so on an archive those rules did not APPLY rather than failing — dropping that flag silently changes what an upgraded site shows |
+
+**Three of its own bugs, worth not repeating.** The first draft called
+`Claudpress_Snippet_Conditions::decode()` (a plain JSON parser) where it meant
+`normalize()` (the lifter), and reported `rules: 0` — which reads exactly like a
+migration that had dropped somebody's conditions. The second searched the
+rendered HTML for `front_page`, but `<div id="cp-cond-rules">` ships empty and
+the builder draws its rows from `wp_localize_script` data. The third kept its
+tally in `$GLOBALS` while `wp eval-file` evals the body inside a method, so the
+counters stayed at zero, real FAIL lines printed, and the run exited 0 announcing
+that it had passed. All three are guarded in comments at the point they bit.
