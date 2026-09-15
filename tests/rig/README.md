@@ -201,3 +201,38 @@ Define `CLAUDPRESS_MOCK_FAIL` to make every call fail, for testing error paths.
 
 **It lives in `tests/rig/` and is copied in by hand on purpose.** It must never
 be anywhere the build could sweep it into a zip.
+
+## End-to-end, through the MCP endpoint
+
+`tests/rig/e2e-mcp.mjs` is the only layer that talks to the plugin the way a
+real client does: an HTTP POST of JSON-RPC to `/claudpress/v1/mcp`, carrying a
+bearer token.
+
+Everything on that path — the REST route, the auth middleware, the JSON-RPC
+envelope, the `tools/list` payload, and the capability gate **as the endpoint
+applies it** — is invisible to the other three layers. A bug in any of them is
+total for the user (the plugin does not connect, or connects and refuses
+everything) while every admin screen still looks perfect.
+
+```bash
+# 1. Switch abilities on and mint a token INTO A FILE.
+#    Not into argv: on Linux /proc/<pid>/cmdline is world-readable.
+php /c/wp-cli/wp-cli.phar --path=/c/wp-rig/wordpress eval '
+  Claudpress::instance()->update(["abilities_enabled" => true]);
+  echo json_encode([
+    "token"    => Claudpress::set_token(),
+    "endpoint" => rest_url("claudpress/v1/mcp"),
+  ]);
+' > /tmp/mcp.json
+
+# 2. Run it.
+node tests/rig/e2e-mcp.mjs --config /tmp/mcp.json
+```
+
+**Do not switch extra capability groups on first.** Everything it calls is on by
+default. Turning them all on breaks three assertions in `checks.php`, which
+exist to prove that deploy, email and updates are refused by default — six red
+lines in a suite with nothing wrong with it.
+
+It tears down everything it creates, including on failure, and including the one
+capability it temporarily switches off.

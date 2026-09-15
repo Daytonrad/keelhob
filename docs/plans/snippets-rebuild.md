@@ -672,3 +672,92 @@ argument for the browser layer, stated as plainly as it can be.
 counts for the 30 days before release still need recording before 1.2.0 ships.
 Without that snapshot there is nothing to compare the next 30 days against, and
 the honest measure in 8.3 cannot be taken at all.
+
+---
+
+## Version 3 — the second pass, 2026-09-14
+
+Built and verified the same day. The trigger was a user comparing the screen to
+VibeSnip's and reporting two features as **missing**:
+
+> "there is no revisions and no smart conditional logic like what we have in
+> the vibesnip"
+
+Both statements were about the same underlying problem, and only one of them
+was about a feature that did not exist.
+
+### What was actually wrong
+
+| Reported | Reality |
+|---|---|
+| "no colour code" | Highlighting worked. They were looking at an **empty** editor, so there was nothing to colour. |
+| "no revisions" | Shipped in 1.9.0. Rendered **after the submit buttons**, at the bottom of a long one-column page. Nobody scrolled that far. |
+| "no smart conditional logic" | The **engine** existed — four rule kinds, implicit AND — and had **no UI at all**. Only an agent could set a condition, through `snippet_save`. |
+| "doesn't look like an editor" | Correct, and the cause of the other three. |
+
+Two of the three "missing" features were shipped and unreachable. That is worth
+writing down, because it is a failure mode this project keeps producing: the
+1.2.0 code-editor bug was a feature that existed in the source and not on the
+screen, and this is the same shape one layer up — a feature that exists on the
+screen, below the point anybody looks.
+
+**"Shipped" and "reachable" are different claims.** The browser checks added in
+this pass assert the second one: a measured position, a populated control, a
+computed colour. Never the presence of markup.
+
+### What was built
+
+- **Two columns.** Code on the left inside a real editor frame — language dot in
+  the language's own colour, `snippet.php` filename, `PHP` pill, Ask AI in the
+  toolbar. All three follow the type dropdown live, because a bar that stops
+  agreeing with the dropdown is a label that lies.
+- **A 320px right-hand rail**: Save (with a status badge), Behaviour (the five
+  settings that were behind a `<details>`), Revisions. Always open. Nothing that
+  is switched on is hidden.
+- **`Claudpress_Snippet_Conditions`** — seven rule kinds, ALL/ANY, operators,
+  a repeatable builder, and a summary badge on the list screen.
+- **One stylesheet**, `assets/css/studio.css`, replacing two `wp_add_inline_style`
+  blocks that styled the same screen and had begun to disagree.
+
+### The decision worth defending: no migration
+
+Pre-1.2.0 conditions are **lifted on read**, not rewritten. Nothing in the
+database changes, no upgrade step can half-run, a rollback to 1.1.0 still works,
+and `snippet_save` still accepts the old flat shape so agents working from older
+notes are not broken.
+
+The subtle part: the old `post_types` / `post_ids` checks were wrapped in
+`is_singular()`, so on an archive they did not *fail* — they did not *apply*.
+Read as ordinary rules they would newly fail there, and a header snippet that had
+always shown on category pages would vanish on update, on a site whose owner
+changed nothing. Lifted rules carry `only_singular` and behave exactly as before;
+rules built in the new builder do not. Pinned by
+`tests/unit/test-snippet-conditions.php`.
+
+### Two bugs found by teardown, not by looking
+
+Both surfaced from the same habit: delete the test fixture, then **count what is
+left**.
+
+1. `Claudpress_Snippets::delete()` never removed a snippet's revisions.
+   `snippets left: 0, revisions left: 7`. Unreachable rows, growing without
+   limit, each holding a full copy of the code — so deleting a snippet because
+   of what was inside it did not remove it.
+
+2. `uninstall.php` named six tables while the plugin created ten. Four survived
+   an explicit "delete all data", including the revisions table. Replaced with a
+   prefix sweep, which cannot drift because nothing has to be remembered.
+
+### Verification
+
+```
+php tests/run.php                                       2428 assertions
+composer analyse                                        clean
+php bin/lint.php                                        140 files
+node tests/rig/ui/check-snippets.mjs --rig C:/wp-rig/wordpress
+                                                        57 browser checks
+```
+
+Plus, on the rig: the real `uninstall.php` run against real data (10 tables → 0,
+VibeSnip's 3 tables and 5 posts untouched), and an agent-written legacy
+condition saved, read back, and lifted with its `only_singular` exemption intact.

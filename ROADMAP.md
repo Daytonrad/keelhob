@@ -15,36 +15,46 @@ the fast path and the ownership path the same path: install one plugin, connect
 your agent, say what you want, and get a real database, a real store and real
 code on hosting you control.
 
-Working today: 68 tools across content, WooCommerce, SEO, files, PHP execution,
-snippets, Elementor, memory and autonomy · 15 expert skills · a Snippets Studio
-with AI compose and revision history · cross-session memory · a Telegram
-front-end with voice, photos and approve-by-button · staging-to-production
-bundles · signed skill updates · ~1,500 unit assertions and a live rig against
-real WordPress and WooCommerce.
+Working today: 62 tools across content, WooCommerce, SEO, files, PHP execution,
+snippets, Elementor, memory and autonomy · 24 expert skills · a Snippets Studio
+with a real code editor, conditional logic and revision history · cross-session
+memory · a Telegram front-end with voice, photos and approve-by-button ·
+staging-to-production bundles · signed skill updates · 2,428 unit assertions,
+57 browser checks, 30 end-to-end checks through the live MCP endpoint, and a
+rig running real WordPress.
 
 ---
 
-## Now (v1.1)
-
-Being built.
+## Shipped (1.1.0, 1.2.0)
 
 - **The one-prompt store, polished end to end.** Say "build me a shop selling
   handmade candles in the UK", answer a few questions, and get pages, products,
   images, payment, shipping, tax, legal pages and SEO — *verified* done by the
-  readiness checker before it says so. The ten-minute build stops being a claim
-  and becomes a guarantee.
-- **Onboarding wizard.** Activation to a connected agent without reading
-  anything first.
+  readiness checker before it says so.
 - **Installation docs with screenshots**, written for people who have never
   touched MCP.
+- **The site-clone skill family** — copy a site built on Wix, Shopify or React
+  into WordPress and Elementor, with a permission gate that stops the run if the
+  answer is no.
+- **A Snippets Studio that reads as an editor**: two columns, syntax colouring,
+  conditional logic with ALL/ANY rules, and revisions with one-click restore.
+- **Feedback you can send from inside the plugin**, and a private summary the
+  maintainer can read.
+
+## Now (1.3)
+
+Being built.
+
+- **Onboarding wizard.** Activation to a connected agent without reading
+  anything first.
 - **A three-minute video** of a site being built from one prompt, start to
   finish, no cuts.
 
-## Next (v1.2, v1.3)
+## Next (1.4, 1.5)
 
 Planned and ordered.
 
-### v1.2 — trust
+### 1.4 — trust
 
 - **An independent security review** of `execute_php`, the filesystem tools and
   the snippet engine, published in full including whatever it finds.
@@ -58,7 +68,7 @@ Planned and ordered.
 - **A skill gallery** — browse and install community skills from the admin.
 - **Proper i18n, and the first translations.**
 
-### v1.3 — depth
+### 1.5 — depth
 
 Claudpress stops being a tool that builds sites and becomes one that builds
 tools.

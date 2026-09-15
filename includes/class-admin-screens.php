@@ -452,18 +452,54 @@ final class Claudpress_Admin_Screens
             <h2 style="<?php echo esc_attr($h); ?>"><?php esc_html_e('Your two safety controls', 'claudpress'); ?></h2>
             <p style="max-width:800px;"><?php esc_html_e('1. The master switch (Connect page) turns all abilities on or off in one click. 2. Capability toggles (Connect page, lower down) let you allow some areas and forbid others — so you can let the AI write blog posts but never touch payments, for example. A forbidden area is hidden from the AI entirely and refused if it tries.', 'claudpress'); ?></p>
 
-            <h3 style="margin-top:18px;"><?php esc_html_e('Recommended starting point for newbies', 'claudpress'); ?></h3>
-            <p><?php esc_html_e('When you\'re still learning to trust it, keep the safe creative areas on and the sensitive ones off:', 'claudpress'); ?></p>
+            <?php
+            /*
+             * THIS TABLE USED TO LIE, and it is worth saying how.
+             *
+             * It listed "Code execution · Filesystem · Site admin · Autonomy"
+             * under "turn OFF until you trust it", which reads as a description
+             * of what the plugin ships. It is not. Those four, plus Store and
+             * Snippets, are ON the moment abilities are switched on — only
+             * eight groups start off (payments, store orders, shipping, tax,
+             * users, updates, email, deploy).
+             *
+             * So the guide was telling somebody to leave off six switches that
+             * were already on behind them. Somebody following it exactly would
+             * believe their site was walled off when it was not.
+             *
+             * The table is now split by what the DEFAULTS actually are, read
+             * from the live capability list rather than typed here — a
+             * hand-written list is what drifted in the first place.
+             */
+            $on_by_default  = [];
+            $off_by_default = [];
+            foreach (Claudpress_Capabilities::groups() as $gkey => $ginfo) {
+                $label = $ginfo['label'] . (!empty($ginfo['sensitive']) ? ' ●' : '');
+                if (Claudpress_Capabilities::default_enabled($gkey)) {
+                    $on_by_default[] = $label;
+                } else {
+                    $off_by_default[] = $label;
+                }
+            }
+            ?>
+            <h3 style="margin-top:18px;"><?php esc_html_e('What is on before you change anything', 'claudpress'); ?></h3>
+            <p style="max-width:800px;">
+                <?php esc_html_e('Switching on AI abilities switches on the left-hand column too. A ● marks a sensitive area. If you want a quieter start, turn off anything in the left column you do not need — especially Raw code execution and Filesystem.', 'claudpress'); ?>
+            </p>
             <table class="widefat striped" style="max-width:800px;">
                 <thead><tr>
-                    <th><?php esc_html_e('Leave ON (low risk)', 'claudpress'); ?></th>
-                    <th><?php esc_html_e('Turn OFF until you trust it (sensitive)', 'claudpress'); ?></th>
+                    <th><?php esc_html_e('ON as soon as abilities are on', 'claudpress'); ?></th>
+                    <th><?php esc_html_e('OFF until you switch them on', 'claudpress'); ?></th>
                 </tr></thead>
                 <tbody><tr>
-                    <td style="vertical-align:top;"><?php esc_html_e('Content · SEO · Design/Elementor · Images · Memory · Skills', 'claudpress'); ?></td>
-                    <td style="vertical-align:top;"><?php esc_html_e('Payments (money) · Store & orders · Shipping · Tax · Code execution · Filesystem · Users · Site admin · Updates · Autonomy · Deploy · Email', 'claudpress'); ?></td>
+                    <td style="vertical-align:top;"><?php echo esc_html(implode(' · ', $on_by_default)); ?></td>
+                    <td style="vertical-align:top;"><?php echo esc_html(implode(' · ', $off_by_default)); ?></td>
                 </tr></tbody>
             </table>
+            <p style="color:#b45309;max-width:800px;">
+                <strong><?php esc_html_e('If you only want the AI to write content:', 'claudpress'); ?></strong>
+                <?php esc_html_e('turn off Raw code execution, Filesystem, Site admin and Autonomy. Filesystem can read wp-config.php, which holds your database password and security keys.', 'claudpress'); ?>
+            </p>
             <p style="color:#b45309;max-width:800px;"><strong><?php esc_html_e('Important:', 'claudpress'); ?></strong> <?php esc_html_e('"Code execution" is the master key — with raw PHP the AI can reach any area. To truly wall off something sensitive, turn Code execution OFF too.', 'claudpress'); ?></p>
 
             <h2 style="<?php echo esc_attr($h); ?>"><?php esc_html_e('What the AI can do — every area & tool', 'claudpress'); ?></h2>
@@ -489,6 +525,61 @@ final class Claudpress_Admin_Screens
 
             <h3 style="margin-top:18px;"><?php esc_html_e('Always available (read-only)', 'claudpress'); ?></h3>
             <p style="max-width:800px;"><?php esc_html_e('These never turn off, so you can always ask what\'s going on: get_site_info, get_dashboard, memory_list, skill_list, task_list.', 'claudpress'); ?></p>
+
+            <?php
+            /*
+             * The snippets engine had no section here at all.
+             *
+             * That is a gap with a shape we have seen before on this product:
+             * the feature shipped, works, and is the ONE part of the plugin a
+             * person uses with no AI connected and no abilities switched on —
+             * and the guide that claims to cover "everything this plugin lets
+             * you do" never mentioned it. Conditional logic and revisions were
+             * likewise absent, which is exactly why both were reported as
+             * missing features by somebody who had them installed.
+             */
+            ?>
+            <h2 style="<?php echo esc_attr($h); ?>"><?php esc_html_e('Code snippets — the part that needs no AI', 'claudpress'); ?></h2>
+            <p style="max-width:800px;">
+                <?php
+                printf(
+                    /* translators: %s: link to the Snippets screen. */
+                    esc_html__('%s is a full code editor inside WordPress. It works the moment you activate the plugin: no AI connected, no abilities switched on, no account. If you installed Claudpress only for this, you never have to touch the rest.', 'claudpress'),
+                    '<a href="' . esc_url(admin_url('admin.php?page=' . Claudpress_Studio::SLUG)) . '"><strong>' . esc_html__('Claudpress → Snippets', 'claudpress') . '</strong></a>'
+                );
+                ?>
+            </p>
+            <table class="widefat striped" style="max-width:800px;">
+                <tbody>
+                    <tr>
+                        <td style="width:190px;"><strong><?php esc_html_e('Write PHP, CSS, JS or HTML', 'claudpress'); ?></strong></td>
+                        <td><?php esc_html_e('A real editor with line numbers, syntax colouring and bracket matching. Do NOT paste an opening <?php tag — start at your first line of code.', 'claudpress'); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e('An on/off switch per snippet', 'claudpress'); ?></strong></td>
+                        <td><?php esc_html_e('Off means the code does nothing. On means it runs on your site. Flip it back any time from the list.', 'claudpress'); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e('It will not let broken PHP go live', 'claudpress'); ?></strong></td>
+                        <td><?php esc_html_e('Every PHP snippet is really parsed before it can activate. If it does not parse, it is saved switched off with the error attached — your work is never thrown away. And if a live snippet crashes the front page anyway, Claudpress switches it off by itself.', 'claudpress'); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e('Smart conditional logic', 'claudpress'); ?></strong></td>
+                        <td><?php esc_html_e('Tick the box under the code box to say WHEN a snippet may run: logged in or out, a user role, a page type, a post type, one post ID, a URL path, or mobile versus desktop. Match ALL of your rules or ANY of them. With no rules it simply runs wherever "Where it runs" says.', 'claudpress'); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e('Revisions', 'claudpress'); ?></strong></td>
+                        <td><?php esc_html_e('Every change to the code keeps a copy of what was there before, listed in the panel on the right with a Restore button. Restoring saves your current code to the history first, and leaves the snippet switched off so you can read it before it runs.', 'claudpress'); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e('Your agent can use it too', 'claudpress'); ?></strong></td>
+                        <td><?php esc_html_e('If you do connect an AI, the same snippets are the snippet_save, snippet_list and snippet_toggle tools — so "add a banner for logged-out visitors on mobile" and the rule builder are two doors into one thing. Say "tell me about snippet 7" to have it explain one.', 'claudpress'); ?></td>
+                    </tr>
+                </tbody>
+            </table>
+            <p style="max-width:800px;color:#555;">
+                <?php esc_html_e('Deleting a snippet deletes its revisions with it. Deleting the whole plugin keeps everything, so reinstalling puts your snippets back — unless you tick "Delete all Claudpress data" in Settings first.', 'claudpress'); ?>
+            </p>
 
             <h2 style="<?php echo esc_attr($h); ?>"><?php esc_html_e('Run the shop on autopilot (Autonomy)', 'claudpress'); ?></h2>
             <p style="max-width:800px;">
