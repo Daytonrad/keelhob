@@ -93,6 +93,16 @@ parameters:
 			count: 1
 			path: includes/class-skills.php
 
+		# Claudpress::asset_version() stats the bundled file to cache-bust it by
+		# mtime. Same cause as every other entry in this group: PHPStan does not
+		# carry define() across files, and CLAUDPRESS_DIR is defined
+		# unconditionally in claudpress.php before anything that uses it loads.
+		-
+			message: '#^Constant CLAUDPRESS_DIR not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: includes/class-claudpress.php
+
 		-
 			message: '#^Found usage of constant DOING_CRON\. Use wp_doing_cron\(\) instead\.$#'
 			identifier: phpstanWP.wpConstant.fetch
