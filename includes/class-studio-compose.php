@@ -94,14 +94,14 @@ final class Claudpress_Studio_Compose
             'claudpress-studio',
             CLAUDPRESS_URL . 'assets/css/studio.css',
             [],
-            CLAUDPRESS_VERSION
+            Claudpress::asset_version('assets/css/studio.css')
         );
 
         wp_enqueue_script(
             'claudpress-studio-compose',
             CLAUDPRESS_URL . 'assets/js/studio-compose.js',
             [],
-            CLAUDPRESS_VERSION,
+            Claudpress::asset_version('assets/js/studio-compose.js'),
             true
         );
 

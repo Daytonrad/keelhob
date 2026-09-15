@@ -122,7 +122,7 @@ final class Claudpress_Studio
             'claudpress-studio',
             CLAUDPRESS_URL . 'assets/css/studio.css',
             [],
-            CLAUDPRESS_VERSION
+            Claudpress::asset_version('assets/css/studio.css')
         );
     }
 

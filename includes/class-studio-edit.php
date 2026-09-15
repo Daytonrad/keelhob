@@ -462,7 +462,7 @@ final class Claudpress_Studio_Edit
             'claudpress-studio-edit',
             CLAUDPRESS_URL . 'assets/js/studio-edit.js',
             $deps,
-            CLAUDPRESS_VERSION,
+            Claudpress::asset_version('assets/js/studio-edit.js'),
             true
         );
 

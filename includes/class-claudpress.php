@@ -496,6 +496,38 @@ final class Claudpress
      * the correct trade for a credential that grants full administrative
      * control of the site.
      */
+    /**
+     * The cache-busting version for a bundled CSS or JS file.
+     *
+     * THE BUG THIS EXISTS TO PREVENT, which shipped once and was reported from
+     * a real browser: every asset was registered with CLAUDPRESS_VERSION. That
+     * only changes when the RELEASE number changes, so editing a script without
+     * bumping the release leaves its URL byte-identical —
+     * `studio-compose.js?ver=1.2.0` before and after. Browsers reuse what they
+     * already have under that URL.
+     *
+     * AI Compose was rewritten from a wizard into a chat inside one version.
+     * Anyone who had opened the old screen got the NEW markup with the OLD
+     * cached script, which looks for `#cp-compose-plan`, does not find it, and
+     * returns without wiring anything. Send did nothing. Enter typed a newline.
+     * No console error, nothing in the page source, and nothing any server-side
+     * test can see — the files on disk were all correct.
+     *
+     * filemtime() changes whenever the file does, which is the actual question
+     * being asked. It falls back to the release version if the file cannot be
+     * stat'd, so a hardened host that blocks filemtime degrades to the old
+     * behaviour rather than to no version at all.
+     *
+     * @param string $relative e.g. 'assets/js/studio-compose.js'
+     */
+    public static function asset_version(string $relative): string
+    {
+        $path = CLAUDPRESS_DIR . ltrim($relative, '/');
+        $time = @filemtime($path);
+
+        return $time ? CLAUDPRESS_VERSION . '.' . $time : CLAUDPRESS_VERSION;
+    }
+
     public static function set_token(): string
     {
         $plain = self::generate_token();
