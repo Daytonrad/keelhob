@@ -190,15 +190,38 @@ function wp_json_encode($data, int $flags = 0)
     return json_encode($data, $flags);
 }
 
+/*
+ * A SITE THAT IS NOT IN LONDON.
+ *
+ * This stub used to return plain UTC whatever was asked of it, which made an
+ * entire class of bug unreachable from the unit suite: WordPress stores local
+ * wall-clock strings and pins PHP's timezone to UTC, so any code that reads one
+ * back with a bare strtotime() is off by the site's offset. That shipped, and
+ * turned an HOURLY digest into a four-to-five-hourly one on a UTC+4 site.
+ *
+ * $GLOBALS['cp_test_gmt_offset'] (hours) lets a test put the site somewhere
+ * real. It defaults to 0, so every existing test behaves exactly as before.
+ */
+function cp_test_offset(): int
+{
+    return (int) ($GLOBALS['cp_test_gmt_offset'] ?? 0) * 3600;
+}
+
 function current_time(string $type = 'mysql', $gmt = 0)
 {
     if ($type === 'timestamp' || $type === 'U') {
-        return time();
+        return $gmt ? time() : time() + cp_test_offset();
     }
     if ($type === 'G') {
-        return (int) gmdate('G');
+        return (int) gmdate('G', time() + ($gmt ? 0 : cp_test_offset()));
     }
-    return gmdate('Y-m-d H:i:s');
+    return gmdate('Y-m-d H:i:s', time() + ($gmt ? 0 : cp_test_offset()));
+}
+
+/** WordPress's local-to-GMT conversion: subtract the offset the string carries. */
+function get_gmt_from_date(string $date, string $format = 'Y-m-d H:i:s')
+{
+    return gmdate($format, (int) strtotime($date) - cp_test_offset());
 }
 
 function get_bloginfo(string $show = 'name'): string

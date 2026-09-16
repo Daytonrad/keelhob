@@ -115,6 +115,39 @@ final class Claudpress_Tasks
         return $elapsed >= ($interval + 86400);
     }
 
+    /**
+     * The stored last_run, as a real UTC timestamp.
+     *
+     * THE BUG THIS FIXES, reported from a live site: an HOURLY digest arriving
+     * every four to five hours, for over a week.
+     *
+     * record_run() stores current_time('mysql') — the site's LOCAL wall clock.
+     * WordPress pins PHP's default timezone to UTC, so a bare strtotime() on
+     * that string reads "14:00 in Dubai" as "14:00 UTC" — a timestamp four
+     * hours in the FUTURE. is_due() then computes elapsed = now - last = -4h
+     * and refuses to run until that climbs back past the interval. An hourly
+     * task therefore fires every offset + interval: on UTC+4, every 4h58m.
+     *
+     * It matched the report exactly, and it is invisible on a UTC site, which
+     * is what every test rig and CI runner is.
+     *
+     * The column keeps storing local time — it is shown to people on three
+     * screens — so the conversion belongs here, at the one place that turns it
+     * into a number.
+     */
+    public static function last_run_ts(?string $stored): int
+    {
+        $stored = trim((string) $stored);
+        if ($stored === '') {
+            return 0;
+        }
+        if (function_exists('get_gmt_from_date')) {
+            // WordPress's own conversion, so named timezones and DST are right.
+            return (int) strtotime(get_gmt_from_date($stored) . ' UTC');
+        }
+        return (int) strtotime($stored);
+    }
+
     /** WP-Cron callback: run every enabled task whose interval has elapsed. */
     public static function run_due(): void
     {
@@ -126,7 +159,7 @@ final class Claudpress_Tasks
                 'enabled'     => (int) $task['enabled'],
                 'schedule'    => $task['schedule'],
                 'run_hour'    => $task['run_hour'] ?? null,
-                'last_run_ts' => $task['last_run'] ? strtotime($task['last_run']) : 0,
+                'last_run_ts' => self::last_run_ts($task['last_run'] ?? null),
             ], $now, $now_hour);
 
             if ($due) {

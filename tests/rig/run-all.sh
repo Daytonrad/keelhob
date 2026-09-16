@@ -58,11 +58,12 @@ fails=0
 run "Core"            checks.php         || fails=$((fails + 1))
 run "Snippets Studio" checks-studio.php  || fails=$((fails + 1))
 run "AI Compose flow" checks-compose.php || fails=$((fails + 1))
+run "Cron + digest"    checks-cron.php    || fails=$((fails + 1))
 
 echo
 echo "--------------------------------------------------------------"
 if [ "$fails" -gt 0 ]; then
-  echo "$fails of 3 check files FAILED"
+  echo "$fails of 4 check files FAILED"
   exit 1
 fi
-echo "All 3 check files passed."
+echo "All 4 check files passed."

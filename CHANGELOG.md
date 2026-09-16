@@ -14,6 +14,34 @@ public. When the two disagree, this file is correct.
 
 ### Added
 
+- **Scheduled tasks now fire on time outside UTC.** `includes/class-tasks.php`,
+  `tests/bootstrap.php`.
+
+  Reported from a live site in Asia/Dubai: a digest set to HOURLY arrived every
+  four to five hours, for over a week.
+
+  `record_run()` stores `current_time('mysql')` — the site's LOCAL wall clock.
+  WordPress pins PHP's default timezone to UTC, so reading that back with a bare
+  `strtotime()` interprets "14:00 in Dubai" as "14:00 UTC": a timestamp four
+  hours in the FUTURE. `is_due()` then computed `elapsed = now - last = -4h` and
+  refused to run until it climbed back past the interval, so every task fired at
+  `offset + interval`. On UTC+4 an hourly task took 4h58m — the reported gap,
+  arrived at from the arithmetic rather than from guessing.
+
+  New `Claudpress_Tasks::last_run_ts()` converts through `get_gmt_from_date()`,
+  so named timezones and DST are right, and the column keeps storing local time
+  because three screens display it.
+
+  It was invisible everywhere it could have been caught: the unit stub returned
+  plain UTC whatever it was asked, and the rig, CI and every other test
+  WordPress run at UTC, where the offset the bug depends on is zero. So
+  `tests/bootstrap.php` can now put the site somewhere real
+  (`$GLOBALS['cp_test_gmt_offset']`, default 0 so nothing else changes), and
+  `tests/rig/checks-cron.php` moves a REAL WordPress to +04:00 and restores it
+  in the same run. The tests assert both directions — a site east of UTC ran
+  late, and a naive fix written only for that would make a site west of UTC fire
+  EARLY and send duplicates.
+
 - **A new token now clears the failed-attempt lock.** `includes/class-auth.php`,
   `includes/class-claudpress.php`, `includes/class-admin-screens.php`.
 
