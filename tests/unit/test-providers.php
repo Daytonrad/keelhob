@@ -589,3 +589,44 @@ cp_test_reset_options();
 cp_test_reset_ajax();
 cp_test_reset_filters();
 $GLOBALS['cp_test_transients'] = [];
+
+CP_Test::group('Google — a no-argument tool call survives the next turn');
+
+/*
+ * THE BUG THIS PINS, reported from a live Telegram chat:
+ *
+ *   HTTP 400: Invalid JSON payload received. Unknown name "args" at
+ *   'contents[3].parts[0].function_call': Proto field is not repeating,
+ *   cannot start list.
+ *
+ * Gemini answered with `functionCall: {name: "snippet_list", args: {}}`.
+ * json_decode turns `{}` into an empty PHP array; json_encode writes an empty
+ * PHP array back out as `[]`. Google's args is a Struct, never a list, so the
+ * conversation died on the turn AFTER the call -- the tool ran, the answer was
+ * never delivered. Only a tool called with NO arguments can trigger it, which
+ * is why it survived every earlier schema fix.
+ */
+$reply = Claudpress_Provider_Google::parse([
+    'candidates' => [['content' => ['parts' => [
+        ['functionCall' => ['name' => 'snippet_list', 'args' => (array) []]],
+    ]]]],
+]);
+CP_Test::same('snippet_list', $reply['tool_calls'][0]['name'] ?? '', 'the call is read back');
+
+// The SAME value the runtime replays into the next request.
+$echo = Claudpress_Provider_Google::assistant_message($reply);
+$json = json_encode(['contents' => [$echo]]);
+CP_Test::ok(strpos((string) $json, '"args":{}') !== false, 'empty args are sent as an object');
+CP_Test::ok(strpos((string) $json, '"args":[]') === false, 'and never as a list, which Google rejects');
+
+// A call WITH arguments must be left exactly as it was.
+$with = Claudpress_Provider_Google::assistant_message(Claudpress_Provider_Google::parse([
+    'candidates' => [['content' => ['parts' => [
+        ['functionCall' => ['name' => 'snippet_get', 'args' => ['id' => 7]]],
+    ]]]],
+]));
+CP_Test::same(['id' => 7], (array) ($with['parts'][0]['functionCall']['args'] ?? []), 'real arguments are untouched');
+
+// A tool that returns nothing must not produce an empty response either.
+$res = Claudpress_Provider_Google::tool_result_message([['name' => 'snippet_list', 'result' => []]]);
+CP_Test::ok(strpos((string) json_encode($res), '"response":[]') === false, 'an empty tool result is wrapped, not sent as a list');

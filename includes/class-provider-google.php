@@ -158,7 +158,28 @@ final class Claudpress_Provider_Google extends Claudpress_Provider
 
     public static function assistant_message(array $parsed): array
     {
-        return ['role' => 'model', 'parts' => $parsed['raw']['parts']];
+        return ['role' => 'model', 'parts' => array_map(
+            [self::class, 'struct_safe_part'],
+            (array) $parsed['raw']['parts']
+        )];
+    }
+
+    /**
+     * A tool call with no arguments comes back as `args: {}`, which json_decode
+     * turns into an empty PHP array, which json_encode then writes back as `[]`.
+     * Google's functionCall.args is a Struct and refuses a list outright --
+     * "Proto field is not repeating, cannot start list" -- so the whole
+     * conversation dies on the turn AFTER any no-argument tool call. The same
+     * holds for functionResponse.response.
+     */
+    private static function struct_safe_part(array $part): array
+    {
+        foreach (['functionCall' => 'args', 'functionResponse' => 'response'] as $wrapper => $field) {
+            if (isset($part[$wrapper]) && ($part[$wrapper][$field] ?? null) === []) {
+                $part[$wrapper][$field] = (object) [];
+            }
+        }
+        return $part;
     }
 
     public static function assistant_text_message(string $text): array
@@ -181,7 +202,7 @@ final class Claudpress_Provider_Google extends Claudpress_Provider
             $parts[] = [
                 'functionResponse' => [
                     'name'     => $r['name'],
-                    'response' => is_array($r['result']) ? $r['result'] : ['result' => $r['result']],
+                    'response' => (is_array($r['result']) && $r['result'] !== []) ? $r['result'] : ['result' => $r['result']],
                 ],
             ];
         }
