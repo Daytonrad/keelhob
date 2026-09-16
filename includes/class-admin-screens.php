@@ -311,6 +311,35 @@ final class Claudpress_Admin_Screens
                                 ?>
                             </p>
                         <?php endif; ?>
+                        <?php
+                        /*
+                         * SAY IT ON THE PAGE, where somebody who is stuck is looking.
+                         *
+                         * The lock is checked BEFORE the token, so a new token still
+                         * gets 429 and regenerating looks like it did nothing. Worse,
+                         * a client still holding the OLD token re-locks the site the
+                         * moment the window opens, so the wait never ends.
+                         *
+                         * No separate unlock button: Regenerate below already clears
+                         * it, and two controls for one job is how people pick the
+                         * wrong one.
+                         */
+                        if (Claudpress_Auth::is_locked_out()) :
+                            $mins = (int) max(1, ceil(Claudpress_Auth::lock_seconds_left() / 60));
+                            ?>
+                            <div class="notice notice-warning inline" style="margin:12px 0;">
+                                <p><strong><?php
+                                    /* translators: %d: minutes remaining. */
+                                    echo esc_html(sprintf(__('This site is refusing connections for %d more minute(s) — too many failed attempts.', 'claudpress'), $mins));
+                                ?></strong></p>
+                                <p><?php esc_html_e('Regenerating below clears it straight away. First close every AI client, because one still holding the old token will lock the site again the moment it clears.', 'claudpress'); ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <p style="color:#666;margin:8px 0 4px;">
+                            <?php esc_html_e('After regenerating, update EVERY client that connects to this site, and delete any duplicate entry pointing here. A client left on the old token fails on every start, and ten failures in fifteen minutes locks this site — including for the client you just fixed.', 'claudpress'); ?>
+                        </p>
+
                         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:8px;" onsubmit="return confirm('<?php echo esc_js(__('Regenerating the token will disconnect existing clients. Continue?', 'claudpress')); ?>');">
                             <?php wp_nonce_field('claudpress_save'); ?>
                             <input type="hidden" name="action" value="claudpress_save">

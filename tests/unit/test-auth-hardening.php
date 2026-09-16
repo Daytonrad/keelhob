@@ -107,3 +107,53 @@ CP_Test::ok($is_local->invoke(null), 'a genuinely local .test site is recognised
 
 $GLOBALS['cp_test_home_url'] = 'http://localhost:8080';
 CP_Test::ok($is_local->invoke(null), 'localhost with a port is recognised');
+
+CP_Test::group('Auth - a new token clears the lock');
+
+/*
+ * THE TRAP THIS CLOSES, hit by the plugin's own author against a live site.
+ *
+ * is_locked_out() is checked BEFORE any credential work, so a brand-new,
+ * perfectly valid token still gets 429 and regenerating appears to do nothing.
+ * Worse, a client still holding the OLD token re-locks the site the instant the
+ * window opens — so the wait never ends, and the only visible symptom is
+ * "connection failed" forever. An hour was lost to it.
+ */
+$GLOBALS['cp_test_transients'] = [];
+$_SERVER['REMOTE_ADDR'] = '203.0.113.9';
+for ($i = 0; $i < 10; $i++) { $record->invoke(null); }
+CP_Test::ok(Claudpress_Auth::is_locked_out(), 'the caller is locked out to begin with');
+
+Claudpress_Auth::unlock();
+CP_Test::ok(!Claudpress_Auth::is_locked_out(), 'unlock() lifts it');
+
+// EVERY address, not just the caller's. The lock is keyed on the MCP CLIENT's
+// IP; unlock() runs from wp-admin, where the browser is usually a different
+// address. Clearing only "my" IP would leave the client locked and the owner
+// staring at a button that did nothing.
+$GLOBALS['cp_test_transients'] = [];
+$_SERVER['REMOTE_ADDR'] = '203.0.113.9';
+for ($i = 0; $i < 10; $i++) { $record->invoke(null); }
+$_SERVER['REMOTE_ADDR'] = '198.51.100.7';   // the admin's browser, not the client
+Claudpress_Auth::unlock();
+$_SERVER['REMOTE_ADDR'] = '203.0.113.9';    // back to the client
+CP_Test::ok(!Claudpress_Auth::is_locked_out(), 'unlocking from a DIFFERENT address still frees the locked client');
+
+// The wiring: minting a token must call it. Asserted from the source because
+// set_token() writes options a unit run has no database for.
+$cp_src = (string) file_get_contents(CLAUDPRESS_DIR . 'includes/class-claudpress.php');
+$cp_mint = substr($cp_src, strpos($cp_src, 'function set_token'), 1200);
+CP_Test::contains('Claudpress_Auth::unlock()', $cp_mint, 'set_token() clears the lock, so regenerating actually helps');
+
+CP_Test::group('Auth - the lockout message says how long');
+
+// "Try again in a few minutes" is what sent somebody regenerating tokens and
+// restarting clients for an hour: nothing on screen separated "wait" from
+// "still broken".
+CP_Test::ok(Claudpress_Auth::lock_seconds_left() > 0, 'a remaining time is reported');
+CP_Test::ok(Claudpress_Auth::lock_seconds_left() <= Claudpress_Auth::LOCKOUT_WINDOW, 'and it never exceeds the window');
+
+$auth_src = (string) file_get_contents(CLAUDPRESS_DIR . 'includes/class-auth.php');
+CP_Test::ok(strpos($auth_src, 'Try again in a few minutes') === false, 'the vague message is gone');
+CP_Test::contains('retry_after', $auth_src, 'and the 429 carries a machine-readable retry hint');
+CP_Test::contains('Claudpress > Connect clears this', $auth_src, 'and the message names the way out');

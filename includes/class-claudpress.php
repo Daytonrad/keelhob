@@ -536,6 +536,20 @@ final class Claudpress
             'token_hash'       => hash('sha256', $plain),
             'token_last_used'  => 0,
         ]);
+        // Minting a new token clears the failed-attempt lock.
+        //
+        // THE TRAP THIS CLOSES, hit by the plugin's own author. The lock is
+        // checked BEFORE the credential, so a brand-new, perfectly valid token
+        // still gets 429 — regenerating appeared to do nothing. Worse, a client
+        // still holding the OLD token re-locks the site the instant the window
+        // opens, so the wait never ends and the only visible symptom is
+        // "connection failed" forever.
+        //
+        // Reaching here means somebody minted a token, which needs
+        // manage_options. That is stronger proof of ownership than surviving a
+        // fifteen-minute wait, so there is nothing left for the lock to defend.
+        Claudpress_Auth::unlock();
+
         self::flash_token($plain);
         return $plain;
     }

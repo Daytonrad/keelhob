@@ -14,6 +14,33 @@ public. When the two disagree, this file is correct.
 
 ### Added
 
+- **A new token now clears the failed-attempt lock.** `includes/class-auth.php`,
+  `includes/class-claudpress.php`, `includes/class-admin-screens.php`.
+
+  Found the hard way against a live site. Ten failed attempts from one address
+  in fifteen minutes locks the MCP endpoint, and `is_locked_out()` is checked
+  BEFORE any credential work — so a brand-new, perfectly valid token still got
+  429 and regenerating appeared to do nothing at all.
+
+  Worse, it could not resolve itself. A client still holding the OLD token
+  re-locks the site the instant the window opens, so the wait never ends and the
+  only visible symptom is "connection failed" forever. Two stale entries
+  pointing at one site made it certain: every client start burned failures.
+
+  Minting a token needs `manage_options`, which is stronger proof of ownership
+  than surviving a fifteen-minute wait, so there is nothing left for the lock to
+  defend. `Claudpress_Auth::unlock()` clears every address's counter, not just
+  the caller's — the lock is keyed on the MCP CLIENT's IP while the button is
+  pressed from wp-admin, usually a different address. Clearing only "my" IP
+  would leave the client locked and the owner staring at a button that did
+  nothing. The unit test caught exactly that in the first draft.
+
+  The 429 also stops being vague: it names the real number of minutes, carries
+  `retry_after`, and says that regenerating clears it. And the Connect screen
+  now shows the countdown when locked, plus a standing warning that every client
+  must be updated and duplicates removed, because one client left on the old
+  token re-locks the site for all of them.
+
 - **Operating-protocol rule 16: precision, and not wasting the owner's tokens.**
   `includes/class-mcp-server.php`.
 

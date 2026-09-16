@@ -29,10 +29,17 @@ final class Claudpress_Auth
         // login page and every 2FA plugin, because those hook wp-login.php and
         // never see a custom REST route.
         if (self::is_locked_out()) {
+            // Say the real number. "A few minutes" sent somebody regenerating
+            // tokens and restarting clients for an hour, because nothing on
+            // screen distinguished "wait" from "still broken".
+            $left = self::lock_seconds_left();
             return new WP_Error(
                 'claudpress_locked_out',
-                'Too many failed attempts. Try again in a few minutes.',
-                ['status' => 429]
+                sprintf(
+                    'Too many failed attempts. Try again in %d minute(s). Generating a new token in Claudpress > Connect clears this immediately.',
+                    (int) max(1, ceil($left / 60))
+                ),
+                ['status' => 429, 'retry_after' => $left]
             );
         }
 
@@ -196,7 +203,13 @@ final class Claudpress_Auth
 
     private static function fail_key_ip(): string
     {
-        return 'claudpress_authfail_' . md5(self::client_ip());
+        return self::fail_key_for(self::ip_fingerprint());
+    }
+
+    /** The per-address counter key, for any address. unlock() needs this for addresses that are not the caller's. */
+    private static function fail_key_for(string $fingerprint): string
+    {
+        return 'claudpress_authfail_' . $fingerprint;
     }
 
     private static function fail_key_global(): string
@@ -228,6 +241,51 @@ final class Claudpress_Auth
     {
         return (int) get_transient(self::fail_key_ip()) >= self::MAX_FAILS_PER_IP
             || count(self::failing_ips()) >= self::MAX_FAILING_IPS;
+    }
+
+    /**
+     * Seconds until the lock lifts, for the message.
+     *
+     * Read off the transient's own expiry rather than tracked separately, so
+     * the number shown cannot drift from the thing that actually unlocks.
+     * Falls back to the full window when the timeout row is missing, which is
+     * the safe direction: over-stating the wait annoys, under-stating it sends
+     * somebody back into the retry loop that caused the lock.
+     */
+    public static function lock_seconds_left(): int
+    {
+        $at = (int) get_option('_transient_timeout_' . self::fail_key_ip(), 0);
+        $left = $at - time();
+
+        return $left > 0 ? $left : self::LOCKOUT_WINDOW;
+    }
+
+    /**
+     * Drop every failure record, for every address.
+     *
+     * EVERY address, not just the caller's, and that is the point. The lock is
+     * keyed on the IP of the MCP CLIENT; this is called from wp-admin, where
+     * the browser's address is usually a different one. Clearing only "my" IP
+     * would leave the client locked out and the owner staring at a button that
+     * did nothing.
+     *
+     * Safe to expose because reaching it already requires manage_options or a
+     * successful token mint — an attacker who can do either does not need to
+     * bother with the lock.
+     */
+    public static function unlock(): void
+    {
+        // The global set is keyed by the SAME fingerprint the per-address
+        // counters are named after, so it is already the index of everyone
+        // currently failing. Walking it needs no SQL, which keeps this working
+        // on any storage backend.
+        $set = get_transient(self::fail_key_global());
+        foreach (array_keys(is_array($set) ? $set : []) as $fingerprint) {
+            delete_transient(self::fail_key_for((string) $fingerprint));
+        }
+
+        delete_transient(self::fail_key_ip());      // the caller's own, in or out of the set
+        delete_transient(self::fail_key_global());  // and the global lock with it
     }
 
     private static function record_failure(): void
