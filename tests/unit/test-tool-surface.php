@@ -111,19 +111,44 @@ $decls  = $google['tools'][0]['functionDeclarations'] ?? [];
 
 CP_Test::ok(count($decls) > 20, 'the declarations were built at all (' . count($decls) . ')');
 
+/*
+ * EVERY rule, not just the one that broke.
+ *
+ * The enum rule was fixed first, shipped, and the very next message hit a
+ * SECOND Google rule: "parameters.properties[data].items: missing field".
+ * Anthropic and OpenAI accept a bare `type: array`; Google does not, and again
+ * rejected the whole request rather than the one tool. Fixing rules one at a
+ * time, each discovered by the owner in a live chat, is not a process -- so
+ * this walks the entire declaration for everything Google is known to refuse.
+ */
 $bad = [];
 $walk = static function (array $node, string $path) use (&$walk, &$bad): void {
+    $type = $node['type'] ?? null;
+
+    // enum belongs to a STRING, and every value must be a string.
     if (isset($node['enum'])) {
-        // Google: enum belongs to a STRING, and every value must be a string.
-        if (($node['type'] ?? '') !== 'string') {
-            $bad[] = $path . ' has enum on type "' . (string) ($node['type'] ?? 'none') . '"';
+        if ($type !== 'string') {
+            $bad[] = $path . ': enum on type "' . (string) ($type ?? 'none') . '"';
         }
         foreach ((array) $node['enum'] as $i => $v) {
             if (!is_string($v)) {
-                $bad[] = $path . ".enum[$i] is " . gettype($v) . ' (' . var_export($v, true) . ')';
+                $bad[] = $path . ".enum[$i] is " . gettype($v);
             }
         }
     }
+    // An array MUST say what it contains.
+    if ($type === 'array' && !isset($node['items'])) {
+        $bad[] = $path . ': type array with no items';
+    }
+    // An object must carry a properties map, even an empty one.
+    if ($type === 'object' && !isset($node['properties'])) {
+        $bad[] = $path . ': type object with no properties';
+    }
+    // A union type ("string or null") is JSON Schema, not Google.
+    if (is_array($type)) {
+        $bad[] = $path . ': type is a list, not a single type';
+    }
+
     foreach ((array) ($node['properties'] ?? []) as $name => $prop) {
         if (is_array($prop)) {
             $walk($prop, $path . '.' . $name);
@@ -133,11 +158,18 @@ $walk = static function (array $node, string $path) use (&$walk, &$bad): void {
         $walk($node['items'], $path . '[]');
     }
 };
+
+// Walk EVERY declaration. This loop went missing once during an edit, and the
+// assertion below then passed on an empty $bad while the bug it was written for
+// was sitting in the file. A test that reports green without running is worse
+// than no test, so the count is asserted too.
+$checked = 0;
 foreach ($decls as $d) {
     $walk((array) ($d['parameters'] ?? []), (string) ($d['name'] ?? '?'));
+    $checked++;
 }
-
-CP_Test::same([], $bad, 'no tool sends Google an enum it will reject');
+CP_Test::same(count($decls), $checked, 'every declaration was actually inspected');
+CP_Test::same([], $bad, 'no tool sends Google a schema it will reject');
 
 // The specific one, named, so a regression says what it is rather than just
 // dumping a list.

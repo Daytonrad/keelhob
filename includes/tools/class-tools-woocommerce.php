@@ -92,7 +92,9 @@ final class Claudpress_Tools_WooCommerce
                 'note_to_customer' => ['type' => 'boolean', 'default' => false],
                 'amount'      => ['type' => 'string', 'description' => 'Refund amount.'],
                 'customer_id' => ['type' => 'integer'],
-                'line_items'  => ['type' => 'array', 'description' => 'For create: [{product_id, quantity}].'],
+                // items is REQUIRED by Google, which rejects the whole request
+                // without it — see class-tools-elementor.php for the full note.
+                'line_items'  => ['type' => 'array', 'items' => ['type' => 'object'], 'description' => 'For create: [{product_id, quantity}].'],
                 'per_page'    => ['type' => 'integer', 'default' => 20],
                 'page'        => ['type' => 'integer', 'default' => 1],
             ],

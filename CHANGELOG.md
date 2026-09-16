@@ -14,8 +14,9 @@ public. When the two disagree, this file is correct.
 
 ### Added
 
-- **Gemini works again: one integer enum was killing the whole tool list.**
-  `includes/class-provider.php`.
+- **Gemini works again: two schema details were killing the whole tool list.**
+  `includes/class-provider.php`, `includes/tools/class-tools-elementor.php`,
+  `includes/tools/class-tools-woocommerce.php`.
 
   Reported from a live Telegram chat on Google:
 
@@ -40,6 +41,30 @@ public. When the two disagree, this file is correct.
   `tests/unit/test-tool-surface.php` now walks EVERY shipped tool's declaration
   as Google would, rather than only the one that broke, because the next tool
   added will be written the same way.
+
+  **And then it happened again**, on the very next message:
+
+  ```
+  HTTP 400: * GenerateContentRequest.tools[0].function_declarations[44]
+  .parameters.properties[data].items: missing field.
+  ```
+
+  `elementor_page.data` and `wc_order.line_items` declared `type: array` with no
+  `items`. Anthropic and OpenAI accept that; Google rejects the whole request
+  again. Both now declare `items: {type: object}`, which is the honest shape —
+  an Elementor tree is recursive and free-form.
+
+  Fixing one rule at a time, each found by the owner in a live chat, is not a
+  process. So the test was widened from "no bad enum" to every rule Google is
+  known to refuse — bad enum, array without items, object without properties,
+  union types — and an audit of all 68 tools found exactly these two remaining.
+  Nested objects were already covered: `clean_schema()` fills an empty
+  `properties` map.
+
+  The test also asserts it inspected every declaration. The first version of it
+  lost its walking loop during an edit and passed green on an empty result set
+  while the bug sat in the file — a test that reports success without running is
+  worse than no test.
 
 - **A new Telegram bot is no longer silenced by the previous one.**
   `includes/class-telegram.php`, `includes/class-telegram-router.php`.

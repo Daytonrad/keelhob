@@ -24,7 +24,22 @@ final class Claudpress_Tools_Elementor
                 'post_id'  => ['type' => 'integer'],
                 'title'    => ['type' => 'string', 'description' => 'For create.'],
                 'status'   => ['type' => 'string', 'default' => 'publish'],
-                'data'     => ['type' => 'array', 'description' => 'The Elementor element tree (array of top-level elements). Each element: {id, elType, settings, elements}.'],
+                /*
+                 * `items` IS NOT OPTIONAL, even though every other vendor lets
+                 * it slide.
+                 *
+                 * Anthropic and OpenAI accept a bare `type: array`. Google
+                 * rejects the ENTIRE request with
+                 * "parameters.properties[data].items: missing field" — so one
+                 * omission here took all 68 tools down with it and the agent
+                 * could not answer anything at all on Gemini.
+                 *
+                 * `object` with no properties is the honest declaration: the
+                 * element tree is recursive and free-form, and inventing a
+                 * shape for it would describe something the tool does not
+                 * actually require.
+                 */
+                'data'     => ['type' => 'array', 'items' => ['type' => 'object'], 'description' => 'The Elementor element tree (array of top-level elements). Each element: {id, elType, settings, elements}.'],
                 'template_type' => ['type' => 'string', 'description' => 'e.g. wp-page, wp-post, header, footer, single, archive.'],
             ],
             'required' => ['action'],
