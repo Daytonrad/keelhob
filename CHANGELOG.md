@@ -14,6 +14,33 @@ public. When the two disagree, this file is correct.
 
 ### Added
 
+- **Gemini works again: one integer enum was killing the whole tool list.**
+  `includes/class-provider.php`.
+
+  Reported from a live Telegram chat on Google:
+
+  ```
+  HTTP 400: Invalid value at 'tools[0].function_declarations[28]
+  .parameters.properties[3].value.enum[0]' (TYPE_STRING), 301
+  ```
+
+  `seo_redirect` declares `type: integer, enum: [301, 302]`. Anthropic and
+  OpenAI accept that without comment; Google allows `enum` only on a STRING and
+  rejects the ENTIRE request. So one integer in one tool took all 68 tools down
+  with it, and the agent could not answer anything at all on that provider —
+  which is what "I switched to the Google model and got the same silence" really
+  was.
+
+  `clean_schema()` — which already exists to bridge exactly this gap — now
+  stringifies enum values and their type, for scalars only, so a container's
+  type can never be rewritten. Anthropic and OpenAI still receive the honest
+  integer. The site is unaffected: `seo_redirect` casts its own input with
+  `(int)`, so "301" and 301 arrive at the same place.
+
+  `tests/unit/test-tool-surface.php` now walks EVERY shipped tool's declaration
+  as Google would, rather than only the one that broke, because the next tool
+  added will be written the same way.
+
 - **A new Telegram bot is no longer silenced by the previous one.**
   `includes/class-telegram.php`, `includes/class-telegram-router.php`.
 

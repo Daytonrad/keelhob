@@ -464,6 +464,37 @@ abstract class Claudpress_Provider
         if (($out['type'] ?? '') === 'object' && !isset($out['properties'])) {
             $out['properties'] = (object) [];
         }
+
+        /*
+         * GOOGLE ALLOWS enum ONLY ON A STRING.
+         *
+         * seo_redirect declares `type: integer, enum: [301, 302]`, which
+         * Anthropic and OpenAI accept without comment. Google rejects the whole
+         * REQUEST with:
+         *
+         *   Invalid value at 'tools[0].function_declarations[28]
+         *   .parameters.properties[3].value.enum[0]' (TYPE_STRING), 301
+         *
+         * and the whole tool list goes with it — so on Gemini the agent could
+         * not answer anything at all, in Telegram or anywhere else. One
+         * integer enum in one tool killed every other tool on that provider.
+         *
+         * Casting the values to strings keeps the choice visible to the model.
+         * The site is unaffected: the tool casts its own input with (int), so
+         * "301" and 301 arrive at the same place.
+         */
+        // Scalars only. An enum on an array or object is already meaningless to
+        // Google, and rewriting a container's type to "string" would turn one
+        // rejected tool into a wrong one.
+        if (isset($out['enum']) && is_array($out['enum'])
+            && in_array($out['type'] ?? 'string', ['string', 'integer', 'number', 'boolean'], true)) {
+            $out['enum'] = array_values(array_map(
+                static fn($v): string => is_scalar($v) ? (string) $v : '',
+                $out['enum']
+            ));
+            $out['type'] = 'string';
+        }
+
         return $out;
     }
 }
