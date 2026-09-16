@@ -413,3 +413,71 @@ foreach (array_keys($commands) as $name) {
 CP_Test::same(null, Claudpress_Telegram::run_command('1', 'notacommand', ''), 'an unknown command falls through to the agent');
 
 cp_test_reset_options();
+
+CP_Test::group('Telegram — a new bot is not silenced by the old bot\'s mark');
+
+/*
+ * THE BUG THIS PINS, reported from a live site: a freshly created bot was
+ * completely silent. Configuration perfect, webhook registered, Telegram
+ * reporting zero pending deliveries and no errors, and no reply to anything.
+ *
+ * update_id is monotonic PER BOT, and the replay high-water mark was stored
+ * globally. The old bot had reached 412,002,449; a new bot starts far below
+ * that, so every message looked like a replay of work already done and was
+ * dropped. The endpoint answered 200, Telegram was satisfied, and nothing
+ * downstream ever ran -- which is why switching the AI model changed nothing.
+ */
+cp_test_reset_options([
+    'notify_telegram_token' => '111:OLD-BOT-TOKEN-aaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    'telegram_bot_enabled'  => true,
+]);
+
+Claudpress_Telegram::remember_update_id(412002449);
+CP_Test::same(412002449, Claudpress_Telegram::last_update_id(), 'the mark is remembered for the bot that set it');
+
+// Same bot, an older delivery: still a duplicate. The dedupe must keep working.
+CP_Test::ok(412002449 >= Claudpress_Telegram::last_update_id(), 'a replay from the SAME bot is still caught');
+
+// Swap the token. This is the whole fix.
+Claudpress::instance()->update(['notify_telegram_token' => '222:NEW-BOT-TOKEN-bbbbbbbbbbbbbbbbbbbbbbbbbbbb']);
+CP_Test::same(0, Claudpress_Telegram::last_update_id(), 'a NEW bot starts from zero, so its low update_ids are not dropped');
+
+// A new bot's first message really is low-numbered. Before the fix this exact
+// comparison silenced the bot forever.
+$first_from_new_bot = 1;
+CP_Test::ok($first_from_new_bot > Claudpress_Telegram::last_update_id(), 'so update_id 1 from the new bot is processed, not discarded');
+
+// And the new bot then gets its own mark, without resurrecting the old one.
+Claudpress_Telegram::remember_update_id(5);
+CP_Test::same(5, Claudpress_Telegram::last_update_id(), 'the new bot keeps its own mark');
+
+Claudpress::instance()->update(['notify_telegram_token' => '111:OLD-BOT-TOKEN-aaaaaaaaaaaaaaaaaaaaaaaaaaaa']);
+CP_Test::same(0, Claudpress_Telegram::last_update_id(), 'switching back does not resurrect a mark from a different bot');
+
+CP_Test::group('Telegram — a legacy mark is discarded, on purpose');
+
+/*
+ * Installs upgrading from before this change hold a bare integer, and there is
+ * no way to know which bot wrote it. The two failures are not equal: a stale
+ * mark is total, permanent silence that looks like a broken product, while a
+ * missing mark risks at most one duplicated message if Telegram happens to
+ * retry at that moment. Take the mild, visible failure.
+ */
+cp_test_reset_options([
+    'notify_telegram_token'     => '333:SOME-TOKEN-cccccccccccccccccccccccccccc',
+    'telegram_bot_enabled'      => true,
+    'claudpress_tg_last_update' => 412002449,     // the old bare-integer shape
+]);
+update_option('claudpress_tg_last_update', 412002449);
+CP_Test::same(0, Claudpress_Telegram::last_update_id(), 'a bare integer from an unknown bot is not trusted');
+
+CP_Test::group('Telegram — the mark never stores the bot token');
+
+cp_test_reset_options([
+    'notify_telegram_token' => '444:SECRET-TOKEN-dddddddddddddddddddddddddddd',
+    'telegram_bot_enabled'  => true,
+]);
+Claudpress_Telegram::remember_update_id(77);
+$raw = (string) wp_json_encode(get_option('claudpress_tg_last_update'));
+CP_Test::ok(strpos($raw, 'SECRET-TOKEN') === false, 'the stored mark carries a hash, never the token itself');
+CP_Test::ok(strpos($raw, '444:') === false, 'not even the bot id half of it');

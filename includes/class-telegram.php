@@ -112,6 +112,60 @@ final class Claudpress_Telegram
         return trim((string) Claudpress::instance()->get('notify_telegram_token', ''));
     }
 
+    /**
+     * Which bot the replay high-water mark belongs to.
+     *
+     * A hash, never the token: this is stored in wp_options.
+     */
+    private static function bot_fingerprint(): string
+    {
+        $token = self::token();
+        return $token === '' ? '' : substr(hash('sha256', $token), 0, 16);
+    }
+
+    /**
+     * The highest update_id already handled, FOR THE CURRENT BOT.
+     *
+     * THE BUG THIS FIXES, reported from a live site: a freshly created bot was
+     * completely silent. Configuration was perfect, the webhook was registered,
+     * Telegram reported zero pending deliveries and no errors — and no message
+     * ever got a reply.
+     *
+     * update_id is monotonic PER BOT, and the mark was stored globally. The old
+     * bot had reached 412,002,449. A new bot starts its own sequence far below
+     * that, so every message it delivered looked like a replay of something
+     * already handled and was dropped. The endpoint answered 200, Telegram was
+     * satisfied, and nothing downstream ever ran — which is why changing the AI
+     * model made no difference: the code never reached the model.
+     *
+     * Tying the mark to the bot makes swapping tokens self-healing, with no
+     * button to press and nothing for anyone to know.
+     *
+     * A legacy bare integer is treated as belonging to SOMEBODY ELSE'S bot and
+     * discarded, because the two failures are not equal: a stale mark is total,
+     * permanent silence that looks like a broken product, while a missing mark
+     * risks at most one duplicated message if Telegram happens to retry right
+     * then. Take the mild, visible failure over the catastrophic, invisible one.
+     */
+    public static function last_update_id(): int
+    {
+        $stored = get_option(self::OPTION_LAST_UPDATE, null);
+        if (!is_array($stored)) {
+            return 0;
+        }
+        return (string) ($stored['bot'] ?? '') === self::bot_fingerprint()
+            ? (int) ($stored['id'] ?? 0)
+            : 0;
+    }
+
+    public static function remember_update_id(int $update_id): void
+    {
+        update_option(self::OPTION_LAST_UPDATE, [
+            'bot' => self::bot_fingerprint(),
+            'id'  => $update_id,
+        ]);
+    }
+
     /** Inbound chat is off unless the owner switched it on and set a token. */
     public static function enabled(): bool
     {

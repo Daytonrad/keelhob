@@ -36,13 +36,16 @@ final class Claudpress_Telegram_Router
         // Telegram retries a delivery it thinks failed, and an agent run is far
         // too slow to ack inside its patience. update_id is monotonic, so a
         // high-water mark makes a replay a no-op instead of doing the work twice.
+        // The mark is per BOT, not global: update_id is monotonic within one
+        // bot, so a mark left by a previous token makes every message from a
+        // new one look like a replay. See Claudpress_Telegram::last_update_id().
         $update_id = (int) ($update['update_id'] ?? 0);
-        $last      = (int) get_option(Claudpress_Telegram::OPTION_LAST_UPDATE, 0);
+        $last      = Claudpress_Telegram::last_update_id();
         if ($update_id > 0 && $update_id <= $last) {
             return ['ok' => true, 'reason' => 'duplicate'];
         }
         if ($update_id > 0) {
-            update_option(Claudpress_Telegram::OPTION_LAST_UPDATE, $update_id);
+            Claudpress_Telegram::remember_update_id($update_id);
         }
 
         if (is_array($update['callback_query'] ?? null)) {

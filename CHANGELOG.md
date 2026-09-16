@@ -14,6 +14,27 @@ public. When the two disagree, this file is correct.
 
 ### Added
 
+- **A new Telegram bot is no longer silenced by the previous one.**
+  `includes/class-telegram.php`, `includes/class-telegram-router.php`.
+
+  Reported from a live site: a freshly created bot was completely silent.
+  Configuration was perfect, the webhook was registered, Telegram reported zero
+  pending deliveries and no errors, and nothing ever got a reply.
+
+  `update_id` is monotonic PER BOT, and the replay high-water mark was stored
+  globally. The old bot had reached 412,002,449; a new bot starts its own
+  sequence far below that, so every message it delivered looked like a replay of
+  work already done and was dropped at the first `if`. The endpoint answered
+  200, Telegram was satisfied, and nothing downstream ever ran — which is why
+  switching the AI model changed nothing: the code never reached the model.
+
+  The mark is now tied to a hash of the bot token, so swapping bots is
+  self-healing with no button to press. A legacy bare integer is discarded
+  rather than adopted, because there is no way to know which bot wrote it and
+  the two failures are not equal: a stale mark is total, permanent silence that
+  looks like a broken product, while a missing one risks at most one duplicated
+  message. The token itself is never stored in the option.
+
 - **Scheduled tasks now fire on time outside UTC.** `includes/class-tasks.php`,
   `tests/bootstrap.php`.
 
