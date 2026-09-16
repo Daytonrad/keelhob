@@ -140,3 +140,64 @@ add_filter('claudpress_operating_protocol', static fn($p) => $p . "\n9. House ru
 CP_Test::contains('House rule', Claudpress_MCP_Server::operating_protocol(), 'sites can extend the protocol via filter');
 
 cp_test_reset_filters();
+
+CP_Test::group('A provider rejection reaches the feedback log through a REAL run');
+
+/*
+ * The recorder being correct is not the same as the recorder being CALLED.
+ * This drives Claudpress_Agent_Runtime::run() with a real HTTP 400 queued, so
+ * the wiring is what is under test -- not observe_llm_error() in isolation.
+ */
+
+/** A $wpdb that remembers the feedback rows a run wrote. */
+class CP_Runtime_Feedback_WPDB extends CP_Test_WPDB
+{
+    /** @var array<int, array<string, mixed>> */
+    public array $feedback = [];
+
+    public function insert($table, $data)
+    {
+        if (strpos((string) $table, 'claudpress_feedback') !== false) {
+            $this->feedback[] = $data;
+        }
+        return 1;
+    }
+}
+
+$cp_real_wpdb    = $GLOBALS['wpdb'];
+$fdb             = new CP_Runtime_Feedback_WPDB();
+$GLOBALS['wpdb'] = $fdb;
+
+// test-admin-render.php swaps in a stub registry and leaves it there. Put a
+// real one back, or run() dies on a type hint before it ever makes the call.
+$cp_real_registry                 = Claudpress::instance()->registry;
+Claudpress::instance()->registry  = new Claudpress_Tool_Registry();
+
+cp_test_reset_options();
+Claudpress::instance()->update([
+    'abilities_enabled' => true,
+    'agent_api_key'     => 'sk-test',
+    'agent_provider'    => 'google',
+    'feedback_log'      => true,
+]);
+
+// The owner's actual error, word for word.
+$fdb->feedback = [];
+cp_test_http_queue(400, ['error' => ['message' => 'Invalid JSON payload received. Unknown name "args" at \'contents[3].parts[0].function_call\': Proto field is not repeating, cannot start list.']]);
+$run = Claudpress_Agent_Runtime::run('How many snippets are there?');
+
+CP_Test::ok(!empty($run['error']), 'the run still reports the failure to the caller');
+CP_Test::same(1, count($fdb->feedback), 'and the run wrote exactly one feedback row on its way out');
+CP_Test::same('llm_rejected', (string) ($fdb->feedback[0]['friction'] ?? ''), 'marked as a provider rejection');
+CP_Test::same('llm_google', (string) ($fdb->feedback[0]['tool'] ?? ''), 'naming the provider that refused');
+CP_Test::contains('Proto field is not repeating', (string) ($fdb->feedback[0]['note'] ?? ''), 'carrying the vendor wording that makes it searchable');
+
+// A bad API key is the owner's problem, not a plugin bug, and must not land here.
+$fdb->feedback = [];
+cp_test_http_queue(401, ['error' => ['message' => 'API key not valid']]);
+Claudpress_Agent_Runtime::run('anything');
+CP_Test::same(0, count($fdb->feedback), 'a 401 writes nothing — a wrong key is not something to report to the project');
+
+cp_test_reset_options();
+Claudpress::instance()->registry = $cp_real_registry;
+$GLOBALS['wpdb'] = $cp_real_wpdb;

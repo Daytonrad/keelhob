@@ -96,7 +96,7 @@ final class Claudpress_Tools_Automation
             'last_run' => $t['last_run'], 'last_status' => $t['last_status'],
             'last_summary' => mb_substr((string) $t['last_summary'], 0, 400),
         ], Claudpress_Tasks::all());
-        return ['success' => true, 'tasks' => $tasks];
+        return ['success' => true, 'count' => count($tasks), 'tasks' => $tasks];
     }
 
 

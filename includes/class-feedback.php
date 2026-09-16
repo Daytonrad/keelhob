@@ -97,6 +97,7 @@ final class Claudpress_Feedback
         'docs_gap',             // the skill or docs did not say the thing that mattered
         'skill_gap',            // no skill covered this job
         'policy_blocked',       // a capability or policy stopped legitimate work
+        'llm_rejected',         // the model vendor refused the request we built
     ];
 
     const SOURCES = ['auto', 'agent'];
@@ -377,6 +378,33 @@ final class Claudpress_Feedback
                 'source'   => 'auto',
             ]);
         }
+    }
+
+    /**
+     * The model vendor refused the request itself.
+     *
+     * This log could only ever see TOOL failures, because a tool is the only
+     * thing that passes through observe_call(). An LLM HTTP 400 never does --
+     * so three separate Gemini schema bugs, each of which broke every
+     * conversation on that provider, left NO trace here at all. The owner found
+     * all three by hand, in a live chat, one at a time.
+     *
+     * Only the codes that mean WE built a bad request are recorded. A 401 is a
+     * wrong API key, a 429 is a quota, a 500 is the vendor having a bad day --
+     * none of those are a plugin bug, and logging them would bury the one kind
+     * that is.
+     */
+    public static function observe_llm_error(string $provider, ?int $code, string $message): void
+    {
+        if ($code !== 400 && $code !== 422) {
+            return;
+        }
+        self::record([
+            'friction' => 'llm_rejected',
+            'tool'     => 'llm_' . $provider,
+            'note'     => $message,
+            'source'   => 'auto',
+        ]);
     }
 
     /** A tool that was never registered is a capability the owner switched off. */
@@ -683,6 +711,8 @@ final class Claudpress_Feedback
                 return __('No skill covered this', 'claudpress');
             case 'policy_blocked':
                 return __('A permission blocked real work', 'claudpress');
+            case 'llm_rejected':
+                return __('The AI provider refused our request', 'claudpress');
         }
         return $friction;
     }

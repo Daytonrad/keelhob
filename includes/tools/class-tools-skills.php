@@ -78,7 +78,7 @@ final class Claudpress_Tools_Skills
             'version' => (string) ($s['version'] ?? ''),
         ], Claudpress::instance()->skills->all());
 
-        return ['success' => true, 'skills' => $skills];
+        return ['success' => true, 'count' => count($skills), 'skills' => $skills];
     }
 
     /**

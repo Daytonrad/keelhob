@@ -412,3 +412,63 @@ CP_Test::same(5, Claudpress_Snippets::resolve_target(['uid' => 'cps_known0123456
 CP_Test::same(5, Claudpress_Snippets::resolve_target(['id' => 14, 'uid' => 'cps_known01234567'], $finder), 'a dead id alongside a live uid resolves to the uid row - the copy case must not be caught by the new strictness');
 
 $GLOBALS['wpdb'] = $real_wpdb;
+
+CP_Test::group('snippet_list counts the rows, so the model never has to');
+
+/*
+ * THE BUG THIS PINS, from a live Telegram chat:
+ *
+ *   owner: "How many snippets are there on the site?"
+ *   agent: "There are currently 28 snippets on the site, and all 28 active."
+ *
+ * There were 44, all active. The tool returned all 44 rows and the run record
+ * shows ONE tool call that succeeded -- nothing truncated anything. The model
+ * simply counted a 44-element JSON array wrong, which is a thing language
+ * models are measurably bad at and there is no reason to ask one to do.
+ *
+ * The number is free on our side and exact, so it is now in the response.
+ */
+
+/** A $wpdb that returns a known number of snippet rows. */
+class CP_Count_WPDB extends CP_Test_WPDB
+{
+    /** @var array<int, array<string, mixed>> */
+    public array $rows = [];
+
+    public function get_results($query, $output = null)
+    {
+        return $this->rows;
+    }
+}
+
+require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-snippets.php';
+
+$real_wpdb       = $GLOBALS['wpdb'];
+$db              = new CP_Count_WPDB();
+$GLOBALS['wpdb'] = $db;
+
+// 44 rows, 3 of them switched off — the shape that was miscounted, plus an
+// inactive tail so "all of them are active" cannot be true by accident.
+$db->rows = [];
+for ($i = 1; $i <= 44; $i++) {
+    $db->rows[] = [
+        'id' => $i, 'name' => 'snippet ' . $i, 'active' => $i > 41 ? 0 : 1,
+        'tags' => '', 'code' => '<?php // secret',
+    ];
+}
+
+$out = Claudpress_Tools_Snippets::list([]);
+CP_Test::same(44, $out['count'] ?? null, 'the total is stated outright');
+CP_Test::same(41, $out['active'] ?? null, 'and so is the active tally');
+CP_Test::same(3, $out['inactive'] ?? null, 'and the inactive one');
+CP_Test::same(44, count($out['snippets'] ?? []), 'every row is still returned — the count is an addition, not a replacement');
+CP_Test::ok(!isset($out['snippets'][0]['code']), 'and the code is still stripped, so the count did not widen the payload');
+
+// The count must describe what was RETURNED, not the whole table, or a filtered
+// call would answer a question nobody asked.
+$db->rows = array_slice($db->rows, 0, 5);
+$out = Claudpress_Tools_Snippets::list(['active' => true]);
+CP_Test::same(5, $out['count'] ?? null, 'a filtered call counts the filtered rows');
+CP_Test::ok(!empty($out['filtered']), 'and says it was filtered, so the number is not read as a site total');
+
+$GLOBALS['wpdb'] = $real_wpdb;

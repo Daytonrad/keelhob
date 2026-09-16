@@ -45,7 +45,8 @@ final class Claudpress_Tools_Memory
 
     public static function list(array $a): array
     {
-        return ['success' => true, 'memory' => Claudpress::instance()->memory->all()];
+        $all = Claudpress::instance()->memory->all();
+        return ['success' => true, 'count' => count($all), 'memory' => $all];
     }
 
     public static function get(array $a): array

@@ -121,7 +121,25 @@ final class Claudpress_Tools_Snippets
         }
         unset($row);
 
-        return ['success' => true, 'site' => Claudpress::site_label(), 'snippets' => $rows];
+        // COUNT THE ROWS FOR THE MODEL.
+        // Asked "how many snippets are there?", Gemini read a 44-row list and
+        // answered 28. Counting a long JSON array is a thing language models are
+        // measurably bad at, and there is no reason to make one try: the number
+        // is free on our side and exact.
+        $active = 0;
+        foreach ($rows as $r) {
+            $active += !empty($r['active']) ? 1 : 0;
+        }
+
+        return [
+            'success'  => true,
+            'site'     => Claudpress::site_label(),
+            'count'    => count($rows),
+            'active'   => $active,
+            'inactive' => count($rows) - $active,
+            'filtered' => $filtered,
+            'snippets' => $rows,
+        ];
     }
 
     public static function get(array $a): array

@@ -200,3 +200,35 @@ CP_Test::ok($a_redirect !== null, 'seo_redirect reaches Anthropic too');
 if ($a_redirect) {
     CP_Test::same('integer', $a_redirect['input_schema']['properties']['type']['type'] ?? '', 'and Anthropic still gets the honest integer');
 }
+
+CP_Test::group('Every list tool states its own count');
+
+/*
+ * The same defect as snippet_list's "28 of 44": a tool hands back a long array
+ * and the model is left to count it. Pinned across the whole surface rather
+ * than per tool, because the next list tool added will be written the same way
+ * and nobody will remember this.
+ */
+$counting = [
+    'snippet_list' => 'snippets',
+    'task_list'    => 'tasks',
+    'memory_list'  => 'memory',
+    'skill_list'   => 'skills',
+    'list_posts'   => 'posts',
+];
+$missing = [];
+foreach ($counting as $tool => $rows_key) {
+    $src = '';
+    foreach (glob(CLAUDPRESS_DIR . 'includes/tools/class-tools-*.php') as $f) {
+        $body = (string) file_get_contents($f);
+        if (strpos($body, "'" . $tool . "'") !== false) {
+            $src .= $body;
+        }
+    }
+    // 'count' for most; list_posts pre-dates this and says 'total' because it
+    // is paginated -- the whole-result-set number, which is the honest one there.
+    if (strpos($src, "'count'") === false && strpos($src, "'total'") === false) {
+        $missing[] = $tool;
+    }
+}
+CP_Test::same([], $missing, 'no list tool makes the model count its own rows');

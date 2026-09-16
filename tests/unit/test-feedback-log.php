@@ -148,4 +148,43 @@ CP_Test::contains('created_at <', $joined, 'and it prunes by age as well as by c
 CP_Test::same(30, Claudpress_Feedback::MAX_AGE_DAYS, 'the age window is 30 days — tighter than the 90 the server keeps, because this sits on somebody else\'s site');
 CP_Test::same(50, Claudpress_Feedback::MAX_ROWS, 'and the row cap is 50');
 
+CP_Test::group('Feedback log — a provider that refuses OUR request is recorded');
+
+/*
+ * WHY THIS EXISTS.
+ *
+ * Three separate Gemini bugs -- an integer enum, an array with no items, and an
+ * empty args list -- each broke EVERY conversation on that provider, and this
+ * log saw none of them. observe_call() is fed by the tool registry, and an LLM
+ * HTTP 400 never touches a tool. The owner found all three by hand, in a live
+ * chat, one at a time.
+ */
+Claudpress::instance()->update(['feedback_log' => true]);
+
+$db->inserts = [];
+Claudpress_Feedback::observe_llm_error('google', 400, 'Unknown name "args" at contents[3]: Proto field is not repeating, cannot start list.');
+CP_Test::same(1, count($db->inserts), 'a 400 from the provider is recorded');
+CP_Test::same('llm_rejected', (string) ($db->inserts[0]['data']['friction'] ?? ''), 'under its own friction type, not lumped in with tool failures');
+CP_Test::same('llm_google', (string) ($db->inserts[0]['data']['tool'] ?? ''), 'naming which provider refused');
+CP_Test::contains('Proto field is not repeating', (string) ($db->inserts[0]['data']['note'] ?? ''), "and keeping the vendor's own words, which are what makes it findable");
+
+// The codes that are NOT our bug. Logging these would bury the one that is.
+foreach ([[401, 'wrong key'], [403, 'forbidden'], [429, 'quota'], [500, 'vendor outage'], [null, 'network down']] as $case) {
+    [$code, $what] = $case;
+    $db->inserts = [];
+    Claudpress_Feedback::observe_llm_error('google', $code, $what);
+    CP_Test::same(0, count($db->inserts), 'a ' . ($code === null ? 'connection' : $code) . ' failure is not recorded — ' . $what . ' is not a plugin bug');
+}
+
+$db->inserts = [];
+Claudpress_Feedback::observe_llm_error('anthropic', 422, 'unprocessable');
+CP_Test::same(1, count($db->inserts), '422 counts too — it also means the request we built was wrong');
+
+// The promise still holds: off means nothing at all.
+Claudpress::instance()->update(['feedback_log' => false]);
+$db->inserts = [];
+Claudpress_Feedback::observe_llm_error('google', 400, 'refused');
+CP_Test::same(0, count($db->inserts), 'and with the log off, not even this is written');
+Claudpress::instance()->update(['feedback_log' => true]);
+
 $GLOBALS['wpdb'] = $cp_real_wpdb;

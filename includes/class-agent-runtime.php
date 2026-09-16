@@ -527,6 +527,7 @@ final class Claudpress_Agent_Runtime
         $attempts = max(1, min(8, $attempts));
         $retries  = 0;
         $last     = 'unknown error';
+        $last_code = null;
 
         $url  = $provider::url($endpoint, $model);
         $body = $provider::body($model, $system, $tools, $messages);
@@ -543,9 +544,11 @@ final class Claudpress_Agent_Runtime
             ]);
 
             if (is_wp_error($resp)) {
-                $last = $resp->get_error_message();
-                $code = null;
+                $last      = $resp->get_error_message();
+                $code      = null;
+                $last_code = null;
             } else {
+                $last_code = (int) wp_remote_retrieve_response_code($resp);
                 $code = (int) wp_remote_retrieve_response_code($resp);
                 if ($code >= 200 && $code < 300) {
                     $data = json_decode(wp_remote_retrieve_body($resp), true);
@@ -577,6 +580,11 @@ final class Claudpress_Agent_Runtime
             Claudpress::instance()->logger->record('agent_retry', ['attempt' => $attempt + 1, 'wait_ms' => $wait_ms], ['success' => false, 'error' => $last]);
             usleep($wait_ms * 1000);
         }
+
+        // The single place every failed LLM call leaves. A vendor that refuses
+        // the request we BUILT is a bug in this plugin, and until now it was
+        // the one kind of failure the feedback log could not see.
+        Claudpress_Feedback::observe_llm_error($provider::id(), $last_code, $last);
 
         return ['error' => $last . ($retries ? sprintf(' (after %d %s)', $retries, $retries === 1 ? 'retry' : 'retries') : ''), '_retries' => $retries];
     }
