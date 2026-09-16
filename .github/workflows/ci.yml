@@ -200,7 +200,12 @@ jobs:
             echo "::error::only $passes PASS lines in the rig output - the checks did not really run"
             exit 1
           fi
-          grep -q 'All 3 check files passed.' rig.log
+          # The COUNT is deliberately not pinned here. It was 'All 3 check
+          # files passed.', and adding a fourth check file turned a run where
+          # every single assertion passed into a red build. That is the same
+          # hand-kept-counter trap as EXPECTED_SKILLS; the tripwire only needs
+          # to prove the runner reached its success line.
+          grep -qE 'All [0-9]+ check files passed\.' rig.log
           echo "Live rig: $passes checks passed against real WordPress."
 
       # The rig needs no secrets: tests/rig/ai-mock.php replaces the provider
