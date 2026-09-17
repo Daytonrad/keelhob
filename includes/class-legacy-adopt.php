@@ -106,9 +106,18 @@ final class Keelhob_Legacy_Adopt
             if (!self::table_exists($old) || self::table_exists($new)) {
                 continue;
             }
+            // TWO DIALECTS. MySQL takes RENAME TABLE. SQLite, which the test
+            // rig runs on through a drop-in, only understands
+            // ALTER TABLE ... RENAME TO and silently does nothing with the
+            // first form. Try the standard one, then fall back, then verify --
+            // never assume a statement worked because it did not error.
             // phpcs:ignore WordPress.DB.PreparedSQL -- identifiers, not values;
             // both names are built from this class's own constants.
             $wpdb->query("RENAME TABLE `{$old}` TO `{$new}`");
+            if (!self::table_exists($new)) {
+                // phpcs:ignore WordPress.DB.PreparedSQL
+                $wpdb->query("ALTER TABLE `{$old}` RENAME TO `{$new}`");
+            }
             if (self::table_exists($new)) {
                 $report['tables'][] = $base;
             }
@@ -169,15 +178,69 @@ final class Keelhob_Legacy_Adopt
             )
         );
 
+        /*
+         * ONLY DECLARE VICTORY IF THERE IS NOTHING LEFT TO MOVE.
+         *
+         * The first version set this flag unconditionally. On the rig the
+         * renames all silently failed (wrong SQL dialect), the flag was written
+         * anyway, and every later boot returned "already adopted" while the
+         * real rows sat in tables nothing would ever read again. A migration
+         * that records success it did not achieve is worse than one that
+         * crashes, because nobody goes looking.
+         *
+         * Leaving the flag unset simply means the next page load tries again.
+         * Every step above is conditional, so retrying costs nothing.
+         */
+        $stragglers = [];
+        $orphaned   = [];
+        foreach (self::TABLES as $base) {
+            if (!self::table_exists($wpdb->prefix . self::LEGACY . '_' . $base)) {
+                continue;
+            }
+            // An old table left behind BECAUSE a new one already existed is a
+            // deliberate refusal, not a failure. Retrying would never change
+            // it. Anything else genuinely did not move.
+            if (self::table_exists($wpdb->prefix . 'keelhob_' . $base)) {
+                $orphaned[] = $base;
+            } else {
+                $stragglers[] = $base;
+            }
+        }
+        if ($orphaned !== []) {
+            $report['orphaned'] = $orphaned;
+        }
+        if ($stragglers !== []) {
+            $report['incomplete'] = $stragglers;
+            return $report;
+        }
+
         update_option(self::DONE_FLAG, gmdate('c'), false);
         return $report;
     }
 
-    /** Does a table exist? SHOW TABLES, because information_schema is slow on shared hosts. */
+    /**
+     * Can we actually read this table?
+     *
+     * Deliberately not SHOW TABLES or information_schema. Both ask a CATALOG
+     * whether a table exists, and a catalog can disagree with the disk: the
+     * SQLite drop-in used by the test rig kept listing tables that had already
+     * been dropped, so SHOW TABLES said yes and every SELECT said no. The
+     * adoption then declined to rename anything, because as far as it could
+     * tell the destination was already there.
+     *
+     * The question that actually matters is "can I read it", so that is the
+     * question asked. An empty table returns null with no error, which is
+     * still an existing table.
+     */
     private static function table_exists(string $table): bool
     {
         global $wpdb;
-        // phpcs:ignore WordPress.DB.PreparedSQL
-        return (string) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) === $table;
+        $previous          = $wpdb->suppress_errors(true);
+        $wpdb->last_error  = '';
+        // phpcs:ignore WordPress.DB.PreparedSQL -- an identifier, not a value.
+        $wpdb->get_var("SELECT 1 FROM `{$table}` LIMIT 1");
+        $error = (string) $wpdb->last_error;
+        $wpdb->suppress_errors($previous);
+        return $error === '';
     }
 }

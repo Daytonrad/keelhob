@@ -333,6 +333,14 @@ class KH_Test_WPDB
 {
     public string $prefix = 'wp_';
 
+    /** Real $wpdb has these; the adoption step uses them to probe for a table. */
+    public string $last_error = '';
+
+    public function suppress_errors($suppress = true)
+    {
+        return false;
+    }
+
     public function get_charset_collate(): string
     {
         // What a modern WordPress install actually returns. Returning '' would

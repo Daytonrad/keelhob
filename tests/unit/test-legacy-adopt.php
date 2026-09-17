@@ -48,12 +48,23 @@ class KH_Adopt_WPDB extends KH_Test_WPDB
         return $query;
     }
 
+    public string $last_error = '';
+
+    public function suppress_errors($suppress = true)
+    {
+        return false;
+    }
+
+    /**
+     * Existence is now asked as "SELECT 1 FROM `x` LIMIT 1", and answered by
+     * whether last_error was set. The double mirrors that: a table it does not
+     * hold produces an error, exactly as the database would.
+     */
     public function get_var($query, $column = 0, $row = 0)
     {
-        foreach ($this->existing as $table) {
-            if (strpos((string) $query, $table) !== false) {
-                return $table;
-            }
+        if (preg_match('/SELECT 1 FROM `([^`]+)` LIMIT 1/', (string) $query, $m)) {
+            $this->last_error = in_array($m[1], $this->existing, true) ? '' : "Table '{$m[1]}' doesn't exist";
+            return null;
         }
         return null;
     }
@@ -171,6 +182,54 @@ $db->queries = [];
 $second = Keelhob_Legacy_Adopt::run();
 KH_Test::same('already adopted', $second['skipped'] ?? '', 'a second call declines');
 KH_Test::same([], $db->queries, 'and touches nothing');
+
+kh_test_reset_options();
+$GLOBALS['wpdb'] = $kh_real_wpdb;
+
+// ---------------------------------------------------------------------------
+KH_Test::group('Adoption never records a success it did not achieve');
+
+/*
+ * THE BUG THIS PINS, found on the rig and not by any earlier test.
+ *
+ * The first version wrote the "done" flag unconditionally. On SQLite every
+ * RENAME TABLE silently did nothing, the flag was written anyway, and from then
+ * on every boot returned "already adopted" while the real rows sat in tables
+ * nothing would ever read again. A migration that reports a success it did not
+ * achieve is worse than one that crashes, because nobody goes looking.
+ */
+
+/** A database where RENAME is not supported at all, so nothing actually moves. */
+class KH_Stubborn_WPDB extends KH_Adopt_WPDB
+{
+    public function query($query)
+    {
+        $this->queries[] = (string) $query;
+        return 0; // accepted, and did nothing. Exactly what SQLite did.
+    }
+}
+
+kh_test_reset_options();
+$GLOBALS['wpdb'] = $db = new KH_Stubborn_WPDB();
+foreach (['agent_runs', 'chat', 'feedback', 'log', 'memory', 'skills',
+          'snippet_log', 'snippet_revisions', 'snippets', 'tasks'] as $t) {
+    $db->existing[] = 'wp_' . 'claud' . 'press_' . $t;
+}
+update_option('active_plugins', []);
+
+$report = Keelhob_Legacy_Adopt::run();
+KH_Test::same([], $report['tables'], 'nothing moved, and it does not pretend otherwise');
+KH_Test::same(10, count($report['incomplete'] ?? []), 'it reports all ten as still to do');
+KH_Test::same('', (string) get_option('keelhob_adopted_legacy', ''), 'and it does NOT mark itself done');
+
+// Which means the next boot tries again instead of giving up forever.
+$again = Keelhob_Legacy_Adopt::run();
+KH_Test::ok(!isset($again['skipped']), 'a later boot retries rather than reporting "already adopted"');
+
+// Both dialects are attempted before giving up: MySQL first, then SQLite's form.
+$joined = implode(' | ', $db->queries);
+KH_Test::contains('RENAME TABLE', $joined, 'the MySQL form is tried');
+KH_Test::contains('ALTER TABLE', $joined, 'and the SQLite form as a fallback');
 
 kh_test_reset_options();
 $GLOBALS['wpdb'] = $kh_real_wpdb;

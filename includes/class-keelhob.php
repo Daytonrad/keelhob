@@ -412,6 +412,22 @@ final class Keelhob
 
     public static function on_activate(): void
     {
+        /*
+         * FIRST. Before the settings write, before any install_table().
+         *
+         * Found on the rig, not by any unit test. Activation creates the ten
+         * tables itself, so by the time maybe_upgrade() ran its adoption step
+         * the new tables already existed, the rename was declined, and the real
+         * rows were stranded under the old names while seed_bundled_skills()
+         * refilled the empty ones. The site looked fine and had lost its logs.
+         *
+         * The settings line below is worse: it mints a NEW connection token and
+         * writes it under the new option name. Adoption then correctly refuses
+         * to overwrite it, so the owner's provider keys, capability switches and
+         * working token are all left behind on an option nothing reads.
+         */
+        Keelhob_Legacy_Adopt::run();
+
         $existing = get_option(self::OPTION_SETTINGS, []);
         if (!is_array($existing)) {
             $existing = [];

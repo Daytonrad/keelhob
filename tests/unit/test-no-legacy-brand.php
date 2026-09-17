@@ -44,6 +44,12 @@ $allowed = [
     // connection token. It is written so the old name appears on exactly two
     // lines: one constant for the prefix, one for the scheduled hook.
     'includes/class-legacy-adopt.php',
+
+    // The rig handover check has to name the old PLUGIN FOLDER in order to find
+    // it on disk, deactivate it and prove the data moved. It is a test of the
+    // rename itself, so it is the one place that legitimately needs the old
+    // slug spelled out.
+    'tests/rig/rebrand-check.sh',
 ];
 
 /** Text files worth scanning. Binaries and build output are skipped. */
