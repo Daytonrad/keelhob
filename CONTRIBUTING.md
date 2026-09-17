@@ -44,7 +44,7 @@ contribution to this project is a **skill**, and skills are plain markdown.
 ```bash
 git clone https://github.com/calflint/claudpress.git
 cd claudpress
-php tests/run.php          # the whole unit suite, ~1500 assertions
+php tests/run.php          # the whole unit suite, ~2,500 assertions
 php tests/run.php snippets # only files matching "snippets"
 ```
 

@@ -103,7 +103,7 @@ there is refused with the locations that do work. `header`, `footer`, `before_co
 
 * **No onboarding wizard.** Activation drops you on an admin page; connecting an agent is a
   copy-paste step you do yourself.
-* **No independent security audit.** ~1,500 unit assertions and a live rig against real WordPress,
+* **No independent security audit.** ~2,500 unit assertions and a live rig against real WordPress,
   and nobody outside this project has read the code. Commissioning that is the top line in
   FUNDING.md (https://github.com/calflint/claudpress/blob/main/FUNDING.md).
 * **Permissions are coarse.** Capability groups, on or off — no per-tool approval and no queue
@@ -112,9 +112,11 @@ there is refused with the locations that do work. `header`, `footer`, `before_co
   plugins, files or live snippets. Nothing snapshots the site, so backups are yours.
 * **Block themes and full site editing are not supported.** Pages are built with Gutenberg,
   Elementor, or custom-coded page templates.
-* **Nothing migrates in** — no Shopify, Wix or Squarespace import. Going the other way, a
-  variable product only half-migrates between Claudpress sites: the page moves, its attributes and
-  variations do not, and the import says so.
+* **No data importer.** Nothing reads a Shopify, Wix or Squarespace export and loads it in. The
+  site-clone skills rebuild a site's design and structure by looking at it, which is a different
+  job: orders, customers and stock do not come across. Going the other way, a variable product only
+  half-migrates between Claudpress sites: the page moves, its attributes and variations do not, and
+  the import says so.
 * **One agent at a time**, no background job queue: a long interactive build lives inside the
   session that started it. **Not translated**, either — strings are wrapped, no translation ships.
 * **Telegram needs a public HTTPS URL** with a valid certificate — a localhost or self-signed
@@ -507,7 +509,7 @@ so if you are on 1.1.0 or later you already have all of it.
 * Telegram chat front-end with conversation memory, voice notes, photos, one-tap approvals, /undo
   and per-chat roles; event alerts for paid orders, low stock, a crashed snippet and available
   updates; scheduled digests and autonomous tasks with retries, budget caps and a run history.
-* Requires WordPress 6.3+ and PHP 8.0+. Tests: ~1,500 assertions, plus a live rig against real
+* Requires WordPress 6.3+ and PHP 8.0+. Tests: ~2,500 assertions, plus a live rig against real
   WordPress and WooCommerce.
 
 The development history before this release is in the repository's git log and on the releases page:

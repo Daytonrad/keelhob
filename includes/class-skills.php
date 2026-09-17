@@ -4,8 +4,11 @@
  * demand when a task matches the description. Backed by a custom table so skills
  * live inside WordPress and are shared by every connected agent.
  *
- * This replicates (and extends, for free) Novamira's Skills + the Pro idea of
- * bundled expert "specializations" — see seed_bundled_skills().
+ * The idea of loadable, description-matched playbooks is not original to this
+ * project; other MCP plugins offer something similar, and bundling expert ones
+ * with the product is a common pattern. The schema, the table, the parser and
+ * every skill shipped here were written for Claudpress and share no code with
+ * anything else. See seed_bundled_skills().
  */
 
 if (!defined('ABSPATH')) {

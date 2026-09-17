@@ -16,9 +16,10 @@
 > installed, an agent connected, one prompt, a finished site. Recipe in
 > [docs/img/SHOT-LIST.md](docs/img/SHOT-LIST.md).
 
-WordPress promised that anyone could build a site in an afternoon. AI site builders are quietly
-taking that promise away — and taking WordPress users with it. Claudpress hands it back, with a
-database, a store, and code you actually own.
+WordPress shipped a famous five-minute install, back when standing up a database-driven site took
+days. It kept that promise. Then the hard part moved: installing is trivial now, and building is
+twenty plugins and a week you did not plan to spend. Claudpress puts the five minutes back where the
+work actually is, with a database, a store, and code you actually own.
 
 Install one plugin, connect Claude Code (or Claude Desktop, Cursor, Codex, any MCP client), and say
 what you want. It asks a few questions, then builds: pages, products, checkout, SEO, snippets,
@@ -30,7 +31,7 @@ tour: **[docs/features.md](docs/features.md)**.
 
 - **No onboarding wizard.** Activation drops you on an admin page; connecting an agent is a
   copy-paste step you do yourself.
-- **No independent security audit.** ~1,500 unit assertions and a live rig against real WordPress,
+- **No independent security audit.** ~2,500 unit assertions and a live rig against real WordPress,
   and nobody outside this project has read the code. Commissioning that is the top line in
   [FUNDING.md](FUNDING.md).
 - **Permissions are coarse.** Capability groups, on or off — no per-tool approval and no queue
@@ -39,9 +40,11 @@ tour: **[docs/features.md](docs/features.md)**.
   settings, plugins, files or live snippets. Nothing snapshots the site, so backups are yours.
 - **Block themes and full site editing are not supported.** Pages are built with Gutenberg,
   Elementor, or custom-coded page templates.
-- **Nothing migrates in** — no Shopify, Wix or Squarespace import. Going the other way, a variable
-  product only half-migrates between Claudpress sites: the page moves, its attributes and
-  variations do not, and the import says so.
+- **No data importer.** Nothing reads a Shopify, Wix or Squarespace export and loads it in. The
+  site-clone skills rebuild a site's *design and structure* by looking at it, which is a different
+  job: orders, customers and stock do not come across. Going the other way, a variable product only
+  half-migrates between Claudpress sites: the page moves, its attributes and variations do not, and
+  the import says so.
 - **One agent at a time**, no background job queue: a long interactive build lives inside the
   session that started it. **Not translated**, either — strings are wrapped, no translation ships.
 - **Telegram needs a public HTTPS URL** with a valid certificate — a localhost or self-signed
@@ -178,7 +181,7 @@ is the kill switch that stops every one of them at once.
 ## Skills and memory
 
 **Skills** are markdown playbooks stored in WordPress that the agent loads when a task matches their
-description; eighteen ship with the plugin, and you can write your own from the agent — *"create a
+description; twenty-four ship with the plugin, and you can write your own from the agent — *"create a
 skill that…"* — with no PHP. **Memory** is per-site key/value knowledge every connected agent shares
 (*"remember: primary color is #f8ca50"*).
 
@@ -187,7 +190,7 @@ skill that…"* — with no PHP. **Memory** is per-site key/value knowledge ever
 The plugin runs from source; there is nothing to build.
 
 ```bash
-php tests/run.php                 # unit suite, ~1,500 assertions, no composer, no WP install
+php tests/run.php                 # unit suite, ~2,500 assertions, no composer, no WP install
 bash bin/build-zip.sh             # → build/claudpress.zip
 
 composer install                  # dev tooling only — the plugin itself needs none of it

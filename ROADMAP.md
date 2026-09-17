@@ -15,17 +15,23 @@ the fast path and the ownership path the same path: install one plugin, connect
 your agent, say what you want, and get a real database, a real store and real
 code on hosting you control.
 
-Working today: 62 tools across content, WooCommerce, SEO, files, PHP execution,
+Working today: 68 tools across content, WooCommerce, SEO, files, PHP execution,
 snippets, Elementor, memory and autonomy · 24 expert skills · a Snippets Studio
 with a real code editor, conditional logic and revision history · cross-session
 memory · a Telegram front-end with voice, photos and approve-by-button ·
-staging-to-production bundles · signed skill updates · 2,428 unit assertions,
+staging-to-production bundles · signed skill updates · 2,559 unit assertions,
 57 browser checks, 30 end-to-end checks through the live MCP endpoint, and a
 rig running real WordPress.
 
 ---
 
-## Shipped (1.1.0, 1.2.0)
+## Shipped (1.1.0) and built, awaiting release (1.2.0)
+
+1.1.0 is the latest published release. Everything below is written and on `main`;
+the 1.2.0 items are not downloadable until that tag is cut.
+
+One thing still blocks that tag, and it is not code: **a three-minute video** of a
+site being built from one prompt, start to finish, no cuts. Not recorded yet.
 
 - **The one-prompt store, polished end to end.** Say "build me a shop selling
   handmade candles in the UK", answer a few questions, and get pages, products,
@@ -47,8 +53,6 @@ Being built.
 
 - **Onboarding wizard.** Activation to a connected agent without reading
   anything first.
-- **A three-minute video** of a site being built from one prompt, start to
-  finish, no cuts.
 
 ## Next (1.4, 1.5)
 
