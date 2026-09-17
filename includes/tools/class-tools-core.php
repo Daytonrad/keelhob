@@ -9,9 +9,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Tools_Core
+final class Keelhob_Tools_Core
 {
-    public static function register(Claudpress_Tool_Registry $r): void
+    public static function register(Keelhob_Tool_Registry $r): void
     {
         $r->add(
             'execute_php',
@@ -43,7 +43,7 @@ final class Claudpress_Tools_Core
 
         $r->add(
             'get_site_info',
-            'Return an overview of this WordPress site: WP/PHP versions, site URL, active theme, active plugins, whether WooCommerce/known SEO plugins are present, counts of posts/pages/products, the Claudpress abilities state, and this site\'s short site_label (the handle to use when the owner names this site among several, e.g. when copying a snippet to another site). Safe, read-only — works even when abilities are disabled.',
+            'Return an overview of this WordPress site: WP/PHP versions, site URL, active theme, active plugins, whether WooCommerce/known SEO plugins are present, counts of posts/pages/products, the Keelhob abilities state, and this site\'s short site_label (the handle to use when the owner names this site among several, e.g. when copying a snippet to another site). Safe, read-only — works even when abilities are disabled.',
             ['type' => 'object', 'properties' => (object) []],
             [self::class, 'get_site_info'],
             ['readOnlyHint' => true, 'title' => 'Get Site Info']
@@ -94,9 +94,9 @@ final class Claudpress_Tools_Core
         // it succeeded and move on. This costs one extra HTTP request per call
         // (execute_php runs a lot during a site build); that trade is deliberate
         // given the outage this exists for, and guard() already honours the
-        // claudpress_verify_health filter for anyone who needs it off.
+        // keelhob_verify_health filter for anyone who needs it off.
         if ($result['success']) {
-            $result = Claudpress_Health::guard($result, 'running that PHP');
+            $result = Keelhob_Health::guard($result, 'running that PHP');
         }
 
         return $result;
@@ -134,8 +134,8 @@ final class Claudpress_Tools_Core
         // PRAGMA can't take the front end down and returned above already, and
         // an errored query did nothing. This adds one extra HTTP request per
         // write query — the same deliberate trade as execute_php above, and the
-        // same claudpress_verify_health filter turns it off if needed.
-        return Claudpress_Health::guard($result, 'running that SQL');
+        // same keelhob_verify_health filter turns it off if needed.
+        return Keelhob_Health::guard($result, 'running that SQL');
     }
 
     public static function get_site_info(array $args): array
@@ -164,7 +164,7 @@ final class Claudpress_Tools_Core
             'name'         => get_bloginfo('name'),
             // The handle to use when the owner names this site among several
             // ("copy the sticky-header snippet from Pranknologia to DesertDrift").
-            'site_label'   => Claudpress::site_label(),
+            'site_label'   => Keelhob::site_label(),
             'description'  => get_bloginfo('description'),
             'wp_version'   => $wp_version,
             'php_version'  => PHP_VERSION,
@@ -182,11 +182,11 @@ final class Claudpress_Tools_Core
                 'products' => class_exists('WooCommerce') ? (int) wp_count_posts('product')->publish : null,
                 'users'    => (int) count_users()['total_users'],
             ],
-            'claudpress'   => [
-                'version'           => CLAUDPRESS_VERSION,
-                'abilities_enabled' => Claudpress::instance()->abilities_enabled(),
-                'tool_count'        => count(Claudpress::instance()->registry->names()),
-                'fs_base'           => Claudpress::instance()->get('fs_base'),
+            'keelhob'   => [
+                'version'           => KEELHOB_VERSION,
+                'abilities_enabled' => Keelhob::instance()->abilities_enabled(),
+                'tool_count'        => count(Keelhob::instance()->registry->names()),
+                'fs_base'           => Keelhob::instance()->get('fs_base'),
 
                 // Structured, not prose. An agent can branch on this; it
                 // cannot reliably branch on a paragraph. Enabled groups are
@@ -194,9 +194,9 @@ final class Claudpress_Tools_Core
                 // shape of the install in one call, rather than inferring it
                 // from what tools/list happens to contain.
                 'available_capabilities' => array_keys(array_filter(
-                    Claudpress_Capabilities::groups(),
+                    Keelhob_Capabilities::groups(),
                     static function ($group, $key) {
-                        return Claudpress_Capabilities::is_group_enabled($key);
+                        return Keelhob_Capabilities::is_group_enabled($key);
                     },
                     ARRAY_FILTER_USE_BOTH
                 )),
@@ -206,10 +206,10 @@ final class Claudpress_Tools_Core
                             'name'            => $group['name'],
                             'what_it_does'    => $group['what_it_does'],
                             'why_unavailable' => 'The site owner has switched this capability off.',
-                            'how_to_enable'   => 'The owner enables the "' . $group['name'] . '" group under Claudpress > Settings > Capabilities. Ask them; do not work around it.',
+                            'how_to_enable'   => 'The owner enables the "' . $group['name'] . '" group under Keelhob > Settings > Capabilities. Ask them; do not work around it.',
                         ];
                     },
-                    Claudpress_Capabilities::disabled_groups()
+                    Keelhob_Capabilities::disabled_groups()
                 ),
             ],
         ];

@@ -22,7 +22,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Admin_Skills
+final class Keelhob_Admin_Skills
 {
     /**
      * Row source, overridable so the render tests can drive the template with
@@ -37,7 +37,7 @@ final class Claudpress_Admin_Skills
         if (is_callable(self::$source)) {
             return (array) call_user_func(self::$source);
         }
-        return Claudpress::instance()->skills->all();
+        return Keelhob::instance()->skills->all();
     }
 
     /**
@@ -48,26 +48,26 @@ final class Claudpress_Admin_Skills
      */
     private function maybe_refresh(): array
     {
-        if (empty($_POST['claudpress_skills_refresh'])) {
+        if (empty($_POST['keelhob_skills_refresh'])) {
             return [];
         }
-        if (!current_user_can('manage_options') || !check_admin_referer('claudpress_skills_refresh')) {
+        if (!current_user_can('manage_options') || !check_admin_referer('keelhob_skills_refresh')) {
             return [];
         }
-        return Claudpress_Skills_Remote::refresh();
+        return Keelhob_Skills_Remote::refresh();
     }
 
     public function render(): void
     {
         $refreshed = $this->maybe_refresh();
         $rows      = self::rows();
-        $new       = Claudpress_Skills_Remote::newly_added();
-        $cache     = Claudpress_Skills_Remote::cache();
-        $freshness = Claudpress_Skills_Remote::freshness((int) $cache['fetched_at'], time());
-        $history   = Claudpress_Skills_Remote::history();
+        $new       = Keelhob_Skills_Remote::newly_added();
+        $cache     = Keelhob_Skills_Remote::cache();
+        $freshness = Keelhob_Skills_Remote::freshness((int) $cache['fetched_at'], time());
+        $history   = Keelhob_Skills_Remote::history();
         ?>
         <div class="wrap">
-            <h1><?php echo Claudpress_Brand::heading_mark(); ?><?php esc_html_e('Skills', 'claudpress'); ?></h1>
+            <h1><?php echo Keelhob_Brand::heading_mark(); ?><?php esc_html_e('Skills', 'keelhob'); ?></h1>
 
             <?php if ($refreshed) : ?>
                 <div class="notice <?php echo !empty($refreshed['success']) ? 'notice-success' : 'notice-warning'; ?>">
@@ -76,37 +76,37 @@ final class Claudpress_Admin_Skills
             <?php endif; ?>
 
             <p style="max-width:820px;color:#50575e;">
-                <?php esc_html_e('Skills are the playbooks a connected agent follows: how to build a page, how to publish a post, how to harden this site. Each one is plain Markdown — nothing here is executed.', 'claudpress'); ?>
+                <?php esc_html_e('Skills are the playbooks a connected agent follows: how to build a page, how to publish a post, how to harden this site. Each one is plain Markdown — nothing here is executed.', 'keelhob'); ?>
             </p>
 
             <form method="post" style="margin:12px 0 20px;">
-                <?php wp_nonce_field('claudpress_skills_refresh'); ?>
-                <input type="hidden" name="claudpress_skills_refresh" value="1">
-                <button type="submit" class="button button-secondary"><?php esc_html_e('Refresh skills', 'claudpress'); ?></button>
+                <?php wp_nonce_field('keelhob_skills_refresh'); ?>
+                <input type="hidden" name="keelhob_skills_refresh" value="1">
+                <button type="submit" class="button button-secondary"><?php esc_html_e('Refresh skills', 'keelhob'); ?></button>
                 <span style="margin-left:10px;color:#646970;">
                     <?php if ((int) $cache['fetched_at'] === 0) : ?>
-                        <?php esc_html_e('Never checked for new skills.', 'claudpress'); ?>
+                        <?php esc_html_e('Never checked for new skills.', 'keelhob'); ?>
                     <?php elseif ($freshness === 'fresh') : ?>
-                        <?php esc_html_e('Up to date.', 'claudpress'); ?>
+                        <?php esc_html_e('Up to date.', 'keelhob'); ?>
                     <?php elseif ($freshness === 'grace') : ?>
-                        <?php esc_html_e('Not checked in over a week. Your skills still work.', 'claudpress'); ?>
+                        <?php esc_html_e('Not checked in over a week. Your skills still work.', 'keelhob'); ?>
                     <?php else : ?>
-                        <?php esc_html_e('Not checked in over a month. Your skills still work, but they may be out of date.', 'claudpress'); ?>
+                        <?php esc_html_e('Not checked in over a month. Your skills still work, but they may be out of date.', 'keelhob'); ?>
                     <?php endif; ?>
                 </span>
             </form>
 
-            <h2><?php esc_html_e('On this site', 'claudpress'); ?></h2>
+            <h2><?php esc_html_e('On this site', 'keelhob'); ?></h2>
             <table class="widefat striped" style="max-width:980px;">
                 <thead><tr>
-                    <th><?php esc_html_e('Skill', 'claudpress'); ?></th>
-                    <th style="width:110px;"><?php esc_html_e('Version', 'claudpress'); ?></th>
-                    <th style="width:110px;"><?php esc_html_e('Source', 'claudpress'); ?></th>
-                    <th style="width:170px;"><?php esc_html_e('Last changed', 'claudpress'); ?></th>
+                    <th><?php esc_html_e('Skill', 'keelhob'); ?></th>
+                    <th style="width:110px;"><?php esc_html_e('Version', 'keelhob'); ?></th>
+                    <th style="width:110px;"><?php esc_html_e('Source', 'keelhob'); ?></th>
+                    <th style="width:170px;"><?php esc_html_e('Last changed', 'keelhob'); ?></th>
                 </tr></thead>
                 <tbody>
                 <?php if (!$rows) : ?>
-                    <tr><td colspan="4"><?php esc_html_e('No skills are installed yet. Press Refresh skills, or reactivate the plugin to reinstall the bundled set.', 'claudpress'); ?></td></tr>
+                    <tr><td colspan="4"><?php esc_html_e('No skills are installed yet. Press Refresh skills, or reactivate the plugin to reinstall the bundled set.', 'keelhob'); ?></td></tr>
                 <?php endif; ?>
                 <?php foreach ($rows as $row) : ?>
                     <?php $name = (string) ($row['name'] ?? ''); ?>
@@ -114,29 +114,29 @@ final class Claudpress_Admin_Skills
                         <td>
                             <strong><?php echo esc_html($name); ?></strong>
                             <?php if (in_array($name, $new, true)) : ?>
-                                <span style="margin-left:6px;padding:1px 6px;border-radius:9px;background:#00a32a;color:#fff;font-size:11px;"><?php esc_html_e('New', 'claudpress'); ?></span>
+                                <span style="margin-left:6px;padding:1px 6px;border-radius:9px;background:#00a32a;color:#fff;font-size:11px;"><?php esc_html_e('New', 'keelhob'); ?></span>
                             <?php endif; ?>
                             <?php if (empty($row['enabled'])) : ?>
-                                <span style="margin-left:6px;color:#b32d2e;"><?php esc_html_e('(off)', 'claudpress'); ?></span>
+                                <span style="margin-left:6px;color:#b32d2e;"><?php esc_html_e('(off)', 'keelhob'); ?></span>
                             <?php endif; ?>
                             <div style="color:#50575e;"><?php echo esc_html((string) ($row['description'] ?? '')); ?></div>
                         </td>
                         <td><?php echo esc_html((string) ($row['version'] ?? '') ?: '—'); ?></td>
-                        <td><?php echo esc_html(Claudpress_Skills::normalize_source((string) ($row['source'] ?? ''))); ?></td>
+                        <td><?php echo esc_html(Keelhob_Skills::normalize_source((string) ($row['source'] ?? ''))); ?></td>
                         <td><?php echo esc_html((string) ($row['updated_at'] ?? '') ?: '—'); ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
             </table>
 
-            <h2 style="margin-top:28px;"><?php esc_html_e('Recent changes', 'claudpress'); ?></h2>
+            <h2 style="margin-top:28px;"><?php esc_html_e('Recent changes', 'keelhob'); ?></h2>
             <?php if (!$history) : ?>
-                <p style="color:#50575e;"><?php esc_html_e('Nothing has arrived from the skills server yet.', 'claudpress'); ?></p>
+                <p style="color:#50575e;"><?php esc_html_e('Nothing has arrived from the skills server yet.', 'keelhob'); ?></p>
             <?php else : ?>
                 <table class="widefat striped" style="max-width:980px;">
                     <thead><tr>
-                        <th style="width:170px;"><?php esc_html_e('When', 'claudpress'); ?></th>
-                        <th><?php esc_html_e('What changed', 'claudpress'); ?></th>
+                        <th style="width:170px;"><?php esc_html_e('When', 'keelhob'); ?></th>
+                        <th><?php esc_html_e('What changed', 'keelhob'); ?></th>
                     </tr></thead>
                     <tbody>
                     <?php foreach ($history as $entry) : ?>
@@ -144,10 +144,10 @@ final class Claudpress_Admin_Skills
                             <td><?php echo esc_html((string) ($entry['at'] ?? '')); ?></td>
                             <td>
                                 <?php if (!empty($entry['installed'])) : ?>
-                                    <div><?php esc_html_e('Added:', 'claudpress'); ?> <?php echo esc_html(implode(', ', (array) $entry['installed'])); ?></div>
+                                    <div><?php esc_html_e('Added:', 'keelhob'); ?> <?php echo esc_html(implode(', ', (array) $entry['installed'])); ?></div>
                                 <?php endif; ?>
                                 <?php if (!empty($entry['updated'])) : ?>
-                                    <div><?php esc_html_e('Updated:', 'claudpress'); ?> <?php echo esc_html(implode(', ', (array) $entry['updated'])); ?></div>
+                                    <div><?php esc_html_e('Updated:', 'keelhob'); ?> <?php echo esc_html(implode(', ', (array) $entry['updated'])); ?></div>
                                 <?php endif; ?>
                             </td>
                         </tr>

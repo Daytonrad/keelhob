@@ -71,7 +71,7 @@ landed — e.g. registering a tool whose callback method doesn't exist yet — d
 the first one lands, every subsequent request (including your own next tool
 call, since it also has to load this plugin) can fatal. You lose the only
 channel you had to apply the second half of the fix, and recovery needs
-server/SSH access outside Claudpress entirely.
+server/SSH access outside Keelhob entirely.
 - Compose the whole change locally/mentally first, then land it in **one**
   write per file (a single `write_file` with the complete correct content, or
   one `edit_file` covering the whole interdependent hunk) — never a "part one,
@@ -81,7 +81,7 @@ server/SSH access outside Claudpress entirely.
   *before* the line that registers them as a callback, not after.
 - If you do land the site in this state anyway: MCP access is gone (loading
   the plugin to serve the MCP request also fatals), so the only way back in is
-  outside Claudpress — SSH/hosting file manager/`docker exec` to fix the file
+  outside Keelhob — SSH/hosting file manager/`docker exec` to fix the file
   directly, then resume.
 
 ## Verify after
@@ -94,7 +94,7 @@ server/SSH access outside Claudpress entirely.
 
 ## Adopting an existing site
 
-Claudpress is routinely pointed at a site somebody else already built. Building and fixing
+Keelhob is routinely pointed at a site somebody else already built. Building and fixing
 rules do not apply cleanly to someone else's work — you didn't make the decisions on this
 site, so you don't get to unilaterally change them.
 

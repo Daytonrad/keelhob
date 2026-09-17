@@ -33,7 +33,7 @@ wp_set_current_user(1);
 $made = [];
 
 // --- 1. the old flat condition shape ---------------------------------------
-$flat = Claudpress_Snippets::save([
+$flat = Keelhob_Snippets::save([
     'name'         => 'UP flat conditions',
     'description'  => 'Written by the old version with the pre-1.2.0 condition shape.',
     'code'         => "add_filter('the_content', function (\$c) { return \$c . '<!-- up-flat -->'; });",
@@ -50,7 +50,7 @@ $flat = Claudpress_Snippets::save([
 $made['flat'] = (int) ($flat['id'] ?? 0);
 
 // --- 2. no conditions at all -----------------------------------------------
-$plain = Claudpress_Snippets::save([
+$plain = Keelhob_Snippets::save([
     'name'         => 'UP no conditions',
     'code'         => '.up-plain { color: rebeccapurple; }',
     'snippet_type' => 'css',
@@ -60,7 +60,7 @@ $plain = Claudpress_Snippets::save([
 $made['plain'] = (int) ($plain['id'] ?? 0);
 
 // --- 3. something with a history -------------------------------------------
-$rev = Claudpress_Snippets::save([
+$rev = Keelhob_Snippets::save([
     'name'         => 'UP with revisions',
     'code'         => "// version one\n",
     'snippet_type' => 'php',
@@ -69,12 +69,12 @@ $rev = Claudpress_Snippets::save([
 ]);
 $rev_id = (int) ($rev['id'] ?? 0);
 foreach (['// version two', '// version three', '// version four'] as $body) {
-    Claudpress_Snippets::save(['id' => $rev_id, 'code' => $body . "\n"]);
+    Keelhob_Snippets::save(['id' => $rev_id, 'code' => $body . "\n"]);
 }
 $made['revisions'] = $rev_id;
 
 // --- 4. deliberately switched off ------------------------------------------
-$off = Claudpress_Snippets::save([
+$off = Keelhob_Snippets::save([
     'name'         => 'UP switched off on purpose',
     'code'         => "add_action('init', function () { /* up-off */ });",
     'snippet_type' => 'php',
@@ -86,7 +86,7 @@ $made['off'] = (int) ($off['id'] ?? 0);
 // --- 5. live, and asserted to still RUN afterwards --------------------------
 // A footer marker is used rather than the_content because it does not depend on
 // a post existing, so the check works on any rig.
-$live = Claudpress_Snippets::save([
+$live = Keelhob_Snippets::save([
     'name'         => 'UP live marker',
     'code'         => '<!-- up-live-marker -->',
     'snippet_type' => 'html',
@@ -97,17 +97,17 @@ $made['live'] = (int) ($live['id'] ?? 0);
 
 // --- other subsystems a real site carries ----------------------------------
 // Memory and Skills are INSTANCE APIs in both versions, not static.
-$memory = new Claudpress_Memory();
+$memory = new Keelhob_Memory();
 $memory->save('up-memory-key', 'a decision recorded before the upgrade');
 
-$skills = new Claudpress_Skills();
+$skills = new Keelhob_Skills();
 $skills->save([
     'name'        => 'up-custom-skill',
     'description' => 'A skill the owner wrote themselves, which an upgrade must not overwrite.',
     'body'        => "## When to use\nNever. This is a fixture.\n",
 ]);
 
-Claudpress::instance()->update([
+Keelhob::instance()->update([
     'agent_provider'    => 'anthropic',
     'agent_model'       => 'mock-model-newest',
     'abilities_enabled' => true,
@@ -115,9 +115,9 @@ Claudpress::instance()->update([
 
 $store = [
     'ids'      => $made,
-    'old_ver'  => defined('CLAUDPRESS_VERSION') ? CLAUDPRESS_VERSION : '?',
+    'old_ver'  => defined('KEELHOB_VERSION') ? KEELHOB_VERSION : '?',
 ];
-update_option('cp_upgrade_ids', $store, false);
+update_option('kh_upgrade_ids', $store, false);
 
 printf(
     "      seeded %d snippet(s), 1 memory, 1 custom skill, settings; running %s\n",

@@ -1,8 +1,8 @@
 <?php
 /**
- * Encryption at rest for the credentials Claudpress has to store.
+ * Encryption at rest for the credentials Keelhob has to store.
  *
- * Claudpress holds other people's API keys: an Anthropic or OpenAI key, a
+ * Keelhob holds other people's API keys: an Anthropic or OpenAI key, a
  * Telegram bot token, a deploy token. Before 1.10.1 every one of those sat in
  * wp_options in clear text, and was additionally printed back into the admin
  * page source on every render.
@@ -26,7 +26,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Secrets
+final class Keelhob_Secrets
 {
     const PREFIX = 'cpenc:v1:';
     const CIPHER = 'aes-256-gcm';
@@ -58,7 +58,7 @@ final class Claudpress_Secrets
         if (trim($material) === '') {
             // A site with no salts defined is misconfigured, but refusing to
             // work would be worse than a weak-but-site-specific fallback.
-            $material = 'claudpress-no-salts-' . (defined('ABSPATH') ? ABSPATH : __DIR__);
+            $material = 'keelhob-no-salts-' . (defined('ABSPATH') ? ABSPATH : __DIR__);
         }
         return hash('sha256', $material, true);
     }

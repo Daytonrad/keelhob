@@ -2,10 +2,10 @@
 /**
  * Telegram chat front-end for the on-site agent.
  *
- * Claudpress could already *talk to* Telegram (digests and run summaries go out
- * through Claudpress_Notifier). This is the other direction: the owner messages
+ * Keelhob could already *talk to* Telegram (digests and run summaries go out
+ * through Keelhob_Notifier). This is the other direction: the owner messages
  * the bot, Telegram POSTs the message to a REST route here, and the text is
- * handed to Claudpress_Agent_Runtime — the same agentic loop, the same tools,
+ * handed to Keelhob_Agent_Runtime — the same agentic loop, the same tools,
  * the same policy guardrails that a scheduled task gets. The reply goes back as
  * a Telegram message.
  *
@@ -23,7 +23,7 @@
  *      compared in constant time. A request without it never reaches the agent.
  *   2. Only chat ids on the owner's allowlist are answered at all, each with a
  *      role — admin, editor or viewer — that decides what it may do.
- *   3. Destructive/financial tools stay behind Claudpress_Policy, and a chat can
+ *   3. Destructive/financial tools stay behind Keelhob_Policy, and a chat can
  *      only escalate when the owner has armed that switch in WP admin.
  *   4. Escalation is either a self-expiring /risky window or a per-action
  *      Approve button; nothing is ever silently permitted.
@@ -40,7 +40,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Telegram
+final class Keelhob_Telegram
 {
     const API_BASE  = 'https://api.telegram.org/bot';
     const FILE_BASE = 'https://api.telegram.org/file/bot';
@@ -63,9 +63,9 @@ final class Claudpress_Telegram
     /** Biggest media we will pull down from Telegram (bytes). */
     const MAX_FILE_BYTES = 20971520; // 20 MB, Telegram's own bot download ceiling
 
-    const OPTION_LAST_UPDATE = 'claudpress_tg_last_update';
-    const OPTION_RISKY       = 'claudpress_tg_risky';
-    const OPTION_PENDING     = 'claudpress_tg_pending';
+    const OPTION_LAST_UPDATE = 'keelhob_tg_last_update';
+    const OPTION_RISKY       = 'keelhob_tg_risky';
+    const OPTION_PENDING     = 'keelhob_tg_pending';
 
     /**
      * Chat roles, most to least privileged.
@@ -84,7 +84,7 @@ final class Claudpress_Telegram
     public static function table(): string
     {
         global $wpdb;
-        return $wpdb->prefix . 'claudpress_chat';
+        return $wpdb->prefix . 'keelhob_chat';
     }
 
     public static function install_table(): void
@@ -109,7 +109,7 @@ final class Claudpress_Telegram
 
     public static function token(): string
     {
-        return trim((string) Claudpress::instance()->get('notify_telegram_token', ''));
+        return trim((string) Keelhob::instance()->get('notify_telegram_token', ''));
     }
 
     /**
@@ -169,7 +169,7 @@ final class Claudpress_Telegram
     /** Inbound chat is off unless the owner switched it on and set a token. */
     public static function enabled(): bool
     {
-        return (bool) Claudpress::instance()->get('telegram_bot_enabled', false) && self::token() !== '';
+        return (bool) Keelhob::instance()->get('telegram_bot_enabled', false) && self::token() !== '';
     }
 
     /**
@@ -179,10 +179,10 @@ final class Claudpress_Telegram
      */
     public static function secret(): string
     {
-        $secret = trim((string) Claudpress::instance()->get('telegram_secret', ''));
+        $secret = trim((string) Keelhob::instance()->get('telegram_secret', ''));
         if ($secret === '') {
             $secret = self::generate_secret();
-            Claudpress::instance()->update(['telegram_secret' => $secret]);
+            Keelhob::instance()->update(['telegram_secret' => $secret]);
         }
         return $secret;
     }
@@ -214,7 +214,7 @@ final class Claudpress_Telegram
      */
     public static function chat_roles(): array
     {
-        $s   = Claudpress::instance()->settings();
+        $s   = Keelhob::instance()->settings();
         $raw = trim((string) ($s['telegram_allowed_chats'] ?? ''));
         if ($raw === '') {
             $raw = trim((string) ($s['notify_telegram_chat'] ?? ''));
@@ -282,29 +282,29 @@ final class Claudpress_Telegram
 
     public static function webhook_url(): string
     {
-        return rest_url(CLAUDPRESS_REST_NAMESPACE . '/telegram');
+        return rest_url(KEELHOB_REST_NAMESPACE . '/telegram');
     }
 
     public static function history_turns(): int
     {
-        $n = (int) Claudpress::instance()->get('telegram_history_turns', 12);
+        $n = (int) Keelhob::instance()->get('telegram_history_turns', 12);
         return max(0, min(60, $n));
     }
 
     public static function voice_enabled(): bool
     {
-        return (bool) Claudpress::instance()->get('telegram_voice', false)
-            && Claudpress_Transcribe_Provider::key() !== '';
+        return (bool) Keelhob::instance()->get('telegram_voice', false)
+            && Keelhob_Transcribe_Provider::key() !== '';
     }
 
     public static function photos_enabled(): bool
     {
-        return (bool) Claudpress::instance()->get('telegram_photos', false);
+        return (bool) Keelhob::instance()->get('telegram_photos', false);
     }
 
     public static function progress_enabled(): bool
     {
-        return (bool) Claudpress::instance()->get('telegram_progress', true);
+        return (bool) Keelhob::instance()->get('telegram_progress', true);
     }
 
     // ---- pure helpers -----------------------------------------------------
@@ -552,7 +552,7 @@ final class Claudpress_Telegram
      */
     public static function may_escalate(string $chat_id): bool
     {
-        return (bool) Claudpress::instance()->get('telegram_allow_risky', false)
+        return (bool) Keelhob::instance()->get('telegram_allow_risky', false)
             && self::role_for($chat_id) === 'admin';
     }
 
@@ -648,44 +648,44 @@ final class Claudpress_Telegram
 
     // ---- Telegram API and inbound routing ---------------------------------
     //
-    // The wire protocol moved to Claudpress_Telegram_Api and the inbound
-    // decisions to Claudpress_Telegram_Router. These stay here because they are
+    // The wire protocol moved to Keelhob_Telegram_Api and the inbound
+    // decisions to Keelhob_Telegram_Router. These stay here because they are
     // what the rest of the plugin calls, and a class name in a caller is as much
     // a contract as a hook is. Both new classes may be called directly; nothing
     // has to come through this door.
 
     public static function handle_update(array $update): array
     {
-        return Claudpress_Telegram_Router::handle_update($update);
+        return Keelhob_Telegram_Router::handle_update($update);
     }
 
     public static function run_command(string $chat_id, string $cmd, string $args): ?string
     {
-        return Claudpress_Telegram_Router::run_command($chat_id, $cmd, $args);
+        return Keelhob_Telegram_Router::run_command($chat_id, $cmd, $args);
     }
 
     public static function commands(): array
     {
-        return Claudpress_Telegram_Api::commands();
+        return Keelhob_Telegram_Api::commands();
     }
 
     public static function extract_media(array $message): ?array
     {
-        return Claudpress_Telegram_Api::extract_media($message);
+        return Keelhob_Telegram_Api::extract_media($message);
     }
 
     public static function webhook_info(): array
     {
-        return Claudpress_Telegram_Api::webhook_info();
+        return Keelhob_Telegram_Api::webhook_info();
     }
 
     public static function set_webhook(): array
     {
-        return Claudpress_Telegram_Api::set_webhook();
+        return Keelhob_Telegram_Api::set_webhook();
     }
 
     public static function delete_webhook(): array
     {
-        return Claudpress_Telegram_Api::delete_webhook();
+        return Keelhob_Telegram_Api::delete_webhook();
     }
 }

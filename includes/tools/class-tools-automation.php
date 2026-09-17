@@ -9,9 +9,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Tools_Automation
+final class Keelhob_Tools_Automation
 {
-    public static function register(Claudpress_Tool_Registry $r): void
+    public static function register(Keelhob_Tool_Registry $r): void
     {
         $r->add('get_dashboard', 'Get a full status snapshot of the site right now — store sales (today / 7d / 30d), open orders needing attention, out-of-stock products, content counts, pending comments, and available updates, plus a plain-language summary. Use this to answer "what\'s going on / how is the store doing / what needs attention" without the owner logging in. Read-only; works even when abilities are disabled.', [
             'type' => 'object', 'properties' => (object) [],
@@ -61,7 +61,7 @@ final class Claudpress_Tools_Automation
             'required' => ['id'],
         ], [self::class, 'task_delete'], ['destructiveHint' => true]);
 
-        $r->add('run_agent', 'Run a one-off autonomous task NOW: hand a plain-language instruction to the on-site AI agent, which plans and executes it using Claudpress tools (with policy guardrails), then returns a summary. Requires an agent API key in settings. Use for "just handle X" automations you don\'t want to schedule.', [
+        $r->add('run_agent', 'Run a one-off autonomous task NOW: hand a plain-language instruction to the on-site AI agent, which plans and executes it using Keelhob tools (with policy guardrails), then returns a summary. Requires an agent API key in settings. Use for "just handle X" automations you don\'t want to schedule.', [
             'type' => 'object',
             'properties' => [
                 'instruction' => ['type' => 'string'],
@@ -83,7 +83,7 @@ final class Claudpress_Tools_Automation
 
     public static function get_dashboard(array $a): array
     {
-        return ['success' => true, 'dashboard' => Claudpress_Digest::snapshot()];
+        return ['success' => true, 'dashboard' => Keelhob_Digest::snapshot()];
     }
 
 
@@ -95,7 +95,7 @@ final class Claudpress_Tools_Automation
             'enabled' => (bool) $t['enabled'], 'allow_risky' => (bool) $t['allow_risky'],
             'last_run' => $t['last_run'], 'last_status' => $t['last_status'],
             'last_summary' => mb_substr((string) $t['last_summary'], 0, 400),
-        ], Claudpress_Tasks::all());
+        ], Keelhob_Tasks::all());
         return ['success' => true, 'count' => count($tasks), 'tasks' => $tasks];
     }
 
@@ -122,36 +122,36 @@ final class Claudpress_Tools_Automation
             // What the run actually loaded, recorded by the tool registry rather
             // than claimed in the summary. A build that came out badly and shows
             // no skills here has its explanation in that one field.
-            'skills_used' => Claudpress_Skill_Standard::slugs((string) ($r['skills_used'] ?? '')),
-        ], Claudpress_Agent_Runs::recent((int) ($a['limit'] ?? 20)));
+            'skills_used' => Keelhob_Skill_Standard::slugs((string) ($r['skills_used'] ?? '')),
+        ], Keelhob_Agent_Runs::recent((int) ($a['limit'] ?? 20)));
 
         return [
             'success'   => true,
             'runs'      => $runs,
-            'usage_24h' => Claudpress_Agent_Runs::usage_since(24),
-            'caps'      => Claudpress_Agent_Runtime::caps(),
+            'usage_24h' => Keelhob_Agent_Runs::usage_since(24),
+            'caps'      => Keelhob_Agent_Runtime::caps(),
         ];
     }
 
 
     public static function task_save(array $a): array
     {
-        return Claudpress_Tasks::save($a);
+        return Keelhob_Tasks::save($a);
     }
 
     public static function task_run(array $a): array
     {
-        return Claudpress_Tasks::run_task((int) ($a['id'] ?? 0));
+        return Keelhob_Tasks::run_task((int) ($a['id'] ?? 0));
     }
 
     public static function task_delete(array $a): array
     {
-        return Claudpress_Tasks::delete((int) ($a['id'] ?? 0));
+        return Keelhob_Tasks::delete((int) ($a['id'] ?? 0));
     }
 
     public static function run_agent(array $a): array
     {
-        return Claudpress_Agent_Runtime::run((string) ($a['instruction'] ?? ''), [
+        return Keelhob_Agent_Runtime::run((string) ($a['instruction'] ?? ''), [
             'allow_risky' => (bool) ($a['allow_risky'] ?? false),
             'max_steps'   => (int) ($a['max_steps'] ?? 14),
             'context'     => 'run_agent',
@@ -160,7 +160,7 @@ final class Claudpress_Tools_Automation
 
     public static function notify_owner(array $a): array
     {
-        $res = Claudpress_Notifier::send((string) ($a['subject'] ?? ''), (string) ($a['message'] ?? ''));
+        $res = Keelhob_Notifier::send((string) ($a['subject'] ?? ''), (string) ($a['message'] ?? ''));
         return ['success' => true, 'channels' => $res];
     }
 

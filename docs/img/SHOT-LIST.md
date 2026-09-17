@@ -6,8 +6,8 @@ change.
 
 | File | Screen |
 |---|---|
-| `01-connect.png` | Claudpress → Connect |
-| `02-studio.png` | Claudpress → Snippets (Studio list) |
+| `01-connect.png` | Keelhob → Connect |
+| `02-studio.png` | Keelhob → Snippets (Studio list) |
 | `03-capabilities.png` | The Capabilities panel |
 | `04-built-site.png` | The front end of a site the agent built |
 
@@ -43,14 +43,14 @@ and a screenshot is forever once it is in git history.
 
 ## `01-connect.png` — Connect
 
-**Screen:** Claudpress → Connect.
+**Screen:** Keelhob → Connect.
 
 **State:** a token generated, so the `claude mcp add …` command is fully filled in with a real URL
 and a real bearer token — then **regenerate that token straight after taking the shot**. Nothing
 expanded below the fold; the command block should be the visual centre.
 
 **Must be visible:** the site URL in the command, the `--transport http` flag, the full endpoint
-path `/wp-json/claudpress/v1/mcp`, the copy button, and enough of the surrounding page that it
+path `/wp-json/keelhob/v1/mcp`, the copy button, and enough of the surrounding page that it
 reads as a WordPress admin screen.
 
 **Nice to have:** the "Other clients" JSON block partly visible below it, so people can see there
@@ -60,7 +60,7 @@ is more than one way in.
 
 ## `02-studio.png` — Snippets Studio
 
-**Screen:** Claudpress → Snippets.
+**Screen:** Keelhob → Snippets.
 
 **State:** at least five snippets the agent actually installed during a real build — not seeded
 dummies. A mix of types (PHP, CSS, a page template) and at least one **inactive** row, so the
@@ -118,7 +118,7 @@ is entirely that it is not edited — anyone can fake a fast build with a cut.
 1. Start on a **fresh WordPress install** with nothing on it. Show that: the plugins list, the
    empty pages list, a default theme.
 2. **Install the zip** — Plugins → Add New → Upload Plugin → Activate. Real time.
-3. **Connect an agent** — open Claudpress → Connect, copy the command, paste it into a terminal,
+3. **Connect an agent** — open Keelhob → Connect, copy the command, paste it into a terminal,
    start a session, and show the tool list arriving.
 4. **One prompt.** Say what you want in a sentence, the way a real person would. No prompt
    engineering, no pasted brief.

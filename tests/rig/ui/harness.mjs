@@ -3,7 +3,7 @@
  *
  * WHY THIS LAYER EXISTS AT ALL, in one example.
  *
- * `Claudpress_Studio_Edit::render()` calls `wp_enqueue_code_editor()`, enqueues
+ * `Keelhob_Studio_Edit::render()` calls `wp_enqueue_code_editor()`, enqueues
  * `wp-codemirror`, and runs `wp.codeEditor.initialize()`. Read the source and
  * the screen has a syntax-highlighting editor. Render the page and it has a
  * plain `<textarea>`, because the inline init script prints 65 scripts before
@@ -282,7 +282,7 @@ export function wpEval(php, { path, cli }) {
   // and newline in the snippet. The first version of this helper failed with a
   // WP-CLI deprecation notice as its only visible symptom, because the mangled
   // argument had already made the command meaningless.
-  const tmp = join(tmpdir(), `cp-ui-${Date.now()}-${Math.random().toString(36).slice(2)}.php`);
+  const tmp = join(tmpdir(), `kh-ui-${Date.now()}-${Math.random().toString(36).slice(2)}.php`);
   writeFileSync(tmp, `<?php
 ${php}
 `, 'utf8');

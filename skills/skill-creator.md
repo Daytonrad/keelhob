@@ -1,7 +1,7 @@
 ---
 name: skill-creator
 title: Skill creator
-description: Create, refine, or improve a Claudpress skill. Use whenever the user asks to "create a skill", "make a skill", "add a skill for X", "teach the site how to Y", or wants to capture a repeatable workflow the AI should follow automatically.
+description: Create, refine, or improve a Keelhob skill. Use whenever the user asks to "create a skill", "make a skill", "add a skill for X", "teach the site how to Y", or wants to capture a repeatable workflow the AI should follow automatically.
 enable_agentic: true
 enable_prompt: true
 role: procedure
@@ -11,7 +11,7 @@ next_skills: build-standard
 
 # Skill creator
 
-You are writing a Claudpress **skill**: one Markdown document (YAML frontmatter + body) that any AI agent connected to this site loads automatically when its `description` matches a task. Save it with the `skill_save` tool.
+You are writing a Keelhob **skill**: one Markdown document (YAML frontmatter + body) that any AI agent connected to this site loads automatically when its `description` matches a task. Save it with the `skill_save` tool.
 
 ## When to use
 

@@ -10,15 +10,15 @@
  *
  * So: render each page for real and assert on the HTML that comes out.
  *
- * Claudpress_Digest is faked here because its snapshot() require_once's
+ * Keelhob_Digest is faked here because its snapshot() require_once's
  * wp-admin/includes/update.php, which only exists in a real WordPress install.
  * Everything else runs the production code path.
  */
 
-CP_Test::group('Admin — pages render');
+KH_Test::group('Admin — pages render');
 
 /** Digest needs a real wp-admin to enumerate updates; the pages only read summary. */
-class Claudpress_Digest
+class Keelhob_Digest
 {
     public static function snapshot(): array
     {
@@ -30,7 +30,7 @@ class Claudpress_Digest
 }
 
 /** The admin pages only ever read from these collaborators. */
-class CP_Test_Registry
+class KH_Test_Registry
 {
     public function names(): array
     {
@@ -46,7 +46,7 @@ class CP_Test_Registry
     }
 }
 
-class CP_Test_Bag
+class KH_Test_Bag
 {
     /** @var array<int, array<string, mixed>> */
     private array $rows;
@@ -77,17 +77,17 @@ class CP_Test_Bag
     }
 }
 
-$cp           = Claudpress::instance();
-$cp->registry = new CP_Test_Registry();
-$cp->skills   = new CP_Test_Bag();
-$cp->logger   = new CP_Test_Bag([
+$kh           = Keelhob::instance();
+$kh->registry = new KH_Test_Registry();
+$kh->skills   = new KH_Test_Bag();
+$kh->logger   = new KH_Test_Bag([
     ['created_at' => '2026-08-08 10:00:00', 'tool' => 'create_post', 'ok' => 1, 'args_json' => '{"title":"Hi"}', 'summary' => 'Created post 12'],
 ]);
-$cp->memory = new CP_Test_Bag([
+$kh->memory = new KH_Test_Bag([
     ['key' => 'brand.accent', 'category' => 'design', 'value' => '#f8ca50', 'updated_at' => '2026-08-08 09:00:00'],
 ]);
 
-$admin = new Claudpress_Admin();
+$admin = new Keelhob_Admin();
 $pages = [
     'render'            => 'Connect',
     'render_automation' => 'Automation',
@@ -110,40 +110,40 @@ foreach ($pages as $method => $label) {
         $fatal = $e->getMessage();
     }
 
-    CP_Test::ok($fatal === '', $label . ' renders without throwing' . ($fatal ? ' — ' . $fatal : ''));
+    KH_Test::ok($fatal === '', $label . ' renders without throwing' . ($fatal ? ' — ' . $fatal : ''));
     if ($fatal !== '') {
         continue;
     }
 
     $html[$label] = $out;
 
-    CP_Test::ok(strlen($out) > 500, $label . ' produces a real page, not an empty shell');
-    CP_Test::same(
+    KH_Test::ok(strlen($out) > 500, $label . ' produces a real page, not an empty shell');
+    KH_Test::same(
         substr_count($out, '<div'),
         substr_count($out, '</div>'),
         $label . ' has balanced <div> tags'
     );
-    CP_Test::same(
+    KH_Test::same(
         substr_count($out, '<table'),
         substr_count($out, '</table>'),
         $label . ' has balanced <table> tags'
     );
-    CP_Test::same(
+    KH_Test::same(
         substr_count($out, '<form'),
         substr_count($out, '</form>'),
         $label . ' has balanced <form> tags'
     );
-    CP_Test::same(
+    KH_Test::same(
         substr_count($out, '<details'),
         substr_count($out, '</details>'),
         $label . ' has balanced <details> tags'
     );
     // A template that falls out of PHP mode leaks its own source to the browser.
-    CP_Test::ok(strpos($out, '<?php') === false, $label . ' leaks no raw PHP');
-    CP_Test::ok(strpos($out, '<?=') === false, $label . ' leaks no short-echo tags');
+    KH_Test::ok(strpos($out, '<?php') === false, $label . ' leaks no raw PHP');
+    KH_Test::ok(strpos($out, '<?=') === false, $label . ' leaks no short-echo tags');
 }
 
-CP_Test::group('Admin — the Snippets screen is the Studio, and only the Studio');
+KH_Test::group('Admin — the Snippets screen is the Studio, and only the Studio');
 
 /*
  * WHAT USED TO BE HERE, and why it is gone.
@@ -151,7 +151,7 @@ CP_Test::group('Admin — the Snippets screen is the Studio, and only the Studio
  * This group rendered includes/class-admin-snippets.php and asserted twenty
  * things about its markup. That file was a complete second Snippets screen -
  * filters, a table, a details panel, an editor, delete forms - that NOTHING
- * instantiated and NO menu item pointed at. `grep -rn Claudpress_Admin_Snippets`
+ * instantiated and NO menu item pointed at. `grep -rn Keelhob_Admin_Snippets`
  * outside tests/ returned the class declaration and nothing else.
  *
  * It shipped in the zip regardless, so the first person to read this repo after
@@ -159,7 +159,7 @@ CP_Test::group('Admin — the Snippets screen is the Studio, and only the Studio
  * had to work out which one runs. This test was the only thing keeping it
  * alive, which is the worst reason for code to exist.
  *
- * The file is deleted. Claudpress_Studio is the Snippets screen, and it is
+ * The file is deleted. Keelhob_Studio is the Snippets screen, and it is
  * asserted in two places that are stronger than this one was:
  *
  *   tests/rig/checks-studio.php      - against real WordPress and a real $wpdb
@@ -169,12 +169,12 @@ CP_Test::group('Admin — the Snippets screen is the Studio, and only the Studio
  * life of a screen whose code editor never once loaded.
  */
 
-CP_Test::ok(
-    !class_exists('Claudpress_Admin_Snippets'),
+KH_Test::ok(
+    !class_exists('Keelhob_Admin_Snippets'),
     'there is exactly one Snippets screen, and the dead duplicate is gone'
 );
-CP_Test::ok(
-    !file_exists(CLAUDPRESS_DIR . 'includes/class-admin-snippets.php'),
+KH_Test::ok(
+    !file_exists(KEELHOB_DIR . 'includes/class-admin-snippets.php'),
     'and its file is not shipped'
 );
 
@@ -188,8 +188,8 @@ CP_Test::ok(
  * reliably - the output still looks like code - so it is asserted against the
  * template.
  */
-$edit = (string) file_get_contents(CLAUDPRESS_DIR . 'includes/class-studio-edit.php');
-CP_Test::contains(
+$edit = (string) file_get_contents(KEELHOB_DIR . 'includes/class-studio-edit.php');
+KH_Test::contains(
     "echo esc_textarea((string) \$s['code']);",
     $edit,
     'the editor escapes snippet code for display and does not filter it'
@@ -199,15 +199,15 @@ CP_Test::contains(
 // the whole file finds those words in the warning and fails. The question is
 // what the code does, not what the prose says about it. (This test failed
 // exactly that way on its first run.)
-$edit_code = php_strip_whitespace(CLAUDPRESS_DIR . 'includes/class-studio-edit.php');
+$edit_code = php_strip_whitespace(KEELHOB_DIR . 'includes/class-studio-edit.php');
 foreach (['sanitize_textarea_field', 'wp_kses', 'sanitize_text_field('] as $forbidden) {
-    CP_Test::ok(
+    KH_Test::ok(
         strpos($edit_code, $forbidden) === false,
         'the editor never runs ' . $forbidden . ' anywhere near the code field'
     );
 }
 
-CP_Test::group('Admin — every form is nonce-protected');
+KH_Test::group('Admin — every form is nonce-protected');
 
 // A settings form without a nonce is a CSRF hole that renders perfectly.
 foreach ($html as $label => $out) {
@@ -216,16 +216,16 @@ foreach ($html as $label => $out) {
     if ($forms === 0) {
         continue;
     }
-    CP_Test::ok($nonces >= $forms, $label . ': all ' . $forms . ' form(s) carry a nonce field (' . $nonces . ' found)');
+    KH_Test::ok($nonces >= $forms, $label . ': all ' . $forms . ' form(s) carry a nonce field (' . $nonces . ' found)');
 }
 
-CP_Test::group('Admin — secrets are not echoed in plain text');
+KH_Test::group('Admin — secrets are not echoed in plain text');
 
 // API keys and tokens must render into password inputs, never as page text.
-$cp->update([
+$kh->update([
     'agent_api_key'       => 'sk-ant-SECRETAGENTKEY',
     'image_api_key'       => 'sk-SECRETIMAGEKEY',
-    'deploy_target_token' => 'cp_SECRETDEPLOYTOKEN',
+    'deploy_target_token' => 'kh_SECRETDEPLOYTOKEN',
 ]);
 
 ob_start();
@@ -245,37 +245,37 @@ $automation = (string) ob_get_clean();
 // is only ever replaced when someone types a genuinely new one.
 foreach ([
     'image key on Connect'      => ['sk-SECRETIMAGEKEY', $connect],
-    'deploy token on Connect'   => ['cp_SECRETDEPLOYTOKEN', $connect],
+    'deploy token on Connect'   => ['kh_SECRETDEPLOYTOKEN', $connect],
     'agent key on Automation'   => ['sk-ant-SECRETAGENTKEY', $automation],
 ] as $what => [$secret, $page]) {
-    CP_Test::ok(
+    KH_Test::ok(
         strpos($page, $secret) === false,
         $what . ' never appears in the page source'
     );
-    CP_Test::ok(
+    KH_Test::ok(
         strpos($page, substr($secret, -4)) !== false,
         $what . ' still shows its last four characters, so the owner can tell which key is installed'
     );
 }
 
-cp_test_reset_options();
+kh_test_reset_options();
 
-CP_Test::group('Admin — provider UI reaches the page');
+KH_Test::group('Admin — provider UI reaches the page');
 
 // The model guide is the fix for "I typed a model name that does not exist".
 // If it silently stops rendering, the plugin is back to being a guessing game.
-foreach (Claudpress_Provider::providers() as $pid => $cls) {
-    CP_Test::contains($cls::default_model(), $automation, 'Automation lists the ' . $pid . ' default model');
+foreach (Keelhob_Provider::providers() as $pid => $cls) {
+    KH_Test::contains($cls::default_model(), $automation, 'Automation lists the ' . $pid . ' default model');
 }
-CP_Test::contains('name="agent_provider"', $automation, 'Automation has the provider selector');
-CP_Test::contains('name="image_provider"', $connect, 'Connect has the image provider selector');
+KH_Test::contains('name="agent_provider"', $automation, 'Automation has the provider selector');
+KH_Test::contains('name="image_provider"', $connect, 'Connect has the image provider selector');
 
-foreach (Claudpress_Image_Provider::providers() as $pid => $cls) {
-    CP_Test::contains($cls::default_model(), $connect, 'Connect lists the ' . $pid . ' default image model');
+foreach (Keelhob_Image_Provider::providers() as $pid => $cls) {
+    KH_Test::contains($cls::default_model(), $connect, 'Connect lists the ' . $pid . ' default image model');
 }
 
 
-CP_Test::group('Admin — image and voice pickers swap with the provider');
+KH_Test::group('Admin — image and voice pickers swap with the provider');
 
 /**
  * The bug these cover.
@@ -293,9 +293,9 @@ CP_Test::group('Admin — image and voice pickers swap with the provider');
  */
 
 /** Pull one provider's row out of a page so assertions cannot match a neighbour. */
-$cp_row = static function (string $html, string $kind, string $pid): string {
+$kh_row = static function (string $html, string $kind, string $pid): string {
     $block = strpos($html, 'data-kind="' . $kind . '"');
-    CP_Test::ok($block !== false, $kind . ' block is on the page');
+    KH_Test::ok($block !== false, $kind . ' block is on the page');
     if ($block === false) {
         return '';
     }
@@ -303,67 +303,67 @@ $cp_row = static function (string $html, string $kind, string $pid): string {
     if ($from === false) {
         return '';
     }
-    $next = strpos($html, '<div class="claudpress-provider-row"', $from);
+    $next = strpos($html, '<div class="keelhob-provider-row"', $from);
     return substr($html, $from, $next === false ? 6000 : $next - $from);
 };
 
 foreach ([
-    ['image', $connect,    Claudpress_Image_Provider::providers(),      'openai'],
-    ['voice', $automation, Claudpress_Transcribe_Provider::providers(), 'openai'],
+    ['image', $connect,    Keelhob_Image_Provider::providers(),      'openai'],
+    ['voice', $automation, Keelhob_Transcribe_Provider::providers(), 'openai'],
 ] as [$kind, $page, $providers, $current]) {
 
     foreach ($providers as $pid => $cls) {
-        $row = $cp_row($page, $kind, $pid);
+        $row = $kh_row($page, $kind, $pid);
 
-        CP_Test::ok($row !== '', $kind . ': ' . $pid . ' has its own row');
+        KH_Test::ok($row !== '', $kind . ': ' . $pid . ' has its own row');
 
         // The reported bug, directly: the "get a key" link must belong to the
         // provider whose row it sits in, not to whichever one was saved.
-        CP_Test::contains($cls::key_url(), $row, $kind . ': ' . $pid . " row links to that vendor's key page");
+        KH_Test::contains($cls::key_url(), $row, $kind . ': ' . $pid . " row links to that vendor's key page");
 
         // ...and the placeholder must be that vendor's key shape.
-        CP_Test::contains('placeholder="' . $cls::key_hint() . '"', $row, $kind . ': ' . $pid . ' row hints that vendor\'s key format');
+        KH_Test::contains('placeholder="' . $cls::key_hint() . '"', $row, $kind . ': ' . $pid . ' row hints that vendor\'s key format');
 
         // Every model this provider offers is a real option, so nothing is typed.
         foreach ($cls::models() as $m) {
-            CP_Test::contains('value="' . $m['id'] . '"', $row, $kind . ': ' . $pid . ' offers ' . $m['id']);
+            KH_Test::contains('value="' . $m['id'] . '"', $row, $kind . ': ' . $pid . ' offers ' . $m['id']);
         }
 
         // No free-text model box anywhere - that was the typo source.
-        CP_Test::ok(
-            strpos($row, 'name="' . ($kind === 'image' ? 'image_api_model' : 'voice_model') . '" class="claudpress-model-select"') !== false
-            || strpos($row, 'claudpress-model-select') !== false,
+        KH_Test::ok(
+            strpos($row, 'name="' . ($kind === 'image' ? 'image_api_model' : 'voice_model') . '" class="keelhob-model-select"') !== false
+            || strpos($row, 'keelhob-model-select') !== false,
             $kind . ': ' . $pid . ' model is a dropdown'
         );
-        CP_Test::ok(
+        KH_Test::ok(
             preg_match('/<input[^>]*name="(?:image_api_model|voice_model)"/', $row) === 0,
             $kind . ': ' . $pid . ' has no typeable model input'
         );
 
         // Test connection has to be inside the row, or it would send the wrong
         // row's key.
-        CP_Test::contains('claudpress-media-test', $row, $kind . ': ' . $pid . ' has a Test connection button');
+        KH_Test::contains('keelhob-media-test', $row, $kind . ': ' . $pid . ' has a Test connection button');
 
         // The trap that makes the whole thing work. Without the disabled
         // fieldset, all three rows post at once and the last one in the
         // document wins - silently wiping the key that was just entered.
-        $disabled = strpos($row, 'class="claudpress-provider-fields" style="border:0;padding:0;margin:0;" disabled') !== false;
+        $disabled = strpos($row, 'class="keelhob-provider-fields" style="border:0;padding:0;margin:0;" disabled') !== false;
         if ($pid === $current) {
-            CP_Test::ok(!$disabled, $kind . ': the selected provider\'s fields are live');
-            CP_Test::ok(strpos($row, 'hidden') === false || strpos(substr($row, 0, 60), 'hidden') === false, $kind . ': the selected provider\'s row is visible');
+            KH_Test::ok(!$disabled, $kind . ': the selected provider\'s fields are live');
+            KH_Test::ok(strpos($row, 'hidden') === false || strpos(substr($row, 0, 60), 'hidden') === false, $kind . ': the selected provider\'s row is visible');
         } else {
-            CP_Test::ok($disabled, $kind . ': ' . $pid . ' fields are disabled so they cannot overwrite the saved provider');
+            KH_Test::ok($disabled, $kind . ': ' . $pid . ' fields are disabled so they cannot overwrite the saved provider');
         }
     }
 }
 
 // Each vendor's key page must appear on the page at all - the old code only
 // ever emitted the saved provider's, which is precisely what was reported.
-foreach (Claudpress_Transcribe_Provider::providers() as $pid => $cls) {
-    CP_Test::contains($cls::key_url(), $automation, 'Automation carries the ' . $pid . ' transcription key link');
+foreach (Keelhob_Transcribe_Provider::providers() as $pid => $cls) {
+    KH_Test::contains($cls::key_url(), $automation, 'Automation carries the ' . $pid . ' transcription key link');
 }
 
-CP_Test::group('Provider adapters — the test path costs nothing');
+KH_Test::group('Provider adapters — the test path costs nothing');
 
 /**
  * Testing an image or transcription key must never generate an image or
@@ -371,72 +371,72 @@ CP_Test::group('Provider adapters — the test path costs nothing');
  * button billed them each time, the button would be the bug.
  */
 foreach ([
-    Claudpress_Image_Provider::providers(),
-    Claudpress_Transcribe_Provider::providers(),
+    Keelhob_Image_Provider::providers(),
+    Keelhob_Transcribe_Provider::providers(),
 ] as $family) {
     foreach ($family as $pid => $cls) {
         $model = $cls::default_model();
         $url   = $cls::verify_url('', $model);
 
-        CP_Test::ok(strpos($url, 'http') === 0, $pid . ': verify_url is an absolute URL (' . $url . ')');
-        CP_Test::contains(rawurlencode($model), $url, $pid . ': verify_url names the model being tested');
+        KH_Test::ok(strpos($url, 'http') === 0, $pid . ': verify_url is an absolute URL (' . $url . ')');
+        KH_Test::contains(rawurlencode($model), $url, $pid . ': verify_url names the model being tested');
 
         // The generate/transcribe routes must not be what we call.
-        CP_Test::ok(strpos($url, ':generateContent') === false, $pid . ': verify_url does not call generateContent');
-        CP_Test::ok(strpos($url, '/images/generations') === false, $pid . ': verify_url does not call image generation');
-        CP_Test::ok(strpos($url, '/audio/transcriptions') === false, $pid . ': verify_url does not call transcription');
+        KH_Test::ok(strpos($url, ':generateContent') === false, $pid . ': verify_url does not call generateContent');
+        KH_Test::ok(strpos($url, '/images/generations') === false, $pid . ': verify_url does not call image generation');
+        KH_Test::ok(strpos($url, '/audio/transcriptions') === false, $pid . ': verify_url does not call transcription');
 
         // An override has to be honoured, or a gateway user tests the wrong host.
         $over = $cls::verify_url('https://gw.example.com/v1/images/generations', $model);
         if (strpos($cls::default_endpoint(), 'openai') !== false) {
-            CP_Test::contains('gw.example.com', $over, $pid . ': an endpoint override is tested at that host');
+            KH_Test::contains('gw.example.com', $over, $pid . ': an endpoint override is tested at that host');
         }
 
         // Auth headers must carry the key and nothing else - a GET has no body,
         // and a stray Content-Type on a GET trips some gateways.
         $h = $cls::auth_headers('KEYVALUE');
-        CP_Test::ok(!isset($h['Content-Type']), $pid . ': auth headers carry no Content-Type');
-        CP_Test::ok(in_array('KEYVALUE', array_map(static fn($v) => str_replace('Bearer ', '', (string) $v), $h), true), $pid . ': auth headers carry the key');
+        KH_Test::ok(!isset($h['Content-Type']), $pid . ': auth headers carry no Content-Type');
+        KH_Test::ok(in_array('KEYVALUE', array_map(static fn($v) => str_replace('Bearer ', '', (string) $v), $h), true), $pid . ': auth headers carry the key');
     }
 }
 
 // A double-append bug: an override that is already a full Gemini model URL must
 // not become ".../models/x:generateContent/gemini-3-pro-image".
-$g = Claudpress_Image_Provider_Google::verify_url(
+$g = Keelhob_Image_Provider_Google::verify_url(
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
     'gemini-3-pro-image'
 );
-CP_Test::same(
+KH_Test::same(
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image',
     $g,
     'a full Gemini generate URL is reduced back to the model being tested'
 );
 
-CP_Test::group('Provider adapters — every model in the list is offerable');
+KH_Test::group('Provider adapters — every model in the list is offerable');
 
 foreach ([
-    'image' => Claudpress_Image_Provider::providers(),
-    'voice' => Claudpress_Transcribe_Provider::providers(),
+    'image' => Keelhob_Image_Provider::providers(),
+    'voice' => Keelhob_Transcribe_Provider::providers(),
 ] as $kind => $family) {
     foreach ($family as $pid => $cls) {
         $models = $cls::models();
-        CP_Test::ok(count($models) >= 2, $kind . '/' . $pid . ' offers more than one model to choose between');
+        KH_Test::ok(count($models) >= 2, $kind . '/' . $pid . ' offers more than one model to choose between');
 
         $ids = array_column($models, 'id');
-        CP_Test::ok(
+        KH_Test::ok(
             in_array($cls::default_model(), $ids, true),
             $kind . '/' . $pid . ': the default model is one of the options, so the dropdown opens on a real choice'
         );
-        CP_Test::same(count($ids), count(array_unique($ids)), $kind . '/' . $pid . ': no duplicate model ids');
+        KH_Test::same(count($ids), count(array_unique($ids)), $kind . '/' . $pid . ': no duplicate model ids');
 
         foreach ($models as $m) {
-            CP_Test::ok(trim((string) $m['note']) !== '', $kind . '/' . $pid . ': ' . $m['id'] . ' explains itself in the dropdown');
+            KH_Test::ok(trim((string) $m['note']) !== '', $kind . '/' . $pid . ': ' . $m['id'] . ' explains itself in the dropdown');
         }
     }
 }
 
 
-CP_Test::group('Admin — Test connection for image and voice keys');
+KH_Test::group('Admin — Test connection for image and voice keys');
 
 /**
  * The button people press when something is already wrong.
@@ -448,25 +448,25 @@ CP_Test::group('Admin — Test connection for image and voice keys');
  * and look at.
  */
 
-$cp_admin_test = new Claudpress_Admin();
+$kh_admin_test = new Keelhob_Admin();
 
 /**
  * Drive ajax_test_media() the way admin-ajax does and catch the JSON it sends.
  *
  * @return array{success: bool, message: string, url: string, headers: array}
  */
-$cp_call_test = static function (array $post) use ($cp_admin_test): array {
+$kh_call_test = static function (array $post) use ($kh_admin_test): array {
     $_POST = $post;
-    $GLOBALS['cp_test_http_last'] = null;
+    $GLOBALS['kh_test_http_last'] = null;
 
     try {
-        $cp_admin_test->ajax_test_media();
-        $sent = new CP_Test_Json_Sent(false, ['message' => 'nothing was sent'], 0);
-    } catch (CP_Test_Json_Sent $e) {
+        $kh_admin_test->ajax_test_media();
+        $sent = new KH_Test_Json_Sent(false, ['message' => 'nothing was sent'], 0);
+    } catch (KH_Test_Json_Sent $e) {
         $sent = $e;
     }
 
-    $last = $GLOBALS['cp_test_http_last'] ?? null;
+    $last = $GLOBALS['kh_test_http_last'] ?? null;
     $_POST = [];
 
     return [
@@ -477,8 +477,8 @@ $cp_call_test = static function (array $post) use ($cp_admin_test): array {
     ];
 };
 
-cp_test_reset_options([
-    'claudpress_settings' => [
+kh_test_reset_options([
+    'keelhob_settings' => [
         'image_provider' => 'openai',
         'image_api_key'  => 'sk-STOREDIMAGE',
         'voice_provider' => 'openai',
@@ -488,44 +488,44 @@ cp_test_reset_options([
 
 // ---- the happy path, and what it must NOT have called ----------------------
 
-cp_test_reset_ajax();
-cp_test_http_queue(200, ['id' => 'gpt-image-1', 'object' => 'model']);
-$r = $cp_call_test(['kind' => 'image', 'provider' => 'openai', 'api_key' => 'sk-typed', 'model' => 'gpt-image-1']);
+kh_test_reset_ajax();
+kh_test_http_queue(200, ['id' => 'gpt-image-1', 'object' => 'model']);
+$r = $kh_call_test(['kind' => 'image', 'provider' => 'openai', 'api_key' => 'sk-typed', 'model' => 'gpt-image-1']);
 
-CP_Test::ok($r['success'], 'image: a good key reports success');
-CP_Test::contains('gpt-image-1', $r['message'], 'image: the success message names the model that was tested');
-CP_Test::ok(
+KH_Test::ok($r['success'], 'image: a good key reports success');
+KH_Test::contains('gpt-image-1', $r['message'], 'image: the success message names the model that was tested');
+KH_Test::ok(
     strpos($r['url'], '/images/generations') === false,
     'image: testing a key does NOT call the image-generation route, so it cannot bill the owner'
 );
-CP_Test::contains('/models/gpt-image-1', $r['url'], 'image: it asks the vendor to describe the model instead');
-CP_Test::contains('sk-typed', (string) ($r['headers']['Authorization'] ?? ''), 'image: the key typed on screen is the key tested, not the saved one');
+KH_Test::contains('/models/gpt-image-1', $r['url'], 'image: it asks the vendor to describe the model instead');
+KH_Test::contains('sk-typed', (string) ($r['headers']['Authorization'] ?? ''), 'image: the key typed on screen is the key tested, not the saved one');
 
-cp_test_reset_ajax();
-cp_test_http_queue(200, ['name' => 'models/gemini-flash-latest']);
-$r = $cp_call_test(['kind' => 'voice', 'provider' => 'google', 'api_key' => 'AIza-typed', 'model' => 'gemini-flash-latest']);
+kh_test_reset_ajax();
+kh_test_http_queue(200, ['name' => 'models/gemini-flash-latest']);
+$r = $kh_call_test(['kind' => 'voice', 'provider' => 'google', 'api_key' => 'AIza-typed', 'model' => 'gemini-flash-latest']);
 
-CP_Test::ok($r['success'], 'voice: a good Google key reports success');
-CP_Test::ok(
+KH_Test::ok($r['success'], 'voice: a good Google key reports success');
+KH_Test::ok(
     strpos($r['url'], ':generateContent') === false,
     'voice: testing a key does NOT call generateContent, so it transcribes nothing'
 );
-CP_Test::same('AIza-typed', (string) ($r['headers']['x-goog-api-key'] ?? ''), 'voice: Google is tested with its own header, not a bearer token');
+KH_Test::same('AIza-typed', (string) ($r['headers']['x-goog-api-key'] ?? ''), 'voice: Google is tested with its own header, not a bearer token');
 
 // ---- the failures, each of which must say what to do about it --------------
 
-cp_test_reset_ajax();
-cp_test_http_queue(401, ['error' => ['message' => 'Incorrect API key provided']]);
-$r = $cp_call_test(['kind' => 'image', 'provider' => 'openai', 'api_key' => 'sk-bad', 'model' => 'gpt-image-1']);
-CP_Test::ok(!$r['success'], 'image: a rejected key fails');
-CP_Test::contains('rejected', $r['message'], 'image: a 401 says the key was rejected, not "HTTP 401"');
+kh_test_reset_ajax();
+kh_test_http_queue(401, ['error' => ['message' => 'Incorrect API key provided']]);
+$r = $kh_call_test(['kind' => 'image', 'provider' => 'openai', 'api_key' => 'sk-bad', 'model' => 'gpt-image-1']);
+KH_Test::ok(!$r['success'], 'image: a rejected key fails');
+KH_Test::contains('rejected', $r['message'], 'image: a 401 says the key was rejected, not "HTTP 401"');
 
-cp_test_reset_ajax();
-cp_test_http_queue(404, ['error' => ['message' => 'model not found']]);
-$r = $cp_call_test(['kind' => 'image', 'provider' => 'openai', 'api_key' => 'sk-good', 'model' => 'gpt-image-1']);
-CP_Test::ok(!$r['success'], 'image: an unreachable model fails');
-CP_Test::contains('gpt-image-1', $r['message'], 'image: a 404 names the model the account cannot reach');
-CP_Test::ok(
+kh_test_reset_ajax();
+kh_test_http_queue(404, ['error' => ['message' => 'model not found']]);
+$r = $kh_call_test(['kind' => 'image', 'provider' => 'openai', 'api_key' => 'sk-good', 'model' => 'gpt-image-1']);
+KH_Test::ok(!$r['success'], 'image: an unreachable model fails');
+KH_Test::contains('gpt-image-1', $r['message'], 'image: a 404 names the model the account cannot reach');
+KH_Test::ok(
     stripos($r['message'], 'key works') !== false,
     'image: a 404 says the key is fine, so nobody goes hunting for a new one'
 );
@@ -534,71 +534,71 @@ CP_Test::ok(
 
 // An untouched password field posts eight bullets back. Sending those to a
 // vendor tests nothing and would report a broken key on a setup that works.
-cp_test_reset_ajax();
-cp_test_http_queue(200, ['id' => 'gpt-image-1']);
-$r = $cp_call_test([
+kh_test_reset_ajax();
+kh_test_http_queue(200, ['id' => 'gpt-image-1']);
+$r = $kh_call_test([
     'kind' => 'image', 'provider' => 'openai',
-    'api_key' => Claudpress_Secrets::mask('sk-STOREDIMAGE'),
+    'api_key' => Keelhob_Secrets::mask('sk-STOREDIMAGE'),
     'model' => 'gpt-image-1',
 ]);
-CP_Test::ok($r['success'], 'image: an untouched key field tests the SAVED key rather than the mask');
-CP_Test::contains('sk-STOREDIMAGE', (string) ($r['headers']['Authorization'] ?? ''), 'image: the mask never reaches the vendor');
+KH_Test::ok($r['success'], 'image: an untouched key field tests the SAVED key rather than the mask');
+KH_Test::contains('sk-STOREDIMAGE', (string) ($r['headers']['Authorization'] ?? ''), 'image: the mask never reaches the vendor');
 
 // ---- no key at all ---------------------------------------------------------
 
-cp_test_reset_options(['claudpress_settings' => ['image_provider' => 'openai']]);
-cp_test_reset_ajax();
-$r = $cp_call_test(['kind' => 'image', 'provider' => 'openai', 'api_key' => '', 'model' => 'gpt-image-1']);
-CP_Test::ok(!$r['success'], 'image: testing with no key anywhere fails');
-CP_Test::same('', $r['url'], 'image: ...without making a request at all');
-CP_Test::contains('Add an API key', $r['message'], 'image: and it says to add one');
+kh_test_reset_options(['keelhob_settings' => ['image_provider' => 'openai']]);
+kh_test_reset_ajax();
+$r = $kh_call_test(['kind' => 'image', 'provider' => 'openai', 'api_key' => '', 'model' => 'gpt-image-1']);
+KH_Test::ok(!$r['success'], 'image: testing with no key anywhere fails');
+KH_Test::same('', $r['url'], 'image: ...without making a request at all');
+KH_Test::contains('Add an API key', $r['message'], 'image: and it says to add one');
 
 // ---- voice reuses a same-vendor key, and the test has to know that ---------
 
 // Voice deliberately falls back to another key for the same vendor. A test that
 // ignored the fallback would report "no key" on a configuration that works.
-cp_test_reset_options([
-    'claudpress_settings' => [
+kh_test_reset_options([
+    'keelhob_settings' => [
         'voice_provider' => 'openai',
         'voice_api_key'  => '',
         'image_provider' => 'openai',
         'image_api_key'  => 'sk-BORROWEDFROMIMAGE',
     ],
 ]);
-cp_test_reset_ajax();
-cp_test_http_queue(200, ['id' => 'whisper-1']);
-$r = $cp_call_test(['kind' => 'voice', 'provider' => 'openai', 'api_key' => '', 'model' => 'whisper-1']);
-CP_Test::ok($r['success'], 'voice: a blank key falls back to the same vendor\'s image key, exactly as transcription itself does');
-CP_Test::contains('sk-BORROWEDFROMIMAGE', (string) ($r['headers']['Authorization'] ?? ''), 'voice: the borrowed key is the one tested');
+kh_test_reset_ajax();
+kh_test_http_queue(200, ['id' => 'whisper-1']);
+$r = $kh_call_test(['kind' => 'voice', 'provider' => 'openai', 'api_key' => '', 'model' => 'whisper-1']);
+KH_Test::ok($r['success'], 'voice: a blank key falls back to the same vendor\'s image key, exactly as transcription itself does');
+KH_Test::contains('sk-BORROWEDFROMIMAGE', (string) ($r['headers']['Authorization'] ?? ''), 'voice: the borrowed key is the one tested');
 
 // ---- the guard -------------------------------------------------------------
 
 // This endpoint accepts an API key in the body so an unsaved one can be tested.
 // That makes it a credential path, not a settings path: capability AND nonce.
-$GLOBALS['cp_test_ajax'] = ['caps' => [], 'nonces' => []];
-cp_test_reset_ajax();
-cp_test_http_queue(200, ['id' => 'gpt-image-1']);
-$cp_call_test(['kind' => 'image', 'provider' => 'openai', 'api_key' => 'sk-x', 'model' => 'gpt-image-1']);
-CP_Test::ok(in_array('manage_options', $GLOBALS['cp_test_ajax']['caps'] ?? [], true), 'the media test checks manage_options');
-CP_Test::ok(!empty($GLOBALS['cp_test_ajax']['nonces']), 'the media test checks a nonce');
+$GLOBALS['kh_test_ajax'] = ['caps' => [], 'nonces' => []];
+kh_test_reset_ajax();
+kh_test_http_queue(200, ['id' => 'gpt-image-1']);
+$kh_call_test(['kind' => 'image', 'provider' => 'openai', 'api_key' => 'sk-x', 'model' => 'gpt-image-1']);
+KH_Test::ok(in_array('manage_options', $GLOBALS['kh_test_ajax']['caps'] ?? [], true), 'the media test checks manage_options');
+KH_Test::ok(!empty($GLOBALS['kh_test_ajax']['nonces']), 'the media test checks a nonce');
 
 // An unknown kind or provider must not fall through to a default and quietly
 // test the wrong vendor with somebody's key.
-cp_test_reset_ajax();
-$r = $cp_call_test(['kind' => 'nonsense', 'provider' => 'openai', 'api_key' => 'sk-x', 'model' => 'm']);
-CP_Test::ok(!$r['success'], 'an unknown provider type is refused');
-CP_Test::same('', $r['url'], '...without sending the key anywhere');
+kh_test_reset_ajax();
+$r = $kh_call_test(['kind' => 'nonsense', 'provider' => 'openai', 'api_key' => 'sk-x', 'model' => 'm']);
+KH_Test::ok(!$r['success'], 'an unknown provider type is refused');
+KH_Test::same('', $r['url'], '...without sending the key anywhere');
 
-cp_test_reset_ajax();
-$r = $cp_call_test(['kind' => 'image', 'provider' => 'notavendor', 'api_key' => 'sk-x', 'model' => 'm']);
-CP_Test::ok(!$r['success'], 'an unknown provider is refused rather than defaulting to OpenAI');
-CP_Test::same('', $r['url'], '...without sending the key anywhere');
+kh_test_reset_ajax();
+$r = $kh_call_test(['kind' => 'image', 'provider' => 'notavendor', 'api_key' => 'sk-x', 'model' => 'm']);
+KH_Test::ok(!$r['success'], 'an unknown provider is refused rather than defaulting to OpenAI');
+KH_Test::same('', $r['url'], '...without sending the key anywhere');
 
-cp_test_reset_ajax();
-cp_test_reset_options();
+kh_test_reset_ajax();
+kh_test_reset_options();
 
 
-CP_Test::group('Media providers — Refresh adds, never replaces');
+KH_Test::group('Media providers — Refresh adds, never replaces');
 
 /**
  * A vendor's model list is one flat catalogue of everything the account can
@@ -626,19 +626,19 @@ $openai_catalogue = ['data' => [
     ['id' => 'omni-moderation-latest', 'created' => 600],
 ]];
 
-$img = Claudpress_Image_Provider_OpenAI::parse_models($openai_catalogue);
-CP_Test::same(['gpt-image-2', 'gpt-image-1', 'dall-e-3'], $img, 'OpenAI images: only image models, newest first');
+$img = Keelhob_Image_Provider_OpenAI::parse_models($openai_catalogue);
+KH_Test::same(['gpt-image-2', 'gpt-image-1', 'dall-e-3'], $img, 'OpenAI images: only image models, newest first');
 foreach (['gpt-5', 'whisper-1', 'tts-1', 'text-embedding-3-large', 'omni-moderation-latest'] as $wrong) {
-    CP_Test::ok(!in_array($wrong, $img, true), 'OpenAI images: ' . $wrong . ' is not offered as an image model');
+    KH_Test::ok(!in_array($wrong, $img, true), 'OpenAI images: ' . $wrong . ' is not offered as an image model');
 }
 
-$voice = Claudpress_Transcribe_Provider_OpenAI::parse_models($openai_catalogue);
-CP_Test::same(['gpt-4o-mini-transcribe', 'gpt-4o-transcribe', 'whisper-1'], $voice, 'OpenAI voice: only transcription models, newest first');
+$voice = Keelhob_Transcribe_Provider_OpenAI::parse_models($openai_catalogue);
+KH_Test::same(['gpt-4o-mini-transcribe', 'gpt-4o-transcribe', 'whisper-1'], $voice, 'OpenAI voice: only transcription models, newest first');
 
 // The trap worth naming: gpt-4o-audio ACCEPTS audio, and answers in speech. It
 // would return no transcript at all, and the failure would look like a bad key.
-CP_Test::ok(!in_array('gpt-4o-audio-preview', $voice, true), 'OpenAI voice: an audio model that SPEAKS is not offered for transcription');
-CP_Test::ok(!in_array('gpt-5', $voice, true), 'OpenAI voice: a plain chat model is not offered for transcription');
+KH_Test::ok(!in_array('gpt-4o-audio-preview', $voice, true), 'OpenAI voice: an audio model that SPEAKS is not offered for transcription');
+KH_Test::ok(!in_array('gpt-5', $voice, true), 'OpenAI voice: a plain chat model is not offered for transcription');
 
 // Gemini's list, with the shapes that actually appear in it.
 $google_catalogue = ['models' => [
@@ -652,107 +652,107 @@ $google_catalogue = ['models' => [
     ['name' => 'models/text-embedding-004',     'supportedGenerationMethods' => ['embedContent']],
 ]];
 
-$gimg = Claudpress_Image_Provider_Google::parse_models($google_catalogue);
-CP_Test::ok(in_array('gemini-3-pro-image', $gimg, true), 'Gemini images: the image models are found');
-CP_Test::ok(in_array('gemini-2.5-flash-image', $gimg, true), 'Gemini images: both image models are found');
-CP_Test::ok(!in_array('gemini-2.5-flash', $gimg, true), 'Gemini images: a text model is not offered');
+$gimg = Keelhob_Image_Provider_Google::parse_models($google_catalogue);
+KH_Test::ok(in_array('gemini-3-pro-image', $gimg, true), 'Gemini images: the image models are found');
+KH_Test::ok(in_array('gemini-2.5-flash-image', $gimg, true), 'Gemini images: both image models are found');
+KH_Test::ok(!in_array('gemini-2.5-flash', $gimg, true), 'Gemini images: a text model is not offered');
 // Imagen and Veo do make pictures and video - through :predict, which this
 // adapter does not speak. Offering one would fail on the first request.
-CP_Test::ok(!in_array('imagen-4.0-generate', $gimg, true), 'Gemini images: imagen is excluded, because this adapter speaks generateContent');
-CP_Test::ok(!in_array('veo-3.0-generate', $gimg, true), 'Gemini images: veo is excluded for the same reason');
+KH_Test::ok(!in_array('imagen-4.0-generate', $gimg, true), 'Gemini images: imagen is excluded, because this adapter speaks generateContent');
+KH_Test::ok(!in_array('veo-3.0-generate', $gimg, true), 'Gemini images: veo is excluded for the same reason');
 
-$gvoice = Claudpress_Transcribe_Provider_Google::parse_models($google_catalogue);
-CP_Test::ok(in_array('gemini-2.5-flash', $gvoice, true), 'Gemini voice: text models are the transcription candidates');
-CP_Test::ok(!in_array('gemini-3-pro-image', $gvoice, true), 'Gemini voice: an image model is not offered');
+$gvoice = Keelhob_Transcribe_Provider_Google::parse_models($google_catalogue);
+KH_Test::ok(in_array('gemini-2.5-flash', $gvoice, true), 'Gemini voice: text models are the transcription candidates');
+KH_Test::ok(!in_array('gemini-3-pro-image', $gvoice, true), 'Gemini voice: an image model is not offered');
 // Every one of these answers generateContent and returns something that is not
 // a transcript, which is why the filter cannot simply trust that method.
-CP_Test::ok(!in_array('gemini-2.5-flash-tts', $gvoice, true), 'Gemini voice: a speech model is not offered, though it answers generateContent');
-CP_Test::ok(!in_array('text-embedding-004', $gvoice, true), 'Gemini voice: an embedding model is not offered');
+KH_Test::ok(!in_array('gemini-2.5-flash-tts', $gvoice, true), 'Gemini voice: a speech model is not offered, though it answers generateContent');
+KH_Test::ok(!in_array('text-embedding-004', $gvoice, true), 'Gemini voice: an embedding model is not offered');
 
-CP_Test::group('Media providers — the merged dropdown');
+KH_Test::group('Media providers — the merged dropdown');
 
-cp_test_reset_options();
-cp_test_reset_ajax();
+kh_test_reset_options();
+kh_test_reset_ajax();
 
 // With no refresh ever run, the dropdown is exactly the curated list.
-$fresh = Claudpress_Media_Check::models(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai');
-CP_Test::same(
-    array_column(Claudpress_Image_Provider_OpenAI::models(), 'id'),
+$fresh = Keelhob_Media_Check::models(Keelhob_Image_Provider_OpenAI::class, 'image', 'openai');
+KH_Test::same(
+    array_column(Keelhob_Image_Provider_OpenAI::models(), 'id'),
     array_column($fresh, 'id'),
     'a site that has never refreshed sees the curated list, so an offline site still has a working dropdown'
 );
 
 // Now a refresh finds a model this release has never heard of.
-cp_test_http_queue(200, $openai_catalogue);
-$after = Claudpress_Media_Check::refresh(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai', 'sk-key', '');
-CP_Test::ok(!is_wp_error($after), 'a refresh with a good key succeeds');
+kh_test_http_queue(200, $openai_catalogue);
+$after = Keelhob_Media_Check::refresh(Keelhob_Image_Provider_OpenAI::class, 'image', 'openai', 'sk-key', '');
+KH_Test::ok(!is_wp_error($after), 'a refresh with a good key succeeds');
 
 $ids = array_column(is_array($after) ? $after : [], 'id');
-CP_Test::ok(in_array('gpt-image-2', $ids, true), 'the newly discovered model is added to the dropdown');
-foreach (array_column(Claudpress_Image_Provider_OpenAI::models(), 'id') as $curated) {
-    CP_Test::ok(in_array($curated, $ids, true), 'refresh keeps the curated model ' . $curated);
+KH_Test::ok(in_array('gpt-image-2', $ids, true), 'the newly discovered model is added to the dropdown');
+foreach (array_column(Keelhob_Image_Provider_OpenAI::models(), 'id') as $curated) {
+    KH_Test::ok(in_array($curated, $ids, true), 'refresh keeps the curated model ' . $curated);
 }
 
 // And the failure that must not happen: a vendor that answers with nothing
 // useful must not be able to empty the list.
-cp_test_reset_ajax();
-cp_test_http_queue(200, ['data' => []]);
-$empty = Claudpress_Media_Check::refresh(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai', 'sk-key', '');
-CP_Test::ok(!is_wp_error($empty), 'a vendor with nothing new is not an error - the key worked');
-CP_Test::ok(
-    count(is_array($empty) ? $empty : []) >= count(Claudpress_Image_Provider_OpenAI::models()),
+kh_test_reset_ajax();
+kh_test_http_queue(200, ['data' => []]);
+$empty = Keelhob_Media_Check::refresh(Keelhob_Image_Provider_OpenAI::class, 'image', 'openai', 'sk-key', '');
+KH_Test::ok(!is_wp_error($empty), 'a vendor with nothing new is not an error - the key worked');
+KH_Test::ok(
+    count(is_array($empty) ? $empty : []) >= count(Keelhob_Image_Provider_OpenAI::models()),
     'an empty vendor answer cannot empty the dropdown'
 );
 
 // A model already saved stays offered even when the vendor stops listing it.
-cp_test_reset_ajax();
-cp_test_http_queue(200, ['data' => []]);
-$kept = Claudpress_Media_Check::refresh(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai', 'sk-key', '', 'dall-e-2-retired');
-CP_Test::ok(
+kh_test_reset_ajax();
+kh_test_http_queue(200, ['data' => []]);
+$kept = Keelhob_Media_Check::refresh(Keelhob_Image_Provider_OpenAI::class, 'image', 'openai', 'sk-key', '', 'dall-e-2-retired');
+KH_Test::ok(
     in_array('dall-e-2-retired', array_column(is_array($kept) ? $kept : [], 'id'), true),
     'the model this site is USING stays on the list even after the vendor drops it'
 );
 
 // A bad key says so, and does not poison the cache.
-cp_test_reset_ajax();
-cp_test_http_queue(401, ['error' => ['message' => 'Incorrect API key provided']]);
-$bad = Claudpress_Media_Check::refresh(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai', 'sk-bad', '');
-CP_Test::ok(is_wp_error($bad), 'a rejected key fails the refresh');
-CP_Test::contains('rejected', $bad->get_error_message(), 'and says the key was rejected, not "HTTP 401"');
+kh_test_reset_ajax();
+kh_test_http_queue(401, ['error' => ['message' => 'Incorrect API key provided']]);
+$bad = Keelhob_Media_Check::refresh(Keelhob_Image_Provider_OpenAI::class, 'image', 'openai', 'sk-bad', '');
+KH_Test::ok(is_wp_error($bad), 'a rejected key fails the refresh');
+KH_Test::contains('rejected', $bad->get_error_message(), 'and says the key was rejected, not "HTTP 401"');
 
-cp_test_reset_ajax();
-$nokey = Claudpress_Media_Check::refresh(Claudpress_Image_Provider_OpenAI::class, 'image', 'openai', '', '');
-CP_Test::ok(is_wp_error($nokey), 'refreshing with no key fails');
-CP_Test::contains('Add an API key', $nokey->get_error_message(), 'and says to add one');
+kh_test_reset_ajax();
+$nokey = Keelhob_Media_Check::refresh(Keelhob_Image_Provider_OpenAI::class, 'image', 'openai', '', '');
+KH_Test::ok(is_wp_error($nokey), 'refreshing with no key fails');
+KH_Test::contains('Add an API key', $nokey->get_error_message(), 'and says to add one');
 
-CP_Test::group('Media providers — the refresh URL is the catalogue, not the work');
+KH_Test::group('Media providers — the refresh URL is the catalogue, not the work');
 
 foreach ([
-    'image' => Claudpress_Image_Provider::providers(),
-    'voice' => Claudpress_Transcribe_Provider::providers(),
+    'image' => Keelhob_Image_Provider::providers(),
+    'voice' => Keelhob_Transcribe_Provider::providers(),
 ] as $kind => $family) {
     foreach ($family as $pid => $cls) {
         $url = $cls::models_list_url($cls::default_endpoint());
-        CP_Test::ok($url !== '', $kind . '/' . $pid . ' publishes a model list');
-        CP_Test::ok(strpos($url, '/images/generations') === false, $kind . '/' . $pid . ': listing models does not call image generation');
-        CP_Test::ok(strpos($url, '/audio/transcriptions') === false, $kind . '/' . $pid . ': listing models does not call transcription');
-        CP_Test::ok(strpos($url, ':generateContent') === false, $kind . '/' . $pid . ': listing models does not call generateContent');
+        KH_Test::ok($url !== '', $kind . '/' . $pid . ' publishes a model list');
+        KH_Test::ok(strpos($url, '/images/generations') === false, $kind . '/' . $pid . ': listing models does not call image generation');
+        KH_Test::ok(strpos($url, '/audio/transcriptions') === false, $kind . '/' . $pid . ': listing models does not call transcription');
+        KH_Test::ok(strpos($url, ':generateContent') === false, $kind . '/' . $pid . ': listing models does not call generateContent');
     }
 }
 
-cp_test_reset_ajax();
-cp_test_reset_options();
+kh_test_reset_ajax();
+kh_test_reset_options();
 
-CP_Test::group('Admin — strings are internationalized');
+KH_Test::group('Admin — strings are internationalized');
 
 // Catch a future edit that drops a raw English string back into a template.
 $src   = '';
-foreach (['class-admin.php', 'class-admin-screens.php', 'class-admin-automation.php', 'class-admin-providers.php', 'class-admin-settings.php'] as $cp_admin_file) {
-    $src .= (string) file_get_contents(CLAUDPRESS_DIR . 'includes/' . $cp_admin_file);
+foreach (['class-admin.php', 'class-admin-screens.php', 'class-admin-automation.php', 'class-admin-providers.php', 'class-admin-settings.php'] as $kh_admin_file) {
+    $src .= (string) file_get_contents(KEELHOB_DIR . 'includes/' . $kh_admin_file);
 }
 $raw   = preg_match_all('/<(?:p|h2|h3|li|th|strong|em|label|summary|button)[^>]*>[A-Z][a-z]+ [a-z]+/', $src, $m);
-CP_Test::same(0, $raw, 'no untranslated sentence-like strings left in admin templates');
-CP_Test::ok(
-    substr_count($src, "'claudpress'") > 150,
-    'admin strings carry the claudpress text domain (' . substr_count($src, "'claudpress'") . ' occurrences)'
+KH_Test::same(0, $raw, 'no untranslated sentence-like strings left in admin templates');
+KH_Test::ok(
+    substr_count($src, "'keelhob'") > 150,
+    'admin strings carry the keelhob text domain (' . substr_count($src, "'keelhob'") . ' occurrences)'
 );

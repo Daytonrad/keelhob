@@ -2,7 +2,7 @@
 /**
  * Sandbox loader with crash recovery.
  *
- * The agent can write persistent PHP files into CLAUDPRESS_SANDBOX_DIR (via the
+ * The agent can write persistent PHP files into KEELHOB_SANDBOX_DIR (via the
  * filesystem tools / write_sandbox_file). Those files are auto-included on every
  * request so custom functionality survives. If one throws a fatal error, we
  * catch it via a shutdown handler and disable the offending file (rename to
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Sandbox
+final class Keelhob_Sandbox
 {
     /** @var string|null The file currently being included, for crash attribution. */
     private static $current = null;
@@ -26,15 +26,15 @@ final class Claudpress_Sandbox
 
     public static function load_files(): void
     {
-        if (!Claudpress::instance()->abilities_enabled()) {
+        if (!Keelhob::instance()->abilities_enabled()) {
             return;
         }
-        if (!is_dir(CLAUDPRESS_SANDBOX_DIR)) {
+        if (!is_dir(KEELHOB_SANDBOX_DIR)) {
             return;
         }
         register_shutdown_function([self::class, 'on_shutdown']);
 
-        foreach (glob(CLAUDPRESS_SANDBOX_DIR . '/*.php') as $file) {
+        foreach (glob(KEELHOB_SANDBOX_DIR . '/*.php') as $file) {
             if (basename($file) === 'index.php') {
                 continue;
             }
@@ -56,7 +56,7 @@ final class Claudpress_Sandbox
         }
         if (self::$current && file_exists(self::$current)) {
             @rename(self::$current, self::$current . '.disabled');
-            @error_log('[Claudpress] Quarantined crashing sandbox file: ' . self::$current . ' — ' . $error['message']);
+            @error_log('[Keelhob] Quarantined crashing sandbox file: ' . self::$current . ' — ' . $error['message']);
         }
     }
 }

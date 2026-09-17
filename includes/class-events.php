@@ -2,10 +2,10 @@
 /**
  * Event notifications — the site messaging the owner first.
  *
- * Everything else in Claudpress is pull: the owner asks, the site answers. This
+ * Everything else in Keelhob is pull: the owner asks, the site answers. This
  * is push. A paid order arrives, stock runs out, a live snippet fataled and
  * auto-deactivated itself, updates appeared — the owner hears about it on
- * whatever channels Claudpress_Notifier already has configured (email, webhook,
+ * whatever channels Keelhob_Notifier already has configured (email, webhook,
  * Telegram), without opening anything.
  *
  * Two rules shape the design, because a notifier that cries wolf gets muted and
@@ -22,13 +22,13 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Events
+final class Keelhob_Events
 {
-    const OPTION_SEEN = 'claudpress_events_seen';
+    const OPTION_SEEN = 'keelhob_events_seen';
 
     public static function enabled(string $event = ''): bool
     {
-        $s = Claudpress::instance()->settings();
+        $s = Keelhob::instance()->settings();
         if (empty($s['events_enabled'])) {
             return false;
         }
@@ -44,7 +44,7 @@ final class Claudpress_Events
         // A live snippet that fataled and took itself offline. The site is fine
         // *because* it deactivated — but something the agent wrote is now dead,
         // and only the owner can decide whether that matters.
-        add_action('claudpress_snippet_auto_deactivated', [self::class, 'on_snippet_fatal'], 10, 2);
+        add_action('keelhob_snippet_auto_deactivated', [self::class, 'on_snippet_fatal'], 10, 2);
 
         if (class_exists('WooCommerce')) {
             add_action('woocommerce_order_status_changed', [self::class, 'on_order_status'], 10, 4);
@@ -81,7 +81,7 @@ final class Claudpress_Events
 
     private static function notify(string $subject, string $text): void
     {
-        Claudpress_Notifier::send('[' . get_bloginfo('name') . '] ' . $subject, $text);
+        Keelhob_Notifier::send('[' . get_bloginfo('name') . '] ' . $subject, $text);
     }
 
     // ---- handlers ---------------------------------------------------------
@@ -109,7 +109,7 @@ final class Claudpress_Events
         }
 
         $total = (float) $order->get_total();
-        $min   = (float) Claudpress::instance()->get('events_order_min', 0);
+        $min   = (float) Keelhob::instance()->get('events_order_min', 0);
         if ($min > 0 && $total < $min) {
             return;
         }
@@ -172,11 +172,11 @@ final class Claudpress_Events
         self::notify(
             'A live code snippet crashed and was disabled',
             implode("\n", [
-                sprintf('Snippet #%d threw a fatal error, so Claudpress deactivated it to keep the site up.', (int) $snippet_id),
+                sprintf('Snippet #%d threw a fatal error, so Keelhob deactivated it to keep the site up.', (int) $snippet_id),
                 '',
                 'Error: ' . (string) $message,
                 '',
-                'The site is serving normally without it. Whatever that snippet did is no longer happening — ask your agent to look at it, or check Claudpress → Activity.',
+                'The site is serving normally without it. Whatever that snippet did is no longer happening — ask your agent to look at it, or check Keelhob → Activity.',
             ])
         );
     }

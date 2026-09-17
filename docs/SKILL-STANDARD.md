@@ -1,4 +1,4 @@
-# The Claudpress skill standard
+# The Keelhob skill standard
 
 **GENERATED FILE — do not edit by hand.** Run `php bin/build-skill-router.php`.
 Every limit below is read from `includes/class-skill-standard.php`, so this page and
@@ -11,7 +11,7 @@ of 100 and names what is wrong. It is also what a reviewer runs on your pull req
 
 ## Front matter
 
-It is **not YAML.** `Claudpress_Skills::parse_markdown()` reads one key per line with
+It is **not YAML.** `Keelhob_Skills::parse_markdown()` reads one key per line with
 no nesting, no lists and no wrapped values. A description that runs onto a second line
 silently loses everything after the first, and the description is the only thing that
 routes a task to your skill — so it fails in total silence.

@@ -6,7 +6,7 @@ whole class of bug that only a browser can see.
 
 The bug that caused this directory to exist:
 
-`Claudpress_Studio_Edit::render()` calls `wp_enqueue_code_editor()`, enqueues
+`Keelhob_Studio_Edit::render()` calls `wp_enqueue_code_editor()`, enqueues
 `wp-codemirror`, calls `wp.codeEditor.initialize()`, and wires up a mode
 switcher for the type selector. Read the source and the screen has a proper
 code editor. Render it and it has a plain `<textarea>` — the inline init script
@@ -55,7 +55,7 @@ first, and falls back to the system install.
 
 Every check names the baseline row it replaces. The baselines are the sixteen
 measurements in `docs/plans/snippets-rebuild.md`, taken on 2026-09-13 against
-Claudpress 1.1.0.
+Keelhob 1.1.0.
 
 The first run of this file, against the unfixed screen, was **29 of 34 red**.
 That was the point: a browser check written after the fix can only tell you the

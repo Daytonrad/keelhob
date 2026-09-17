@@ -45,7 +45,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class Claudpress_Snippet_Conditions
+class Keelhob_Snippet_Conditions
 {
     /** Rule types this engine understands. */
     public const TYPES = [
@@ -381,42 +381,42 @@ class Claudpress_Snippet_Conditions
     {
         return [
             'types'     => [
-                'user_status' => __('User is', 'claudpress'),
-                'user_role'   => __('User role', 'claudpress'),
-                'page_type'   => __('Page type', 'claudpress'),
-                'post_type'   => __('Post type', 'claudpress'),
-                'post_id'     => __('Post ID', 'claudpress'),
-                'url_path'    => __('URL path', 'claudpress'),
-                'device'      => __('Device', 'claudpress'),
+                'user_status' => __('User is', 'keelhob'),
+                'user_role'   => __('User role', 'keelhob'),
+                'page_type'   => __('Page type', 'keelhob'),
+                'post_type'   => __('Post type', 'keelhob'),
+                'post_id'     => __('Post ID', 'keelhob'),
+                'url_path'    => __('URL path', 'keelhob'),
+                'device'      => __('Device', 'keelhob'),
             ],
             'operators' => [
                 'default'  => [
-                    ['is', __('is', 'claudpress')],
-                    ['is_not', __('is not', 'claudpress')],
+                    ['is', __('is', 'keelhob')],
+                    ['is_not', __('is not', 'keelhob')],
                 ],
                 'url_path' => [
-                    ['contains', __('contains', 'claudpress')],
-                    ['equals', __('equals', 'claudpress')],
-                    ['starts_with', __('starts with', 'claudpress')],
+                    ['contains', __('contains', 'keelhob')],
+                    ['equals', __('equals', 'keelhob')],
+                    ['starts_with', __('starts with', 'keelhob')],
                 ],
             ],
             'values'    => [
                 'user_status' => [
-                    ['logged_in', __('Logged in', 'claudpress')],
-                    ['logged_out', __('Logged out', 'claudpress')],
+                    ['logged_in', __('Logged in', 'keelhob')],
+                    ['logged_out', __('Logged out', 'keelhob')],
                 ],
                 'device'      => [
-                    ['mobile', __('Mobile', 'claudpress')],
-                    ['desktop', __('Desktop', 'claudpress')],
+                    ['mobile', __('Mobile', 'keelhob')],
+                    ['desktop', __('Desktop', 'keelhob')],
                 ],
                 'page_type'   => [
-                    ['front_page', __('Front page', 'claudpress')],
-                    ['home', __('Blog posts index', 'claudpress')],
-                    ['single', __('Single post', 'claudpress')],
-                    ['page', __('Page', 'claudpress')],
-                    ['archive', __('Archive', 'claudpress')],
-                    ['search', __('Search results', 'claudpress')],
-                    ['404', __('404 not found', 'claudpress')],
+                    ['front_page', __('Front page', 'keelhob')],
+                    ['home', __('Blog posts index', 'keelhob')],
+                    ['single', __('Single post', 'keelhob')],
+                    ['page', __('Page', 'keelhob')],
+                    ['archive', __('Archive', 'keelhob')],
+                    ['search', __('Search results', 'keelhob')],
+                    ['404', __('404 not found', 'keelhob')],
                 ],
                 'user_role'   => self::role_pairs(),
                 'post_type'   => self::post_type_pairs(),
@@ -527,7 +527,7 @@ class Claudpress_Snippet_Conditions
         $more = count($c['rules']) - 1;
         if ($more > 0) {
             /* translators: %1$s: first rule, %2$d: how many other rules. */
-            $text = sprintf(_n('%1$s + %2$d more', '%1$s + %2$d more', $more, 'claudpress'), $text, $more);
+            $text = sprintf(_n('%1$s + %2$d more', '%1$s + %2$d more', $more, 'keelhob'), $text, $more);
         }
         return $text;
     }

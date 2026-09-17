@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Capabilities
+final class Keelhob_Capabilities
 {
     /**
      * Capability groups that ship SWITCHED OFF, and why that list exists.
@@ -211,7 +211,7 @@ final class Claudpress_Capabilities
 
     public static function is_group_enabled(string $group): bool
     {
-        $caps = Claudpress::instance()->get('capabilities', []);
+        $caps = Keelhob::instance()->get('capabilities', []);
         if (!is_array($caps) || !array_key_exists($group, $caps)) {
             return self::default_enabled($group);
         }

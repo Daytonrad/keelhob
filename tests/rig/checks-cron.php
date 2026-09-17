@@ -28,10 +28,10 @@
 
 global $wpdb;
 
-$GLOBALS['cp_rig_pass'] = 0;
-$GLOBALS['cp_rig_fail'] = 0;
+$GLOBALS['kh_rig_pass'] = 0;
+$GLOBALS['kh_rig_fail'] = 0;
 function check($label, $ok, $detail = '') {
-    $ok ? $GLOBALS['cp_rig_pass']++ : $GLOBALS['cp_rig_fail']++;
+    $ok ? $GLOBALS['kh_rig_pass']++ : $GLOBALS['kh_rig_fail']++;
     printf("%s  %s%s\n", $ok ? 'PASS' : 'FAIL', str_pad($label, 56), $detail);
 }
 
@@ -39,20 +39,20 @@ wp_set_current_user(1);
 
 $orig_tz     = get_option('timezone_string');
 $orig_offset = get_option('gmt_offset');
-$table       = Claudpress_Tasks::table();
+$table       = Keelhob_Tasks::table();
 $made        = 0;
 
 try {
     // ---- the cron event itself -------------------------------------------
-    Claudpress_Tasks::init();
-    $next = wp_next_scheduled(Claudpress_Tasks::HOOK);
+    Keelhob_Tasks::init();
+    $next = wp_next_scheduled(Keelhob_Tasks::HOOK);
     check('the cron tick is scheduled', (bool) $next, $next ? gmdate('Y-m-d H:i', $next) . ' UTC' : 'NOT SCHEDULED');
 
     $schedules = wp_get_schedules();
     $ev = null;
     foreach ((array) _get_cron_array() as $ts => $hooks) {
-        if (isset($hooks[Claudpress_Tasks::HOOK])) {
-            $ev = reset($hooks[Claudpress_Tasks::HOOK]);
+        if (isset($hooks[Keelhob_Tasks::HOOK])) {
+            $ev = reset($hooks[Keelhob_Tasks::HOOK]);
             break;
         }
     }
@@ -77,7 +77,7 @@ try {
 
     $stored = current_time('mysql');           // what record_run() writes
     $naive  = (int) strtotime($stored);        // what the code used to do
-    $fixed  = Claudpress_Tasks::last_run_ts($stored);
+    $fixed  = Keelhob_Tasks::last_run_ts($stored);
     $now    = time();
 
     check('stored last_run is LOCAL time, not UTC', abs(($naive - $now) - $offset) <= 90,
@@ -86,14 +86,14 @@ try {
         sprintf('%+d sec from now', $fixed - $now));
 
     // The symptom, stated as the number the owner actually experienced.
-    $hourly = Claudpress_Tasks::INTERVALS['hourly'];
+    $hourly = Keelhob_Tasks::INTERVALS['hourly'];
     $wait_before = 0;
-    while (!Claudpress_Tasks::is_due(['enabled' => 1, 'schedule' => 'hourly', 'last_run_ts' => $naive], $now + $wait_before, 0)) {
+    while (!Keelhob_Tasks::is_due(['enabled' => 1, 'schedule' => 'hourly', 'last_run_ts' => $naive], $now + $wait_before, 0)) {
         $wait_before += 600;
         if ($wait_before > 12 * 3600) { break; }
     }
     $wait_after = 0;
-    while (!Claudpress_Tasks::is_due(['enabled' => 1, 'schedule' => 'hourly', 'last_run_ts' => $fixed], $now + $wait_after, 0)) {
+    while (!Keelhob_Tasks::is_due(['enabled' => 1, 'schedule' => 'hourly', 'last_run_ts' => $fixed], $now + $wait_after, 0)) {
         $wait_after += 600;
         if ($wait_after > 12 * 3600) { break; }
     }
@@ -106,7 +106,7 @@ try {
         sprintf('%.1f hours', $wait_after / 3600));
 
     // ---- and through the real task row, not just the arithmetic ----------
-    $saved = Claudpress_Tasks::save([
+    $saved = Keelhob_Tasks::save([
         'name'     => 'ZZ cron tz probe',
         'mode'     => 'digest',
         'schedule' => 'hourly',
@@ -117,34 +117,34 @@ try {
     $made = $id;
     check('a task can be saved', $id > 0);
 
-    Claudpress_Tasks::run_task($id);
-    $row = Claudpress_Tasks::get($id);
+    Keelhob_Tasks::run_task($id);
+    $row = Keelhob_Tasks::get($id);
     check('running it records a last_run', !empty($row['last_run']), (string) ($row['last_run'] ?? ''));
 
-    $ts = Claudpress_Tasks::last_run_ts($row['last_run']);
+    $ts = Keelhob_Tasks::last_run_ts($row['last_run']);
     check('  ...that converts to roughly now', abs($ts - time()) <= 120, sprintf('%+d sec', $ts - time()));
 
-    $due_now = Claudpress_Tasks::is_due(
+    $due_now = Keelhob_Tasks::is_due(
         ['enabled' => 1, 'schedule' => 'hourly', 'last_run_ts' => $ts],
         time(), (int) current_time('G')
     );
     check('  ...and it is NOT due again immediately', !$due_now);
 
-    $due_later = Claudpress_Tasks::is_due(
+    $due_later = Keelhob_Tasks::is_due(
         ['enabled' => 1, 'schedule' => 'hourly', 'last_run_ts' => $ts],
         time() + $hourly, (int) current_time('G')
     );
     check('  ...but IS due one hour later', $due_later, 'this is the whole fix');
 
     // ---- the digest itself still builds ----------------------------------
-    $snap = Claudpress_Digest::snapshot();
+    $snap = Keelhob_Digest::snapshot();
     check('the digest snapshot builds', is_array($snap) && !empty($snap));
-    $text = Claudpress_Digest::format_text($snap);
+    $text = Keelhob_Digest::format_text($snap);
     check('  ...and formats to readable text', strlen(trim($text)) > 20, strlen($text) . ' chars');
 } finally {
     // Same run that asserted on them, pass or fail.
     if ($made) {
-        Claudpress_Tasks::delete($made);
+        Keelhob_Tasks::delete($made);
     }
     update_option('timezone_string', $orig_tz);
     update_option('gmt_offset', $orig_offset);
@@ -153,7 +153,7 @@ try {
         'tz now: "' . get_option('timezone_string') . '", offset ' . get_option('gmt_offset'));
 }
 
-printf("\n%d passed, %d failed\n", $GLOBALS['cp_rig_pass'], $GLOBALS['cp_rig_fail']);
-if ($GLOBALS['cp_rig_fail'] > 0) {
+printf("\n%d passed, %d failed\n", $GLOBALS['kh_rig_pass'], $GLOBALS['kh_rig_fail']);
+if ($GLOBALS['kh_rig_fail'] > 0) {
     exit(1);
 }

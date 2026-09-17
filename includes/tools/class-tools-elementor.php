@@ -13,9 +13,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Tools_Elementor
+final class Keelhob_Tools_Elementor
 {
-    public static function register(Claudpress_Tool_Registry $r): void
+    public static function register(Keelhob_Tool_Registry $r): void
     {
         $r->add('elementor_page', 'Read or write an Elementor page. Actions: get (return the _elementor_data element tree + template type), set (replace _elementor_data for a page — pass the element tree as `data`, an array of sections/containers), create (make a new Elementor-editable page with optional data). Elementor stores layout as a JSON tree of elements; build with flexbox Containers (elType "container"), not deprecated sections. After set/create, Elementor CSS is regenerated automatically. set/create return `settings_warnings` ONLY when something looked wrong: a diagnostic (non-blocking) list of settings keys that no control on that widget/element recognises — a likely wrong control name (e.g. `menu` instead of `nav_menu`), worth checking against get_controls() but never a reason to assume the write failed.', [
             'type' => 'object',

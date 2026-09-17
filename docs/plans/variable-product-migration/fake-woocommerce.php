@@ -10,13 +10,13 @@
  * The fakes model the two things that actually make variation migration hard:
  * taxonomy attributes are stored as *term IDs* on the parent but as *term
  * slugs* on each variation, and the destination site's term IDs/slugs are not
- * the source site's. Everything is in-memory; cp_wc_reset() clears it.
+ * the source site's. Everything is in-memory; kh_wc_reset() clears it.
  */
 
-function cp_wc_reset(): void
+function kh_wc_reset(): void
 {
-    $GLOBALS['cp_wc'] = [
-        'products'   => [],   // id => CP_Fake_Product
+    $GLOBALS['kh_wc'] = [
+        'products'   => [],   // id => KH_Fake_Product
         'next_id'    => 100,
         'terms'      => [],   // term_id => ['term_id','name','slug','taxonomy']
         'next_term'  => 500,
@@ -27,18 +27,18 @@ function cp_wc_reset(): void
     ];
 }
 
-cp_wc_reset();
+kh_wc_reset();
 
 // ---- terms -----------------------------------------------------------------
 
 function taxonomy_exists(string $taxonomy): bool
 {
-    return isset($GLOBALS['cp_wc']['taxonomies'][$taxonomy]);
+    return isset($GLOBALS['kh_wc']['taxonomies'][$taxonomy]);
 }
 
 function register_taxonomy(string $taxonomy, $object_type = [], array $args = []): void
 {
-    $GLOBALS['cp_wc']['taxonomies'][$taxonomy] = $GLOBALS['cp_wc']['taxonomies'][$taxonomy] ?? count($GLOBALS['cp_wc']['taxonomies']) + 1;
+    $GLOBALS['kh_wc']['taxonomies'][$taxonomy] = $GLOBALS['kh_wc']['taxonomies'][$taxonomy] ?? count($GLOBALS['kh_wc']['taxonomies']) + 1;
 }
 
 function wc_create_attribute(array $args)
@@ -48,14 +48,14 @@ function wc_create_attribute(array $args)
         return new WP_Error('invalid_product_attribute_slug', 'Slug too long');
     }
     $taxonomy = 'pa_' . $slug;
-    $GLOBALS['cp_wc']['taxonomies'][$taxonomy] = count($GLOBALS['cp_wc']['taxonomies']) + 1;
-    return $GLOBALS['cp_wc']['taxonomies'][$taxonomy];
+    $GLOBALS['kh_wc']['taxonomies'][$taxonomy] = count($GLOBALS['kh_wc']['taxonomies']) + 1;
+    return $GLOBALS['kh_wc']['taxonomies'][$taxonomy];
 }
 
 function wc_attribute_taxonomy_id_by_name(string $taxonomy): int
 {
     $taxonomy = strpos($taxonomy, 'pa_') === 0 ? $taxonomy : 'pa_' . $taxonomy;
-    return (int) ($GLOBALS['cp_wc']['taxonomies'][$taxonomy] ?? 0);
+    return (int) ($GLOBALS['kh_wc']['taxonomies'][$taxonomy] ?? 0);
 }
 
 function wc_attribute_label(string $name, $product = null): string
@@ -66,7 +66,7 @@ function wc_attribute_label(string $name, $product = null): string
 /** Real term_exists() matches on either slug or name. */
 function term_exists($term, string $taxonomy = '', $parent = null)
 {
-    foreach ($GLOBALS['cp_wc']['terms'] as $t) {
+    foreach ($GLOBALS['kh_wc']['terms'] as $t) {
         if ($taxonomy !== '' && $t['taxonomy'] !== $taxonomy) {
             continue;
         }
@@ -86,41 +86,41 @@ function wp_insert_term(string $name, string $taxonomy = '', array $args = [])
     if (term_exists($slug, $taxonomy)) {
         return new WP_Error('term_exists', 'Term already exists');
     }
-    $id = $GLOBALS['cp_wc']['next_term']++;
-    $GLOBALS['cp_wc']['terms'][$id] = ['term_id' => $id, 'name' => $name, 'slug' => $slug, 'taxonomy' => $taxonomy];
+    $id = $GLOBALS['kh_wc']['next_term']++;
+    $GLOBALS['kh_wc']['terms'][$id] = ['term_id' => $id, 'name' => $name, 'slug' => $slug, 'taxonomy' => $taxonomy];
     return ['term_id' => $id, 'term_taxonomy_id' => $id];
 }
 
 function get_term($term_id, string $taxonomy = '')
 {
-    $t = $GLOBALS['cp_wc']['terms'][(int) $term_id] ?? null;
+    $t = $GLOBALS['kh_wc']['terms'][(int) $term_id] ?? null;
     return $t ? (object) $t : null;
 }
 
 /** Test helper: seed a term with an explicit slug, as a real site would have. */
-function cp_wc_seed_term(string $taxonomy, string $name, string $slug): int
+function kh_wc_seed_term(string $taxonomy, string $name, string $slug): int
 {
-    $id = $GLOBALS['cp_wc']['next_term']++;
-    $GLOBALS['cp_wc']['terms'][$id] = ['term_id' => $id, 'name' => $name, 'slug' => $slug, 'taxonomy' => $taxonomy];
-    $GLOBALS['cp_wc']['taxonomies'][$taxonomy] = $GLOBALS['cp_wc']['taxonomies'][$taxonomy] ?? 1;
+    $id = $GLOBALS['kh_wc']['next_term']++;
+    $GLOBALS['kh_wc']['terms'][$id] = ['term_id' => $id, 'name' => $name, 'slug' => $slug, 'taxonomy' => $taxonomy];
+    $GLOBALS['kh_wc']['taxonomies'][$taxonomy] = $GLOBALS['kh_wc']['taxonomies'][$taxonomy] ?? 1;
     return $id;
 }
 
-function cp_wc_term_by_id(int $id): ?array
+function kh_wc_term_by_id(int $id): ?array
 {
-    return $GLOBALS['cp_wc']['terms'][$id] ?? null;
+    return $GLOBALS['kh_wc']['terms'][$id] ?? null;
 }
 
 // ---- media -----------------------------------------------------------------
 
 function get_post_thumbnail_id($post = null)
 {
-    return $GLOBALS['cp_wc']['thumbs'][(int) $post] ?? 0;
+    return $GLOBALS['kh_wc']['thumbs'][(int) $post] ?? 0;
 }
 
 function set_post_thumbnail($post, int $thumbnail_id): bool
 {
-    $GLOBALS['cp_wc']['thumbs'][(int) (is_object($post) ? $post->ID : $post)] = $thumbnail_id;
+    $GLOBALS['kh_wc']['thumbs'][(int) (is_object($post) ? $post->ID : $post)] = $thumbnail_id;
     return true;
 }
 
@@ -134,7 +134,7 @@ function media_sideload_image(string $file, int $post_id = 0, $desc = null, stri
     if (strpos($file, 'http') !== 0) {
         return new WP_Error('image_sideload_failed', 'Invalid URL');
     }
-    return $GLOBALS['cp_wc']['next_att']++;
+    return $GLOBALS['kh_wc']['next_att']++;
 }
 
 // ---- products --------------------------------------------------------------
@@ -163,7 +163,7 @@ class WC_Product_Attribute
     public function is_taxonomy(): bool { return $this->id > 0 && strpos($this->name, 'pa_') === 0; }
 }
 
-class CP_Fake_Product
+class KH_Fake_Product
 {
     protected int $id = 0;
     protected array $props = [];
@@ -175,8 +175,8 @@ class CP_Fake_Product
 
     public function __construct(int $id = 0)
     {
-        if ($id && isset($GLOBALS['cp_wc']['products'][$id])) {
-            $src = $GLOBALS['cp_wc']['products'][$id];
+        if ($id && isset($GLOBALS['kh_wc']['products'][$id])) {
+            $src = $GLOBALS['kh_wc']['products'][$id];
             $this->id = $id;
             $this->props = $src->export_props();
             $this->attributes = $src->get_attributes();
@@ -214,7 +214,7 @@ class CP_Fake_Product
 
     public function set_sku($v): void
     {
-        foreach ($GLOBALS['cp_wc']['products'] as $p) {
+        foreach ($GLOBALS['kh_wc']['products'] as $p) {
             if ($p->get_id() !== $this->id && (string) $p->get_sku() === (string) $v && $v !== '') {
                 throw new RuntimeException('Duplicate SKU');
             }
@@ -243,32 +243,32 @@ class CP_Fake_Product
     public function save(): int
     {
         if (!$this->id) {
-            $this->id = $GLOBALS['cp_wc']['next_id']++;
+            $this->id = $GLOBALS['kh_wc']['next_id']++;
         }
-        $GLOBALS['cp_wc']['products'][$this->id] = $this;
-        if ($this->parent_id && isset($GLOBALS['cp_wc']['products'][$this->parent_id])) {
-            $GLOBALS['cp_wc']['products'][$this->parent_id]->add_child($this->id);
+        $GLOBALS['kh_wc']['products'][$this->id] = $this;
+        if ($this->parent_id && isset($GLOBALS['kh_wc']['products'][$this->parent_id])) {
+            $GLOBALS['kh_wc']['products'][$this->parent_id]->add_child($this->id);
         }
         return $this->id;
     }
 }
 
-class WC_Product_Simple extends CP_Fake_Product
+class WC_Product_Simple extends KH_Fake_Product
 {
     public function get_type(): string { return 'simple'; }
 }
 
-class WC_Product_Variable extends CP_Fake_Product
+class WC_Product_Variable extends KH_Fake_Product
 {
     public function get_type(): string { return 'variable'; }
 
     public static function sync($product_id, bool $save = true): void
     {
-        $GLOBALS['cp_wc']['synced'][] = (int) $product_id;
+        $GLOBALS['kh_wc']['synced'][] = (int) $product_id;
     }
 }
 
-class WC_Product_Variation extends CP_Fake_Product
+class WC_Product_Variation extends KH_Fake_Product
 {
     public function get_type(): string { return 'variation'; }
 }
@@ -279,15 +279,15 @@ class WooCommerce
 
 function wc_get_product($id = false)
 {
-    if ($id instanceof CP_Fake_Product) {
+    if ($id instanceof KH_Fake_Product) {
         return $id;
     }
-    return $GLOBALS['cp_wc']['products'][(int) $id] ?? false;
+    return $GLOBALS['kh_wc']['products'][(int) $id] ?? false;
 }
 
 function wc_get_product_id_by_sku(string $sku): int
 {
-    foreach ($GLOBALS['cp_wc']['products'] as $id => $p) {
+    foreach ($GLOBALS['kh_wc']['products'] as $id => $p) {
         if ($sku !== '' && $p->get_sku() === $sku) {
             return (int) $id;
         }
@@ -296,7 +296,7 @@ function wc_get_product_id_by_sku(string $sku): int
 }
 
 /** Test helper: build and persist a product of a given class with props set. */
-function cp_wc_make(string $class, array $props = [], int $id = 0): CP_Fake_Product
+function kh_wc_make(string $class, array $props = [], int $id = 0): KH_Fake_Product
 {
     $p = new $class($id);
     if ($id) {

@@ -174,16 +174,16 @@ jobs:
       - name: Cache the rig downloads
         uses: actions/cache@v4
         with:
-          path: ~/.cache/claudpress-rig
+          path: ~/.cache/keelhob-rig
           key: rig-downloads-${{ hashFiles('tests/rig/build-rig.sh') }}
           restore-keys: rig-downloads-
 
       # Builds a throwaway WordPress on SQLite and copies the plugin in. Copies
       # rather than symlinks: PHP resolves symlinks in __FILE__, which would put
-      # CLAUDPRESS_DIR outside wp-content/plugins and make the rig test a shape
+      # KEELHOB_DIR outside wp-content/plugins and make the rig test a shape
       # no real install has. build-rig.sh explains it at more length.
       - name: Build the rig
-        run: CP_RIG_CACHE="$HOME/.cache/claudpress-rig" bash tests/rig/build-rig.sh "$RUNNER_TEMP/rig"
+        run: KH_RIG_CACHE="$HOME/.cache/keelhob-rig" bash tests/rig/build-rig.sh "$RUNNER_TEMP/rig"
 
       - name: Run the live checks
         run: |
@@ -258,12 +258,12 @@ jobs:
       - name: Cache the rig downloads
         uses: actions/cache@v4
         with:
-          path: ~/.cache/claudpress-rig
+          path: ~/.cache/keelhob-rig
           key: rig-downloads-${{ hashFiles('tests/rig/build-rig.sh') }}
           restore-keys: rig-downloads-
 
       - name: Build the rig
-        run: CP_RIG_CACHE="$HOME/.cache/claudpress-rig" bash tests/rig/build-rig.sh "$RUNNER_TEMP/rig"
+        run: KH_RIG_CACHE="$HOME/.cache/keelhob-rig" bash tests/rig/build-rig.sh "$RUNNER_TEMP/rig"
 
       # playwright-core ships no browsers on purpose - a PHP plugin repo should
       # not carry 150MB of Chromium in its dev dependencies - so the browser is
@@ -319,26 +319,26 @@ jobs:
       - name: Verify the zip layout
         run: |
           set -euo pipefail
-          # The archive must contain a single top-level claudpress/ directory,
+          # The archive must contain a single top-level keelhob/ directory,
           # or WordPress installs it to the wrong path.
-          roots=$(unzip -Z1 build/claudpress.zip | cut -d/ -f1 | sort -u)
-          if [ "$roots" != "claudpress" ]; then
-            echo "::error::zip must contain exactly one top-level dir 'claudpress', got: $roots"
+          roots=$(unzip -Z1 build/keelhob.zip | cut -d/ -f1 | sort -u)
+          if [ "$roots" != "keelhob" ]; then
+            echo "::error::zip must contain exactly one top-level dir 'keelhob', got: $roots"
             exit 1
           fi
           # Nothing that shouldn't ship.
-          if unzip -Z1 build/claudpress.zip | grep -Eq '(^|/)(\.git|\.github|tests|\.codegraph|node_modules)/'; then
+          if unzip -Z1 build/keelhob.zip | grep -Eq '(^|/)(\.git|\.github|tests|\.codegraph|node_modules)/'; then
             echo "::error::development files leaked into the zip"
-            unzip -Z1 build/claudpress.zip | grep -E '(^|/)(\.git|\.github|tests|\.codegraph|node_modules)/'
+            unzip -Z1 build/keelhob.zip | grep -E '(^|/)(\.git|\.github|tests|\.codegraph|node_modules)/'
             exit 1
           fi
-          unzip -Z1 build/claudpress.zip | grep -q '^claudpress/claudpress.php$'
-          echo "zip OK — $(unzip -Z1 build/claudpress.zip | wc -l) entries, $(du -h build/claudpress.zip | cut -f1)"
+          unzip -Z1 build/keelhob.zip | grep -q '^keelhob/keelhob.php$'
+          echo "zip OK — $(unzip -Z1 build/keelhob.zip | wc -l) entries, $(du -h build/keelhob.zip | cut -f1)"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: claudpress-plugin
-          path: build/claudpress.zip
+          name: keelhob-plugin
+          path: build/keelhob.zip
           if-no-files-found: error
 
   smoke:
@@ -355,11 +355,11 @@ jobs:
 
       - name: Smoke-test the configured site
         env:
-          CLAUDPRESS_URL: ${{ secrets.CLAUDPRESS_URL }}
-          CLAUDPRESS_TOKEN: ${{ secrets.CLAUDPRESS_TOKEN }}
+          KEELHOB_URL: ${{ secrets.KEELHOB_URL }}
+          KEELHOB_TOKEN: ${{ secrets.KEELHOB_TOKEN }}
         run: |
-          if [ -z "${CLAUDPRESS_URL:-}" ]; then
-            echo "No CLAUDPRESS_URL secret set — skipping."
+          if [ -z "${KEELHOB_URL:-}" ]; then
+            echo "No KEELHOB_URL secret set — skipping."
             exit 0
           fi
           node tests/live-smoke.mjs

@@ -1,11 +1,11 @@
 name: Feature request
-description: Something Claudpress should be able to do
+description: Something Keelhob should be able to do
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        Check [ROADMAP.md](https://github.com/calflint/claudpress/blob/main/ROADMAP.md)
+        Check [ROADMAP.md](https://github.com/calflint/keelhob/blob/main/ROADMAP.md)
         first — it may already be planned, and the roadmap says openly what
         level of support unlocks what.
 

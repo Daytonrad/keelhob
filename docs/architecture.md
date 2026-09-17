@@ -9,13 +9,13 @@ tree minus the dev files.
 ## Layout
 
 ```
-claudpress.php              bootstrap, constants, activation, require_once list
+keelhob.php              bootstrap, constants, activation, require_once list
 includes/
-  class-claudpress.php      orchestrator, settings, upgrade routines
+  class-keelhob.php      orchestrator, settings, upgrade routines
   class-auth.php            bearer token + application password auth, rate limiting
   class-secrets.php         encryption for stored API keys and tokens
   class-mcp-server.php      JSON-RPC 2.0 MCP protocol (initialize/tools/prompts/resources)
-  class-rest.php            /wp-json/claudpress/v1/mcp transport, /status, /import
+  class-rest.php            /wp-json/keelhob/v1/mcp transport, /status, /import
   class-tool-registry.php   tool registration + dispatch
   class-capabilities.php    capability groups, DISABLED_BY_DEFAULT, always-on list
   class-policy.php          guardrails for unattended runs
@@ -113,24 +113,24 @@ with no Docker and no MySQL. `tests/rig/README.md` builds it from scratch.
 A live integration test runs against a real site, read-only by default:
 
 ```bash
-CLAUDPRESS_URL=https://your-site.com CLAUDPRESS_TOKEN=cp_xxx node tests/live-smoke.mjs
-node tests/live-smoke.mjs --url https://your-site.com --token cp_xxx --write
+KEELHOB_URL=https://your-site.com KEELHOB_TOKEN=kh_xxx node tests/live-smoke.mjs
+node tests/live-smoke.mjs --url https://your-site.com --token kh_xxx --write
 ```
 
 ## CI
 
 `.github/workflows/ci.yml` lints every PHP file on 8.0–8.4, runs the suite on 8.0/8.3/8.4, builds
-the zip and asserts its layout (one top-level `claudpress/`, no dev files). The live smoke test runs
-on manual dispatch when the `CLAUDPRESS_URL` / `CLAUDPRESS_TOKEN` secrets are configured.
+the zip and asserts its layout (one top-level `keelhob/`, no dev files). The live smoke test runs
+on manual dispatch when the `KEELHOB_URL` / `KEELHOB_TOKEN` secrets are configured.
 
 ## Shape problems, and what was done about them
 
 Both of the things previously named here are fixed, and it is worth saying how, because the
 method matters more than the result.
 
-`claudpress.php` carried 52 manual `require_once` lines. It now has a small autoloader mapping
+`keelhob.php` carried 52 manual `require_once` lines. It now has a small autoloader mapping
 class name to file path — no namespaces, no renaming, because a rename would break the
-`claudpress_register_tools` seam for anyone who has used it. `tests/unit/test-integrity.php`
+`keelhob_register_tools` seam for anyone who has used it. `tests/unit/test-integrity.php`
 asserts every class declared under `includes/` resolves through it to the file that declares it,
 so a new file cannot be silently unreachable.
 

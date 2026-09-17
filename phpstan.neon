@@ -12,7 +12,7 @@ parameters:
 
     paths:
         - includes
-        - claudpress.php
+        - keelhob.php
         - uninstall.php
         - bin
 

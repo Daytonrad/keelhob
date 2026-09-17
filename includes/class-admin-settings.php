@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Admin_Settings
+final class Keelhob_Admin_Settings
 {
     /**
      * Store an endpoint only when it genuinely overrides the provider default.
@@ -35,7 +35,7 @@ final class Claudpress_Admin_Settings
     /** Every admin screen this plugin owns. Also the redirect whitelist. */
     private static function page_slugs(): array
     {
-        return ['claudpress', 'claudpress-snippets', 'claudpress-automation', 'claudpress-guide', 'claudpress-activity'];
+        return ['keelhob', 'keelhob-snippets', 'keelhob-automation', 'keelhob-guide', 'keelhob-activity'];
     }
 
     /**
@@ -47,13 +47,13 @@ final class Claudpress_Admin_Settings
      */
     private static function redirect_back(): void
     {
-        $page = sanitize_key($_POST['claudpress_redirect_page'] ?? '');
+        $page = sanitize_key($_POST['keelhob_redirect_page'] ?? '');
         if (!in_array($page, self::page_slugs(), true)) {
-            $page = 'claudpress';
+            $page = 'keelhob';
         }
         $args = ['page' => $page, 'saved' => 1];
 
-        $filters = json_decode((string) wp_unslash($_POST['claudpress_filters'] ?? ''), true);
+        $filters = json_decode((string) wp_unslash($_POST['keelhob_filters'] ?? ''), true);
         if (is_array($filters)) {
             foreach (['search' => 's', 'tag' => 'tag', 'snippet_type' => 'type', 'active' => 'active'] as $key => $arg) {
                 $value = isset($filters[$key]) ? sanitize_text_field((string) $filters[$key]) : '';
@@ -68,20 +68,20 @@ final class Claudpress_Admin_Settings
 
     public function handle_save(): void
     {
-        if (!current_user_can('manage_options') || !check_admin_referer('claudpress_save')) {
-            wp_die(esc_html__('Unauthorized', 'claudpress'));
+        if (!current_user_can('manage_options') || !check_admin_referer('keelhob_save')) {
+            wp_die(esc_html__('Unauthorized', 'keelhob'));
         }
-        $action = $_POST['claudpress_action'] ?? 'settings';
+        $action = $_POST['keelhob_action'] ?? 'settings';
 
         if ($action === 'regenerate_token') {
-            Claudpress::set_token();
+            Keelhob::set_token();
         } elseif ($action === 'settings') {
             // Record WHO accepted and WHEN, not merely that the box is ticked.
             // If someone later says they never agreed to an AI editing their
             // live site, a timestamp and a user id is the whole answer, and it
             // has to be captured at the moment of the click or not at all.
             $consent = self::consent_from_post();
-            Claudpress::instance()->update([
+            Keelhob::instance()->update([
                 'abilities_enabled'   => $consent['abilities_enabled'],
                 'consent_by'          => $consent['consent_by'],
                 'consent_at'          => $consent['consent_at'],
@@ -102,42 +102,42 @@ final class Claudpress_Admin_Settings
                 'image_api_key'       => self::secret_from_post('image_api_key'),
                 'image_api_endpoint'  => self::endpoint_override(
                     esc_url_raw(wp_unslash($_POST['image_api_endpoint'] ?? '')),
-                    Claudpress_Image_Provider::get(sanitize_key($_POST['image_provider'] ?? 'openai'))::default_endpoint()
+                    Keelhob_Image_Provider::get(sanitize_key($_POST['image_provider'] ?? 'openai'))::default_endpoint()
                 ),
                 'image_api_model'     => sanitize_text_field(wp_unslash($_POST['image_api_model'] ?? '')),
                 'deploy_target_url'   => esc_url_raw(wp_unslash($_POST['deploy_target_url'] ?? '')),
                 'deploy_target_token' => self::secret_from_post('deploy_target_token'),
             ]);
         } elseif ($action === 'clear_memory') {
-            Claudpress::instance()->memory->clear();
+            Keelhob::instance()->memory->clear();
         } elseif ($action === 'clear_feedback') {
             // Local only, and immediate. A log the owner cannot wipe is a log
             // the owner cannot trust, and trust is the entire basis on which
             // this feature is allowed to default to on.
-            Claudpress_Feedback::clear();
+            Keelhob_Feedback::clear();
         } elseif ($action === 'forget_feedback') {
             // The other half: ask the server to drop everything it holds for
             // this site. Anonymous data normally cannot honour a deletion
             // request because nothing can find it - this site knows its own
             // UUID, so it can ask.
-            Claudpress_Feedback::forget_remote();
-            Claudpress_Feedback::clear();
+            Keelhob_Feedback::forget_remote();
+            Keelhob_Feedback::clear();
         } elseif ($action === 'capabilities') {
             $posted = isset($_POST['cap']) && is_array($_POST['cap']) ? array_map('sanitize_key', array_keys($_POST['cap'])) : [];
             $caps = [];
-            foreach (array_keys(Claudpress_Capabilities::groups()) as $group) {
+            foreach (array_keys(Keelhob_Capabilities::groups()) as $group) {
                 $caps[$group] = in_array($group, $posted, true);
             }
-            Claudpress::instance()->update(['capabilities' => $caps]);
+            Keelhob::instance()->update(['capabilities' => $caps]);
         } elseif ($action === 'automation_settings') {
-            Claudpress::instance()->update([
+            Keelhob::instance()->update([
                 'agent_provider'        => sanitize_key($_POST['agent_provider'] ?? 'anthropic'),
                 'agent_api_key'         => self::secret_from_post('agent_api_key'),
                 'agent_api_endpoint'    => self::endpoint_override(
                     esc_url_raw(wp_unslash($_POST['agent_api_endpoint'] ?? '')),
-                    Claudpress_Provider::get(sanitize_key($_POST['agent_provider'] ?? 'anthropic'))::default_endpoint()
+                    Keelhob_Provider::get(sanitize_key($_POST['agent_provider'] ?? 'anthropic'))::default_endpoint()
                 ),
-                'agent_model'           => Claudpress_Admin_Providers::model_from_post(),
+                'agent_model'           => Keelhob_Admin_Providers::model_from_post(),
                 'agent_max_usd_per_run'    => max(0, (float) ($_POST['agent_max_usd_per_run'] ?? 0)),
                 'agent_max_tokens_per_run' => max(0, (int) ($_POST['agent_max_tokens_per_run'] ?? 0)),
                 'agent_max_usd_per_day'    => max(0, (float) ($_POST['agent_max_usd_per_day'] ?? 0)),
@@ -153,10 +153,10 @@ final class Claudpress_Admin_Settings
                     'require_optin' => !empty($_POST['policy_require_optin']),
                 ],
             ]);
-            wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation', 'saved' => 1], admin_url('admin.php')));
+            wp_safe_redirect(add_query_arg(['page' => 'keelhob-automation', 'saved' => 1], admin_url('admin.php')));
             exit;
         } elseif ($action === 'task_create') {
-            Claudpress_Tasks::save([
+            Keelhob_Tasks::save([
                 'name'     => sanitize_text_field(wp_unslash($_POST['task_name'] ?? 'Status digest')),
                 'mode'     => 'digest',
                 'schedule' => sanitize_key($_POST['task_schedule'] ?? 'daily'),
@@ -164,25 +164,25 @@ final class Claudpress_Admin_Settings
                 'notify'   => !empty($_POST['task_notify']),
                 'enabled'  => true,
             ]);
-            wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation', 'saved' => 1], admin_url('admin.php')));
+            wp_safe_redirect(add_query_arg(['page' => 'keelhob-automation', 'saved' => 1], admin_url('admin.php')));
             exit;
         } elseif ($action === 'task_run') {
-            Claudpress_Tasks::run_task((int) ($_POST['task_id'] ?? 0));
-            wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation', 'ran' => 1], admin_url('admin.php')));
+            Keelhob_Tasks::run_task((int) ($_POST['task_id'] ?? 0));
+            wp_safe_redirect(add_query_arg(['page' => 'keelhob-automation', 'ran' => 1], admin_url('admin.php')));
             exit;
         } elseif ($action === 'task_toggle') {
-            $t = Claudpress_Tasks::get((int) ($_POST['task_id'] ?? 0));
+            $t = Keelhob_Tasks::get((int) ($_POST['task_id'] ?? 0));
             if ($t) {
-                Claudpress_Tasks::toggle((int) $t['id'], (int) $t['enabled'] !== 1);
+                Keelhob_Tasks::toggle((int) $t['id'], (int) $t['enabled'] !== 1);
             }
-            wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation'], admin_url('admin.php')));
+            wp_safe_redirect(add_query_arg(['page' => 'keelhob-automation'], admin_url('admin.php')));
             exit;
         } elseif ($action === 'task_delete') {
-            Claudpress_Tasks::delete((int) ($_POST['task_id'] ?? 0));
-            wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation'], admin_url('admin.php')));
+            Keelhob_Tasks::delete((int) ($_POST['task_id'] ?? 0));
+            wp_safe_redirect(add_query_arg(['page' => 'keelhob-automation'], admin_url('admin.php')));
             exit;
         } elseif ($action === 'telegram_settings') {
-            Claudpress::instance()->update([
+            Keelhob::instance()->update([
                 'telegram_bot_enabled'   => !empty($_POST['telegram_bot_enabled']),
                 'telegram_allowed_chats' => sanitize_text_field(wp_unslash($_POST['telegram_allowed_chats'] ?? '')),
                 'telegram_history_turns' => max(0, min(60, (int) ($_POST['telegram_history_turns'] ?? 12))),
@@ -195,35 +195,35 @@ final class Claudpress_Admin_Settings
                 'voice_model'            => sanitize_text_field(wp_unslash($_POST['voice_model'] ?? '')),
                 'voice_api_endpoint'     => self::endpoint_override(
                     esc_url_raw(wp_unslash($_POST['voice_api_endpoint'] ?? '')),
-                    Claudpress_Transcribe_Provider::get(sanitize_key($_POST['voice_provider'] ?? 'openai'))::default_endpoint()
+                    Keelhob_Transcribe_Provider::get(sanitize_key($_POST['voice_provider'] ?? 'openai'))::default_endpoint()
                 ),
             ]);
-            wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation', 'saved' => 1], admin_url('admin.php')) . '#chat');
+            wp_safe_redirect(add_query_arg(['page' => 'keelhob-automation', 'saved' => 1], admin_url('admin.php')) . '#chat');
             exit;
         } elseif ($action === 'telegram_connect') {
-            $res = Claudpress_Telegram::set_webhook();
+            $res = Keelhob_Telegram::set_webhook();
             wp_safe_redirect(add_query_arg([
-                'page'    => 'claudpress-automation',
+                'page'    => 'keelhob-automation',
                 'tg'      => !empty($res['ok']) ? 'connected' : 'failed',
                 'tg_msg'  => rawurlencode((string) ($res['description'] ?? '')),
             ], admin_url('admin.php')) . '#chat');
             exit;
         } elseif ($action === 'telegram_disconnect') {
-            Claudpress_Telegram::delete_webhook();
-            wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation', 'tg' => 'disconnected'], admin_url('admin.php')) . '#chat');
+            Keelhob_Telegram::delete_webhook();
+            wp_safe_redirect(add_query_arg(['page' => 'keelhob-automation', 'tg' => 'disconnected'], admin_url('admin.php')) . '#chat');
             exit;
         } elseif ($action === 'telegram_rotate_secret') {
             // Rotating invalidates the old webhook registration, so re-register
             // in the same step — otherwise every delivery would 403 silently.
-            Claudpress::instance()->update(['telegram_secret' => Claudpress_Telegram::generate_secret()]);
-            $res = Claudpress_Telegram::enabled() ? Claudpress_Telegram::set_webhook() : ['ok' => true];
+            Keelhob::instance()->update(['telegram_secret' => Keelhob_Telegram::generate_secret()]);
+            $res = Keelhob_Telegram::enabled() ? Keelhob_Telegram::set_webhook() : ['ok' => true];
             wp_safe_redirect(add_query_arg([
-                'page' => 'claudpress-automation',
+                'page' => 'keelhob-automation',
                 'tg'   => !empty($res['ok']) ? 'rotated' : 'failed',
             ], admin_url('admin.php')) . '#chat');
             exit;
         } elseif ($action === 'events_settings') {
-            Claudpress::instance()->update([
+            Keelhob::instance()->update([
                 'events_enabled'   => !empty($_POST['events_enabled']),
                 'events_order'     => !empty($_POST['events_order']),
                 'events_order_min' => max(0, (float) ($_POST['events_order_min'] ?? 0)),
@@ -231,17 +231,17 @@ final class Claudpress_Admin_Settings
                 'events_snippet'   => !empty($_POST['events_snippet']),
                 'events_updates'   => !empty($_POST['events_updates']),
             ]);
-            wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation', 'saved' => 1], admin_url('admin.php')) . '#events');
+            wp_safe_redirect(add_query_arg(['page' => 'keelhob-automation', 'saved' => 1], admin_url('admin.php')) . '#events');
             exit;
         } elseif ($action === 'telegram_clear_chats') {
-            $n = Claudpress_Telegram::clear_all();
-            wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation', 'tg' => 'cleared', 'tg_n' => $n], admin_url('admin.php')) . '#chat');
+            $n = Keelhob_Telegram::clear_all();
+            wp_safe_redirect(add_query_arg(['page' => 'keelhob-automation', 'tg' => 'cleared', 'tg_n' => $n], admin_url('admin.php')) . '#chat');
             exit;
         } elseif ($action === 'snippet_toggle') {
-            Claudpress_Snippets::toggle((int) ($_POST['snippet_id'] ?? 0), (string) ($_POST['snippet_active'] ?? '0') === '1');
+            Keelhob_Snippets::toggle((int) ($_POST['snippet_id'] ?? 0), (string) ($_POST['snippet_active'] ?? '0') === '1');
             self::redirect_back();
         } elseif ($action === 'snippet_update') {
-            Claudpress_Snippets::save([
+            Keelhob_Snippets::save([
                 'id'   => (int) ($_POST['snippet_id'] ?? 0),
                 'name' => sanitize_text_field(wp_unslash($_POST['snippet_name'] ?? '')),
                 'tags' => sanitize_text_field(wp_unslash($_POST['snippet_tags'] ?? '')),
@@ -254,7 +254,7 @@ final class Claudpress_Admin_Settings
             ]);
             self::redirect_back();
         } elseif ($action === 'snippet_delete') {
-            Claudpress_Snippets::delete((int) ($_POST['snippet_id'] ?? 0));
+            Keelhob_Snippets::delete((int) ($_POST['snippet_id'] ?? 0));
             self::redirect_back();
         } elseif ($action === 'test_notify') {
             // The address typed next to this button, not the stored one. The
@@ -263,9 +263,9 @@ final class Claudpress_Admin_Settings
             // saved address and "sent" was reported regardless.
             $test_to = sanitize_email(wp_unslash($_POST['test_notify_email'] ?? ''));
 
-            $results = Claudpress_Notifier::send(
-                '[' . get_bloginfo('name') . '] Claudpress test',
-                'This is a test notification from Claudpress. If you are reading it, this channel works.',
+            $results = Keelhob_Notifier::send(
+                '[' . get_bloginfo('name') . '] Keelhob test',
+                'This is a test notification from Keelhob. If you are reading it, this channel works.',
                 null,
                 null,
                 $test_to !== '' ? $test_to : null
@@ -273,17 +273,17 @@ final class Claudpress_Admin_Settings
 
             // Hand the outcome back to the screen. A test whose result is not
             // shown is not a test, it is a button.
-            set_transient('claudpress_test_notify_result', [
+            set_transient('keelhob_test_notify_result', [
                 'at'      => time(),
                 'to'      => $test_to,
                 'results' => $results,
-                'health'  => Claudpress_Notifier::health(),
+                'health'  => Keelhob_Notifier::health(),
             ], 5 * MINUTE_IN_SECONDS);
-            wp_safe_redirect(add_query_arg(['page' => 'claudpress-automation', 'tested' => 1], admin_url('admin.php')));
+            wp_safe_redirect(add_query_arg(['page' => 'keelhob-automation', 'tested' => 1], admin_url('admin.php')));
             exit;
         }
 
-        wp_safe_redirect(add_query_arg(['page' => 'claudpress', 'saved' => 1], admin_url('admin.php')));
+        wp_safe_redirect(add_query_arg(['page' => 'keelhob', 'saved' => 1], admin_url('admin.php')));
         exit;
     }
 
@@ -303,8 +303,8 @@ final class Claudpress_Admin_Settings
     {
         $posted = sanitize_text_field(wp_unslash($_POST[$field] ?? ''));
 
-        if (Claudpress_Secrets::is_mask($posted)) {
-            return (string) Claudpress::instance()->get($field, '');
+        if (Keelhob_Secrets::is_mask($posted)) {
+            return (string) Keelhob::instance()->get($field, '');
         }
         return $posted;
     }
@@ -324,17 +324,17 @@ final class Claudpress_Admin_Settings
      */
     private static function consent_from_post(): array
     {
-        $s       = Claudpress::instance()->settings();
+        $s       = Keelhob::instance()->settings();
         $ticked  = !empty($_POST['abilities_enabled']);
         $was_on  = !empty($s['abilities_enabled']);
         $current = (int) ($s['consent_version'] ?? 0);
 
-        if ($ticked && (!$was_on || $current < Claudpress_Admin::CONSENT_VERSION)) {
+        if ($ticked && (!$was_on || $current < Keelhob_Admin::CONSENT_VERSION)) {
             return [
                 'abilities_enabled' => true,
                 'consent_by'        => get_current_user_id(),
                 'consent_at'        => time(),
-                'consent_version'   => Claudpress_Admin::CONSENT_VERSION,
+                'consent_version'   => Keelhob_Admin::CONSENT_VERSION,
             ];
         }
 
@@ -365,11 +365,11 @@ final class Claudpress_Admin_Settings
     private static function channels_from_post(): array
     {
         $posted    = array_map('sanitize_key', (array) ($_POST['notify_channels'] ?? []));
-        $stored    = Claudpress_Notifier::chosen_channels();
-        $available = Claudpress_Notifier::availability();
+        $stored    = Keelhob_Notifier::chosen_channels();
+        $available = Keelhob_Notifier::availability();
         $out       = [];
 
-        foreach (Claudpress_Notifier::CHANNELS as $channel) {
+        foreach (Keelhob_Notifier::CHANNELS as $channel) {
             $editable = !empty($available[$channel]['connected']);
             $keep     = $editable
                 ? in_array($channel, $posted, true)

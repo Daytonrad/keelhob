@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Claudpress rig — AI mock
+ * Plugin Name: Keelhob rig — AI mock
  * Description: Intercepts outbound AI provider calls and replays canned responses. FOR THE TEST RIG ONLY.
  * Version: 1.0.0
  *
@@ -20,16 +20,16 @@
  * testing, and it is exactly the part a hand-written stub of the plugin's own
  * classes would have skipped.
  *
- * Set CLAUDPRESS_MOCK_FAIL to make every call fail, to exercise error handling.
+ * Set KEELHOB_MOCK_FAIL to make every call fail, to exercise error handling.
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-add_filter('pre_http_request', 'claudpress_rig_ai_mock', 10, 3);
+add_filter('pre_http_request', 'keelhob_rig_ai_mock', 10, 3);
 
-function claudpress_rig_ai_mock($preempt, $args, $url) {
+function keelhob_rig_ai_mock($preempt, $args, $url) {
     // Somebody earlier in the chain already answered - a test forcing an outage,
     // another mock, a caching layer. Overriding that would make this filter
     // impossible to test around, which is exactly what happened: a deliberate
@@ -45,13 +45,13 @@ function claudpress_rig_ai_mock($preempt, $args, $url) {
         return $preempt;
     }
 
-    if (defined('CLAUDPRESS_MOCK_FAIL') && CLAUDPRESS_MOCK_FAIL) {
+    if (defined('KEELHOB_MOCK_FAIL') && KEELHOB_MOCK_FAIL) {
         return new WP_Error('http_request_failed', 'Mocked network failure.');
     }
 
     // The model list endpoints, used by the settings screen's Refresh button.
     if (strpos($url, '/models') !== false && ($args['method'] ?? 'GET') === 'GET') {
-        return claudpress_rig_response([
+        return keelhob_rig_response([
             'data' => [
                 ['id' => 'mock-model-newest', 'created' => time(),         'created_at' => gmdate('c')],
                 ['id' => 'mock-model-older',  'created' => time() - 86400, 'created_at' => gmdate('c', time() - 86400)],
@@ -65,12 +65,12 @@ function claudpress_rig_ai_mock($preempt, $args, $url) {
     // text alone made a plan request look identical to a code request, because
     // the user only ever says what they want - 'add a shipping banner' - and
     // never says which of the three calls this is.
-    $prompt = claudpress_rig_system_text($sent) . ' ' . claudpress_rig_last_user_text($sent);
-    $text   = claudpress_rig_answer($prompt);
+    $prompt = keelhob_rig_system_text($sent) . ' ' . keelhob_rig_last_user_text($sent);
+    $text   = keelhob_rig_answer($prompt);
 
     // Answer in the shape the requesting provider's parse() expects.
     if ($host === 'api.anthropic.com') {
-        return claudpress_rig_response([
+        return keelhob_rig_response([
             'id'    => 'msg_mock',
             'model' => $sent['model'] ?? 'mock-model-newest',
             'role'  => 'assistant',
@@ -81,7 +81,7 @@ function claudpress_rig_ai_mock($preempt, $args, $url) {
     }
 
     if ($host === 'api.openai.com') {
-        return claudpress_rig_response([
+        return keelhob_rig_response([
             'id'      => 'chatcmpl-mock',
             'model'   => $sent['model'] ?? 'mock-model-newest',
             'choices' => [['index' => 0, 'finish_reason' => 'stop', 'message' => ['role' => 'assistant', 'content' => $text]]],
@@ -89,7 +89,7 @@ function claudpress_rig_ai_mock($preempt, $args, $url) {
         ]);
     }
 
-    return claudpress_rig_response([
+    return keelhob_rig_response([
         'candidates' => [['content' => ['parts' => [['text' => $text]], 'role' => 'model'], 'finishReason' => 'STOP']],
         'usageMetadata' => ['promptTokenCount' => 100, 'candidatesTokenCount' => 50],
     ]);
@@ -101,7 +101,7 @@ function claudpress_rig_ai_mock($preempt, $args, $url) {
  * flow "pass" while proving nothing about whether the plugin can read a real
  * answer.
  */
-function claudpress_rig_answer(string $prompt): string {
+function keelhob_rig_answer(string $prompt): string {
     $p = strtolower($prompt);
 
     if (strpos($p, 'you are reviewing') !== false) {
@@ -185,13 +185,13 @@ It runs on every front-end request, so keep it small.";
     // Default: a snippet. Deliberately valid PHP, so the lint gate passes and the
     // test exercises the SUCCESS path. Flip a character in a test to exercise
     // the refusal path instead.
-    // Bare PHP, no opening tag: that is how Claudpress stores snippets, and
+    // Bare PHP, no opening tag: that is how Keelhob stores snippets, and
     // lint_php() prepends its own. A mock that returned a tagged snippet would
     // have hidden the very bug this caught.
     return "add_filter('the_content', function (\$content) {\n    return \$content . '<!-- mocked snippet -->';\n});";
 }
 
-function claudpress_rig_last_user_text(array $sent): string {
+function keelhob_rig_last_user_text(array $sent): string {
     foreach (['messages', 'contents'] as $key) {
         if (empty($sent[$key]) || !is_array($sent[$key])) {
             continue;
@@ -209,7 +209,7 @@ function claudpress_rig_last_user_text(array $sent): string {
     return (string) ($sent['system'] ?? '');
 }
 
-function claudpress_rig_response(array $body): array {
+function keelhob_rig_response(array $body): array {
     return [
         'headers'  => [],
         'body'     => wp_json_encode($body),
@@ -219,7 +219,7 @@ function claudpress_rig_response(array $body): array {
     ];
 }
 
-function claudpress_rig_system_text(array $sent): string {
+function keelhob_rig_system_text(array $sent): string {
     if (is_string($sent['system'] ?? null)) {
         return $sent['system'];
     }

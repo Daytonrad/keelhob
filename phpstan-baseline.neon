@@ -7,19 +7,19 @@
 #       php-stubs/woocommerce-stubs would remove all 44 and is a reasonable
 #       future change; it was left out to keep the dev dependency list at two.
 #
-#    9  CLAUDPRESS_DIR / CLAUDPRESS_URL / CLAUDPRESS_BASENAME "not found". PHPStan
+#    9  KEELHOB_DIR / KEELHOB_URL / KEELHOB_BASENAME "not found". PHPStan
 #       does not carry define() across files. All three are defined unconditionally
-#       in claudpress.php before anything that uses them loads.
+#       in keelhob.php before anything that uses them loads.
 #
 #    1  a style rule about DOING_CRON.
 #
 # Three findings that WERE real bugs are not in this list, because they were
 # fixed rather than baselined:
 #
-#   - class-tools-seo.php called Claudpress_Tools_Seo; the class is declared
-#     Claudpress_Tools_SEO. PHP does not care. A case-sensitive class map does,
+#   - class-tools-seo.php called Keelhob_Tools_Seo; the class is declared
+#     Keelhob_Tools_SEO. PHP does not care. A case-sensitive class map does,
 #     and the autoloader added in the same change is one.
-#   - Claudpress_Studio::redirect() ends in exit, which made the code after
+#   - Keelhob_Studio::redirect() ends in exit, which made the code after
 #     every guard clause look reachable. Now documented as @phpstan-return never.
 #
 # If you are adding to this file, stop and ask whether the finding is real. The
@@ -28,7 +28,7 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Constant CLAUDPRESS_URL not found\.$#'
+			message: '#^Constant KEELHOB_URL not found\.$#'
 			identifier: constant.notFound
 			count: 1
 			path: includes/class-brand.php
@@ -36,7 +36,7 @@ parameters:
 		# Same cause as class-brand.php above: the two Studio screens now enqueue
 		# real JavaScript files, which need the plugin URL to build their src.
 		-
-			message: '#^Constant CLAUDPRESS_URL not found\.$#'
+			message: '#^Constant KEELHOB_URL not found\.$#'
 			identifier: constant.notFound
 			count: 1
 			path: includes/class-studio-edit.php
@@ -44,15 +44,15 @@ parameters:
 		# Compose enqueues two: the shared Studio stylesheet (its chat bubbles
 		# live there) and its own script.
 		-
-			message: '#^Constant CLAUDPRESS_URL not found\.$#'
+			message: '#^Constant KEELHOB_URL not found\.$#'
 			identifier: constant.notFound
 			count: 2
 			path: includes/class-studio-compose.php
 
-		# And the shared Studio stylesheet, enqueued from Claudpress_Studio so
+		# And the shared Studio stylesheet, enqueued from Keelhob_Studio so
 		# the list and the editor cannot style the same screen differently.
 		-
-			message: '#^Constant CLAUDPRESS_URL not found\.$#'
+			message: '#^Constant KEELHOB_URL not found\.$#'
 			identifier: constant.notFound
 			count: 1
 			path: includes/class-studio.php
@@ -76,7 +76,7 @@ parameters:
 			path: includes/class-digest.php
 
 		-
-			message: '#^Constant CLAUDPRESS_BASENAME not found\.$#'
+			message: '#^Constant KEELHOB_BASENAME not found\.$#'
 			identifier: constant.notFound
 			count: 2
 			path: includes/class-donate.php
@@ -88,20 +88,20 @@ parameters:
 			path: includes/class-migration.php
 
 		-
-			message: '#^Constant CLAUDPRESS_DIR not found\.$#'
+			message: '#^Constant KEELHOB_DIR not found\.$#'
 			identifier: constant.notFound
 			count: 1
 			path: includes/class-skills.php
 
-		# Claudpress::asset_version() stats the bundled file to cache-bust it by
+		# Keelhob::asset_version() stats the bundled file to cache-bust it by
 		# mtime. Same cause as every other entry in this group: PHPStan does not
-		# carry define() across files, and CLAUDPRESS_DIR is defined
-		# unconditionally in claudpress.php before anything that uses it loads.
+		# carry define() across files, and KEELHOB_DIR is defined
+		# unconditionally in keelhob.php before anything that uses it loads.
 		-
-			message: '#^Constant CLAUDPRESS_DIR not found\.$#'
+			message: '#^Constant KEELHOB_DIR not found\.$#'
 			identifier: constant.notFound
 			count: 1
-			path: includes/class-claudpress.php
+			path: includes/class-keelhob.php
 
 		-
 			message: '#^Found usage of constant DOING_CRON\. Use wp_doing_cron\(\) instead\.$#'
@@ -110,7 +110,7 @@ parameters:
 			path: includes/class-snippet-log.php
 
 		-
-			message: '#^Constant CLAUDPRESS_BASENAME not found\.$#'
+			message: '#^Constant KEELHOB_BASENAME not found\.$#'
 			identifier: constant.notFound
 			count: 2
 			path: includes/class-updater.php
@@ -242,13 +242,13 @@ parameters:
 			path: includes/tools/class-tools-woocommerce.php
 
 		-
-			message: '#^Parameter \$o of method Claudpress_Tools_WooCommerce\:\:serialize_order\(\) has invalid type WC_Order\.$#'
+			message: '#^Parameter \$o of method Keelhob_Tools_WooCommerce\:\:serialize_order\(\) has invalid type WC_Order\.$#'
 			identifier: class.notFound
 			count: 1
 			path: includes/tools/class-tools-woocommerce.php
 
 		-
-			message: '#^Parameter \$p of method Claudpress_Tools_WooCommerce\:\:serialize_product\(\) has invalid type WC_Product\.$#'
+			message: '#^Parameter \$p of method Keelhob_Tools_WooCommerce\:\:serialize_product\(\) has invalid type WC_Product\.$#'
 			identifier: class.notFound
 			count: 1
 			path: includes/tools/class-tools-woocommerce.php

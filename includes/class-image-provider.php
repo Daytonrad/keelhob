@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
  * request in, raw image bytes out. Each adapter builds its vendor's request and
  * digs the bytes out of whatever envelope comes back.
  */
-abstract class Claudpress_Image_Provider
+abstract class Keelhob_Image_Provider
 {
     abstract public static function id(): string;
     abstract public static function label(): string;
@@ -92,24 +92,24 @@ abstract class Claudpress_Image_Provider
         return null;
     }
 
-    /** @return array<string, class-string<Claudpress_Image_Provider>> */
+    /** @return array<string, class-string<Keelhob_Image_Provider>> */
     public static function providers(): array
     {
-        return (array) apply_filters('claudpress_image_providers', [
-            'openai' => Claudpress_Image_Provider_OpenAI::class,
-            'google' => Claudpress_Image_Provider_Google::class,
+        return (array) apply_filters('keelhob_image_providers', [
+            'openai' => Keelhob_Image_Provider_OpenAI::class,
+            'google' => Keelhob_Image_Provider_Google::class,
         ]);
     }
 
     public static function get(string $id): string
     {
         $all = self::providers();
-        return $all[$id] ?? Claudpress_Image_Provider_OpenAI::class;
+        return $all[$id] ?? Keelhob_Image_Provider_OpenAI::class;
     }
 
     public static function current(): string
     {
-        $s = Claudpress::instance()->settings();
+        $s = Keelhob::instance()->settings();
         return self::get((string) ($s['image_provider'] ?? 'openai'));
     }
 }

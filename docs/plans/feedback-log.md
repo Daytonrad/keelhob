@@ -34,7 +34,7 @@ Stated first, because the difference is the whole feature:
 
 `PRIVACY.md:14` says, in writing:
 
-> Claudpress has no analytics, no session recording, no error reporting service,
+> Keelhob has no analytics, no session recording, no error reporting service,
 > no advertising, and no third-party scripts anywhere in the admin.
 
 PostHog was rejected for the plugin on that exact sentence. **This sends more
@@ -60,13 +60,13 @@ So friction accumulates **on the site**, and a report bundles what has built up.
 
 ### 1.2 Mostly automatic, because most of it needs no agent
 
-`Claudpress_Tool_Registry::call()` is the choke point every tool call passes
+`Keelhob_Tool_Registry::call()` is the choke point every tool call passes
 through. It can see the important things by itself:
 
 | Recorded automatically | Detected by |
 |---|---|
 | A tool returned an error | the tool's own `success: false` |
-| A capability or policy blocked legitimate work | `Claudpress_Policy::check()` returning a reason |
+| A capability or policy blocked legitimate work | `Keelhob_Policy::check()` returning a reason |
 | The same tool called with near-identical arguments 3+ times | hash of `name + args`, compared within a run |
 
 **Zero tokens. Zero conversation content. Cannot be skipped by an agent that
@@ -132,7 +132,7 @@ policy_blocked         a capability or policy stopped legitimate work
 
 ### 1.5 What is never stored or sent, enforced in PHP
 
-`Claudpress_Feedback::redact()`, applied on write to the local log AND again
+`Keelhob_Feedback::redact()`, applied on write to the local log AND again
 before sending:
 
 | Stripped | Why |
@@ -155,9 +155,9 @@ a well-meaning agent. If redaction removes anything the row records
 
 ### 2.1 The setting
 
-**Claudpress → Settings → one checkbox, default ON:**
+**Keelhob → Settings → one checkbox, default ON:**
 
-> ☑ **Help improve Claudpress**
+> ☑ **Help improve Keelhob**
 > When something goes wrong, note it locally. About once a week the agent will
 > offer to send a short, anonymous summary — you see exactly what it says and
 > approve it first. No site address, no content, no keys. Switch this off and
@@ -205,7 +205,7 @@ A worked example:
 
 ```
 Before we finish — a few things went wrong over the last couple of weeks.
-I can send this to the Claudpress project. This is all of it:
+I can send this to the Keelhob project. This is all of it:
 
   1  wrong_visual_result  elementor_page  x3
      Hero rebuilt three times; the section IDs are not returned, so each
@@ -245,7 +245,7 @@ lines (a 40-line approval prompt is not read, therefore not consent).
 
 ### 3.2 The endpoint
 
-`POST /v1/feedback` on the existing `claudpress-api`. No new infrastructure, and
+`POST /v1/feedback` on the existing `keelhob-api`. No new infrastructure, and
 it inherits the throttling and hardening already there.
 
 - **Unauthenticated**, like `/v1/version`. Shipping a key in a GPL plugin does
@@ -296,11 +296,11 @@ next to the log, and a sentence in PRIVACY.md saying it exists.
     9  docs_gap              seo_meta            seo-optimization
   ```
 
-- **Public:** a page on claudpress.com showing **only the grouped counts** —
+- **Public:** a page on keelhob.com showing **only the grouped counts** —
   never a `note`, never a report. Contributors can pick up the top item without
   waiting to be asked, and an outsider can see the project is genuinely used.
   That second effect matters for the reasons in
-  `claudpress-vital/FUNDING-AND-SPONSORS.md`.
+  `keelhob-vital/FUNDING-AND-SPONSORS.md`.
 
   **Rejected:** auto-opening a GitHub issue past a threshold. A bad or
   embarrassing report would publish itself before anyone saw it.
@@ -397,7 +397,7 @@ moment this becomes telemetry, and the answer is no.
 
 ## Order of work
 
-1. `Claudpress_Feedback::redact()` + planted-failure tests — the guarantee first
+1. `Keelhob_Feedback::redact()` + planted-failure tests — the guarantee first
 2. The local log: automatic capture in `Tool_Registry::call()`, retention, the
    owner's panel and Clear button
 3. Setting, admin copy, protocol rule 15, the approval loop

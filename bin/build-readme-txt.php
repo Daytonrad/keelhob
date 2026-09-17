@@ -35,7 +35,7 @@
  * and README.md sends a developer to docs/features.md instead.
  *
  * The version. tests/unit/test-integrity.php already asserts the plugin header,
- * CLAUDPRESS_VERSION and the Stable tag agree, and that a changelog entry
+ * KEELHOB_VERSION and the Stable tag agree, and that a changelog entry
  * exists for the current version. That check has already caught a real miss.
  * Two mechanisms guarding one fact is one too many.
  */
@@ -48,7 +48,7 @@ const SHARED = [
 ];
 
 /** Repo-relative links have to become absolute once they leave the repo. */
-const BLOB = 'https://github.com/calflint/claudpress/blob/main/';
+const BLOB = 'https://github.com/calflint/keelhob/blob/main/';
 
 const WRAP = 100;
 

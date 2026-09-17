@@ -52,7 +52,7 @@ $html = wp_remote_retrieve_body( wp_remote_get( $url ) );
 Run this through `execute_php`. Do not report a meta tag, schema block, or crawler file as
 present until you have seen it in the fetched body — never from memory of having set it.
 
-The `seo_*` tools write to whatever SEO plugin is active (Yoast, Rank Math, AIOSEO, SEOPress) and fall back to Claudpress's own head injection when none is present — so your changes apply either way.
+The `seo_*` tools write to whatever SEO plugin is active (Yoast, Rank Math, AIOSEO, SEOPress) and fall back to Keelhob's own head injection when none is present — so your changes apply either way.
 
 ## Before writing anything
 If the site has brand/voice reference material (check `memory_get` for a saved brand brief, voice guide, or fact sheet), read it first. An AI search engine isn't matching keywords — it's deciding *who to recommend* — so generic copy that could belong to any site is a GEO liability, not just a style problem. Avoid AI-tell phrasing ("unlock," "leverage," "seamless," "in today's fast-paced world"); lead with a direct answer, not a preamble ("In this article we'll explore...").
@@ -77,8 +77,8 @@ If the site has brand/voice reference material (check `memory_get` for a saved b
 
 ## Structured data
 `seo_schema action=set` two ways:
-- **Hand-written**: pass `schema={...}` (or an array of objects — Claudpress combines them into one `@graph` so a page can carry `Article` + `FAQPage` + `BreadcrumbList` together). Match the type to the page: `Article`/`BlogPosting` for posts, `Product` (+ `offers`, `aggregateRating`) for products, `LocalBusiness`/`Organization` site-wide, `BreadcrumbList` for navigation.
-- **Generated**: pass `generate=article|faq|howto|local_business|person` with `data={...}` and Claudpress builds valid JSON-LD for you — `generate=article` automatically pulls the post author into a `Person` sub-schema (name, bio, author URL), which is exactly the attribution data AI engines use to decide whose content to trust and cite. `generate=faq` takes `data={"items":[{"question":"...","answer":"..."}]}` and is the fastest way to make FAQ-style headings machine-citable, not just human-readable.
+- **Hand-written**: pass `schema={...}` (or an array of objects — Keelhob combines them into one `@graph` so a page can carry `Article` + `FAQPage` + `BreadcrumbList` together). Match the type to the page: `Article`/`BlogPosting` for posts, `Product` (+ `offers`, `aggregateRating`) for products, `LocalBusiness`/`Organization` site-wide, `BreadcrumbList` for navigation.
+- **Generated**: pass `generate=article|faq|howto|local_business|person` with `data={...}` and Keelhob builds valid JSON-LD for you — `generate=article` automatically pulls the post author into a `Person` sub-schema (name, bio, author URL), which is exactly the attribution data AI engines use to decide whose content to trust and cite. `generate=faq` takes `data={"items":[{"question":"...","answer":"..."}]}` and is the fastest way to make FAQ-style headings machine-citable, not just human-readable.
 
 Always use real values from the page — never placeholder text.
 

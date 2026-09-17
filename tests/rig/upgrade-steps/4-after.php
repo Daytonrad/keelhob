@@ -26,7 +26,7 @@ global $wpdb;
  * A test that prints failures and then calls itself green is worse than no test
  * at all, so the count is kept somewhere the function can actually reach.
  */
-function cp_tally(?bool $ok = null): array
+function kh_tally(?bool $ok = null): array
 {
     static $pass = 0;
     static $fail = 0;
@@ -40,15 +40,15 @@ function cp_tally(?bool $ok = null): array
 
 function check(string $label, bool $ok, string $detail = ''): void
 {
-    cp_tally($ok);
+    kh_tally($ok);
     printf("      %s  %s%s\n", $ok ? 'PASS' : 'FAIL', str_pad($label, 58), $detail);
 }
 
-$before   = (array) get_option('cp_upgrade_before', []);
-$store    = (array) get_option('cp_upgrade_ids', []);
+$before   = (array) get_option('kh_upgrade_before', []);
+$store    = (array) get_option('kh_upgrade_ids', []);
 $ids      = (array) ($store['ids'] ?? []);
-$neighbour = (array) get_option('cp_upgrade_neighbour', []);
-$t        = Claudpress_Snippets::table();
+$neighbour = (array) get_option('kh_upgrade_neighbour', []);
+$t        = Keelhob_Snippets::table();
 
 if (empty($before)) {
     echo "      FAILED: no 'before' fingerprint — step 3 did not run.\n";
@@ -58,12 +58,12 @@ if (empty($before)) {
 // ---- 0. the upgrade actually happened -------------------------------------
 check(
     'the plugin is running the new version',
-    CLAUDPRESS_VERSION !== (string) ($store['old_ver'] ?? ''),
-    (string) ($store['old_ver'] ?? '?') . ' -> ' . CLAUDPRESS_VERSION
+    KEELHOB_VERSION !== (string) ($store['old_ver'] ?? ''),
+    (string) ($store['old_ver'] ?? '?') . ' -> ' . KEELHOB_VERSION
 );
 check(
     'and the migration ran and recorded itself',
-    (string) get_option('claudpress_db_version', '') === CLAUDPRESS_VERSION
+    (string) get_option('keelhob_db_version', '') === KEELHOB_VERSION
 );
 
 // ---- 1. nothing was lost ---------------------------------------------------
@@ -87,24 +87,24 @@ foreach ((array) $before['snippets'] as $label => $was) {
     check("  ...and its stored conditions NOT rewritten", (string) $now['conditions_json'] === (string) $was['conditions_json']);
 }
 
-$rev_table = Claudpress_Snippets::revisions_table();
+$rev_table = Keelhob_Snippets::revisions_table();
 $revs_now  = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$rev_table} WHERE snippet_id = %d", (int) ($ids['revisions'] ?? 0)));
 check('revision history is intact', $revs_now >= (int) $before['counts']['revisions'], $before['counts']['revisions'] . ' -> ' . $revs_now);
 
-check('memory rows survived', (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . $wpdb->prefix . 'claudpress_memory') >= (int) $before['counts']['memory']);
-$memory = new Claudpress_Memory();
+check('memory rows survived', (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . $wpdb->prefix . 'keelhob_memory') >= (int) $before['counts']['memory']);
+$memory = new Keelhob_Memory();
 check("  ...and the value is readable", strpos((string) wp_json_encode($memory->get('up-memory-key')), 'before the upgrade') !== false);
 
-$custom = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $wpdb->prefix . "claudpress_skills WHERE name = %s", 'up-custom-skill'), ARRAY_A);
+$custom = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $wpdb->prefix . "keelhob_skills WHERE name = %s", 'up-custom-skill'), ARRAY_A);
 check("the owner's own skill was not overwritten", $custom && strpos((string) $custom['body'], 'This is a fixture') !== false);
 
-check('settings survived', (string) Claudpress::instance()->get('agent_model', '') === (string) $before['settings']['agent_model']);
-check('  ...including abilities being ON', (bool) Claudpress::instance()->get('abilities_enabled', false) === (bool) $before['settings']['abilities_enabled']);
+check('settings survived', (string) Keelhob::instance()->get('agent_model', '') === (string) $before['settings']['agent_model']);
+check('  ...including abilities being ON', (bool) Keelhob::instance()->get('abilities_enabled', false) === (bool) $before['settings']['abilities_enabled']);
 
 // ---- 2. nothing was silently granted ---------------------------------------
 $caps_now = [];
-foreach (array_keys(Claudpress_Capabilities::groups()) as $g) {
-    if (Claudpress_Capabilities::is_group_enabled($g)) {
+foreach (array_keys(Keelhob_Capabilities::groups()) as $g) {
+    if (Keelhob_Capabilities::is_group_enabled($g)) {
         $caps_now[] = $g;
     }
 }
@@ -130,13 +130,13 @@ check('  ...and no PHP error leaked onto the page', stripos($body, 'fatal error'
 // This is the part a fresh install can never test: 1.2.0's condition engine
 // meeting a row written months earlier by a version that had no idea it was
 // coming.
-$flat_row = Claudpress_Snippets::get((int) ($ids['flat'] ?? 0));
+$flat_row = Keelhob_Snippets::get((int) ($ids['flat'] ?? 0));
 
 // normalize(), NOT decode(). decode() is only a JSON parser; normalize() is the
 // thing that lifts the old flat shape. Calling decode() here reported "rules: 0"
 // and looked exactly like a migration that had silently dropped somebody's
 // conditions — the test was wrong, not the plugin.
-$lifted = Claudpress_Snippet_Conditions::normalize($flat_row['conditions_json'] ?? '');
+$lifted = Keelhob_Snippet_Conditions::normalize($flat_row['conditions_json'] ?? '');
 
 // Rules are matched by TYPE, not by searching the JSON for a substring. The
 // legacy key is "post_types" and the new type is "post_type", so a substring
@@ -164,7 +164,7 @@ foreach ((array) $lifted['rules'] as $rule) {
 }
 check('  ...and the only_singular exemption is preserved', $exempt >= 2, $exempt . ' rule(s) carry it');
 
-$plain_row = Claudpress_Snippets::get((int) ($ids['plain'] ?? 0));
+$plain_row = Keelhob_Snippets::get((int) ($ids['plain'] ?? 0));
 check('a snippet with no conditions did NOT gain any', empty($plain_row['conditions_json']));
 
 // The editor is where an owner meets their upgraded data. A row that survives
@@ -173,19 +173,19 @@ ob_start();
 $_GET['snippet'] = (int) ($ids['flat'] ?? 0);
 $_GET['tab']     = 'edit';
 wp_set_current_user(1);
-Claudpress_Studio_Edit::render();
+Keelhob_Studio_Edit::render();
 $html = (string) ob_get_clean();
 check('the editor renders an upgraded snippet without dying', strlen($html) > 500 && stripos($html, 'fatal error') === false, strlen($html) . ' bytes');
-check('  ...and the rule builder is on the page', strpos($html, 'cp-conditions') !== false);
+check('  ...and the rule builder is on the page', strpos($html, 'kh-conditions') !== false);
 // The checkbox must be TICKED. A builder that renders with conditions switched
 // off tells an upgrading owner their rules are gone, whatever the row says.
-check('  ...with conditions shown as switched ON', preg_match('/id="cp-cond-enabled"[^>]*checked/', $html) === 1);
+check('  ...with conditions shown as switched ON', preg_match('/id="kh-cond-enabled"[^>]*checked/', $html) === 1);
 check('  ...and the relation control is rendered', strpos($html, 'conditions_relation') !== false);
 
 /*
  * THE RULES ARE HANDED TO JAVASCRIPT, NOT PRINTED.
  *
- * <div id="cp-cond-rules"> ships EMPTY; the builder draws the rows from data
+ * <div id="kh-cond-rules"> ships EMPTY; the builder draws the rows from data
  * passed through wp_localize_script. Searching the server HTML for "front_page"
  * therefore failed while the feature worked perfectly — the assertion was
  * reading the wrong layer, not finding a bug.
@@ -193,7 +193,7 @@ check('  ...and the relation control is rendered', strpos($html, 'conditions_rel
  * So check the payload the script is actually given. That is the real seam
  * between "the row was lifted" and "the owner can see their rules".
  */
-$localized = (string) wp_scripts()->get_data('claudpress-studio-edit', 'data');
+$localized = (string) wp_scripts()->get_data('keelhob-studio-edit', 'data');
 check('  ...and the lifted rules are handed to the rule builder', strpos($localized, 'front_page') !== false && strpos($localized, 'user_status') !== false);
 check('  ...with the post-type rule among them', strpos($localized, 'post_type') !== false);
 
@@ -206,20 +206,20 @@ check('  ...and the users', (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->u
 // ---- teardown -------------------------------------------------------------
 // In the same run that asserted on them, pass or fail.
 foreach ($ids as $id) {
-    Claudpress_Snippets::delete((int) $id);
+    Keelhob_Snippets::delete((int) $id);
 }
 $memory->delete('up-memory-key');
 if ($custom) {
-    (new Claudpress_Skills())->delete((string) $custom['name']);
+    (new Keelhob_Skills())->delete((string) $custom['name']);
 }
-delete_option('cp_upgrade_before');
-delete_option('cp_upgrade_ids');
-delete_option('cp_upgrade_neighbour');
+delete_option('kh_upgrade_before');
+delete_option('kh_upgrade_ids');
+delete_option('kh_upgrade_neighbour');
 
 $left = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$t} WHERE name LIKE 'UP %'");
 check('fixtures torn down', $left === 0, $left . ' left');
 
-$tally = cp_tally();
+$tally = kh_tally();
 printf("\n      %d passed, %d failed\n", $tally['pass'], $tally['fail']);
 if ($tally['fail'] > 0) {
     exit(1);

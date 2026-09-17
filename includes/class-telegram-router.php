@@ -8,8 +8,8 @@
  * starts an agent run, and the only part that writes back to the conversation.
  *
  * Everything it needs is borrowed rather than owned: the allowlist, the roles
- * and the conversation store are Claudpress_Telegram's, and every byte on the
- * wire goes through Claudpress_Telegram_Api. That leaves this file as the
+ * and the conversation store are Keelhob_Telegram's, and every byte on the
+ * wire goes through Keelhob_Telegram_Api. That leaves this file as the
  * decisions, which is the part worth reading when the bot does something
  * unexpected.
  */
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Telegram_Router
+final class Keelhob_Telegram_Router
 {
     // ---- inbound ----------------------------------------------------------
 
@@ -29,7 +29,7 @@ final class Claudpress_Telegram_Router
      */
     public static function handle_update(array $update): array
     {
-        if (!Claudpress_Telegram::enabled()) {
+        if (!Keelhob_Telegram::enabled()) {
             return ['ok' => false, 'reason' => 'disabled'];
         }
 
@@ -38,14 +38,14 @@ final class Claudpress_Telegram_Router
         // high-water mark makes a replay a no-op instead of doing the work twice.
         // The mark is per BOT, not global: update_id is monotonic within one
         // bot, so a mark left by a previous token makes every message from a
-        // new one look like a replay. See Claudpress_Telegram::last_update_id().
+        // new one look like a replay. See Keelhob_Telegram::last_update_id().
         $update_id = (int) ($update['update_id'] ?? 0);
-        $last      = Claudpress_Telegram::last_update_id();
+        $last      = Keelhob_Telegram::last_update_id();
         if ($update_id > 0 && $update_id <= $last) {
             return ['ok' => true, 'reason' => 'duplicate'];
         }
         if ($update_id > 0) {
-            Claudpress_Telegram::remember_update_id($update_id);
+            Keelhob_Telegram::remember_update_id($update_id);
         }
 
         if (is_array($update['callback_query'] ?? null)) {
@@ -60,23 +60,23 @@ final class Claudpress_Telegram_Router
             return ['ok' => true, 'reason' => 'no chat'];
         }
 
-        if (Claudpress_Telegram::role_for($chat_id) === null) {
+        if (Keelhob_Telegram::role_for($chat_id) === null) {
             // Tell them their id and nothing else. The owner needs this exact
             // number to allowlist themselves, and it reveals nothing about the
             // site to anyone else who stumbles onto the bot.
-            Claudpress_Telegram_Api::send($chat_id, "Not authorised for this site.\n\nYour chat id is " . $chat_id . " — the site owner can add it in WP Admin → Claudpress → Automation.");
+            Keelhob_Telegram_Api::send($chat_id, "Not authorised for this site.\n\nYour chat id is " . $chat_id . " — the site owner can add it in WP Admin → Keelhob → Automation.");
             return ['ok' => true, 'reason' => 'not allowed'];
         }
 
         // Voice notes and photos become text (plus, for photos, an image the
         // model can see) before anything else looks at the message.
-        $media = Claudpress_Telegram_Api::extract_media($message);
+        $media = Keelhob_Telegram_Api::extract_media($message);
         $image = null;
 
         if ($media !== null) {
             $converted = self::absorb_media($chat_id, $media, trim((string) ($message['caption'] ?? '')));
             if (empty($converted['success'])) {
-                Claudpress_Telegram_Api::send($chat_id, '⚠️ ' . (string) $converted['error']);
+                Keelhob_Telegram_Api::send($chat_id, '⚠️ ' . (string) $converted['error']);
                 return ['ok' => true, 'reason' => 'media failed'];
             }
             $text  = (string) $converted['text'];
@@ -84,15 +84,15 @@ final class Claudpress_Telegram_Router
         }
 
         if ($text === '') {
-            Claudpress_Telegram_Api::send($chat_id, 'I got that, but there was nothing in it for me to act on — send some text, a voice note, or a photo with a caption.');
+            Keelhob_Telegram_Api::send($chat_id, 'I got that, but there was nothing in it for me to act on — send some text, a voice note, or a photo with a caption.');
             return ['ok' => true, 'reason' => 'no text'];
         }
 
-        $parsed = Claudpress_Telegram::parse_command($text);
+        $parsed = Keelhob_Telegram::parse_command($text);
         if ($parsed['cmd'] !== '') {
             $reply = self::run_command($chat_id, $parsed['cmd'], $parsed['args']);
             if ($reply !== null) {
-                Claudpress_Telegram_Api::send($chat_id, $reply);
+                Keelhob_Telegram_Api::send($chat_id, $reply);
                 return ['ok' => true, 'reason' => 'command:' . $parsed['cmd']];
             }
             // Unknown command — fall through and let the agent read it as text.
@@ -110,25 +110,25 @@ final class Claudpress_Telegram_Router
     private static function absorb_media(string $chat_id, array $media, string $caption): array
     {
         if ($media['kind'] === 'voice') {
-            if (!Claudpress_Telegram::voice_enabled()) {
+            if (!Keelhob_Telegram::voice_enabled()) {
                 return ['success' => false, 'error' => 'Voice notes are switched off (or have no transcription key). Send text instead.'];
             }
-            Claudpress_Telegram_Api::typing($chat_id);
-            $t = Claudpress_Telegram_Api::transcribe($media['file_id'], $media['mime']);
+            Keelhob_Telegram_Api::typing($chat_id);
+            $t = Keelhob_Telegram_Api::transcribe($media['file_id'], $media['mime']);
             if (empty($t['success'])) {
                 return ['success' => false, 'error' => 'I could not transcribe that: ' . (string) $t['error']];
             }
             // Echo the transcript back: a wrong transcription that silently acts
             // on the site is much worse than one the owner can see and correct.
-            Claudpress_Telegram_Api::send($chat_id, '🎙 ' . (string) $t['text']);
+            Keelhob_Telegram_Api::send($chat_id, '🎙 ' . (string) $t['text']);
             return ['success' => true, 'text' => trim((string) $t['text'])];
         }
 
-        if (!Claudpress_Telegram::photos_enabled()) {
-            return ['success' => false, 'error' => 'Photos are switched off. Describe it in words, or enable photos in Claudpress → Automation → Chat.'];
+        if (!Keelhob_Telegram::photos_enabled()) {
+            return ['success' => false, 'error' => 'Photos are switched off. Describe it in words, or enable photos in Keelhob → Automation → Chat.'];
         }
 
-        $file = Claudpress_Telegram_Api::fetch_file($media['file_id']);
+        $file = Keelhob_Telegram_Api::fetch_file($media['file_id']);
         if (empty($file['success'])) {
             return ['success' => false, 'error' => 'I could not download that image: ' . (string) $file['error']];
         }
@@ -167,11 +167,11 @@ final class Claudpress_Telegram_Router
 
         $answer = static function (string $text) use ($cb_id): void {
             if ($cb_id !== '') {
-                Claudpress_Telegram_Api::api('answerCallbackQuery', ['callback_query_id' => $cb_id, 'text' => $text]);
+                Keelhob_Telegram_Api::api('answerCallbackQuery', ['callback_query_id' => $cb_id, 'text' => $text]);
             }
         };
 
-        if ($chat_id === '' || Claudpress_Telegram::role_for($chat_id) === null) {
+        if ($chat_id === '' || Keelhob_Telegram::role_for($chat_id) === null) {
             $answer('Not authorised.');
             return ['ok' => true, 'reason' => 'callback not allowed'];
         }
@@ -181,28 +181,28 @@ final class Claudpress_Telegram_Router
         }
 
         [, $verdict, $token] = $m;
-        $row = Claudpress_Telegram::claim_approval($token, $chat_id);
+        $row = Keelhob_Telegram::claim_approval($token, $chat_id);
 
         if ($row === null) {
             $answer('That request has expired.');
-            Claudpress_Telegram_Api::edit($chat_id, $msg_id, '⌛ That approval expired. Send the instruction again if you still want it.');
+            Keelhob_Telegram_Api::edit($chat_id, $msg_id, '⌛ That approval expired. Send the instruction again if you still want it.');
             return ['ok' => true, 'reason' => 'callback expired'];
         }
 
         if ($verdict === 'no') {
             $answer('Left alone.');
-            Claudpress_Telegram_Api::edit($chat_id, $msg_id, '✋ Left alone. Nothing was changed.');
+            Keelhob_Telegram_Api::edit($chat_id, $msg_id, '✋ Left alone. Nothing was changed.');
             return ['ok' => true, 'reason' => 'declined'];
         }
 
-        if (!Claudpress_Telegram::may_escalate($chat_id)) {
+        if (!Keelhob_Telegram::may_escalate($chat_id)) {
             $answer('Not permitted.');
-            Claudpress_Telegram_Api::edit($chat_id, $msg_id, '🔒 Approvals are locked for this chat, so I did not run it.');
+            Keelhob_Telegram_Api::edit($chat_id, $msg_id, '🔒 Approvals are locked for this chat, so I did not run it.');
             return ['ok' => true, 'reason' => 'escalation locked'];
         }
 
         $answer('Running it now.');
-        Claudpress_Telegram_Api::edit($chat_id, $msg_id, '✅ Approved — running it now.');
+        Keelhob_Telegram_Api::edit($chat_id, $msg_id, '✅ Approved — running it now.');
 
         return self::run_chat($chat_id, (string) $row['instruction'], null, true);
     }
@@ -215,60 +215,60 @@ final class Claudpress_Telegram_Router
      */
     private static function run_chat(string $chat_id, string $text, ?array $image = null, bool $approved = false): array
     {
-        $lock = 'claudpress_tg_busy_' . md5($chat_id);
+        $lock = 'keelhob_tg_busy_' . md5($chat_id);
         if (get_transient($lock)) {
-            Claudpress_Telegram_Api::send($chat_id, '⏳ Still working on your last message. Send this again once I reply.');
+            Keelhob_Telegram_Api::send($chat_id, '⏳ Still working on your last message. Send this again once I reply.');
             return ['ok' => true, 'reason' => 'busy'];
         }
-        set_transient($lock, 1, Claudpress_Telegram::BUSY_TTL);
+        set_transient($lock, 1, Keelhob_Telegram::BUSY_TTL);
 
-        $role = (string) (Claudpress_Telegram::role_for($chat_id) ?? 'viewer');
-        Claudpress_Telegram_Api::typing($chat_id);
+        $role = (string) (Keelhob_Telegram::role_for($chat_id) ?? 'viewer');
+        Keelhob_Telegram_Api::typing($chat_id);
         @set_time_limit(0);
 
         // One message that becomes the running commentary and then the answer.
-        $progress_id = Claudpress_Telegram::progress_enabled() ? Claudpress_Telegram_Api::send($chat_id, '⚙️ Working…') : 0;
+        $progress_id = Keelhob_Telegram::progress_enabled() ? Keelhob_Telegram_Api::send($chat_id, '⚙️ Working…') : 0;
         $steps       = [];
 
         $opts = [
-            'history'     => Claudpress_Telegram::history($chat_id, Claudpress_Telegram::history_turns()),
+            'history'     => Keelhob_Telegram::history($chat_id, Keelhob_Telegram::history_turns()),
             'interactive' => true,
             'channel'     => 'Telegram',
             'context'     => 'telegram',
-            'allow_risky' => $approved || Claudpress_Telegram::risky_allowed($chat_id),
+            'allow_risky' => $approved || Keelhob_Telegram::risky_allowed($chat_id),
         ];
         if ($image !== null) {
             $opts['image'] = $image;
         }
         if ($role === 'viewer') {
-            $opts['allow_tools'] = Claudpress_Capabilities::viewer_tools(Claudpress::instance()->registry->list());
+            $opts['allow_tools'] = Keelhob_Capabilities::viewer_tools(Keelhob::instance()->registry->list());
         }
         if ($progress_id > 0) {
             $opts['on_step'] = static function (array $step) use ($chat_id, $progress_id, &$steps): void {
                 $steps[] = $step;
-                Claudpress_Telegram_Api::progress($chat_id, $progress_id, Claudpress_Telegram::format_progress($steps));
+                Keelhob_Telegram_Api::progress($chat_id, $progress_id, Keelhob_Telegram::format_progress($steps));
             };
         }
 
         // Record content changes so /undo has something to put back. Viewers
         // cannot change anything, so there is nothing to record for them.
         if ($role !== 'viewer') {
-            Claudpress_Undo::start($chat_id);
+            Keelhob_Undo::start($chat_id);
         }
 
         try {
-            $run = Claudpress_Agent_Runtime::run($text, $opts);
+            $run = Keelhob_Agent_Runtime::run($text, $opts);
         } catch (Throwable $e) {
-            Claudpress_Undo::finish();
+            Keelhob_Undo::finish();
             delete_transient($lock);
             self::deliver($chat_id, $progress_id, '⚠️ Something broke while running that: ' . $e->getMessage());
             return ['ok' => false, 'reason' => 'exception'];
         }
 
-        $undoable = Claudpress_Undo::finish();
+        $undoable = Keelhob_Undo::finish();
         delete_transient($lock);
 
-        $reply = Claudpress_Telegram::format_reply($run);
+        $reply = Keelhob_Telegram::format_reply($run);
         if ($undoable > 0) {
             $reply .= "\n" . '↩︎ /undo puts back ' . $undoable . ' ' . ($undoable === 1 ? 'item' : 'items') . '.';
         }
@@ -276,16 +276,16 @@ final class Claudpress_Telegram_Router
         // Only a successful exchange becomes history. Storing a failed turn
         // would feed the model an error transcript it then tries to explain.
         if (!empty($run['success'])) {
-            Claudpress_Telegram::remember($chat_id, 'user', $text);
-            Claudpress_Telegram::remember($chat_id, 'assistant', (string) ($run['summary'] ?? ''));
+            Keelhob_Telegram::remember($chat_id, 'user', $text);
+            Keelhob_Telegram::remember($chat_id, 'assistant', (string) ($run['summary'] ?? ''));
         }
 
         // If policy stopped something, offer the owner the one-tap escalation
         // rather than making them learn the /risky command.
-        $blocked = Claudpress_Telegram::blocked_tools($run);
+        $blocked = Keelhob_Telegram::blocked_tools($run);
         $markup  = [];
-        if (!empty($blocked) && !$approved && Claudpress_Telegram::may_escalate($chat_id)) {
-            $token  = Claudpress_Telegram::stash_approval($chat_id, $text, $blocked);
+        if (!empty($blocked) && !$approved && Keelhob_Telegram::may_escalate($chat_id)) {
+            $token  = Keelhob_Telegram::stash_approval($chat_id, $text, $blocked);
             $reply .= "\n\n🔒 Blocked by your guardrails: " . implode(', ', $blocked) . '.';
             $markup = ['inline_keyboard' => [[
                 ['text' => '✅ Approve & run', 'callback_data' => 'cp:ok:' . $token],
@@ -293,7 +293,7 @@ final class Claudpress_Telegram_Router
             ]]];
         } elseif (!empty($blocked)) {
             $reply .= "\n\n🔒 Blocked by your guardrails: " . implode(', ', $blocked)
-                . '. Unlock approvals in WP Admin → Claudpress → Automation → Chat.';
+                . '. Unlock approvals in WP Admin → Keelhob → Automation → Chat.';
         }
 
         self::deliver($chat_id, $progress_id, $reply, $markup);
@@ -306,20 +306,20 @@ final class Claudpress_Telegram_Router
      */
     private static function deliver(string $chat_id, int $progress_id, string $text, array $markup = []): void
     {
-        $chunks = Claudpress_Telegram::split_message($text);
+        $chunks = Keelhob_Telegram::split_message($text);
         if (empty($chunks)) {
             return;
         }
 
-        if ($progress_id > 0 && Claudpress_Telegram_Api::edit($chat_id, $progress_id, $chunks[0], count($chunks) === 1 ? $markup : [])) {
+        if ($progress_id > 0 && Keelhob_Telegram_Api::edit($chat_id, $progress_id, $chunks[0], count($chunks) === 1 ? $markup : [])) {
             $rest = array_slice($chunks, 1);
             if (!empty($rest)) {
-                Claudpress_Telegram_Api::send($chat_id, implode("\n\n", $rest), $markup);
+                Keelhob_Telegram_Api::send($chat_id, implode("\n\n", $rest), $markup);
             }
             return;
         }
 
-        Claudpress_Telegram_Api::send($chat_id, $text, $markup);
+        Keelhob_Telegram_Api::send($chat_id, $text, $markup);
     }
 
     /**
@@ -331,7 +331,7 @@ final class Claudpress_Telegram_Router
      */
     public static function run_command(string $chat_id, string $cmd, string $args): ?string
     {
-        $role = (string) (Claudpress_Telegram::role_for($chat_id) ?? 'viewer');
+        $role = (string) (Keelhob_Telegram::role_for($chat_id) ?? 'viewer');
 
         switch ($cmd) {
             case 'start':
@@ -345,26 +345,26 @@ final class Claudpress_Telegram_Router
                     $lines[] = '';
                     $lines[] = '👀 This chat is read-only: I can look things up and answer questions, but I cannot change anything.';
                 }
-                if (Claudpress_Telegram::voice_enabled()) {
+                if (Keelhob_Telegram::voice_enabled()) {
                     $lines[] = '';
                     $lines[] = '🎙 Send a voice note and I will transcribe it, show you what I heard, then act on it.';
                 }
-                if (Claudpress_Telegram::photos_enabled()) {
+                if (Keelhob_Telegram::photos_enabled()) {
                     $lines[] = '📷 Send a photo or screenshot (with a caption if you like) and I will look at it and file it in the media library.';
                 }
                 $lines[] = '';
                 $lines[] = 'Commands:';
-                foreach (Claudpress_Telegram_Api::commands() as $c => $desc) {
+                foreach (Keelhob_Telegram_Api::commands() as $c => $desc) {
                     $lines[] = '/' . $c . ' — ' . $desc;
                 }
                 $lines[] = '';
-                $lines[] = 'I remember the last ' . Claudpress_Telegram::history_turns() . ' turns of this chat. /clear wipes them.';
+                $lines[] = 'I remember the last ' . Keelhob_Telegram::history_turns() . ' turns of this chat. /clear wipes them.';
                 return implode("\n", $lines);
 
             case 'clear':
             case 'reset':
             case 'new':
-                $n = Claudpress_Telegram::clear($chat_id);
+                $n = Keelhob_Telegram::clear($chat_id);
                 return $n > 0
                     ? '🧹 Cleared ' . $n . ' ' . ($n === 1 ? 'turn' : 'turns') . '. Fresh start — I no longer remember what we were doing.'
                     : '🧹 Nothing to clear; this conversation was already empty.';
@@ -373,7 +373,7 @@ final class Claudpress_Telegram_Router
                 if ($role === 'viewer') {
                     return '👀 This chat is read-only, so there is nothing of mine to undo.';
                 }
-                $res = Claudpress_Undo::revert($chat_id);
+                $res = Keelhob_Undo::revert($chat_id);
                 if (empty($res['success']) && empty($res['restored'])) {
                     return '↩︎ ' . (string) ($res['error'] ?? 'Nothing to undo.');
                 }
@@ -389,12 +389,12 @@ final class Claudpress_Telegram_Router
                 return implode("\n", $out);
 
             case 'status':
-                $snapshot = Claudpress_Digest::snapshot();
-                return "📊 " . get_bloginfo('name') . "\n\n" . Claudpress_Digest::format_text($snapshot);
+                $snapshot = Keelhob_Digest::snapshot();
+                return "📊 " . get_bloginfo('name') . "\n\n" . Keelhob_Digest::format_text($snapshot);
 
             case 'usage':
-                $u    = Claudpress_Agent_Runs::usage_since(24);
-                $caps = Claudpress_Agent_Runtime::caps();
+                $u    = Keelhob_Agent_Runs::usage_since(24);
+                $caps = Keelhob_Agent_Runtime::caps();
                 $cap  = static fn($v, $fmt) => $v ? sprintf($fmt, $v) : 'unlimited';
                 return implode("\n", [
                     '💳 Last 24 hours',
@@ -407,7 +407,7 @@ final class Claudpress_Telegram_Router
                 ]);
 
             case 'tasks':
-                $tasks = Claudpress_Tasks::all();
+                $tasks = Keelhob_Tasks::all();
                 if (empty($tasks)) {
                     return '🗓 No scheduled automations yet. Ask me to create one — "every morning at 7, publish due drafts and email me a summary".';
                 }
@@ -424,15 +424,15 @@ final class Claudpress_Telegram_Router
                 return implode("\n", $lines);
 
             case 'model':
-                $s = Claudpress::instance()->settings();
-                /** @var class-string<Claudpress_Provider> $p */
-                $p = Claudpress_Provider::current();
+                $s = Keelhob::instance()->settings();
+                /** @var class-string<Keelhob_Provider> $p */
+                $p = Keelhob_Provider::current();
                 return implode("\n", [
                     '🧠 Provider: ' . $p::label(),
                     'Model: ' . ((string) ($s['agent_model'] ?? '') ?: $p::default_model() . ' (default)'),
                     'API key: ' . (trim((string) ($s['agent_api_key'] ?? '')) !== '' ? 'set' : 'MISSING — I cannot think without one'),
-                    'AI abilities: ' . (Claudpress::instance()->abilities_enabled() ? 'ON' : 'OFF — I can read settings but not act'),
-                    'Voice: ' . (Claudpress_Telegram::voice_enabled() ? 'on' : 'off') . ' · Photos: ' . (Claudpress_Telegram::photos_enabled() ? 'on' : 'off'),
+                    'AI abilities: ' . (Keelhob::instance()->abilities_enabled() ? 'ON' : 'OFF — I can read settings but not act'),
+                    'Voice: ' . (Keelhob_Telegram::voice_enabled() ? 'on' : 'off') . ' · Photos: ' . (Keelhob_Telegram::photos_enabled() ? 'on' : 'off'),
                 ]);
 
             case 'risky':
@@ -440,24 +440,24 @@ final class Claudpress_Telegram_Router
                 if ($role !== 'admin') {
                     return '🔒 Only an admin chat can unlock destructive tools. This chat is "' . $role . '".';
                 }
-                if (!Claudpress::instance()->get('telegram_allow_risky', false)) {
-                    return '🔒 Destructive and financial tools are locked for Telegram. The owner can unlock them in WP Admin → Claudpress → Automation → Chat.';
+                if (!Keelhob::instance()->get('telegram_allow_risky', false)) {
+                    return '🔒 Destructive and financial tools are locked for Telegram. The owner can unlock them in WP Admin → Keelhob → Automation → Chat.';
                 }
                 if ($want === 'on') {
-                    $mins = Claudpress_Telegram::set_risky($chat_id, true);
+                    $mins = Keelhob_Telegram::set_risky($chat_id, true);
                     return '⚠️ Destructive/financial tools unlocked for ' . $mins . ' minutes. They re-lock on their own.';
                 }
                 if ($want === 'off') {
-                    Claudpress_Telegram::set_risky($chat_id, false);
+                    Keelhob_Telegram::set_risky($chat_id, false);
                     return '🔒 Re-locked. Destructive and financial tools are blocked again.';
                 }
-                return Claudpress_Telegram::risky_allowed($chat_id)
+                return Keelhob_Telegram::risky_allowed($chat_id)
                     ? '⚠️ Currently unlocked. Send /risky off to re-lock.'
-                    : '🔒 Currently locked. Send /risky on to unlock for ' . (int) (Claudpress_Telegram::RISKY_TTL / 60) . ' minutes.';
+                    : '🔒 Currently locked. Send /risky on to unlock for ' . (int) (Keelhob_Telegram::RISKY_TTL / 60) . ' minutes.';
 
             case 'whoami':
             case 'id':
-                $allowed = Claudpress_Telegram::role_for($chat_id) !== null;
+                $allowed = Keelhob_Telegram::role_for($chat_id) !== null;
                 $what    = [
                     'admin'  => 'full access, may approve and unlock risky tools',
                     'editor' => 'may change the site, never destructive or financial tools',
@@ -468,9 +468,9 @@ final class Claudpress_Telegram_Router
                     . 'Role: ' . $role . ' — ' . $what;
 
             case 'history':
-                $n = Claudpress_Telegram::turn_count($chat_id);
-                return '🧠 ' . $n . ' ' . ($n === 1 ? 'turn' : 'turns') . ' stored; I replay the last ' . Claudpress_Telegram::history_turns()
-                    . '. /clear wipes them. Undo depth: ' . Claudpress_Undo::depth($chat_id) . '.';
+                $n = Keelhob_Telegram::turn_count($chat_id);
+                return '🧠 ' . $n . ' ' . ($n === 1 ? 'turn' : 'turns') . ' stored; I replay the last ' . Keelhob_Telegram::history_turns()
+                    . '. /clear wipes them. Undo depth: ' . Keelhob_Undo::depth($chat_id) . '.';
         }
 
         return null;
@@ -485,12 +485,12 @@ final class Claudpress_Telegram_Router
      */
     private static function file_photo(string $bytes, string $mime): ?array
     {
-        if (!Claudpress_Capabilities::tool_allowed('upload_media')) {
+        if (!Keelhob_Capabilities::tool_allowed('upload_media')) {
             return null;
         }
         $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'][$mime] ?? 'jpg';
 
-        $res = Claudpress_Tools_Content::upload_media([
+        $res = Keelhob_Tools_Content::upload_media([
             'data'     => base64_encode($bytes),
             'filename' => 'telegram-' . gmdate('Ymd-His') . '.' . $ext,
             'title'    => 'Sent via Telegram ' . current_time('Y-m-d H:i'),

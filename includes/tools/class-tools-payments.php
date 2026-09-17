@@ -10,9 +10,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Tools_Payments
+final class Keelhob_Tools_Payments
 {
-    public static function register(Claudpress_Tool_Registry $r): void
+    public static function register(Keelhob_Tool_Registry $r): void
     {
         if (!class_exists('WooCommerce')) {
             return;

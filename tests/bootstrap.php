@@ -1,6 +1,6 @@
 <?php
 /**
- * Test bootstrap: just enough WordPress to load and exercise Claudpress's pure
+ * Test bootstrap: just enough WordPress to load and exercise Keelhob's pure
  * logic outside a WordPress install.
  *
  * This is deliberately NOT a WordPress test harness. It covers the decision
@@ -12,47 +12,47 @@
 
 define('ABSPATH', __DIR__ . '/fake-wp/');
 define('WP_CONTENT_DIR', ABSPATH . 'wp-content');
-define('CLAUDPRESS_VERSION', '1.4.0-test');
-define('CLAUDPRESS_FILE', dirname(__DIR__) . '/claudpress.php');
-define('CLAUDPRESS_DIR', dirname(__DIR__) . '/');
-define('CLAUDPRESS_URL', 'http://example.test/wp-content/plugins/claudpress/');
-define('CLAUDPRESS_BASENAME', 'claudpress/claudpress.php');
-define('CLAUDPRESS_REST_NAMESPACE', 'claudpress/v1');
-define('CLAUDPRESS_SANDBOX_DIR', WP_CONTENT_DIR . '/claudpress-sandbox');
-define('CLAUDPRESS_MAX_EXECUTION_TIME', 120);
+define('KEELHOB_VERSION', '1.4.0-test');
+define('KEELHOB_FILE', dirname(__DIR__) . '/keelhob.php');
+define('KEELHOB_DIR', dirname(__DIR__) . '/');
+define('KEELHOB_URL', 'http://example.test/wp-content/plugins/keelhob/');
+define('KEELHOB_BASENAME', 'keelhob/keelhob.php');
+define('KEELHOB_REST_NAMESPACE', 'keelhob/v1');
+define('KEELHOB_SANDBOX_DIR', WP_CONTENT_DIR . '/keelhob-sandbox');
+define('KEELHOB_MAX_EXECUTION_TIME', 120);
 
-// Fixed test salts. Claudpress_Secrets derives its encryption key from
+// Fixed test salts. Keelhob_Secrets derives its encryption key from
 // these, so they must be defined before any settings are read.
-define('AUTH_KEY', 'cp-test-auth-key-0000000000000001');
-define('SECURE_AUTH_KEY', 'cp-test-secure-auth-key-000000002');
-define('AUTH_SALT', 'cp-test-auth-salt-000000000000003');
+define('AUTH_KEY', 'kh-test-auth-key-0000000000000001');
+define('SECURE_AUTH_KEY', 'kh-test-secure-auth-key-000000002');
+define('AUTH_SALT', 'kh-test-auth-salt-000000000000003');
 
 // ---- in-memory option store ------------------------------------------------
 
-$GLOBALS['cp_test_options']  = [];
-$GLOBALS['cp_test_autoload']   = [];
-$GLOBALS['cp_test_transients'] = [];
+$GLOBALS['kh_test_options']  = [];
+$GLOBALS['kh_test_autoload']   = [];
+$GLOBALS['kh_test_transients'] = [];
 
-function cp_test_reset_options(array $options = []): void
+function kh_test_reset_options(array $options = []): void
 {
-    $GLOBALS['cp_test_options'] = $options;
+    $GLOBALS['kh_test_options'] = $options;
 }
 
 function get_option(string $name, $default = false)
 {
-    return array_key_exists($name, $GLOBALS['cp_test_options']) ? $GLOBALS['cp_test_options'][$name] : $default;
+    return array_key_exists($name, $GLOBALS['kh_test_options']) ? $GLOBALS['kh_test_options'][$name] : $default;
 }
 
 function update_option(string $name, $value, $autoload = null): bool
 {
-    $GLOBALS['cp_test_autoload'][$name] = $autoload;
-    $GLOBALS['cp_test_options'][$name] = $value;
+    $GLOBALS['kh_test_autoload'][$name] = $autoload;
+    $GLOBALS['kh_test_options'][$name] = $value;
     return true;
 }
 
 function delete_option(string $name): bool
 {
-    unset($GLOBALS['cp_test_options'][$name]);
+    unset($GLOBALS['kh_test_options'][$name]);
     return true;
 }
 
@@ -63,33 +63,33 @@ function delete_option(string $name): bool
 // cannot hide a safety warning from a colleague - and a suite that could only
 // model site options would have had no way to assert that.
 //
-// Keyed [user_id][meta_key], single values only. Claudpress stores one string
+// Keyed [user_id][meta_key], single values only. Keelhob stores one string
 // per user here and nothing else.
 
-$GLOBALS['cp_test_user_meta'] = [];
+$GLOBALS['kh_test_user_meta'] = [];
 
 function get_user_meta(int $user_id, string $key = '', bool $single = false)
 {
-    $value = $GLOBALS['cp_test_user_meta'][$user_id][$key] ?? '';
+    $value = $GLOBALS['kh_test_user_meta'][$user_id][$key] ?? '';
     return $single ? $value : ($value === '' ? [] : [$value]);
 }
 
 function update_user_meta(int $user_id, string $key, $value): bool
 {
-    $GLOBALS['cp_test_user_meta'][$user_id][$key] = $value;
+    $GLOBALS['kh_test_user_meta'][$user_id][$key] = $value;
     return true;
 }
 
 function delete_user_meta(int $user_id, string $key, $value = ''): bool
 {
-    unset($GLOBALS['cp_test_user_meta'][$user_id][$key]);
+    unset($GLOBALS['kh_test_user_meta'][$user_id][$key]);
     return true;
 }
 
 /**
  * The whole-site clear.
  *
- * Only the $delete_all shape Claudpress uses - object type 'user', id 0, and
+ * Only the $delete_all shape Keelhob uses - object type 'user', id 0, and
  * $delete_all true. Anything narrower is not modelled, because nothing in the
  * plugin asks for it and a stub that pretends to support what it has not
  * implemented is how a test passes against behaviour that does not exist.
@@ -99,8 +99,8 @@ function delete_metadata(string $meta_type, int $object_id, string $meta_key, $m
     if ($meta_type !== 'user' || !$delete_all) {
         return false;
     }
-    foreach ($GLOBALS['cp_test_user_meta'] as $uid => $_) {
-        unset($GLOBALS['cp_test_user_meta'][$uid][$meta_key]);
+    foreach ($GLOBALS['kh_test_user_meta'] as $uid => $_) {
+        unset($GLOBALS['kh_test_user_meta'][$uid][$meta_key]);
     }
     return true;
 }
@@ -114,21 +114,21 @@ function delete_metadata(string $meta_type, int $object_id, string $meta_key, $m
 /**
  * Real (if minimal) filter dispatch.
  *
- * Filters are part of the plugin's public extension contract — 'claudpress_
- * model_prices', 'claudpress_operating_protocol' and friends are documented for
+ * Filters are part of the plugin's public extension contract — 'keelhob_
+ * model_prices', 'keelhob_operating_protocol' and friends are documented for
  * site owners to override. A pass-through stub would let those break silently,
  * so the suite runs callbacks for real, in priority order.
  *
- * @var array<string, array<int, array<int, callable>>> $GLOBALS['cp_test_filters']
+ * @var array<string, array<int, array<int, callable>>> $GLOBALS['kh_test_filters']
  */
-$GLOBALS['cp_test_filters'] = [];
+$GLOBALS['kh_test_filters'] = [];
 
 function apply_filters(string $hook, $value, ...$args)
 {
-    if (empty($GLOBALS['cp_test_filters'][$hook])) {
+    if (empty($GLOBALS['kh_test_filters'][$hook])) {
         return $value;
     }
-    $by_priority = $GLOBALS['cp_test_filters'][$hook];
+    $by_priority = $GLOBALS['kh_test_filters'][$hook];
     ksort($by_priority);
     foreach ($by_priority as $callbacks) {
         foreach ($callbacks as $cb) {
@@ -140,14 +140,14 @@ function apply_filters(string $hook, $value, ...$args)
 
 function add_filter(string $hook, $cb, int $priority = 10, int $args = 1): bool
 {
-    $GLOBALS['cp_test_filters'][$hook][$priority][] = $cb;
+    $GLOBALS['kh_test_filters'][$hook][$priority][] = $cb;
     return true;
 }
 
 /** Drop registered filters so one test cannot leak into the next. */
-function cp_test_reset_filters(): void
+function kh_test_reset_filters(): void
 {
-    $GLOBALS['cp_test_filters'] = [];
+    $GLOBALS['kh_test_filters'] = [];
 }
 
 function add_action(string $hook, $cb, int $priority = 10, int $args = 1): bool
@@ -199,29 +199,29 @@ function wp_json_encode($data, int $flags = 0)
  * back with a bare strtotime() is off by the site's offset. That shipped, and
  * turned an HOURLY digest into a four-to-five-hourly one on a UTC+4 site.
  *
- * $GLOBALS['cp_test_gmt_offset'] (hours) lets a test put the site somewhere
+ * $GLOBALS['kh_test_gmt_offset'] (hours) lets a test put the site somewhere
  * real. It defaults to 0, so every existing test behaves exactly as before.
  */
-function cp_test_offset(): int
+function kh_test_offset(): int
 {
-    return (int) ($GLOBALS['cp_test_gmt_offset'] ?? 0) * 3600;
+    return (int) ($GLOBALS['kh_test_gmt_offset'] ?? 0) * 3600;
 }
 
 function current_time(string $type = 'mysql', $gmt = 0)
 {
     if ($type === 'timestamp' || $type === 'U') {
-        return $gmt ? time() : time() + cp_test_offset();
+        return $gmt ? time() : time() + kh_test_offset();
     }
     if ($type === 'G') {
-        return (int) gmdate('G', time() + ($gmt ? 0 : cp_test_offset()));
+        return (int) gmdate('G', time() + ($gmt ? 0 : kh_test_offset()));
     }
-    return gmdate('Y-m-d H:i:s', time() + ($gmt ? 0 : cp_test_offset()));
+    return gmdate('Y-m-d H:i:s', time() + ($gmt ? 0 : kh_test_offset()));
 }
 
 /** WordPress's local-to-GMT conversion: subtract the offset the string carries. */
 function get_gmt_from_date(string $date, string $format = 'Y-m-d H:i:s')
 {
-    return gmdate($format, (int) strtotime($date) - cp_test_offset());
+    return gmdate($format, (int) strtotime($date) - kh_test_offset());
 }
 
 function get_bloginfo(string $show = 'name'): string
@@ -231,17 +231,17 @@ function get_bloginfo(string $show = 'name'): string
 
 function get_locale(): string
 {
-    return $GLOBALS['cp_test_locale'] ?? 'en_US';
+    return $GLOBALS['kh_test_locale'] ?? 'en_US';
 }
 
 function is_multisite(): bool
 {
-    return !empty($GLOBALS['cp_test_multisite']);
+    return !empty($GLOBALS['kh_test_multisite']);
 }
 
 function home_url(string $path = ''): string
 {
-    return ($GLOBALS['cp_test_home_url'] ?? 'https://example.test') . $path;
+    return ($GLOBALS['kh_test_home_url'] ?? 'https://example.test') . $path;
 }
 
 function number_format_i18n($number, $decimals = 0): string
@@ -263,10 +263,10 @@ function esc_attr($t) { return htmlspecialchars((string) $t, ENT_QUOTES, 'UTF-8'
 function esc_url($u) { return htmlspecialchars((string) $u, ENT_QUOTES, 'UTF-8'); }
 function esc_url_raw($u) { return (string) $u; }
 
-/** Captures what Claudpress_Brand::styles() attaches, so a test can read it. */
+/** Captures what Keelhob_Brand::styles() attaches, so a test can read it. */
 function wp_add_inline_style(string $handle, string $css): bool
 {
-    $GLOBALS['cp_test_inline_styles'][$handle] = ($GLOBALS['cp_test_inline_styles'][$handle] ?? '') . $css;
+    $GLOBALS['kh_test_inline_styles'][$handle] = ($GLOBALS['kh_test_inline_styles'][$handle] ?? '') . $css;
     return true;
 }
 function __($t, $d = null) { return (string) $t; }
@@ -329,7 +329,7 @@ class WP_Error
 }
 
 // A minimal $wpdb so classes that reference it at load time don't explode.
-class CP_Test_WPDB
+class KH_Test_WPDB
 {
     public string $prefix = 'wp_';
 
@@ -355,8 +355,8 @@ class CP_Test_WPDB
         // Opt-in fixture. Default stays [] so no existing test changes
         // behaviour; a test that genuinely needs rows sets the global and
         // clears it again afterwards.
-        if (isset($GLOBALS['cp_test_db_results']) && is_array($GLOBALS['cp_test_db_results'])) {
-            return $GLOBALS['cp_test_db_results'];
+        if (isset($GLOBALS['kh_test_db_results']) && is_array($GLOBALS['kh_test_db_results'])) {
+            return $GLOBALS['kh_test_db_results'];
         }
         return [];
     }
@@ -397,7 +397,7 @@ class CP_Test_WPDB
     }
 }
 
-$GLOBALS['wpdb'] = new CP_Test_WPDB();
+$GLOBALS['wpdb'] = new KH_Test_WPDB();
 
 if (!defined('ARRAY_A')) {
     define('ARRAY_A', 'ARRAY_A');
@@ -409,7 +409,7 @@ if (!defined('ARRAY_A')) {
 //     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 //     dbDelta("CREATE TABLE ...");
 //
-// Both halves have to be answered here or Claudpress::maybe_upgrade() — the
+// Both halves have to be answered here or Keelhob::maybe_upgrade() — the
 // real production upgrade entry point — cannot be called at all, which is why
 // it went untested for so long. The require_once is the harder half: a missing
 // file is a fatal error, not a warning, so defining dbDelta() alone is not
@@ -418,11 +418,11 @@ if (!defined('ARRAY_A')) {
 // leaves anything behind in the working tree.
 
 /** @var array<int, string> Every CREATE TABLE dbDelta() was handed, in order. */
-$GLOBALS['cp_test_dbdelta'] = [];
+$GLOBALS['kh_test_dbdelta'] = [];
 
-function cp_test_reset_dbdelta(): void
+function kh_test_reset_dbdelta(): void
 {
-    $GLOBALS['cp_test_dbdelta'] = [];
+    $GLOBALS['kh_test_dbdelta'] = [];
 }
 
 if (!function_exists('dbDelta')) {
@@ -440,7 +440,7 @@ if (!function_exists('dbDelta')) {
     function dbDelta($queries = '', $execute = true): array
     {
         foreach ((array) $queries as $query) {
-            $GLOBALS['cp_test_dbdelta'][] = (string) $query;
+            $GLOBALS['kh_test_dbdelta'][] = (string) $query;
         }
         return [];
     }
@@ -451,13 +451,13 @@ if (!function_exists('dbDelta')) {
  * inside the fake WordPress tree. Removed at shutdown, deepest first, so
  * `git status` is as clean after a test run as it was before one.
  */
-$GLOBALS['cp_test_scratch_paths'] = [
+$GLOBALS['kh_test_scratch_paths'] = [
     ABSPATH . 'wp-admin/includes/upgrade.php',
     ABSPATH . 'wp-admin/includes',
     ABSPATH . 'wp-admin',
-    CLAUDPRESS_SANDBOX_DIR . '/index.php',
-    CLAUDPRESS_SANDBOX_DIR . '/.htaccess',
-    CLAUDPRESS_SANDBOX_DIR,
+    KEELHOB_SANDBOX_DIR . '/index.php',
+    KEELHOB_SANDBOX_DIR . '/.htaccess',
+    KEELHOB_SANDBOX_DIR,
 ];
 
 if (!is_dir(ABSPATH . 'wp-admin/includes')) {
@@ -474,7 +474,7 @@ if (!is_dir(ABSPATH . 'wp-admin/includes')) {
 );
 
 register_shutdown_function(static function (): void {
-    foreach ($GLOBALS['cp_test_scratch_paths'] as $path) {
+    foreach ($GLOBALS['kh_test_scratch_paths'] as $path) {
         if (is_file($path)) {
             @unlink($path);
         } elseif (is_dir($path)) {
@@ -495,21 +495,22 @@ function wp_nonce_field($action = '') { echo '<input type="hidden" name="_wpnonc
 function wp_parse_url($url, $component = -1) { return parse_url($url, $component); }
 function wp_timezone_string() { return 'UTC'; }
 function wp_next_scheduled($hook) { return time() + 3600; }
+function wp_clear_scheduled_hook($hook) { $GLOBALS['kh_test_cleared_hooks'][] = $hook; return 1; }
 
 /* ---- a fake request, for the snippet conditions engine ---------------------
  *
  * Conditional tags are the only way to ask "what page is this?", and they read
  * global query state that does not exist outside WordPress. So the whole of it
- * is one array, $GLOBALS['cp_test_request'], and cp_test_request() sets it.
+ * is one array, $GLOBALS['kh_test_request'], and kh_test_request() sets it.
  *
  * Everything defaults to false / empty, which is a 404-ish request nobody is
  * logged in to. A test then names only what it cares about, and a rule that
  * accidentally depends on something else fails loudly instead of passing
  * because the fixture happened to be true.
  */
-function cp_test_request(array $state = []): void
+function kh_test_request(array $state = []): void
 {
-    $GLOBALS['cp_test_request'] = $state + [
+    $GLOBALS['kh_test_request'] = $state + [
         'logged_in'  => false,
         'roles'      => [],
         'mobile'     => false,
@@ -525,33 +526,33 @@ function cp_test_request(array $state = []): void
         'object_id'  => 0,
         'uri'        => '/',
     ];
-    $_SERVER['REQUEST_URI'] = $GLOBALS['cp_test_request']['uri'];
+    $_SERVER['REQUEST_URI'] = $GLOBALS['kh_test_request']['uri'];
 }
 
-function cp_test_req(string $key)
+function kh_test_req(string $key)
 {
-    if (!isset($GLOBALS['cp_test_request'])) {
-        cp_test_request();
+    if (!isset($GLOBALS['kh_test_request'])) {
+        kh_test_request();
     }
-    return $GLOBALS['cp_test_request'][$key] ?? null;
+    return $GLOBALS['kh_test_request'][$key] ?? null;
 }
 
-function is_user_logged_in() { return (bool) cp_test_req('logged_in'); }
-function wp_get_current_user() { return (object) ['roles' => (array) cp_test_req('roles')]; }
-function wp_is_mobile() { return (bool) cp_test_req('mobile'); }
-function is_singular($t = '') { return (bool) cp_test_req('singular'); }
-function is_front_page() { return (bool) cp_test_req('front_page'); }
-function is_home() { return (bool) cp_test_req('home'); }
-function is_single($p = '') { return (bool) cp_test_req('single'); }
-function is_page($p = '') { return (bool) cp_test_req('page'); }
-function is_archive() { return (bool) cp_test_req('archive'); }
-function is_search() { return (bool) cp_test_req('search'); }
-function is_404() { return (bool) cp_test_req('is_404'); }
-function get_queried_object_id() { return (int) cp_test_req('object_id'); }
+function is_user_logged_in() { return (bool) kh_test_req('logged_in'); }
+function wp_get_current_user() { return (object) ['roles' => (array) kh_test_req('roles')]; }
+function wp_is_mobile() { return (bool) kh_test_req('mobile'); }
+function is_singular($t = '') { return (bool) kh_test_req('singular'); }
+function is_front_page() { return (bool) kh_test_req('front_page'); }
+function is_home() { return (bool) kh_test_req('home'); }
+function is_single($p = '') { return (bool) kh_test_req('single'); }
+function is_page($p = '') { return (bool) kh_test_req('page'); }
+function is_archive() { return (bool) kh_test_req('archive'); }
+function is_search() { return (bool) kh_test_req('search'); }
+function is_404() { return (bool) kh_test_req('is_404'); }
+function get_queried_object_id() { return (int) kh_test_req('object_id'); }
 /**
  * Two callers, one stub.
  *
- * test-undo-and-events.php keeps a table of fake posts in $GLOBALS['cp_posts']
+ * test-undo-and-events.php keeps a table of fake posts in $GLOBALS['kh_posts']
  * and asks for a specific post's type by id. The conditions engine asks about
  * the CURRENT request and passes the queried object id. Both go through
  * get_post_type(), so a second copy in a test file is a fatal redeclare — which
@@ -562,13 +563,13 @@ function get_queried_object_id() { return (int) cp_test_req('object_id'); }
 function get_post_type($post = null)
 {
     $id = is_object($post) ? (int) ($post->ID ?? 0) : (int) $post;
-    if ($id && isset($GLOBALS['cp_posts'][$id])) {
-        return $GLOBALS['cp_posts'][$id]->post_type;
+    if ($id && isset($GLOBALS['kh_posts'][$id])) {
+        return $GLOBALS['kh_posts'][$id]->post_type;
     }
-    if (!empty($GLOBALS['cp_posts']) && $id) {
+    if (!empty($GLOBALS['kh_posts']) && $id) {
         return false; // the undo test's world: an id it does not know is not a post
     }
-    return cp_test_req('post_type') ?: false;
+    return kh_test_req('post_type') ?: false;
 }
 
 function wp_roles()
@@ -595,23 +596,23 @@ function get_post_types($args = [], $output = 'names')
  * Cron, as an in-memory array.
  *
  * Only uninstall.php reads it, to unschedule this plugin's own jobs before the
- * plugin files go away. $GLOBALS['cp_test_cron'] is the whole store, shaped the
+ * plugin files go away. $GLOBALS['kh_test_cron'] is the whole store, shaped the
  * way WordPress shapes it: timestamp => hook => signature => event.
  */
-function _get_cron_array() { return $GLOBALS['cp_test_cron'] ?? []; }
+function _get_cron_array() { return $GLOBALS['kh_test_cron'] ?? []; }
 function wp_unschedule_event($timestamp, $hook, $args = [])
 {
-    foreach (($GLOBALS['cp_test_cron'][$timestamp][$hook] ?? []) as $sig => $_) {
-        unset($GLOBALS['cp_test_cron'][$timestamp][$hook][$sig]);
+    foreach (($GLOBALS['kh_test_cron'][$timestamp][$hook] ?? []) as $sig => $_) {
+        unset($GLOBALS['kh_test_cron'][$timestamp][$hook][$sig]);
     }
-    if (empty($GLOBALS['cp_test_cron'][$timestamp][$hook])) {
-        unset($GLOBALS['cp_test_cron'][$timestamp][$hook]);
+    if (empty($GLOBALS['kh_test_cron'][$timestamp][$hook])) {
+        unset($GLOBALS['kh_test_cron'][$timestamp][$hook]);
     }
     return true;
 }
 function delete_site_option($name)
 {
-    unset($GLOBALS['cp_test_site_options'][$name]);
+    unset($GLOBALS['kh_test_site_options'][$name]);
     return true;
 }
 function human_time_diff($from, $to = 0) { return '1 hour'; }
@@ -619,16 +620,16 @@ function get_current_screen() { return null; }
 function get_permalink($id = 0) { return 'https://example.test/?p=' . (int) $id; }
 function set_transient($key, $value, $ttl = 0)
 {
-    $GLOBALS['cp_test_transients'][$key] = $value;
+    $GLOBALS['kh_test_transients'][$key] = $value;
     return true;
 }
 
 function get_transient($key)
 {
-    return $GLOBALS['cp_test_transients'][$key] ?? false;
+    return $GLOBALS['kh_test_transients'][$key] ?? false;
 }
 
-function delete_transient($key) { unset($GLOBALS['cp_test_transients'][$key]); return true; }
+function delete_transient($key) { unset($GLOBALS['kh_test_transients'][$key]); return true; }
 function wp_unslash($v) { return is_string($v) ? stripslashes($v) : $v; }
 
 function wp_trim_words($text, $num_words = 55, $more = null)
@@ -637,7 +638,7 @@ function wp_trim_words($text, $num_words = 55, $more = null)
     return implode(' ', array_slice($words, 0, $num_words));
 }
 
-function wp_set_current_user($id) { $GLOBALS['cp_test_current_user'] = (int) $id; return true; }
+function wp_set_current_user($id) { $GLOBALS['kh_test_current_user'] = (int) $id; return true; }
 function get_users($args = []) { return [1]; }
 function user_can($user, $cap) { return true; }
 function wp_authenticate_application_password($input, $username, $password) { return new WP_Error('bad', 'no'); }
@@ -667,28 +668,28 @@ function trailingslashit($s) { return rtrim((string) $s, '/') . '/'; }
 // in production, so a handler that "returns" after refusing cannot be mistaken
 // for one that stopped.
 
-$GLOBALS['cp_test_ajax'] = ['nonces' => [], 'caps' => []];
-$GLOBALS['cp_test_http'] = [];
+$GLOBALS['kh_test_ajax'] = ['nonces' => [], 'caps' => []];
+$GLOBALS['kh_test_http'] = [];
 
 /** Queue one canned HTTP response for the next wp_remote_* call. */
-function cp_test_http_queue(int $code, $body, array $headers = []): void
+function kh_test_http_queue(int $code, $body, array $headers = []): void
 {
-    $GLOBALS['cp_test_http'][] = [
+    $GLOBALS['kh_test_http'][] = [
         'code'    => $code,
         'body'    => is_string($body) ? $body : json_encode($body),
         'headers' => $headers,
     ];
 }
 
-function cp_test_reset_ajax(): void
+function kh_test_reset_ajax(): void
 {
-    $GLOBALS['cp_test_ajax'] = ['nonces' => [], 'caps' => []];
-    $GLOBALS['cp_test_http'] = [];
-    unset($GLOBALS['cp_test_cap_allow']);
+    $GLOBALS['kh_test_ajax'] = ['nonces' => [], 'caps' => []];
+    $GLOBALS['kh_test_http'] = [];
+    unset($GLOBALS['kh_test_cap_allow']);
 }
 
 /** Thrown in place of the wp_die() that ends a real wp_send_json_* response. */
-class CP_Test_Json_Sent extends Exception
+class KH_Test_Json_Sent extends Exception
 {
     public bool $success;
     public array $data;
@@ -706,15 +707,15 @@ class CP_Test_Json_Sent extends Exception
 if (!function_exists('current_user_can')) {
     function current_user_can($cap, ...$args)
     {
-        $GLOBALS['cp_test_ajax']['caps'][] = (string) $cap;
-        return $GLOBALS['cp_test_cap_allow'] ?? true;
+        $GLOBALS['kh_test_ajax']['caps'][] = (string) $cap;
+        return $GLOBALS['kh_test_cap_allow'] ?? true;
     }
 }
 
 if (!function_exists('check_ajax_referer')) {
     function check_ajax_referer($action = -1, $query_arg = false, $stop = true)
     {
-        $GLOBALS['cp_test_ajax']['nonces'][] = (string) $action;
+        $GLOBALS['kh_test_ajax']['nonces'][] = (string) $action;
         return 1;
     }
 }
@@ -730,14 +731,14 @@ if (!function_exists('wp_verify_nonce')) {
 if (!function_exists('wp_send_json_success')) {
     function wp_send_json_success($data = null, $status = 200)
     {
-        throw new CP_Test_Json_Sent(true, (array) $data, (int) $status);
+        throw new KH_Test_Json_Sent(true, (array) $data, (int) $status);
     }
 }
 
 if (!function_exists('wp_send_json_error')) {
     function wp_send_json_error($data = null, $status = 400)
     {
-        throw new CP_Test_Json_Sent(false, (array) $data, (int) $status);
+        throw new KH_Test_Json_Sent(false, (array) $data, (int) $status);
     }
 }
 
@@ -759,13 +760,13 @@ if (!function_exists('_n')) {
 }
 
 /** The next queued response, or a 200 with an empty body when nothing is queued. */
-function cp_test_http_next(string $url, array $args)
+function kh_test_http_next(string $url, array $args)
 {
-    $GLOBALS['cp_test_http_last'] = ['url' => $url, 'args' => $args];
-    if (!$GLOBALS['cp_test_http']) {
+    $GLOBALS['kh_test_http_last'] = ['url' => $url, 'args' => $args];
+    if (!$GLOBALS['kh_test_http']) {
         return ['response' => ['code' => 200], 'body' => '{}', 'headers' => []];
     }
-    $next = array_shift($GLOBALS['cp_test_http']);
+    $next = array_shift($GLOBALS['kh_test_http']);
     if ($next instanceof WP_Error) {
         return $next;
     }
@@ -773,11 +774,11 @@ function cp_test_http_next(string $url, array $args)
 }
 
 if (!function_exists('wp_remote_get')) {
-    function wp_remote_get($url, $args = []) { return cp_test_http_next((string) $url, (array) $args); }
+    function wp_remote_get($url, $args = []) { return kh_test_http_next((string) $url, (array) $args); }
 }
 
 if (!function_exists('wp_remote_post')) {
-    function wp_remote_post($url, $args = []) { return cp_test_http_next((string) $url, (array) $args); }
+    function wp_remote_post($url, $args = []) { return kh_test_http_next((string) $url, (array) $args); }
 }
 
 if (!function_exists('wp_remote_retrieve_response_code')) {
@@ -797,7 +798,7 @@ if (!function_exists('wp_remote_retrieve_header')) {
 // file that needs them earlier) could define them too, and a redeclare is fatal.
 
 if (!function_exists('get_current_user_id')) {
-    function get_current_user_id() { return (int) ($GLOBALS['cp_test_current_user'] ?? 0); }
+    function get_current_user_id() { return (int) ($GLOBALS['kh_test_current_user'] ?? 0); }
 }
 
 if (!function_exists('_n')) {
@@ -830,84 +831,85 @@ if (!function_exists('paginate_links')) {
     }
 }
 
-require_once CLAUDPRESS_DIR . 'includes/class-secrets.php';
-require_once CLAUDPRESS_DIR . 'includes/class-claudpress.php';
-require_once CLAUDPRESS_DIR . 'includes/class-auth.php';
-require_once CLAUDPRESS_DIR . 'includes/class-logger.php';
-require_once CLAUDPRESS_DIR . 'includes/class-snippet-log.php';
-require_once CLAUDPRESS_DIR . 'includes/class-feedback.php';
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-feedback.php';
-require_once CLAUDPRESS_DIR . 'includes/class-tool-registry.php';
-require_once CLAUDPRESS_DIR . 'includes/class-capabilities.php';
-require_once CLAUDPRESS_DIR . 'includes/class-skill-catalog.php';
-require_once CLAUDPRESS_DIR . 'includes/class-skill-standard.php';
-require_once CLAUDPRESS_DIR . 'includes/class-memory.php';
-require_once CLAUDPRESS_DIR . 'includes/class-policy.php';
-require_once CLAUDPRESS_DIR . 'includes/class-agent-runs.php';
-require_once CLAUDPRESS_DIR . 'includes/class-mcp-server.php';
-require_once CLAUDPRESS_DIR . 'includes/class-provider.php';
-require_once CLAUDPRESS_DIR . 'includes/class-provider-anthropic.php';
-require_once CLAUDPRESS_DIR . 'includes/class-provider-openai.php';
-require_once CLAUDPRESS_DIR . 'includes/class-provider-google.php';
-require_once CLAUDPRESS_DIR . 'includes/class-image-provider.php';
-require_once CLAUDPRESS_DIR . 'includes/class-image-provider-openai.php';
-require_once CLAUDPRESS_DIR . 'includes/class-image-provider-google.php';
-require_once CLAUDPRESS_DIR . 'includes/class-media-check.php';
-require_once CLAUDPRESS_DIR . 'includes/class-transcribe-provider.php';
-require_once CLAUDPRESS_DIR . 'includes/class-transcribe-provider-openai.php';
-require_once CLAUDPRESS_DIR . 'includes/class-transcribe-provider-google.php';
-require_once CLAUDPRESS_DIR . 'includes/class-agent-runtime.php';
-require_once CLAUDPRESS_DIR . 'includes/class-undo.php';
-require_once CLAUDPRESS_DIR . 'includes/class-events.php';
-require_once CLAUDPRESS_DIR . 'includes/class-telegram.php';
-require_once CLAUDPRESS_DIR . 'includes/class-telegram-api.php';
-require_once CLAUDPRESS_DIR . 'includes/class-telegram-router.php';
-require_once CLAUDPRESS_DIR . 'includes/class-rest.php';
-require_once CLAUDPRESS_DIR . 'includes/class-tasks.php';
-require_once CLAUDPRESS_DIR . 'includes/class-migration.php';
-require_once CLAUDPRESS_DIR . 'includes/class-health.php';
-require_once CLAUDPRESS_DIR . 'includes/class-snippet-conditions.php';
-require_once CLAUDPRESS_DIR . 'includes/class-snippets.php';
-require_once CLAUDPRESS_DIR . 'includes/class-skills.php';
-require_once CLAUDPRESS_DIR . 'includes/class-skills-remote.php';
-// Project links, matching the defaults in claudpress.php.
-if (!defined('CLAUDPRESS_DONATE_URL')) {
-    define('CLAUDPRESS_DONATE_URL', 'https://ko-fi.com/claudpress');
+require_once KEELHOB_DIR . 'includes/class-secrets.php';
+require_once KEELHOB_DIR . 'includes/class-legacy-adopt.php';
+require_once KEELHOB_DIR . 'includes/class-keelhob.php';
+require_once KEELHOB_DIR . 'includes/class-auth.php';
+require_once KEELHOB_DIR . 'includes/class-logger.php';
+require_once KEELHOB_DIR . 'includes/class-snippet-log.php';
+require_once KEELHOB_DIR . 'includes/class-feedback.php';
+require_once KEELHOB_DIR . 'includes/tools/class-tools-feedback.php';
+require_once KEELHOB_DIR . 'includes/class-tool-registry.php';
+require_once KEELHOB_DIR . 'includes/class-capabilities.php';
+require_once KEELHOB_DIR . 'includes/class-skill-catalog.php';
+require_once KEELHOB_DIR . 'includes/class-skill-standard.php';
+require_once KEELHOB_DIR . 'includes/class-memory.php';
+require_once KEELHOB_DIR . 'includes/class-policy.php';
+require_once KEELHOB_DIR . 'includes/class-agent-runs.php';
+require_once KEELHOB_DIR . 'includes/class-mcp-server.php';
+require_once KEELHOB_DIR . 'includes/class-provider.php';
+require_once KEELHOB_DIR . 'includes/class-provider-anthropic.php';
+require_once KEELHOB_DIR . 'includes/class-provider-openai.php';
+require_once KEELHOB_DIR . 'includes/class-provider-google.php';
+require_once KEELHOB_DIR . 'includes/class-image-provider.php';
+require_once KEELHOB_DIR . 'includes/class-image-provider-openai.php';
+require_once KEELHOB_DIR . 'includes/class-image-provider-google.php';
+require_once KEELHOB_DIR . 'includes/class-media-check.php';
+require_once KEELHOB_DIR . 'includes/class-transcribe-provider.php';
+require_once KEELHOB_DIR . 'includes/class-transcribe-provider-openai.php';
+require_once KEELHOB_DIR . 'includes/class-transcribe-provider-google.php';
+require_once KEELHOB_DIR . 'includes/class-agent-runtime.php';
+require_once KEELHOB_DIR . 'includes/class-undo.php';
+require_once KEELHOB_DIR . 'includes/class-events.php';
+require_once KEELHOB_DIR . 'includes/class-telegram.php';
+require_once KEELHOB_DIR . 'includes/class-telegram-api.php';
+require_once KEELHOB_DIR . 'includes/class-telegram-router.php';
+require_once KEELHOB_DIR . 'includes/class-rest.php';
+require_once KEELHOB_DIR . 'includes/class-tasks.php';
+require_once KEELHOB_DIR . 'includes/class-migration.php';
+require_once KEELHOB_DIR . 'includes/class-health.php';
+require_once KEELHOB_DIR . 'includes/class-snippet-conditions.php';
+require_once KEELHOB_DIR . 'includes/class-snippets.php';
+require_once KEELHOB_DIR . 'includes/class-skills.php';
+require_once KEELHOB_DIR . 'includes/class-skills-remote.php';
+// Project links, matching the defaults in keelhob.php.
+if (!defined('KEELHOB_DONATE_URL')) {
+    define('KEELHOB_DONATE_URL', 'https://ko-fi.com/keelhob');
 }
-if (!defined('CLAUDPRESS_SERVICES_URL')) {
-    define('CLAUDPRESS_SERVICES_URL', 'https://claudpress.com/services');
+if (!defined('KEELHOB_SERVICES_URL')) {
+    define('KEELHOB_SERVICES_URL', 'https://keelhob.com/services');
 }
-if (!defined('CLAUDPRESS_REPO_URL')) {
-    define('CLAUDPRESS_REPO_URL', 'https://github.com/calflint/claudpress');
+if (!defined('KEELHOB_REPO_URL')) {
+    define('KEELHOB_REPO_URL', 'https://github.com/calflint/keelhob');
 }
 
-require_once CLAUDPRESS_DIR . 'includes/class-updater.php';
+require_once KEELHOB_DIR . 'includes/class-updater.php';
 // Every admin screen prints the brand mark in its <h1>, so this must load
 // before any of them.
-require_once CLAUDPRESS_DIR . 'includes/class-brand.php';
-require_once CLAUDPRESS_DIR . 'includes/class-donate.php';
-require_once CLAUDPRESS_DIR . 'includes/class-admin.php';
-require_once CLAUDPRESS_DIR . 'includes/class-admin-providers.php';
-require_once CLAUDPRESS_DIR . 'includes/class-admin-settings.php';
-require_once CLAUDPRESS_DIR . 'includes/class-admin-screens.php';
-require_once CLAUDPRESS_DIR . 'includes/class-admin-automation.php';
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-filesystem.php';
+require_once KEELHOB_DIR . 'includes/class-brand.php';
+require_once KEELHOB_DIR . 'includes/class-donate.php';
+require_once KEELHOB_DIR . 'includes/class-admin.php';
+require_once KEELHOB_DIR . 'includes/class-admin-providers.php';
+require_once KEELHOB_DIR . 'includes/class-admin-settings.php';
+require_once KEELHOB_DIR . 'includes/class-admin-screens.php';
+require_once KEELHOB_DIR . 'includes/class-admin-automation.php';
+require_once KEELHOB_DIR . 'includes/tools/class-tools-filesystem.php';
 
 // --- notifier -------------------------------------------------------------
 if (!function_exists('wp_mail')) {
     function wp_mail($to, $subject, $message, $headers = [], $attachments = [])
     {
-        $GLOBALS['cp_test_mail'][] = compact('to', 'subject', 'message');
+        $GLOBALS['kh_test_mail'][] = compact('to', 'subject', 'message');
 
         // Hosts where mail cannot leave the box are the whole reason the
         // notifier records outcomes, so the stub has to be able to be one.
-        return empty($GLOBALS['cp_test_mail_fails']);
+        return empty($GLOBALS['kh_test_mail_fails']);
     }
 }
 if (!function_exists('wp_remote_post')) {
     function wp_remote_post($url, $args = [])
     {
-        $GLOBALS['cp_test_posts'][] = ['url' => $url, 'args' => $args];
+        $GLOBALS['kh_test_posts'][] = ['url' => $url, 'args' => $args];
         return ['response' => ['code' => 200], 'body' => '{}'];
     }
 }
@@ -927,31 +929,31 @@ if (!class_exists('WP_Error')) {
         public function get_error_message() { return $this->message; }
     }
 }
-$GLOBALS['cp_test_mail']  = [];
-$GLOBALS['cp_test_posts'] = [];
+$GLOBALS['kh_test_mail']  = [];
+$GLOBALS['kh_test_posts'] = [];
 
-require_once CLAUDPRESS_DIR . 'includes/class-notifier.php';
+require_once KEELHOB_DIR . 'includes/class-notifier.php';
 
 
 // Studio helpers are pure functions, so they belong in the fast suite
 // rather than only in the rig.
-// Claudpress_Studio is needed for its SLUG constant: the Plugins-row links
+// Keelhob_Studio is needed for its SLUG constant: the Plugins-row links
 // point at the Snippets screen, and hard-coding the slug there would make
 // renaming the page silently produce a dead link on the Plugins screen.
-require_once CLAUDPRESS_DIR . 'includes/class-studio.php';
-require_once CLAUDPRESS_DIR . 'includes/class-studio-ai.php';
-require_once CLAUDPRESS_DIR . 'includes/class-studio-chat.php';
+require_once KEELHOB_DIR . 'includes/class-studio.php';
+require_once KEELHOB_DIR . 'includes/class-studio-ai.php';
+require_once KEELHOB_DIR . 'includes/class-studio-chat.php';
 
 /**
  * A stand-in for WP_Admin_Bar.
  *
- * Only the two methods Claudpress touches. It exists so
- * tests/unit/test-abilities-notice.php can assert the `Claudpress: ON` chip is
+ * Only the two methods Keelhob touches. It exists so
+ * tests/unit/test-abilities-notice.php can assert the `Keelhob: ON` chip is
  * really registered — the chip is the entire reason the abilities banner is
  * allowed to be dismissed, so "it is still there" has to be a test rather than
  * a belief.
  */
-class CP_Test_Admin_Bar
+class KH_Test_Admin_Bar
 {
     /** @var array<string, array<string, mixed>> */
     public array $nodes = [];

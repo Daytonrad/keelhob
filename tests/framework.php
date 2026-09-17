@@ -1,11 +1,11 @@
 <?php
 /**
- * A ~100-line test framework. Claudpress ships with zero composer dependencies
+ * A ~100-line test framework. Keelhob ships with zero composer dependencies
  * and that constraint applies to its tests too — anything a contributor needs to
  * run them is already in PHP 8.
  */
 
-final class CP_Test
+final class KH_Test
 {
     public static int $passed = 0;
     public static int $failed = 0;

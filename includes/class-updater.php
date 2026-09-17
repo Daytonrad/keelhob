@@ -38,16 +38,16 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Updater
+final class Keelhob_Updater
 {
     /** Answers with the latest release, and records the check-in. */
-    const CHECKIN_ENDPOINT = 'https://api.claudpress.com/v1/version';
+    const CHECKIN_ENDPOINT = 'https://api.keelhob.com/v1/version';
 
     /** The same answer, without the check-in, for anyone who opted out. */
-    const DIRECT_ENDPOINT = 'https://api.github.com/repos/calflint/claudpress/releases/latest';
+    const DIRECT_ENDPOINT = 'https://api.github.com/repos/calflint/keelhob/releases/latest';
 
-    const SLUG      = 'claudpress';
-    const TRANSIENT = 'claudpress_update_check';
+    const SLUG      = 'keelhob';
+    const TRANSIENT = 'keelhob_update_check';
 
     /** How long an answer is cached. Twice a day is what WordPress asks anyway. */
     const TTL = 43200;
@@ -67,10 +67,10 @@ final class Claudpress_Updater
      */
     public static function site_id(): string
     {
-        $id = get_option('claudpress_site_id', '');
+        $id = get_option('keelhob_site_id', '');
         if (!is_string($id) || strlen($id) !== 36) {
             $id = wp_generate_uuid4();
-            update_option('claudpress_site_id', $id, false);
+            update_option('keelhob_site_id', $id, false);
         }
         return $id;
     }
@@ -112,7 +112,7 @@ final class Claudpress_Updater
     {
         $fields = [
             'site_id' => self::site_id(),
-            'version' => CLAUDPRESS_VERSION,
+            'version' => KEELHOB_VERSION,
             'wp'      => get_bloginfo('version'),
             'php'     => PHP_VERSION,
         ];
@@ -123,10 +123,10 @@ final class Claudpress_Updater
         $fields['multisite'] = is_multisite() ? 1 : 0;
         $fields['woo']       = class_exists('WooCommerce') ? 1 : 0;
 
-        if (class_exists('Claudpress')) {
-            $builder = (string) Claudpress::instance()->get('builder', 'auto');
+        if (class_exists('Keelhob')) {
+            $builder = (string) Keelhob::instance()->get('builder', 'auto');
             $fields['builder'] = $builder !== '' ? $builder : 'auto';
-            $fields['ai']      = Claudpress::instance()->abilities_enabled() ? 1 : 0;
+            $fields['ai']      = Keelhob::instance()->abilities_enabled() ? 1 : 0;
         }
 
         // Which capability groups are switched ON. Eight of them ship off by
@@ -134,14 +134,14 @@ final class Claudpress_Updater
         // enable each one is the difference between "nobody wanted this" and
         // "the switch is too hard to find". Group keys only — never the tools
         // inside them, and never whether a provider key is present.
-        if (class_exists('Claudpress_Capabilities')) {
+        if (class_exists('Keelhob_Capabilities')) {
             // is_group_enabled() rather than diffing against disabled_groups():
             // that method returns rows describing each disabled group for the
             // agent to read, not a list of keys, so diffing keys against it
             // compared strings with arrays and quietly produced the wrong list.
             $on = [];
-            foreach (array_keys(Claudpress_Capabilities::groups()) as $key) {
-                if (Claudpress_Capabilities::is_group_enabled((string) $key)) {
+            foreach (array_keys(Keelhob_Capabilities::groups()) as $key) {
+                if (Keelhob_Capabilities::is_group_enabled((string) $key)) {
                     $on[] = (string) $key;
                 }
             }
@@ -152,8 +152,8 @@ final class Claudpress_Updater
         // Is anyone actually using it. A count of unattended runs in the last
         // day, already stored on the site for the owner's own reporting, so
         // this adds no new record of anything. Never the cost or the tokens.
-        if (class_exists('Claudpress_Agent_Runs')) {
-            $usage = Claudpress_Agent_Runs::usage_since(24);
+        if (class_exists('Keelhob_Agent_Runs')) {
+            $usage = Keelhob_Agent_Runs::usage_since(24);
             $fields['runs'] = (int) ($usage['runs'] ?? 0);
         }
 
@@ -163,7 +163,7 @@ final class Claudpress_Updater
     /** Whether this site joins the public count. On unless the owner says no. */
     public static function counts_itself(): bool
     {
-        $settings = class_exists('Claudpress') ? (array) Claudpress::instance()->settings() : [];
+        $settings = class_exists('Keelhob') ? (array) Keelhob::instance()->settings() : [];
         return empty($settings['skip_checkin']);
     }
 
@@ -269,7 +269,7 @@ final class Claudpress_Updater
 
         return [
             'version' => $version,
-            'url'     => (string) ($body['url'] ?? $body['html_url'] ?? 'https://github.com/calflint/claudpress'),
+            'url'     => (string) ($body['url'] ?? $body['html_url'] ?? 'https://github.com/calflint/keelhob'),
             'package' => $package,
         ];
     }
@@ -281,20 +281,20 @@ final class Claudpress_Updater
             return $transient;
         }
         $latest = self::latest();
-        if (!$latest || version_compare($latest['version'], CLAUDPRESS_VERSION, '<=')) {
+        if (!$latest || version_compare($latest['version'], KEELHOB_VERSION, '<=')) {
             return $transient;
         }
 
-        $transient->response[CLAUDPRESS_BASENAME] = (object) [
+        $transient->response[KEELHOB_BASENAME] = (object) [
             'slug'        => self::SLUG,
-            'plugin'      => CLAUDPRESS_BASENAME,
+            'plugin'      => KEELHOB_BASENAME,
             'new_version' => $latest['version'],
             'url'         => $latest['url'],
             'package'     => $latest['package'],
             // Without these the Updates screen shows the grey puzzle-piece
             // placeholder, which on a plugin that updates itself from GitHub
             // rather than wordpress.org reads as "source unknown".
-            'icons'       => Claudpress_Brand::icons(),
+            'icons'       => Keelhob_Brand::icons(),
         ];
         return $transient;
     }
@@ -310,12 +310,12 @@ final class Claudpress_Updater
             return $result;
         }
         return (object) [
-            'name'          => 'Claudpress',
+            'name'          => 'Keelhob',
             'slug'          => self::SLUG,
             'version'       => $latest['version'],
             'homepage'      => $latest['url'],
             'download_link' => $latest['package'],
-            'icons'         => Claudpress_Brand::icons(),
+            'icons'         => Keelhob_Brand::icons(),
             'sections'      => [
                 'description' => 'Self-contained MCP server that lets an AI agent run your WordPress and WooCommerce site. Free, GPL, funded by donations.',
             ],

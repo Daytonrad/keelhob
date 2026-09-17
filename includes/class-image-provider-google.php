@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
  * Images come back as inline base64 parts of a normal generateContent response,
  * not as a dedicated images endpoint.
  */
-final class Claudpress_Image_Provider_Google extends Claudpress_Image_Provider
+final class Keelhob_Image_Provider_Google extends Keelhob_Image_Provider
 {
     public static function id(): string { return 'google'; }
     public static function label(): string { return 'Google (Gemini image / "Nano Banana")'; }

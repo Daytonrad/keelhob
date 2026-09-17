@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Claudpress are documented here.
+All notable changes to Keelhob are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -10,7 +10,65 @@ file is the one written for developers: it names files, says what broke and why,
 and keeps the pre-release history that `readme.txt` presents as if it were
 public. When the two disagree, this file is correct.
 
-## [1.2.0] - unreleased
+## [2.0.0] - unreleased
+
+### Changed
+
+- **The project is renamed from its previous name to Keelhob.** The old name
+  contained "Claud", one letter from Claude, which is a registered trademark of
+  Anthropic, PBC and also the AI client this plugin is most often pointed at.
+  In January 2026 Anthropic made an open-source project called Clawdbot rename
+  over a looser resemblance than that one. We moved before being asked.
+  Full reasoning, and the upgrade order for an existing site, in
+  **[docs/why-the-name-changed.md](docs/why-the-name-changed.md)**.
+
+  Releases 1.0.0 through 1.2.0 were published under the old name. The entries
+  below describe the same code; only the product name in them has been updated,
+  so that the old name survives in exactly one deliberate place rather than
+  scattered through release notes where it would read as an oversight.
+
+  Mechanically: plugin folder and main file, class prefix, constants, text
+  domain, the MCP route, ten database tables, every option, transient and post
+  meta key, and the internal `cp_`/`cp-`/`CP_` prefixes. 4,597 occurrences
+  across 208 files.
+
+  **Every MCP client must be reconnected.** The route is now
+  `/wp-json/keelhob/v1/mcp`; the old one is gone and an existing configuration
+  will get a 404. Copy the new command from the Connect screen.
+
+- **1.2.0 was never released.** Its work ships here instead, so that no further
+  release carries the old name. Everything listed under it below is in 2.0.0.
+
+### Added
+
+- **Existing installs are adopted automatically.** `includes/class-legacy-adopt.php`
+  renames the ten tables in place, carries the settings option across (provider
+  keys, hashed connection token, every capability switch), rewrites the
+  `_*_seo_*` post meta keys, clears the old scheduled hook and drops the stale
+  transients. `RENAME TABLE`, not a copy, so nothing is duplicated and there is
+  no window where two half-tables exist.
+
+  It **refuses to run while the old plugin is still active**, because renaming
+  tables out from under a running plugin throws a database error on every
+  request rather than warning. It also refuses to overwrite anything already
+  written under the new name. Both refusals are tested by breaking them.
+
+- **`tests/unit/test-no-legacy-brand.php` fails the build if the old name
+  appears anywhere.** It prints every file and line. Two files are allowed to
+  contain it and both have to: the document explaining the rename, and the
+  adoption step that has to say where the old data is. This is how the rename is
+  known to be complete, rather than believed to be.
+
+### Fixed
+
+- **The autoloader hardcoded the length of the old product name** in three
+  places (`10`, `11`, `11`). The rename left them behind and every single class
+  silently failed to load. The lengths are now derived with `strlen()` from the
+  prefix literal. `tests/unit/test-integrity.php` caught it, and turned out to
+  carry a duplicate copy of the same bug in its own re-implementation of the
+  autoloader.
+
+## [1.2.0] - not released; folded into 2.0.0
 
 ### Added
 
@@ -101,7 +159,7 @@ public. When the two disagree, this file is correct.
   `offset + interval`. On UTC+4 an hourly task took 4h58m — the reported gap,
   arrived at from the arithmetic rather than from guessing.
 
-  New `Claudpress_Tasks::last_run_ts()` converts through `get_gmt_from_date()`,
+  New `Keelhob_Tasks::last_run_ts()` converts through `get_gmt_from_date()`,
   so named timezones and DST are right, and the column keeps storing local time
   because three screens display it.
 
@@ -109,14 +167,14 @@ public. When the two disagree, this file is correct.
   plain UTC whatever it was asked, and the rig, CI and every other test
   WordPress run at UTC, where the offset the bug depends on is zero. So
   `tests/bootstrap.php` can now put the site somewhere real
-  (`$GLOBALS['cp_test_gmt_offset']`, default 0 so nothing else changes), and
+  (`$GLOBALS['kh_test_gmt_offset']`, default 0 so nothing else changes), and
   `tests/rig/checks-cron.php` moves a REAL WordPress to +04:00 and restores it
   in the same run. The tests assert both directions — a site east of UTC ran
   late, and a naive fix written only for that would make a site west of UTC fire
   EARLY and send duplicates.
 
 - **A new token now clears the failed-attempt lock.** `includes/class-auth.php`,
-  `includes/class-claudpress.php`, `includes/class-admin-screens.php`.
+  `includes/class-keelhob.php`, `includes/class-admin-screens.php`.
 
   Found the hard way against a live site. Ten failed attempts from one address
   in fifteen minutes locks the MCP endpoint, and `is_locked_out()` is checked
@@ -130,7 +188,7 @@ public. When the two disagree, this file is correct.
 
   Minting a token needs `manage_options`, which is stronger proof of ownership
   than surviving a fifteen-minute wait, so there is nothing left for the lock to
-  defend. `Claudpress_Auth::unlock()` clears every address's counter, not just
+  defend. `Keelhob_Auth::unlock()` clears every address's counter, not just
   the caller's — the lock is keyed on the MCP CLIENT's IP while the button is
   pressed from wp-admin, usually a different address. Clearing only "my" IP
   would leave the client locked and the owner staring at a button that did
@@ -195,7 +253,7 @@ public. When the two disagree, this file is correct.
   fenced blocks rather than JSON — a model told to answer with a fenced block
   complies far more often, and a malformed fence still leaves readable prose on
   screen where malformed JSON left nothing at all. Every block is linted with
-  the same `Claudpress_Snippets::lint_php()` the save path uses, the result is
+  the same `Keelhob_Snippets::lint_php()` the save path uses, the result is
   shown as a badge, and a failure is posted back to the model automatically,
   ONCE, then offered as a button. Once, not a loop: a loop that keeps resending
   a parse error spends real money while looking like progress.
@@ -217,9 +275,9 @@ public. When the two disagree, this file is correct.
   server-side on restore, because storing rendered HTML and injecting it back is
   how a stored-XSS bug gets written.
 
-  Removed with it: `Claudpress_Studio_AI::plan()` and `::build()`,
-  `Claudpress_Studio_Compose::plan_html()` and `::code_html()`, and the
-  `claudpress_studio_plan` / `claudpress_studio_build` AJAX actions.
+  Removed with it: `Keelhob_Studio_AI::plan()` and `::build()`,
+  `Keelhob_Studio_Compose::plan_html()` and `::code_html()`, and the
+  `keelhob_studio_plan` / `keelhob_studio_build` AJAX actions.
 
 ### Fixed
 
@@ -315,8 +373,8 @@ public. When the two disagree, this file is correct.
 - **Uninstall did not delete everything it promised to.** `uninstall.php`.
 
   Two hand-written lists, and they had drifted. By 1.2.0 the plugin created TEN
-  tables and the list named six, so `claudpress_snippet_revisions`,
-  `claudpress_chat`, `claudpress_agent_runs` and `claudpress_feedback` survived
+  tables and the list named six, so `keelhob_snippet_revisions`,
+  `keelhob_chat`, `keelhob_agent_runs` and `keelhob_feedback` survived
   a delete the owner had explicitly ticked "delete all data" for — the revisions
   table still holding every version of every snippet. Nine options, every
   transient, the user meta and the cron jobs were in the same position.
@@ -415,7 +473,7 @@ public. When the two disagree, this file is correct.
   browser prefetch, security scanners and email clients following links.
 
 - **An `Errored` status filter**, a **Priority column** and **sortable headers**.
-  The sorting logic already existed in `Claudpress_Studio_List::sort()` and
+  The sorting logic already existed in `Keelhob_Studio_List::sort()` and
   `filters()` already read `?orderby`; there were simply zero sortable headers in
   the markup, so none of it was reachable. Priority and Errored appear only when
   a snippet on the site is actually using them.
@@ -427,7 +485,7 @@ public. When the two disagree, this file is correct.
 - **A dismissible abilities banner**, per user, with `chip_watchdog()` clearing
   the dismissal if anything removes the toolbar indicator.
 
-- **`?days=N` on `/v1/feedback/summary`** (claudpress-api). The counts were
+- **`?days=N` on `/v1/feedback/summary`** (keelhob-api). The counts were
   lifetime, which can only go up, so they could not answer whether a problem got
   rarer after a release.
 
@@ -455,7 +513,7 @@ public. When the two disagree, this file is correct.
   somebody else's bug.
 
 - **The Plugins screen now says the snippets engine works on its own**, and
-  links straight to it. `claudpress.php` header, `includes/class-donate.php`.
+  links straight to it. `keelhob.php` header, `includes/class-donate.php`.
 
   The description described one product: a thing that hands an AI agent control
   of a site. True, and incomplete. The snippets engine has a real code editor,
@@ -466,7 +524,7 @@ public. When the two disagree, this file is correct.
 
   The row link is third, after Donate and Settings. Settings is what most people
   came for, and a row of links that buries it has made itself worse. The slug
-  comes from `Claudpress_Studio::SLUG` rather than being typed out, so renaming
+  comes from `Keelhob_Studio::SLUG` rather than being typed out, so renaming
   the page cannot leave a dead link on the Plugins screen — the one place nobody
   thinks to re-check.
 
@@ -484,7 +542,7 @@ public. When the two disagree, this file is correct.
 - The "Browse the library" button in the empty state. It pointed at
   `tab=library`, which `current_tab()` does not recognise when the Library tab is
   absent, so it silently returned you to All Snippets. It has never worked:
-  `Claudpress_Snippet_Library` was never written.
+  `Keelhob_Snippet_Library` was never written.
 
 ## [1.1.0] - 2026-09-13
 
@@ -498,7 +556,7 @@ public. When the two disagree, this file is correct.
   the project. One person shrugs; twenty people is the most useful thing this
   project could know.
 
-  Friction is captured automatically in `Claudpress_Tool_Registry::call()` — the
+  Friction is captured automatically in `Keelhob_Tool_Registry::call()` — the
   one place every tool call passes through — because an agent's own account of
   what went badly is the least reliable evidence there is. It sees three things
   by itself: a tool that errored, a refusal that reads as a policy block, and the
@@ -522,7 +580,7 @@ public. When the two disagree, this file is correct.
   Retention: 30 days or 50 rows, tighter than the 90 days the server keeps,
   because this table sits on somebody else's site.
 
-- **`Claudpress_Feedback::redact()`**, applied on write and again before sending.
+- **`Keelhob_Feedback::redact()`**, applied on write and again before sending.
   Strips URLs, bare domains, emails, IPv4/IPv6, absolute paths, key-shaped runs,
   anything following `key`/`token`/`password`/`secret`, and the site's own name
   and hostname. In PHP, not in a skill, because a skill can be edited away.
@@ -531,13 +589,13 @@ public. When the two disagree, this file is correct.
   leak. A no-op `redact()` fails 22 of its 30 assertions — verified, not assumed.
   That file is what makes the claim in PRIVACY.md checkable rather than stated.
 
-- **Claudpress → Activity → Feedback log.** Every row, in full, with two buttons:
+- **Keelhob → Activity → Feedback log.** Every row, in full, with two buttons:
   one that wipes the local log, one that also sends
   `DELETE /v1/feedback?site_id=…` so the server drops what it already holds.
   Anonymous data normally cannot honour a deletion request because nothing can
   find it; the site knows its own UUID, so it can ask.
 
-- **The "Help improve Claudpress" setting**, on by default, beside the public-count
+- **The "Help improve Keelhob" setting**, on by default, beside the public-count
   setting because both answer the same question. Default-ON is defensible only
   because of the two rules under it: nothing is recorded when it is off, and
   nothing is ever sent without a yes. Default-ON *sending* would not be.
@@ -557,7 +615,7 @@ public. When the two disagree, this file is correct.
   note during approval is sent, because redaction catches addresses and keys and
   cannot know that "Acme Dental" is a customer.
 
-- `Claudpress_Capabilities::always_on()` gains `feedback_status` and
+- `Keelhob_Capabilities::always_on()` gains `feedback_status` and
   `feedback_send`. A report the owner must enable a capability to give is a
   report nobody gives, and neither tool can change anything on the site.
 
@@ -582,7 +640,7 @@ public. When the two disagree, this file is correct.
   burst and caps abuse at roughly a twentieth of that.
 
   **A throttled report is delayed, never lost**, and that is what makes a daily
-  limit safe. `Claudpress_Feedback::send()` returns the status rather than a
+  limit safe. `Keelhob_Feedback::send()` returns the status rather than a
   bool, and `feedback_send` tells 429 apart from every other failure: the rows
   stay in the local log, the site's weekly offer is **not** spent, a 24-hour
   hold is set, and the agent is told in words that it is a queue and not a fault
@@ -638,7 +696,7 @@ public. When the two disagree, this file is correct.
   anonymous visitor.
 
 - **A kill switch that does not need a working site.** Adding
-  `define('CLAUDPRESS_SNIPPETS_OFF', true);` to `wp-config.php` stops every
+  `define('KEELHOB_SNIPPETS_OFF', true);` to `wp-config.php` stops every
   snippet, whatever the admin page says. Nothing is deleted; remove the line to
   switch them back on.
 
@@ -670,7 +728,7 @@ public. When the two disagree, this file is correct.
   `execute_sql`, `write_file`, `edit_file`, `delete_file`, `write_sandbox_file`
   and plugin/theme activation can all cause the identical failure — by
   succeeding — and none of them looked. All of them now do, through a shared
-  `Claudpress_Health::guard()`.
+  `Keelhob_Health::guard()`.
 
   **The response differs by whether the action can be undone**, and that
   distinction is the design. Auto-reverting something that cannot actually be
@@ -689,7 +747,7 @@ public. When the two disagree, this file is correct.
 
 - **File writes now keep the previous bytes**, so a change that breaks the site
   can be undone. One backup per path, most recent only, under
-  `wp-content/uploads/claudpress-backups` with a hashed filename and the same
+  `wp-content/uploads/keelhob-backups` with a hashed filename and the same
   `index.php` + `.htaccess` hardening as the sandbox — a backup can hold a live
   plugin file. Capped at 5MB per file and 50MB in total; a skipped backup means
   no automatic revert for that write, never that the write is refused.
@@ -774,9 +832,9 @@ public. When the two disagree, this file is correct.
   parser is not YAML, and a description that wraps onto a second line silently
   becomes empty, which makes the skill unroutable with no error anywhere.
 
-- **The Claudpress mark, in the four places WordPress gives a plugin to put
+- **The Keelhob mark, in the four places WordPress gives a plugin to put
   one.** The admin sidebar icon (previously a generic `dashicons-superhero`,
-  which taught nobody anything), the `<h1>` of all eight Claudpress admin
+  which taught nobody anything), the `<h1>` of all eight Keelhob admin
   screens, the admin bar item, and the Dashboard → Updates row — which until
   now showed the grey puzzle-piece placeholder, an unfortunate look for a
   plugin that updates itself from GitHub rather than wordpress.org.
@@ -800,7 +858,7 @@ public. When the two disagree, this file is correct.
   The mask sits behind `@supports`, because `background-color` with no mask
   would paint a solid rectangle in the sidebar, which is worse than no icon.
 
-  All of it lives in one class, `Claudpress_Brand`, so a redraw is one edit.
+  All of it lives in one class, `Keelhob_Brand`, so a redraw is one edit.
   `bin/build-zip.sh` now names each of the four image files rather than
   counting them: a count passes when a file is renamed, and a renamed brand
   file is exactly the quiet failure this guards — the plugin still installs,
@@ -846,7 +904,7 @@ public. When the two disagree, this file is correct.
   being wrong.** Neither ships to a user; both cost developer time, which is
   the only reason the rig exists.
 
-  `CP_RIG_LINK=1` claimed to symlink the plugin. In Git Bash on Windows,
+  `KH_RIG_LINK=1` claimed to symlink the plugin. In Git Bash on Windows,
   without `MSYS=winsymlinks:nativestrict` and with Developer Mode off, `ln -s`
   recursively **copies** the target and exits 0 — silently. The rig then built,
   loaded, and passed every check while holding a frozen copy, so edits to the
@@ -855,7 +913,7 @@ public. When the two disagree, this file is correct.
   error names the two ways out. Verified by running it on a machine where it
   fails.
 
-  The rig's own "is `CLAUDPRESS_DIR` inside `wp-content/plugins`" check
+  The rig's own "is `KEELHOB_DIR` inside `wp-content/plugins`" check
   compared raw strings, so it reported `OUTSIDE` for a perfectly correct rig
   whenever the path held a Windows 8.3 short name — PHP resolved one side to
   `C:/Users/FLINTSBWOY/...` and the other to `C:/Users/FLINTS~1/...`. Same
@@ -892,7 +950,7 @@ public. When the two disagree, this file is correct.
   `lcp-image-over-budget` for the holding page's own image, and
   `missing-meta-description`/`missing-og-*` for its head, none of which
   describe a page the audit ever actually saw. Found for real on
-  claudpress.com. It now hashes the body of every fetched page; when two or
+  keelhob.com. It now hashes the body of every fetched page; when two or
   more distinct URLs come back byte-identical, one `duplicate-body-gate`
   finding is raised instead (`blocker` if every fetched URL matches — the
   audit did not run at all; `high` if only some do, since the rest of the
@@ -926,7 +984,7 @@ public. When the two disagree, this file is correct.
   had zero downloads, and no install has ever verified against the old key. The
   same rotation after launch would break skill updates on every site until each
   one updated. **A stale copy of the key was also deleted from
-  `claudpress-api/.env`**, where it had been left behind after that service
+  `keelhob-api/.env`**, where it had been left behind after that service
   stopped signing anything.
 
   If you somehow have 1.0.1 installed, update to 1.0.2 before skill updates will
@@ -937,8 +995,8 @@ public. When the two disagree, this file is correct.
 
 - **`readme.txt` named the wrong update endpoint.** The External services
   section — the privacy disclosure people read before installing — said the
-  update check goes to `https://claudpress.com`. It goes to
-  `https://api.claudpress.com/v1/version`, which is what `PRIVACY.md` and the
+  update check goes to `https://keelhob.com`. It goes to
+  `https://api.keelhob.com/v1/version`, which is what `PRIVACY.md` and the
   code have said since 1.0.1. A wrong URL in the one section whose entire job is
   telling people where their data goes.
 
@@ -964,13 +1022,13 @@ Contributor-facing, plus one fix that matters to every install.
 ### Fixed
 
 - **The update check pointed at a route that has never existed.**
-  `CHECKIN_ENDPOINT` named `claudpress.com/wp-json/claudpress/v1/version`; that
+  `CHECKIN_ENDPOINT` named `keelhob.com/wp-json/keelhob/v1/version`; that
   route was never written and returns 404. It now points at
-  `api.claudpress.com/v1/version`, which is a real service. Combined with the
+  `api.keelhob.com/v1/version`, which is a real service. Combined with the
   GitHub fallback added in 1.0.0, updates work whether or not that service is
   reachable.
-- **`class-tools-seo.php` called `Claudpress_Tools_Seo`**, but the class is
-  declared `Claudpress_Tools_SEO`. PHP resolves class names case-insensitively
+- **`class-tools-seo.php` called `Keelhob_Tools_Seo`**, but the class is
+  declared `Keelhob_Tools_SEO`. PHP resolves class names case-insensitively
   so this always worked — right up until something mapped class names to
   filenames, which is exactly what the new autoloader does.
 - **A capability toggle described its own scope wrongly.** `agent_runs` was
@@ -990,9 +1048,9 @@ Contributor-facing, plus one fix that matters to every install.
   `remove_action([$admin, 'ajax_test_media'])`. **No behaviour changed**, and
   that was verified by diffing every method body byte-for-byte against the
   previous release rather than by trusting a green suite.
-- **`claudpress.php` no longer lists 52 `require_once` lines.** A small
+- **`keelhob.php` no longer lists 52 `require_once` lines.** A small
   autoloader maps class name to file path. No namespaces and no renaming — a
-  rename would break the `claudpress_register_tools` extension seam.
+  rename would break the `keelhob_register_tools` extension seam.
 
 ### Added
 
@@ -1037,7 +1095,7 @@ Everything, in the sense that none of it has been public before. In summary:
 
 - A self-contained MCP server inside a WordPress plugin. No external service,
   no account, no proxy — the site itself is the server, reachable at
-  `/wp-json/claudpress/v1/`.
+  `/wp-json/keelhob/v1/`.
 - Around 60 tools across content, design, media, SEO, files, PHP/SQL execution,
   code snippets, Elementor, WooCommerce (products, orders, payments, shipping,
   tax), site operations, updates, memory and skills.
@@ -1073,7 +1131,7 @@ Everything, in the sense that none of it has been public before. In summary:
 ### Fixed
 
 - **Updates now actually arrive.** The updater checked a version endpoint on
-  `claudpress.com` that returns 404 and was never built. Because that check-in
+  `keelhob.com` that returns 404 and was never built. Because that check-in
   is the default path rather than an opt-in, and because failures in
   `includes/class-updater.php` are deliberately silent, a default install
   received no plugin updates at all, indefinitely, with nothing on screen to
@@ -1132,7 +1190,7 @@ Read these as development notes, not as releases.
 
 ### 2.0.0 — free forever, one plugin
 
-- Claudpress became free in full and permanently: no paid add-on, no licence, no
+- Keelhob became free in full and permanently: no paid add-on, no licence, no
   tier. Payments, shipping, tax, orders and reports, user management, updates,
   email and notifications, deploy to production, the Snippets Studio and all
   fifteen skills were folded into the one plugin.
@@ -1188,12 +1246,12 @@ Read these as development notes, not as releases.
 ### 1.9.1 — SEO head injection fixes
 
 - Fixed: `og:description` never rendered — the injector read
-  `_claudpress_seo_og_description` while `seo_meta` wrote
-  `_claudpress_seo_og_desc`.
+  `_keelhob_seo_og_description` while `seo_meta` wrote
+  `_keelhob_seo_og_desc`.
 - Fixed: `/llms.txt` was served with a 404 status, so the AI crawlers that are
   its only readers discarded it.
 - Fixed: the SEO title never reached `<title>`; nothing read
-  `_claudpress_seo_title` back. Now applied via `pre_get_document_title`.
+  `_keelhob_seo_title` back. Now applied via `pre_get_document_title`.
 - Fixed: non-`is_singular()` views (shop archive, blog index, static front page)
   got no meta at all.
 - Added `og:url`, `og:type`, `og:site_name`, `twitter:card`.
@@ -1201,7 +1259,7 @@ Read these as development notes, not as releases.
 
 ### 1.9.0 — snippets control page
 
-- New Claudpress → Snippets admin page: every installed snippet with per-row
+- New Keelhob → Snippets admin page: every installed snippet with per-row
   activate/deactivate, an explanation panel, in-browser editing and deletion.
 - Fixed: `snippet_save` rebuilt the whole row on update, so saving one field
   (adding a tag, say) silently wiped the snippet's code. It merges now.
@@ -1283,7 +1341,7 @@ Read these as development notes, not as releases.
   read before write, minimal changes, prefer specific tools over `execute_php`
   and `execute_sql`, verify by reading back, treat live snippets as the
   highest-risk action, report honestly. Extendable via the
-  `claudpress_operating_protocol` filter.
+  `keelhob_operating_protocol` filter.
 - Security: the unauthenticated `/status` check no longer advertises whether AI
   abilities are on or how many tools are exposed.
 - Full i18n pass across all four admin screens.
@@ -1358,5 +1416,5 @@ Read these as development notes, not as releases.
 
 - Initial private release.
 
-[Unreleased]: https://github.com/calflint/claudpress/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/calflint/claudpress/releases/tag/v1.0.0
+[Unreleased]: https://github.com/calflint/keelhob/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/calflint/keelhob/releases/tag/v1.0.0

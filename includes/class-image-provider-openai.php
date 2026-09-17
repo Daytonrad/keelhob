@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
 }
 
 /** OpenAI Images API, and any gateway that mirrors it. */
-final class Claudpress_Image_Provider_OpenAI extends Claudpress_Image_Provider
+final class Keelhob_Image_Provider_OpenAI extends Keelhob_Image_Provider
 {
     public static function id(): string { return 'openai'; }
     public static function label(): string { return 'OpenAI (GPT Image / DALL·E) & compatible'; }

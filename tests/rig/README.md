@@ -48,13 +48,13 @@ falls back to `realpath(__DIR__ . "/plugins/sqlite-database-integration")` when
 the path does not exist. `{SQLITE_PLUGIN}` does not, so replace both.
 
 Write `wordpress/wp-config.php` as normal, but with **real salts** — the
-encryption in `Claudpress_Secrets` derives its key from `AUTH_KEY`,
+encryption in `Keelhob_Secrets` derives its key from `AUTH_KEY`,
 `SECURE_AUTH_KEY` and `AUTH_SALT`, so a config with placeholder salts will
 appear to work and hide a bug. Set `WP_HOME`/`WP_SITEURL` to
 `http://localhost:8899`, and `FS_METHOD` to `direct`.
 
 ```bash
-wp core install --url=http://localhost:8899 --title="Claudpress Rig" \
+wp core install --url=http://localhost:8899 --title="Keelhob Rig" \
   --admin_user=admin --admin_password=rigpass --admin_email=rig@example.test --skip-email
 ```
 
@@ -63,21 +63,21 @@ On Windows, from PowerShell:
 
 ```powershell
 New-Item -ItemType Junction `
-  -Path "<RIG>\wordpress\wp-content\plugins\claudpress" `
-  -Target "<repo>\Claudpress"
+  -Path "<RIG>\wordpress\wp-content\plugins\keelhob" `
+  -Target "<repo>\Keelhob"
 ```
 
 On macOS/Linux a symlink does the same job.
 
 CI copies the plugin instead. PHP resolves symlinks in `__FILE__`, so
-`plugin_dir_path(__FILE__)` - and therefore `CLAUDPRESS_DIR` - points at the
+`plugin_dir_path(__FILE__)` - and therefore `KEELHOB_DIR` - points at the
 checkout, outside `wp-content/plugins`; only `plugin_basename()` and
 `plugins_url()` are symlink-aware, through the `$wp_plugin_paths` map WordPress
 keeps for this case. A copy puts every path where a real install puts it. On a
-development machine the live-edit trade is worth it, and `CP_RIG_LINK=1 bash
+development machine the live-edit trade is worth it, and `KH_RIG_LINK=1 bash
 tests/rig/build-rig.sh` links instead.
 
-**`CP_RIG_LINK=1` does not work in Git Bash on Windows out of the box.** Without
+**`KH_RIG_LINK=1` does not work in Git Bash on Windows out of the box.** Without
 `MSYS=winsymlinks:nativestrict` and Developer Mode enabled, `ln -s` recursively
 *copies* the target and exits 0 — no warning, no error. The rig then builds,
 loads, and passes every check while holding a frozen copy that never sees
@@ -86,7 +86,7 @@ copy and stops if it is not. If you hit that, use the default copy and
 `sync-plugin.sh` below; it is what this machine does.
 
 ```bash
-wp plugin activate claudpress
+wp plugin activate keelhob
 ```
 
 ## Run the checks
@@ -95,7 +95,7 @@ All of them:
 
 ```bash
 bash tests/rig/run-all.sh /path/to/rig/wordpress
-# or: export CP_RIG=/path/to/rig/wordpress && bash tests/rig/run-all.sh
+# or: export KH_RIG=/path/to/rig/wordpress && bash tests/rig/run-all.sh
 ```
 
 Three files. There used to be four, run in a set order because one plugin had
@@ -103,9 +103,9 @@ to be toggled on and off between them; there is one plugin now, so the order no
 longer matters and checks-pro.php folded into checks.php.
 
 ```bash
-wp eval-file <repo>/Claudpress/tests/rig/checks.php          # core, incl. every formerly-paid tool
-wp eval-file <repo>/Claudpress/tests/rig/checks-studio.php   # the Studio screens
-wp eval-file <repo>/Claudpress/tests/rig/checks-compose.php  # the AI Compose flow
+wp eval-file <repo>/Keelhob/tests/rig/checks.php          # core, incl. every formerly-paid tool
+wp eval-file <repo>/Keelhob/tests/rig/checks-studio.php   # the Studio screens
+wp eval-file <repo>/Keelhob/tests/rig/checks-compose.php  # the AI Compose flow
 ```
 
 Exits non-zero if anything fails. The `Live rig` job in
@@ -179,14 +179,14 @@ the way it is documented to.
 Copy `ai-mock.php` into the rig:
 
 ```bash
-cp <repo>/Claudpress/tests/rig/ai-mock.php <RIG>/wordpress/wp-content/mu-plugins/
+cp <repo>/Keelhob/tests/rig/ai-mock.php <RIG>/wordpress/wp-content/mu-plugins/
 ```
 
 It hooks `pre_http_request`, matches the three provider hosts, and replays
 canned responses in each vendor's own shape. Then set any placeholder key:
 
 ```bash
-wp eval 'Claudpress::instance()->update(["agent_provider"=>"anthropic","agent_api_key"=>"sk-ant-RIG-MOCK-NOT-A-REAL-KEY","agent_model"=>"mock-model-newest"]);'
+wp eval 'Keelhob::instance()->update(["agent_provider"=>"anthropic","agent_api_key"=>"sk-ant-RIG-MOCK-NOT-A-REAL-KEY","agent_model"=>"mock-model-newest"]);'
 ```
 
 What it replaces is only the network hop. Building the request, parsing the
@@ -197,7 +197,7 @@ is exactly the part a stub of the plugin's own classes would have skipped.
 Verified working: `test_connection`, `fetch_models`, and a complete `run_agent`
 loop returning a summary, step count and token usage.
 
-Define `CLAUDPRESS_MOCK_FAIL` to make every call fail, for testing error paths.
+Define `KEELHOB_MOCK_FAIL` to make every call fail, for testing error paths.
 
 **It lives in `tests/rig/` and is copied in by hand on purpose.** It must never
 be anywhere the build could sweep it into a zip.
@@ -205,7 +205,7 @@ be anywhere the build could sweep it into a zip.
 ## End-to-end, through the MCP endpoint
 
 `tests/rig/e2e-mcp.mjs` is the only layer that talks to the plugin the way a
-real client does: an HTTP POST of JSON-RPC to `/claudpress/v1/mcp`, carrying a
+real client does: an HTTP POST of JSON-RPC to `/keelhob/v1/mcp`, carrying a
 bearer token.
 
 Everything on that path — the REST route, the auth middleware, the JSON-RPC
@@ -218,10 +218,10 @@ everything) while every admin screen still looks perfect.
 # 1. Switch abilities on and mint a token INTO A FILE.
 #    Not into argv: on Linux /proc/<pid>/cmdline is world-readable.
 php /c/wp-cli/wp-cli.phar --path=/c/wp-rig/wordpress eval '
-  Claudpress::instance()->update(["abilities_enabled" => true]);
+  Keelhob::instance()->update(["abilities_enabled" => true]);
   echo json_encode([
-    "token"    => Claudpress::set_token(),
-    "endpoint" => rest_url("claudpress/v1/mcp"),
+    "token"    => Keelhob::set_token(),
+    "endpoint" => rest_url("keelhob/v1/mcp"),
   ]);
 ' > /tmp/mcp.json
 
@@ -252,8 +252,8 @@ update. A migration that drops a column, a read path that assumes a shape only
 the new version writes, or an upgrade that quietly switches capabilities on —
 none of that shows up on a fresh install, which is all a rig normally is.
 
-**It is destructive on purpose.** Step 1 wipes every `claudpress_*` table and
-option, because `maybe_upgrade()` returns early when `claudpress_db_version`
+**It is destructive on purpose.** Step 1 wipes every `keelhob_*` table and
+option, because `maybe_upgrade()` returns early when `keelhob_db_version`
 already matches: copying old files over a new database would mean the migration
 under test never runs, and every assertion after it passes for the wrong reason.
 The wipe is scoped to the prefix, and the run asserts at the end that the
@@ -284,10 +284,10 @@ about:
 | the old flat conditions lift to 4 rules with `only_singular` preserved | 1.1.0 wrapped post_type/post_id in `is_singular()`, so on an archive those rules did not APPLY rather than failing — dropping that flag silently changes what an upgraded site shows |
 
 **Three of its own bugs, worth not repeating.** The first draft called
-`Claudpress_Snippet_Conditions::decode()` (a plain JSON parser) where it meant
+`Keelhob_Snippet_Conditions::decode()` (a plain JSON parser) where it meant
 `normalize()` (the lifter), and reported `rules: 0` — which reads exactly like a
 migration that had dropped somebody's conditions. The second searched the
-rendered HTML for `front_page`, but `<div id="cp-cond-rules">` ships empty and
+rendered HTML for `front_page`, but `<div id="kh-cond-rules">` ships empty and
 the builder draws its rows from `wp_localize_script` data. The third kept its
 tally in `$GLOBALS` while `wp eval-file` evals the body inside a method, so the
 counters stayed at zero, real FAIL lines printed, and the run exited 0 announcing

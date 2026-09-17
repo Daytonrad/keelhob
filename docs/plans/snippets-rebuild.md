@@ -6,7 +6,7 @@
 Written after measuring the current screen on the rig instead of describing it,
 then built against those measurements. Results at the bottom.
 
-Version 1 of this plan proposed absorbing VibeSnip into Claudpress: five tabs, a
+Version 1 of this plan proposed absorbing VibeSnip into Keelhob: five tabs, a
 conditional-logic rule builder, a signed snippet Library, an importer, and a
 What's New screen. That plan is withdrawn. What replaces it is narrower, aimed
 at one thing, and every item in it is backed by a number taken from the running
@@ -30,7 +30,7 @@ Dropping the rule builder removed the single most dangerous item in v1. Two
 incompatible `conditions_json` formats meant an old snippet opened in a new rule
 editor would either be silently rewritten — turning "members only" into
 "everyone" without telling anybody — or refuse to open at all. With no rule
-builder, Claudpress keeps the flat format it already has, which has no UI, is
+builder, Keelhob keeps the flat format it already has, which has no UI, is
 only ever written by an agent over MCP, and is touched by nothing in this plan.
 
 **Success is no longer "matches VibeSnip".** Nobody asked for VibeSnip. See
@@ -40,7 +40,7 @@ Part 8 for what replaces it.
 
 ## The baseline
 
-Taken 2026-09-13 against the kept rig at `C:\wp-rig` (Claudpress 1.1.0, six
+Taken 2026-09-13 against the kept rig at `C:\wp-rig` (Keelhob 1.1.0, six
 seeded snippets, Chrome at 1536x674), by rendering the page and reading the
 DOM and computed styles — not by reading the source.
 
@@ -56,18 +56,18 @@ DOM and computed styles — not by reading the source.
 | B8 | Sortable column headers | **0** |
 | B9 | Priority column in the table | **absent** |
 | B10 | Status filter options | **Any status / On / Off** — no Errored |
-| B11 | `Claudpress_Donate::button()` call sites | **7**, across 5 files |
+| B11 | `Keelhob_Donate::button()` call sites | **7**, across 5 files |
 | B12 | `class-admin-snippets.php` — a second, complete Snippets screen | **337 lines, referenced by nothing, shipped in the zip** |
 | B13 | "Browse the library" button target | `tab=library` -> falls back to All Snippets. Silent no-op. |
 | B14 | Ways to dismiss an AI plan without reloading | **0** |
 | B15 | Save button shown when the syntax check says *failed* | **yes**, unchanged from the passing case |
-| B16 | `Claudpress: ON` toolbar chip, in wp-admin, with `show_admin_bar` filtered false by a live snippet | **still present** |
+| B16 | `Keelhob: ON` toolbar chip, in wp-admin, with `show_admin_bar` filtered false by a live snippet | **still present** |
 
 What the baseline is **not**: broken everywhere. Pagination already works (20 a
 page). The `.subsubsub` type tabs already work and already hide filters that can
 only return nothing. Sorting is already implemented in
-`Claudpress_Studio_List::sort()` — it simply has no UI to reach it.
-`Claudpress_Snippets::save()` already parse-checks and already refuses to let
+`Keelhob_Studio_List::sort()` — it simply has no UI to reach it.
+`Keelhob_Snippets::save()` already parse-checks and already refuses to let
 unparsed PHP go active. The engine is sound. This is a surface problem.
 
 ---
@@ -76,7 +76,7 @@ unparsed PHP go active. The engine is sound. This is a surface problem.
 
 **The most important item in this plan, and it is a bug, not a feature.**
 
-`Claudpress_Studio_Edit::render()` calls `wp_enqueue_code_editor()`, enqueues
+`Keelhob_Studio_Edit::render()` calls `wp_enqueue_code_editor()`, enqueues
 `wp-theme-plugin-editor`, enqueues `wp-codemirror`, and then emits an inline
 `<script>` in the page body that calls `wp.codeEditor.initialize(...)`.
 
@@ -198,7 +198,7 @@ inline toggles in the table body (B7).
 
 A **Status column containing a real control**, not a word plus a hidden link.
 
-- A `<form>` per row posting to the existing `claudpress_studio` handler with
+- A `<form>` per row posting to the existing `keelhob_studio` handler with
   `studio_action=activate|deactivate` — the POST-with-nonce rule stays exactly as
   it is. **State changes must never become GET links.** A GET that switches code
   on will be fired by a browser prefetch, a security scanner, or an email client
@@ -243,7 +243,7 @@ shown.** No snippets have errored -> no Errored tab.
 
 ### 4.2 Sortable column headers
 
-`Claudpress_Studio_List::sort()` already handles `name`, `priority` and
+`Keelhob_Studio_List::sort()` already handles `name`, `priority` and
 `updated`. `filters()` already reads `?orderby=` and `?order=`. There are zero
 sortable headers in the markup (B8), so none of it is reachable.
 
@@ -267,7 +267,7 @@ Two findings, one real and one smaller than it first looked.
 
 ### 5.1 There is no way to dismiss a plan (B14)
 
-Once `cp-compose-plan-box` is populated it is only ever replaced, never cleared.
+Once `kh-compose-plan-box` is populated it is only ever replaced, never cleared.
 If the AI proposes something you do not want, your options are to plan something
 else or reload the page.
 
@@ -282,7 +282,7 @@ and scrolls the prompt back into view with its text selected.
 
 ### 5.2 Save is offered beside a failed syntax check (B15)
 
-`Claudpress_Studio_Compose::code_html()` renders "Syntax check: **failed**" and
+`Keelhob_Studio_Compose::code_html()` renders "Syntax check: **failed**" and
 then renders exactly the same Save form it renders on success.
 
 This is **not** dangerous — `save()` parse-checks again on the server and stores
@@ -314,7 +314,7 @@ or multi-file snippets.
 
 A complete second Snippets screen: filters, a table, a details panel, an editor,
 delete forms. Nothing instantiates it. Nothing registers a menu item for it.
-`grep -rn Claudpress_Admin_Snippets --include=*.php` outside `tests/` returns the
+`grep -rn Keelhob_Admin_Snippets --include=*.php` outside `tests/` returns the
 class declaration and its copy under `build/` — **and nothing else** (B12).
 
 The first person to read this repo after it goes public will find two complete
@@ -328,16 +328,16 @@ file goes. Delete its render test with it, or repoint the test at the Studio.
 ### 6.2 "Browse the library"
 
 The empty state offers three buttons. The third points at `tab=library`, which
-`Claudpress_Studio::current_tab()` does not recognise when the Library tab is
+`Keelhob_Studio::current_tab()` does not recognise when the Library tab is
 absent, so it silently returns you to All Snippets (B13). It has never worked,
-because `Claudpress_Snippet_Library` was never written.
+because `Keelhob_Snippet_Library` was never written.
 
 Delete the button. The empty state keeps two honest choices: describe one to the
 AI, or write one yourself.
 
 ### 6.3 Seven Donate buttons
 
-`Claudpress_Donate::button()` is called **7 times across 5 files** (B11) — beside
+`Keelhob_Donate::button()` is called **7 times across 5 files** (B11) — beside
 the `<h1>` of Connect, Guide, Activity, Skills, Automation, the dead Snippets
 screen and the Studio. A free plugin that asks for money at the top of every
 screen reads as a plugin that is about the money.
@@ -349,10 +349,10 @@ Cut to **two placements**:
 2. The Donate page itself.
 
 The Plugins-row link stays — it is WordPress's own convention and costs nothing.
-`Claudpress_Donate::button()` stays as a method; only the call sites go. That
+`Keelhob_Donate::button()` stays as a method; only the call sites go. That
 keeps the diff reversible and keeps one place to change the markup.
 
-**Not a money decision.** `claudpress-vital/FUNDING-AND-SPONSORS.md` is the
+**Not a money decision.** `keelhob-vital/FUNDING-AND-SPONSORS.md` is the
 document that decides funding. This is a decision about how many times one screen
 may ask.
 
@@ -362,15 +362,15 @@ may ask.
 
 ### What it actually is
 
-`Claudpress_Admin::notice()` prints a yellow warning gated on
-`strpos($screen->id, 'claudpress')`. It is on **Claudpress screens only**, not
+`Keelhob_Admin::notice()` prints a yellow warning gated on
+`strpos($screen->id, 'keelhob')`. It is on **Keelhob screens only**, not
 across wp-admin — worth stating plainly, because it makes the nagging much
 smaller than it sounds. It cannot be dismissed and it never goes away while
 abilities are on.
 
 ### Why hiding it is safe — measured, not assumed
 
-`Claudpress_Admin::admin_bar()` puts **`Claudpress: ON`** in the WordPress
+`Keelhob_Admin::admin_bar()` puts **`Keelhob: ON`** in the WordPress
 toolbar. The obvious objection is that a snippet can remove the toolbar, so the
 chip is not a reliable fallback.
 
@@ -389,9 +389,9 @@ defensible rather than reckless.
 
 ### The guard the test did not remove
 
-A snippet could still call `remove_node('claudpress')`, or inject admin CSS
+A snippet could still call `remove_node('keelhob')`, or inject admin CSS
 hiding `#wpadminbar`. So: **the dismiss checkbox is only offered while the chip is
-actually rendering.** `Claudpress_Admin::notice()` checks that the toolbar node
+actually rendering.** `Keelhob_Admin::notice()` checks that the toolbar node
 was registered for this request; if it was not, the banner shows and cannot be
 hidden. Cheap, and it closes the one hole the measurement left open.
 
@@ -400,7 +400,7 @@ hidden. Cheap, and it closes the one hole the measurement left open.
 A checkbox on Connect, beside the other "what leaves this site" settings:
 
 > [ ] **Hide the "AI abilities are ON" banner**
-> The toolbar still shows `Claudpress: ON`, so the site never stops telling you.
+> The toolbar still shows `Keelhob: ON`, so the site never stops telling you.
 
 Three rules that are not negotiable:
 
@@ -543,7 +543,7 @@ Instruments before changes, then the bug, then the rest.
 8. **Part 5 — Discard, re-plan, and the failed-lint acknowledgement.**
 9. **Part 7 — the dismissible banner**, with the chip-present guard.
 10. Version bump, `readme.txt` changelog, `bin/build-readme-txt.php` drift check.
-11. Archive the VibeSnip repository with a README pointing at Claudpress.
+11. Archive the VibeSnip repository with a README pointing at Keelhob.
 
 Steps 3-9 are each independently shippable and each flip a specific row of the
 success table. If the work is interrupted, whatever is finished is still worth
@@ -572,7 +572,7 @@ format. With no rule builder in scope, nothing in this plan reads or writes
 ## Verification
 
 ```bash
-cd "c:/Users/FLINTSBWOY/Documents/antiGrav/Claudpress"
+cd "c:/Users/FLINTSBWOY/Documents/antiGrav/Keelhob"
 
 php tests/run.php                 # full unit suite green
 composer analyse                  # PHPStan clean
@@ -629,7 +629,7 @@ linter at 100/100, the readme drift check, and the zip build.
    reorganised around. Part 1.
 2. **The chip guard could not work where it was placed.** Asking the toolbar for
    its nodes from `admin_notices` returns nothing, because the toolbar has not
-   been built yet. A rig probe printed `nodes=0 claudpress=no` on a page whose
+   been built yet. A rig probe printed `nodes=0 keelhob=no` on a page whose
    toolbar rendered correctly moments later. Shipped as written, the guard would
    have removed the dismiss option entirely while reading like a careful safety
    check.
@@ -645,10 +645,10 @@ argument for the browser layer, stated as plainly as it can be.
 
 - **`includes/class-studio-library.php` is deleted**, with the `use_library`
   action and the Library tab. It could never appear: `has_items()` asked
-  `Claudpress_Snippet_Library`, a class nobody ever wrote. 135 lines of screen
+  `Keelhob_Snippet_Library`, a class nobody ever wrote. 135 lines of screen
   plus an install path, shipping in every zip, reachable by nobody.
 
-  **Kept on purpose:** `source = 'library'` in `Claudpress_Snippets::SOURCES` and
+  **Kept on purpose:** `source = 'library'` in `Keelhob_Snippets::SOURCES` and
   its badge. That is stored data, not UI — sites that used the old private
   library still have rows carrying it, and dropping the badge would render their
   own history wrong. `?tab=library` still falls back to the list, so an old
@@ -714,7 +714,7 @@ computed colour. Never the presence of markup.
 - **A 320px right-hand rail**: Save (with a status badge), Behaviour (the five
   settings that were behind a `<details>`), Revisions. Always open. Nothing that
   is switched on is hidden.
-- **`Claudpress_Snippet_Conditions`** — seven rule kinds, ALL/ANY, operators,
+- **`Keelhob_Snippet_Conditions`** — seven rule kinds, ALL/ANY, operators,
   a repeatable builder, and a summary badge on the list screen.
 - **One stylesheet**, `assets/css/studio.css`, replacing two `wp_add_inline_style`
   blocks that styled the same screen and had begun to disagree.
@@ -739,7 +739,7 @@ rules built in the new builder do not. Pinned by
 Both surfaced from the same habit: delete the test fixture, then **count what is
 left**.
 
-1. `Claudpress_Snippets::delete()` never removed a snippet's revisions.
+1. `Keelhob_Snippets::delete()` never removed a snippet's revisions.
    `snippets left: 0, revisions left: 7`. Unreachable rows, growing without
    limit, each holding a full copy of the code — so deleting a snippet because
    of what was inside it did not remove it.

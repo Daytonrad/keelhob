@@ -5,12 +5,12 @@ GPL in the one free plugin.
 
 ---
 
-## What Claudpress is for
+## What Keelhob is for
 
 WordPress made one promise that mattered: anyone could put a real website
 online, own it, and change it themselves. AI site builders are taking that
 promise back — not by being better, but by being faster to start, and what they
-hand you instead is a site you rent rather than own. Claudpress exists to make
+hand you instead is a site you rent rather than own. Keelhob exists to make
 the fast path and the ownership path the same path: install one plugin, connect
 your agent, say what you want, and get a real database, a real store and real
 code on hosting you control.
@@ -74,7 +74,7 @@ Planned and ordered.
 
 ### 1.5 — depth
 
-Claudpress stops being a tool that builds sites and becomes one that builds
+Keelhob stops being a tool that builds sites and becomes one that builds
 tools.
 
 - **The Plugin Factory skill.** Ask for a plugin and get one. Ask it to read a
@@ -135,7 +135,7 @@ welcome here especially — these are well-defined problems with an obvious
 "done".
 
 - ~~**An autoloader**, replacing the manual `require_once` lines in
-  `claudpress.php`.~~ Done in 1.0.1.
+  `keelhob.php`.~~ Done in 1.0.1.
 - ~~**Split `class-admin.php`.**~~ Done in 1.0.1, along with
   `class-providers.php` and `class-telegram.php`. The largest file in
   `includes/` is now 818 lines, down from 2,440.

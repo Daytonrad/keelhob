@@ -1,14 +1,14 @@
 <?php
 /**
  * Registers the MCP endpoint on the WordPress REST API and bridges HTTP <-> the
- * JSON-RPC MCP server. Endpoint: /wp-json/claudpress/v1/mcp
+ * JSON-RPC MCP server. Endpoint: /wp-json/keelhob/v1/mcp
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Rest
+final class Keelhob_Rest
 {
     public function hooks(): void
     {
@@ -17,7 +17,7 @@ final class Claudpress_Rest
 
     public function register_routes(): void
     {
-        register_rest_route(CLAUDPRESS_REST_NAMESPACE, '/mcp', [
+        register_rest_route(KEELHOB_REST_NAMESPACE, '/mcp', [
             [
                 'methods'             => 'POST',
                 'callback'            => [$this, 'handle_post'],
@@ -33,14 +33,14 @@ final class Claudpress_Rest
         ]);
 
         // Lightweight unauthenticated health check for connection debugging.
-        register_rest_route(CLAUDPRESS_REST_NAMESPACE, '/status', [
+        register_rest_route(KEELHOB_REST_NAMESPACE, '/status', [
             'methods'             => 'GET',
             'callback'            => [$this, 'status'],
             'permission_callback' => '__return_true',
         ]);
 
-        // Deploy receiver: a remote Claudpress (staging) pushes a bundle here.
-        register_rest_route(CLAUDPRESS_REST_NAMESPACE, '/import', [
+        // Deploy receiver: a remote Keelhob (staging) pushes a bundle here.
+        register_rest_route(KEELHOB_REST_NAMESPACE, '/import', [
             'methods'             => 'POST',
             'callback'            => [$this, 'handle_import'],
             'permission_callback' => [$this, 'permission'],
@@ -52,7 +52,7 @@ final class Claudpress_Rest
         // bearer token, and a rejected request would just be retried forever.
         // Authentication is the secret header instead, checked first thing in
         // the handler, so an unsigned request never reaches the agent.
-        register_rest_route(CLAUDPRESS_REST_NAMESPACE, '/telegram', [
+        register_rest_route(KEELHOB_REST_NAMESPACE, '/telegram', [
             'methods'             => 'POST',
             'callback'            => [$this, 'handle_telegram'],
             'permission_callback' => '__return_true',
@@ -72,12 +72,12 @@ final class Claudpress_Rest
 
     public function handle_telegram(WP_REST_Request $request): WP_REST_Response
     {
-        if (!Claudpress_Telegram::enabled()) {
+        if (!Keelhob_Telegram::enabled()) {
             return new WP_REST_Response(['ok' => false, 'error' => 'Telegram chat is disabled.'], 404);
         }
 
         $header = $request->get_header('x_telegram_bot_api_secret_token');
-        if (!self::telegram_signed(is_string($header) ? $header : null, Claudpress_Telegram::secret())) {
+        if (!self::telegram_signed(is_string($header) ? $header : null, Keelhob_Telegram::secret())) {
             return new WP_REST_Response(['ok' => false, 'error' => 'Bad secret token.'], 403);
         }
 
@@ -94,11 +94,11 @@ final class Claudpress_Rest
         if (function_exists('fastcgi_finish_request')) {
             $done = new WP_REST_Response(['ok' => true], 200);
             $this->flush_response($done);
-            Claudpress_Telegram::handle_update($update);
+            Keelhob_Telegram::handle_update($update);
             exit;
         }
 
-        $result = Claudpress_Telegram::handle_update($update);
+        $result = Keelhob_Telegram::handle_update($update);
         return new WP_REST_Response($result, 200);
     }
 
@@ -117,7 +117,7 @@ final class Claudpress_Rest
 
     public function handle_import(WP_REST_Request $request): WP_REST_Response
     {
-        if (!Claudpress::instance()->abilities_enabled()) {
+        if (!Keelhob::instance()->abilities_enabled()) {
             return new WP_REST_Response(['success' => false, 'error' => 'AI abilities are disabled on the target site; enable them to accept a deploy.'], 403);
         }
         $body   = json_decode($request->get_body(), true);
@@ -125,14 +125,14 @@ final class Claudpress_Rest
         if (!$bundle) {
             return new WP_REST_Response(['success' => false, 'error' => 'Missing bundle.'], 400);
         }
-        $report = Claudpress_Migration::import($bundle, (string) ($body['mode'] ?? 'upsert'));
+        $report = Keelhob_Migration::import($bundle, (string) ($body['mode'] ?? 'upsert'));
         return new WP_REST_Response($report, 200);
     }
 
     /** @return true|WP_Error */
     public function permission()
     {
-        return Claudpress_Auth::authenticate();
+        return Keelhob_Auth::authenticate();
     }
 
     /**
@@ -140,7 +140,7 @@ final class Claudpress_Rest
      *
      * This route is deliberately unauthenticated so a client can confirm the
      * endpoint exists before it has credentials — but that also means anyone on
-     * the internet can read it. So it only advertises that Claudpress is
+     * the internet can read it. So it only advertises that Keelhob is
      * installed and where to connect. Whether abilities are switched on, and how
      * many tools are exposed, tells an attacker whether this site is worth
      * attacking; that detail is only returned to an authenticated caller.
@@ -154,14 +154,14 @@ final class Claudpress_Rest
         // list for anyone scanning for un-patched sites. Authenticated callers
         // still get the full picture.
         $body = [
-            'name'     => 'Claudpress',
-            'endpoint' => rest_url(CLAUDPRESS_REST_NAMESPACE . '/mcp'),
+            'name'     => 'Keelhob',
+            'endpoint' => rest_url(KEELHOB_REST_NAMESPACE . '/mcp'),
         ];
 
-        if (Claudpress_Auth::authenticate() === true) {
-            $body['version']           = CLAUDPRESS_VERSION;
-            $body['abilities_enabled'] = Claudpress::instance()->abilities_enabled();
-            $body['tool_count']        = count(Claudpress::instance()->registry->names());
+        if (Keelhob_Auth::authenticate() === true) {
+            $body['version']           = KEELHOB_VERSION;
+            $body['abilities_enabled'] = Keelhob::instance()->abilities_enabled();
+            $body['tool_count']        = count(Keelhob::instance()->registry->names());
         }
 
         return new WP_REST_Response($body, 200);
@@ -187,7 +187,7 @@ final class Claudpress_Rest
             ], 200);
         }
 
-        $server   = new Claudpress_MCP_Server(Claudpress::instance()->registry);
+        $server   = new Keelhob_MCP_Server(Keelhob::instance()->registry);
         $is_batch = is_array($data) && !empty($data) && array_keys($data) === range(0, count($data) - 1);
         $messages = $is_batch ? $data : [$data];
 

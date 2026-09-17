@@ -7,9 +7,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Tools_Memory
+final class Keelhob_Tools_Memory
 {
-    public static function register(Claudpress_Tool_Registry $r): void
+    public static function register(Keelhob_Tool_Registry $r): void
     {
         $r->add('memory_save', 'Save a fact to this site\'s persistent memory so it survives across sessions and is shared by every connected agent. Use for project conventions, decisions, brand rules, and pitfalls (e.g. key="brand.primary_color", value="#f8ca50"). Overwrites an existing key.', [
             'type' => 'object',
@@ -40,23 +40,23 @@ final class Claudpress_Tools_Memory
 
     public static function save(array $a): array
     {
-        return Claudpress::instance()->memory->save((string) ($a['key'] ?? ''), (string) ($a['value'] ?? ''), (string) ($a['category'] ?? 'general'));
+        return Keelhob::instance()->memory->save((string) ($a['key'] ?? ''), (string) ($a['value'] ?? ''), (string) ($a['category'] ?? 'general'));
     }
 
     public static function list(array $a): array
     {
-        $all = Claudpress::instance()->memory->all();
+        $all = Keelhob::instance()->memory->all();
         return ['success' => true, 'count' => count($all), 'memory' => $all];
     }
 
     public static function get(array $a): array
     {
-        $m = Claudpress::instance()->memory->get((string) ($a['key'] ?? ''));
+        $m = Keelhob::instance()->memory->get((string) ($a['key'] ?? ''));
         return $m ? ['success' => true, 'entry' => $m] : ['success' => false, 'error' => 'No memory for that key.'];
     }
 
     public static function delete(array $a): array
     {
-        return Claudpress::instance()->memory->delete((string) ($a['key'] ?? ''));
+        return Keelhob::instance()->memory->delete((string) ($a['key'] ?? ''));
     }
 }

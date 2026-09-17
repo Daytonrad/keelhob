@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/calflint/claudpress/security/advisories/new
+    url: https://github.com/calflint/keelhob/security/advisories/new
     about: Report privately, never as a public issue. See SECURITY.md.
   - name: Question or idea
-    url: https://github.com/calflint/claudpress/discussions
+    url: https://github.com/calflint/keelhob/discussions
     about: Not sure it is a bug? Ask here first, nobody minds.
   - name: Support the project
-    url: https://ko-fi.com/claudpress
-    about: Claudpress is free forever and funded entirely by donations.
+    url: https://ko-fi.com/keelhob
+    about: Keelhob is free forever and funded entirely by donations.

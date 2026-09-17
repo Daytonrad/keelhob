@@ -37,12 +37,12 @@
 	var cfg = window.cpStudioCompose || {};
 	var STORE_KEY = 'cpComposeChat';
 
-	var chat = document.getElementById('cp-chat');
-	var empty = document.getElementById('cp-chat-empty');
-	var input = document.getElementById('cp-chat-input');
-	var sendBtn = document.getElementById('cp-chat-send');
-	var clearBtn = document.getElementById('cp-chat-clear');
-	var statusEl = document.getElementById('cp-chat-status');
+	var chat = document.getElementById('kh-chat');
+	var empty = document.getElementById('kh-chat-empty');
+	var input = document.getElementById('kh-chat-input');
+	var sendBtn = document.getElementById('kh-chat-send');
+	var clearBtn = document.getElementById('kh-chat-clear');
+	var statusEl = document.getElementById('kh-chat-status');
 
 	if (!chat || !input || !sendBtn) {
 		return;
@@ -96,16 +96,16 @@
 	/** A person's turn. textContent, never innerHTML — this is user input. */
 	function drawUser(text, label) {
 		var wrap = document.createElement('div');
-		wrap.className = 'cp-msg cp-msg-you';
+		wrap.className = 'kh-msg kh-msg-you';
 
 		var who = document.createElement('div');
-		who.className = 'cp-msg-who';
+		who.className = 'kh-msg-who';
 		who.textContent = label || cfg.i18n.you;
 
 		var body = document.createElement('div');
-		body.className = 'cp-msg-body';
+		body.className = 'kh-msg-body';
 		var p = document.createElement('div');
-		p.className = 'cp-msg-text';
+		p.className = 'kh-msg-text';
 		p.textContent = text;
 		body.appendChild(p);
 
@@ -134,7 +134,7 @@
 
 	function drawNotice(text, kind) {
 		var wrap = document.createElement('div');
-		wrap.className = 'cp-msg cp-msg-note' + (kind === 'error' ? ' cp-msg-error' : '');
+		wrap.className = 'kh-msg kh-msg-note' + (kind === 'error' ? ' kh-msg-error' : '');
 		wrap.textContent = text;
 		chat.appendChild(wrap);
 		hideIntro();
@@ -167,11 +167,11 @@
 				break;
 			}
 		}
-		Array.prototype.forEach.call(node.querySelectorAll('.cp-code-prompt'), function (el) {
+		Array.prototype.forEach.call(node.querySelectorAll('.kh-code-prompt'), function (el) {
 			el.value = first;
 		});
 
-		Array.prototype.forEach.call(node.querySelectorAll('.cp-chat-fix'), function (btn) {
+		Array.prototype.forEach.call(node.querySelectorAll('.kh-chat-fix'), function (btn) {
 			btn.addEventListener('click', function () {
 				if (busy) {
 					return;
@@ -232,7 +232,7 @@
 
 		setBusy(true, isAutoFix ? cfg.i18n.fixing : cfg.i18n.thinking);
 
-		post('claudpress_studio_chat', { turns: JSON.stringify(turns) })
+		post('keelhob_studio_chat', { turns: JSON.stringify(turns) })
 			.then(function (res) {
 				setBusy(false, '');
 
@@ -259,7 +259,7 @@
 					if (node) {
 						// The button would offer a second route to the same
 						// request that is already on its way.
-						Array.prototype.forEach.call(node.querySelectorAll('.cp-chat-fix'), function (b) {
+						Array.prototype.forEach.call(node.querySelectorAll('.kh-chat-fix'), function (b) {
 							b.hidden = true;
 						});
 					}
@@ -299,7 +299,7 @@
 			return t.role === 'assistant' ? t.text : '';
 		});
 
-		post('claudpress_studio_render', { texts: JSON.stringify(texts) })
+		post('keelhob_studio_render', { texts: JSON.stringify(texts) })
 			.then(function (res) {
 				if (!res || !res.success || !res.data || !res.data.html) {
 					return;
@@ -360,7 +360,7 @@
 			turns = [];
 			autoFixUsed = false;
 			forget();
-			Array.prototype.forEach.call(chat.querySelectorAll('.cp-msg'), function (n) {
+			Array.prototype.forEach.call(chat.querySelectorAll('.kh-msg'), function (n) {
 				n.parentNode.removeChild(n);
 			});
 			if (empty) {

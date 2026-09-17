@@ -52,7 +52,7 @@ foreach ($files as $file) {
 
     // Parsed by the plugin's own parser, deliberately. A linter with its own
     // more forgiving parser would pass a file the site cannot read.
-    $parsed = Claudpress_Skills::parse_markdown($raw);
+    $parsed = Keelhob_Skills::parse_markdown($raw);
 
     if (!isset($parsed['name'])) {
         $broken[$slug] = 'No front matter the plugin can find. It must open with --- on line 1.';
@@ -74,12 +74,12 @@ $known = array_keys($skills);
 $findings = array_fill_keys($known, []);
 
 foreach ($skills as $slug => $skill) {
-    $findings[$slug] = Claudpress_Skill_Standard::check($skill, $known);
+    $findings[$slug] = Keelhob_Skill_Standard::check($skill, $known);
 }
 
 // Graph rules run over every skill regardless of the filter — a cycle or a
 // clash is a property of the set, and checking half a graph proves nothing.
-foreach (Claudpress_Skill_Standard::check_graph($skills) as $finding) {
+foreach (Keelhob_Skill_Standard::check_graph($skills) as $finding) {
     $slug = $finding['skill'];
     if (isset($findings[$slug])) {
         $findings[$slug][] = $finding;
@@ -107,15 +107,15 @@ foreach ($skills as $slug => $skill) {
     $shown++;
 
     $mine  = $findings[$slug];
-    $score = Claudpress_Skill_Standard::score($mine);
-    $bad   = Claudpress_Skill_Standard::has_errors($mine);
-    $role  = Claudpress_Skill_Standard::role($skill);
+    $score = Keelhob_Skill_Standard::score($mine);
+    $bad   = Keelhob_Skill_Standard::has_errors($mine);
+    $role  = Keelhob_Skill_Standard::role($skill);
 
     // The surface is appended only when it restricts something. Printing
     // "any" on seventeen of eighteen lines would bury the one line where a
     // reviewer needs to stop and think about it.
-    $surface = Claudpress_Skill_Standard::surface($skill);
-    if ($surface !== Claudpress_Skill_Standard::SURFACE_DEFAULT) {
+    $surface = Keelhob_Skill_Standard::surface($skill);
+    if ($surface !== Keelhob_Skill_Standard::SURFACE_DEFAULT) {
         $role .= ' · needs ' . $surface;
     }
 
@@ -149,7 +149,7 @@ printf(
     $errors === 1 ? '' : 's',
     $warns,
     $warns === 1 ? '' : 's',
-    Claudpress_Skill_Standard::score($all)
+    Keelhob_Skill_Standard::score($all)
 );
 
 if (!empty($failed)) {

@@ -22,7 +22,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Admin_Providers
+final class Keelhob_Admin_Providers
 {
     /**
      * Nonce action shared by the two provider endpoints.
@@ -32,7 +32,7 @@ final class Claudpress_Admin_Providers
      * matching nonce. One name, read from one place, is the only way the form
      * and the guard cannot drift apart.
      */
-    public const PROVIDER_NONCE = 'claudpress_provider';
+    public const PROVIDER_NONCE = 'keelhob_provider';
 
     /**
      * Dropdown value meaning "the model is in the box next to me".
@@ -59,7 +59,7 @@ final class Claudpress_Admin_Providers
     private static function guard_provider_ajax(): void
     {
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => __('You do not have permission to change these settings.', 'claudpress')], 403);
+            wp_send_json_error(['message' => __('You do not have permission to change these settings.', 'keelhob')], 403);
         }
         check_ajax_referer(self::PROVIDER_NONCE, 'nonce');
     }
@@ -78,11 +78,11 @@ final class Claudpress_Admin_Providers
         $key = sanitize_text_field(wp_unslash($_POST['api_key'] ?? ''));
 
         return [
-            'provider' => isset(Claudpress_Provider::providers()[$pid]) ? $pid : '',
+            'provider' => isset(Keelhob_Provider::providers()[$pid]) ? $pid : '',
             // An untouched key field posts the mask back. That is not a key, and
             // sending eight bullets to a vendor tests nothing — blank it, and the
             // stored key is used instead.
-            'api_key'  => Claudpress_Secrets::is_mask($key) ? '' : $key,
+            'api_key'  => Keelhob_Secrets::is_mask($key) ? '' : $key,
             'model'    => sanitize_text_field(wp_unslash($_POST['model'] ?? '')),
             // esc_url_raw rather than a text sanitizer: this is an address the
             // request will really be sent to, so the scheme is validated, not tidied.
@@ -96,7 +96,7 @@ final class Claudpress_Admin_Providers
     {
         self::guard_provider_ajax();
 
-        $models = Claudpress_Provider::fetch_models(self::provider_from_post());
+        $models = Keelhob_Provider::fetch_models(self::provider_from_post());
         if (is_wp_error($models)) {
             wp_send_json_error(['message' => $models->get_error_message()], 400);
         }
@@ -104,7 +104,7 @@ final class Claudpress_Admin_Providers
         wp_send_json_success([
             'models'  => $models,
             /* translators: %d: number of models the provider listed. */
-            'message' => sprintf(_n('%d model available.', '%d models available.', count($models), 'claudpress'), count($models)),
+            'message' => sprintf(_n('%d model available.', '%d models available.', count($models), 'keelhob'), count($models)),
         ]);
     }
 
@@ -113,7 +113,7 @@ final class Claudpress_Admin_Providers
     {
         self::guard_provider_ajax();
 
-        $result = Claudpress_Provider::test_connection(self::provider_from_post());
+        $result = Keelhob_Provider::test_connection(self::provider_from_post());
         if (is_wp_error($result)) {
             wp_send_json_error(['message' => $result->get_error_message()], 400);
         }
@@ -121,7 +121,7 @@ final class Claudpress_Admin_Providers
         wp_send_json_success([
             'message' => sprintf(
                 /* translators: 1: provider name, 2: model id. */
-                __('Connected to %1$s using %2$s.', 'claudpress'),
+                __('Connected to %1$s using %2$s.', 'keelhob'),
                 $result['label'],
                 $result['model']
             ),
@@ -151,7 +151,7 @@ final class Claudpress_Admin_Providers
         [$cls, $key] = self::media_provider_from_post($kind, $pid, $key);
 
         $model  = $model !== '' ? $model : $cls::default_model();
-        $result = Claudpress_Media_Check::run($cls::verify_url($endpoint, $model), $cls::auth_headers($key), $model);
+        $result = Keelhob_Media_Check::run($cls::verify_url($endpoint, $model), $cls::auth_headers($key), $model);
 
         if (is_wp_error($result)) {
             wp_send_json_error(['message' => $result->get_error_message()], 400);
@@ -160,7 +160,7 @@ final class Claudpress_Admin_Providers
         wp_send_json_success([
             'message' => sprintf(
                 /* translators: 1: provider name, 2: model id. */
-                __('Connected to %1$s using %2$s.', 'claudpress'),
+                __('Connected to %1$s using %2$s.', 'keelhob'),
                 $cls::label(),
                 $model
             ),
@@ -179,40 +179,40 @@ final class Claudpress_Admin_Providers
      */
     private static function media_provider_from_post(string $kind, string $pid, string $key): array
     {
-        $s = Claudpress::instance()->settings();
+        $s = Keelhob::instance()->settings();
 
         if ($kind === 'image') {
-            /** @var class-string<Claudpress_Image_Provider>|null $cls */
-            $cls    = Claudpress_Image_Provider::providers()[$pid] ?? null;
+            /** @var class-string<Keelhob_Image_Provider>|null $cls */
+            $cls    = Keelhob_Image_Provider::providers()[$pid] ?? null;
             $stored = (string) ($s['image_api_key'] ?? '');
         } elseif ($kind === 'voice') {
-            /** @var class-string<Claudpress_Transcribe_Provider>|null $cls */
-            $cls = Claudpress_Transcribe_Provider::providers()[$pid] ?? null;
+            /** @var class-string<Keelhob_Transcribe_Provider>|null $cls */
+            $cls = Keelhob_Transcribe_Provider::providers()[$pid] ?? null;
             // Voice deliberately falls back to another key for the same vendor,
             // so an owner who already pasted an OpenAI key is not asked twice.
             // Both endpoints have to honour that, or they report "no key" for a
             // setup that works perfectly.
             $stored = ((string) ($s['voice_provider'] ?? 'openai') === $pid)
-                ? Claudpress_Transcribe_Provider::key()
+                ? Keelhob_Transcribe_Provider::key()
                 : (string) ($s['voice_api_key'] ?? '');
         } else {
-            wp_send_json_error(['message' => __('Unknown provider type.', 'claudpress')], 400);
+            wp_send_json_error(['message' => __('Unknown provider type.', 'keelhob')], 400);
             exit;
         }
 
         if ($cls === null) {
-            wp_send_json_error(['message' => __('Unknown provider.', 'claudpress')], 400);
+            wp_send_json_error(['message' => __('Unknown provider.', 'keelhob')], 400);
             exit;
         }
 
         // An untouched key field posts the mask back. Eight bullets are not a
         // key, and sending them to a vendor tests nothing - fall through to the
         // stored one rather than report a failure the owner cannot act on.
-        if ($key === '' || Claudpress_Secrets::is_mask($key)) {
+        if ($key === '' || Keelhob_Secrets::is_mask($key)) {
             $key = $stored;
         }
         if (trim($key) === '') {
-            wp_send_json_error(['message' => __('Add an API key first, then try again.', 'claudpress')], 400);
+            wp_send_json_error(['message' => __('Add an API key first, then try again.', 'keelhob')], 400);
             exit;
         }
 
@@ -223,7 +223,7 @@ final class Claudpress_Admin_Providers
      * Replace an image or transcription dropdown with what the key can reach.
      *
      * The list that comes back is the curated one PLUS anything new the vendor
-     * advertises - never the vendor's alone. See Claudpress_Media_Check::models()
+     * advertises - never the vendor's alone. See Keelhob_Media_Check::models()
      * for why: the catalogue is matched by name, and a name match that misses
      * would otherwise empty the dropdown or drop the model a site is using.
      */
@@ -241,7 +241,7 @@ final class Claudpress_Admin_Providers
 
         [$cls, $key] = self::media_provider_from_post($kind, $pid, $key);
 
-        $models = Claudpress_Media_Check::refresh($cls, $kind, $pid, $key, $endpoint, $keep);
+        $models = Keelhob_Media_Check::refresh($cls, $kind, $pid, $key, $endpoint, $keep);
         if (is_wp_error($models)) {
             wp_send_json_error(['message' => $models->get_error_message()], 400);
         }
@@ -249,7 +249,7 @@ final class Claudpress_Admin_Providers
         wp_send_json_success([
             'models'  => $models,
             /* translators: %d: number of models on the list. */
-            'message' => sprintf(_n('%d model available.', '%d models available.', count($models), 'claudpress'), count($models)),
+            'message' => sprintf(_n('%d model available.', '%d models available.', count($models), 'keelhob'), count($models)),
         ]);
     }
 
@@ -261,7 +261,7 @@ final class Claudpress_Admin_Providers
      * The dropdown carries a sentinel rather than a value for "type your own",
      * so the free-text box beside it is what gets stored in that case.
      *
-     * Public because the save handler (Claudpress_Admin_Settings) is what reads
+     * Public because the save handler (Keelhob_Admin_Settings) is what reads
      * the form, and the sentinel it has to understand is defined here.
      */
     public static function model_from_post(): string
@@ -285,7 +285,7 @@ final class Claudpress_Admin_Providers
      * @param array<string, class-string> $providers  id => adapter class
      * @param string                      $selected   currently chosen provider id
      *
-     * Public because the Automation screen (Claudpress_Admin_Automation) draws
+     * Public because the Automation screen (Keelhob_Admin_Automation) draws
      * it. It is a partial of that page, not a page of its own.
      */
     public static function render_model_guide(string $title, array $providers, string $selected): void
@@ -294,20 +294,20 @@ final class Claudpress_Admin_Providers
         <details style="margin:10px 0 18px;border:1px solid #dcdcde;border-radius:8px;padding:10px 14px;background:#fbfbfc;">
             <summary style="cursor:pointer;font-weight:600;"><?php echo esc_html($title); ?></summary>
             <p style="color:#666;margin:10px 0;">
-                <?php esc_html_e('Type the ID exactly as shown. Anything not on this list may still work if your provider offers it — check the vendor\'s model list.', 'claudpress'); ?>
+                <?php esc_html_e('Type the ID exactly as shown. Anything not on this list may still work if your provider offers it — check the vendor\'s model list.', 'keelhob'); ?>
             </p>
             <?php foreach ($providers as $pid => $cls) : ?>
                 <div style="margin:12px 0;<?php echo $pid === $selected ? 'padding:8px 10px;border-left:3px solid #2271b1;background:#fff;' : ''; ?>">
                     <p style="margin:0 0 6px;">
                         <strong><?php echo esc_html($cls::label()); ?></strong>
                         <?php if ($pid === $selected) : ?>
-                            <span style="color:#2271b1;">← <?php esc_html_e('your current provider', 'claudpress'); ?></span>
+                            <span style="color:#2271b1;">← <?php esc_html_e('your current provider', 'keelhob'); ?></span>
                         <?php endif; ?>
                     </p>
                     <table class="widefat striped" style="max-width:720px;">
                         <thead><tr>
-                            <th style="width:230px;"><?php esc_html_e('Model ID to type', 'claudpress'); ?></th>
-                            <th><?php esc_html_e('What it is', 'claudpress'); ?></th>
+                            <th style="width:230px;"><?php esc_html_e('Model ID to type', 'keelhob'); ?></th>
+                            <th><?php esc_html_e('What it is', 'keelhob'); ?></th>
                         </tr></thead>
                         <tbody>
                         <?php foreach ($cls::models() as $m) : ?>
@@ -319,9 +319,9 @@ final class Claudpress_Admin_Providers
                         </tbody>
                     </table>
                     <p style="margin:6px 0 0;">
-                        <a href="<?php echo esc_url($cls::models_url()); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Full model list from the vendor ↗', 'claudpress'); ?></a>
+                        <a href="<?php echo esc_url($cls::models_url()); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Full model list from the vendor ↗', 'keelhob'); ?></a>
                         &nbsp;·&nbsp;
-                        <a href="<?php echo esc_url($cls::key_url()); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Get an API key ↗', 'claudpress'); ?></a>
+                        <a href="<?php echo esc_url($cls::key_url()); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Get an API key ↗', 'keelhob'); ?></a>
                     </p>
                 </div>
             <?php endforeach; ?>
@@ -364,11 +364,11 @@ final class Claudpress_Admin_Providers
         // with one that was never created.
         $nonce = wp_create_nonce(self::PROVIDER_NONCE);
         ?>
-        <div class="claudpress-media-block" id="claudpress-media-<?php echo esc_attr($kind); ?>" data-kind="<?php echo esc_attr($kind); ?>"
+        <div class="keelhob-media-block" id="keelhob-media-<?php echo esc_attr($kind); ?>" data-kind="<?php echo esc_attr($kind); ?>"
             data-nonce="<?php echo esc_attr($nonce); ?>">
             <p>
                 <label><strong><?php echo esc_html($a['provider_label']); ?></strong><br>
-                    <select name="<?php echo esc_attr($a['provider_field']); ?>" class="claudpress-media-picker" style="max-width:340px;">
+                    <select name="<?php echo esc_attr($a['provider_field']); ?>" class="keelhob-media-picker" style="max-width:340px;">
                         <?php foreach ($a['providers'] as $pid => $cls) : ?>
                             <option value="<?php echo esc_attr($pid); ?>" <?php selected($a['current'], $pid); ?>><?php echo esc_html($cls::label()); ?></option>
                         <?php endforeach; ?>
@@ -384,9 +384,9 @@ final class Claudpress_Admin_Providers
                 $chosen     = ($is_current && $a['model_value'] !== '') ? $a['model_value'] : $cls::default_model();
                 // The curated list, plus anything a Refresh has since found, plus
                 // whatever is saved even if neither mentions it any more.
-                $models     = Claudpress_Media_Check::models($cls, $kind, $pid, $is_current ? $chosen : '');
+                $models     = Keelhob_Media_Check::models($cls, $kind, $pid, $is_current ? $chosen : '');
                 ?>
-                <div class="claudpress-provider-row" data-provider="<?php echo esc_attr($pid); ?>" <?php echo $is_current ? '' : 'hidden'; ?>
+                <div class="keelhob-provider-row" data-provider="<?php echo esc_attr($pid); ?>" <?php echo $is_current ? '' : 'hidden'; ?>
                     style="border:1px solid #e2e4e7;border-radius:8px;padding:12px 14px;margin:0 0 12px;background:#fbfbfc;">
                     <?php
                     // Disabled fields post nothing. The form stores one key, one
@@ -397,11 +397,11 @@ final class Claudpress_Admin_Providers
                     // page where the script never ran still saves the right
                     // provider instead of silently wiping the key.
                     ?>
-                    <fieldset class="claudpress-provider-fields" style="border:0;padding:0;margin:0;" <?php echo $is_current ? '' : 'disabled'; ?>>
+                    <fieldset class="keelhob-provider-fields" style="border:0;padding:0;margin:0;" <?php echo $is_current ? '' : 'disabled'; ?>>
 
                         <p style="margin-top:0;">
                             <label><strong><?php echo esc_html($a['key_label']); ?></strong><br>
-                                <input type="password" name="<?php echo esc_attr($a['key_field']); ?>" class="regular-text claudpress-key-input"
+                                <input type="password" name="<?php echo esc_attr($a['key_field']); ?>" class="regular-text keelhob-key-input"
                                     style="width:100%;max-width:520px;" autocomplete="off"
                                     value="<?php echo $is_current ? esc_attr($a['key_value']) : ''; ?>"
                                     placeholder="<?php echo esc_attr($cls::key_hint()); ?>">
@@ -413,8 +413,8 @@ final class Claudpress_Admin_Providers
                                 // in miniature: the one thing somebody without
                                 // a key needs is the link to go and get one.
                                 ?>
-                                <a href="<?php echo esc_url($cls::key_url()); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Get a key from this provider', 'claudpress'); ?></a>
-                                &middot; <?php esc_html_e('Stored on this site and sent only to the provider you select.', 'claudpress'); ?>
+                                <a href="<?php echo esc_url($cls::key_url()); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Get a key from this provider', 'keelhob'); ?></a>
+                                &middot; <?php esc_html_e('Stored on this site and sent only to the provider you select.', 'keelhob'); ?>
                                 <?php if ($is_current && $note !== '') : ?>
                                     <br><em><?php echo esc_html($note); ?></em>
                                 <?php endif; ?>
@@ -423,7 +423,7 @@ final class Claudpress_Admin_Providers
 
                         <p>
                             <label><strong><?php echo esc_html($a['model_label']); ?></strong><br>
-                                <select name="<?php echo esc_attr($a['model_field']); ?>" class="claudpress-model-select" style="max-width:560px;">
+                                <select name="<?php echo esc_attr($a['model_field']); ?>" class="keelhob-model-select" style="max-width:560px;">
                                     <?php foreach ($models as $m) : ?>
                                         <option value="<?php echo esc_attr($m['id']); ?>" <?php selected($chosen, $m['id']); ?>>
                                             <?php echo esc_html($m['id'] . ' - ' . $m['note']); ?>
@@ -433,28 +433,28 @@ final class Claudpress_Admin_Providers
                             </label>
                             <br>
                             <?php if ($cls::models_list_url($cls::default_endpoint()) !== '') : ?>
-                                <button type="button" class="button claudpress-media-refresh" data-busy="<?php esc_attr_e('Refreshing...', 'claudpress'); ?>" style="margin-top:8px;">
-                                    <?php esc_html_e('Refresh models', 'claudpress'); ?>
+                                <button type="button" class="button keelhob-media-refresh" data-busy="<?php esc_attr_e('Refreshing...', 'keelhob'); ?>" style="margin-top:8px;">
+                                    <?php esc_html_e('Refresh models', 'keelhob'); ?>
                                 </button>
                             <?php endif; ?>
-                            <button type="button" class="button claudpress-media-test" data-busy="<?php esc_attr_e('Testing...', 'claudpress'); ?>" style="margin-top:8px;">
-                                <?php esc_html_e('Test connection', 'claudpress'); ?>
+                            <button type="button" class="button keelhob-media-test" data-busy="<?php esc_attr_e('Testing...', 'keelhob'); ?>" style="margin-top:8px;">
+                                <?php esc_html_e('Test connection', 'keelhob'); ?>
                             </button>
-                            <span class="claudpress-provider-status" role="status" style="margin-left:8px;"></span>
-                            <br><span style="color:#888;"><?php esc_html_e('The test only asks the provider to describe the model, so it costs nothing and generates nothing.', 'claudpress'); ?></span>
+                            <span class="keelhob-provider-status" role="status" style="margin-left:8px;"></span>
+                            <br><span style="color:#888;"><?php esc_html_e('The test only asks the provider to describe the model, so it costs nothing and generates nothing.', 'keelhob'); ?></span>
                         </p>
 
                         <details>
-                            <summary style="cursor:pointer;"><?php esc_html_e('Advanced', 'claudpress'); ?></summary>
+                            <summary style="cursor:pointer;"><?php esc_html_e('Advanced', 'keelhob'); ?></summary>
                             <p style="margin:8px 0 0;">
-                                <label><?php esc_html_e('Custom endpoint', 'claudpress'); ?><br>
-                                    <input type="text" name="<?php echo esc_attr($a['endpoint_field']); ?>" class="regular-text claudpress-endpoint-input"
+                                <label><?php esc_html_e('Custom endpoint', 'keelhob'); ?><br>
+                                    <input type="text" name="<?php echo esc_attr($a['endpoint_field']); ?>" class="regular-text keelhob-endpoint-input"
                                         style="width:100%;max-width:520px;"
                                         value="<?php echo $is_current ? esc_attr($a['endpoint_value']) : ''; ?>"
                                         placeholder="<?php echo esc_attr($cls::default_endpoint()); ?>">
                                 </label>
                                 <br><span style="color:#888;">
-                                    <?php esc_html_e('Pointing this at a gateway, proxy or self-hosted deployment sends your data to that host, under that host\'s terms rather than the vendor\'s. Blank uses the provider default.', 'claudpress'); ?>
+                                    <?php esc_html_e('Pointing this at a gateway, proxy or self-hosted deployment sends your data to that host, under that host\'s terms rather than the vendor\'s. Blank uses the provider default.', 'keelhob'); ?>
                                 </span>
                             </p>
                         </details>
@@ -484,23 +484,23 @@ final class Claudpress_Admin_Providers
         ?>
         <script>
         (function () {
-            if (window.claudpressMediaBound) { return; }
-            window.claudpressMediaBound = true;
+            if (window.keelhobMediaBound) { return; }
+            window.keelhobMediaBound = true;
 
             var ajax   = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
-            var FAILED = <?php echo wp_json_encode(__('That did not go through. Check the browser console for details.', 'claudpress')); ?>;
+            var FAILED = <?php echo wp_json_encode(__('That did not go through. Check the browser console for details.', 'keelhob')); ?>;
 
             function each(list, fn) { Array.prototype.forEach.call(list, fn); }
 
             function show(block, id) {
-                each(block.querySelectorAll('.claudpress-provider-row'), function (row) {
+                each(block.querySelectorAll('.keelhob-provider-row'), function (row) {
                     var on = (row.getAttribute('data-provider') === id);
                     row.hidden = !on;
                     // One flag for the whole row: a disabled fieldset takes its
                     // fields out of the form, which is what keeps the rows
                     // nobody is looking at from overwriting the one they filled
                     // in when the page is saved.
-                    var fields = row.querySelector('.claudpress-provider-fields');
+                    var fields = row.querySelector('.keelhob-provider-fields');
                     if (fields) { fields.disabled = !on; }
                 });
             }
@@ -511,14 +511,14 @@ final class Claudpress_Admin_Providers
             }
 
             document.addEventListener('change', function (e) {
-                if (!e.target.classList || !e.target.classList.contains('claudpress-media-picker')) { return; }
-                var block = e.target.closest('.claudpress-media-block');
+                if (!e.target.classList || !e.target.classList.contains('keelhob-media-picker')) { return; }
+                var block = e.target.closest('.keelhob-media-block');
                 if (!block) { return; }
                 show(block, e.target.value);
                 // A provider change invalidates the previous answer. A green
                 // "Connected to OpenAI" sitting beside a Google row is worse
                 // than showing nothing at all.
-                each(block.querySelectorAll('.claudpress-provider-status'), function (st) { st.textContent = ''; });
+                each(block.querySelectorAll('.keelhob-provider-status'), function (st) { st.textContent = ''; });
             });
 
             function fill(sel, models) {
@@ -534,23 +534,23 @@ final class Claudpress_Admin_Providers
 
             document.addEventListener('click', function (e) {
                 if (!e.target.closest) { return; }
-                var btn = e.target.closest('.claudpress-media-test, .claudpress-media-refresh');
+                var btn = e.target.closest('.keelhob-media-test, .keelhob-media-refresh');
                 if (!btn) { return; }
                 e.preventDefault();
 
-                var refreshing = btn.classList.contains('claudpress-media-refresh');
-                var block  = btn.closest('.claudpress-media-block');
-                var row    = btn.closest('.claudpress-provider-row');
-                var status = row.querySelector('.claudpress-provider-status');
+                var refreshing = btn.classList.contains('keelhob-media-refresh');
+                var block  = btn.closest('.keelhob-media-block');
+                var row    = btn.closest('.keelhob-provider-row');
+                var status = row.querySelector('.keelhob-provider-status');
 
                 var body = new URLSearchParams();
-                body.set('action', refreshing ? 'claudpress_fetch_media_models' : 'claudpress_test_media');
+                body.set('action', refreshing ? 'keelhob_fetch_media_models' : 'keelhob_test_media');
                 body.set('nonce', block.getAttribute('data-nonce'));
                 body.set('kind', block.getAttribute('data-kind'));
                 body.set('provider', row.getAttribute('data-provider'));
-                body.set('api_key', valueOf(row, '.claudpress-key-input'));
-                body.set('model', valueOf(row, '.claudpress-model-select'));
-                body.set('endpoint', valueOf(row, '.claudpress-endpoint-input'));
+                body.set('api_key', valueOf(row, '.keelhob-key-input'));
+                body.set('model', valueOf(row, '.keelhob-model-select'));
+                body.set('endpoint', valueOf(row, '.keelhob-endpoint-input'));
 
                 status.style.color = '#666';
                 status.textContent = btn.getAttribute('data-busy');
@@ -569,7 +569,7 @@ final class Claudpress_Admin_Providers
                     status.style.color = ok ? '#16a34a' : '#b91c1c';
                     status.textContent = msg;
                     if (ok && refreshing && json.data.models) {
-                        fill(row.querySelector('.claudpress-model-select'), json.data.models);
+                        fill(row.querySelector('.keelhob-model-select'), json.data.models);
                     }
                 })['catch'](function () {
                     status.style.color = '#b91c1c';
@@ -579,8 +579,8 @@ final class Claudpress_Admin_Providers
                 });
             });
 
-            each(document.querySelectorAll('.claudpress-media-block'), function (block) {
-                var picker = block.querySelector('.claudpress-media-picker');
+            each(document.querySelectorAll('.keelhob-media-block'), function (block) {
+                var picker = block.querySelector('.keelhob-media-picker');
                 if (picker) { show(block, picker.value); }
             });
         })();

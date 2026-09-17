@@ -17,9 +17,9 @@
 #
 # WHAT IT DOES, and why in this order:
 #
-#   1. Wipes every claudpress_* table and option, so the rig is a site that has
+#   1. Wipes every keelhob_* table and option, so the rig is a site that has
 #      NEVER seen the new version. Downgrading files over a new database would
-#      prove nothing: maybe_upgrade() reads claudpress_db_version and returns
+#      prove nothing: maybe_upgrade() reads keelhob_db_version and returns
 #      early, so the migration under test would never run.
 #   2. Installs the OLD version from its git tag and activates it.
 #   3. Seeds data through the OLD version's OWN save path — never by writing
@@ -34,14 +34,14 @@
 # It restores the rig to the working tree afterwards, pass or fail.
 #
 # Other plugins on the rig are untouched: every wipe below is scoped to the
-# claudpress_ prefix, and the run asserts that a neighbouring plugin's tables
+# keelhob_ prefix, and the run asserts that a neighbouring plugin's tables
 # and posts are still there at the end.
 
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 FROM="${1:-}"
-WP="${2:-${CP_RIG:-/c/wp-rig/wordpress}}"
+WP="${2:-${KH_RIG:-/c/wp-rig/wordpress}}"
 
 if [ -z "$FROM" ]; then
   echo "Usage: bash tests/rig/upgrade-check.sh <old-tag> [/path/to/rig/wordpress]" >&2
@@ -61,7 +61,7 @@ if [ -z "$WPCLI" ]; then
   if [ -f /c/wp-cli/wp-cli.phar ]; then WPCLI="php /c/wp-cli/wp-cli.phar"; else WPCLI="wp"; fi
 fi
 
-PLUGIN_DIR="$WP/wp-content/plugins/claudpress"
+PLUGIN_DIR="$WP/wp-content/plugins/keelhob"
 OLD_TREE="$(mktemp -d)"
 STEP_DIR="$ROOT/tests/rig/upgrade-steps"
 
@@ -86,7 +86,7 @@ echo "=============================================================="
 
 # ---------------------------------------------------------------- 1. wipe
 echo
-echo "[1/6] Wiping claudpress data so this is a site that never saw the new version"
+echo "[1/6] Wiping keelhob data so this is a site that never saw the new version"
 php_run "$STEP_DIR/1-wipe.php" || exit 1
 
 # ---------------------------------------------------------------- 2. old files
@@ -96,14 +96,14 @@ git -C "$ROOT" archive "$FROM" | tar -x -C "$OLD_TREE"
 rm -rf "$PLUGIN_DIR"
 mkdir -p "$PLUGIN_DIR"
 # Ship-shaped: the same top-level files a zip carries, nothing from tests/.
-for item in claudpress.php uninstall.php readme.txt includes assets skills languages; do
+for item in keelhob.php uninstall.php readme.txt includes assets skills languages; do
   [ -e "$OLD_TREE/$item" ] && cp -r "$OLD_TREE/$item" "$PLUGIN_DIR/"
 done
-OLD_VER="$(grep -m1 -oE 'Version:[[:space:]]*[0-9][0-9.]*' "$PLUGIN_DIR/claudpress.php" | grep -oE '[0-9][0-9.]*')"
+OLD_VER="$(grep -m1 -oE 'Version:[[:space:]]*[0-9][0-9.]*' "$PLUGIN_DIR/keelhob.php" | grep -oE '[0-9][0-9.]*')"
 echo "      installed plugin header version: $OLD_VER"
 
 # shellcheck disable=SC2086
-$WPCLI plugin activate claudpress --path="$WP" 2>&1 | grep -viE 'deprecated|^\s*$'
+$WPCLI plugin activate keelhob --path="$WP" 2>&1 | grep -viE 'deprecated|^\s*$'
 
 # ---------------------------------------------------------------- 3. seed
 echo
@@ -131,12 +131,12 @@ ALLOW_DIRTY=1 bash "$ROOT/bin/build-zip.sh" >/dev/null 2>&1 || {
   exit 1
 }
 rm -rf "$PLUGIN_DIR"
-unzip -q -o "$ROOT/build/claudpress.zip" -d "$WP/wp-content/plugins/"
-if [ ! -f "$PLUGIN_DIR/claudpress.php" ]; then
+unzip -q -o "$ROOT/build/keelhob.zip" -d "$WP/wp-content/plugins/"
+if [ ! -f "$PLUGIN_DIR/keelhob.php" ]; then
   echo "      FAILED: the new files are not in place at $PLUGIN_DIR" >&2
   exit 1
 fi
-NEW_VER="$(grep -m1 -oE "define\('CLAUDPRESS_VERSION',[[:space:]]*'[^']+" "$PLUGIN_DIR/claudpress.php" | grep -oE "[0-9][0-9.]*")"
+NEW_VER="$(grep -m1 -oE "define\('KEELHOB_VERSION',[[:space:]]*'[^']+" "$PLUGIN_DIR/keelhob.php" | grep -oE "[0-9][0-9.]*")"
 echo "      unpacked the release zip: $NEW_VER"
 
 # The upgrade runs on a normal page load, not on a WP-CLI call that happens to

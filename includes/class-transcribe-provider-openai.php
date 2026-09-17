@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
 }
 
 /** OpenAI's audio/transcriptions endpoint, and any gateway that mirrors it. */
-final class Claudpress_Transcribe_Provider_OpenAI extends Claudpress_Transcribe_Provider
+final class Keelhob_Transcribe_Provider_OpenAI extends Keelhob_Transcribe_Provider
 {
     public static function id(): string { return 'openai'; }
     public static function label(): string { return 'OpenAI (Whisper / gpt-4o-transcribe)'; }

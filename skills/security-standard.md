@@ -208,7 +208,7 @@ body means listing is on. Fix: `Options -Indexes` (Apache) / `autoindex off` (ng
 `index.php` placeholders exist in plugin/upload directories. Blast radius: none.
 
 **A12 — `wp-config.php` and file permissions correct.**
-Detect: this needs filesystem access Claudpress may not expose directly — check via
+Detect: this needs filesystem access Keelhob may not expose directly — check via
 `execute_php` (`fileperms()`) if available, or ask the host/owner. Target: directories 755,
 files 644, `wp-config.php` 440 or 400; nothing 777. Fix: correct permissions; deny
 `wp-config.php` at the server. Blast radius: **medium-high** — over-tightening can break the
@@ -241,7 +241,7 @@ list every app password, its name, and last-used date; `manage_plugin action=lis
 inventory anything providing REST/JWT/API-key auth. Fix: revoke unused, unrecognised, or
 departed-integration app passwords; keep at most one REST-auth plugin; ensure app passwords
 are only issued to accounts with the minimum role needed. Blast radius: **high** — revoking
-one breaks whatever integration used it (a mobile app, Claudpress's own connection, a sync
+one breaks whatever integration used it (a mobile app, Keelhob's own connection, a sync
 service). Identify the owner of each credential before revoking anything, and never revoke
 the connection you are currently using.
 

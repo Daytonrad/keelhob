@@ -7,7 +7,7 @@
  * inside WordPress but call PHP classes directly. `tests/rig/ui/` drives the
  * admin screens in a browser. Between them they cover a great deal — and none
  * of them has ever sent a single byte through the thing every user actually
- * connects to: an HTTP POST of JSON-RPC to `/claudpress/v1/mcp`, carrying a
+ * connects to: an HTTP POST of JSON-RPC to `/keelhob/v1/mcp`, carrying a
  * bearer token.
  *
  * Everything on that path is therefore untested: the REST route registration,
@@ -21,7 +21,7 @@
  *
  * Usage:
  *
- *   node tests/rig/e2e-mcp.mjs --endpoint <url> --token <cp_...>
+ *   node tests/rig/e2e-mcp.mjs --endpoint <url> --token <kh_...>
  *
  * or point it at a JSON file holding both (so a token never reaches argv,
  * which on Linux is world-readable via /proc):
@@ -184,7 +184,7 @@ async function run() {
     `HTTP ${noAuth.status}`
   );
 
-  const badToken = await rpc('tools/list', {}, { token: 'cp_definitely_not_a_real_token_000000' });
+  const badToken = await rpc('tools/list', {}, { token: 'kh_definitely_not_a_real_token_000000' });
   check(
     'a wrong bearer token is refused',
     badToken.status === 401 || badToken.json?.error,
@@ -200,7 +200,7 @@ async function run() {
   const init = await rpc('initialize', {
     protocolVersion: '2025-06-18',
     capabilities: {},
-    clientInfo: { name: 'claudpress-e2e', version: '1.0.0' },
+    clientInfo: { name: 'keelhob-e2e', version: '1.0.0' },
   });
   check('initialize succeeds', init.status === 200 && !!init.json?.result, `HTTP ${init.status}`);
   check(
@@ -348,7 +348,7 @@ async function run() {
   /*
    * The safety fence the whole product rests on, tested from OUTSIDE.
    *
-   * Unit tests prove Claudpress_Capabilities::tool_allowed() returns false.
+   * Unit tests prove Keelhob_Capabilities::tool_allowed() returns false.
    * That is not the same claim. The claim that matters is that an agent
    * holding a valid token, talking to the real endpoint, is neither offered
    * the tool nor able to call it by name anyway — and only an HTTP request
@@ -421,19 +421,19 @@ function setGroup(group, on) {
    * no test.
    */
   const php = `<?php
-$groups = Claudpress_Capabilities::groups();
+$groups = Keelhob_Capabilities::groups();
 if (!array_key_exists(${JSON.stringify(group)}, $groups)) {
     echo 'NOSUCHGROUP:' . implode(',', array_keys($groups));
     return;
 }
-$s = get_option('claudpress_settings', []);
+$s = get_option('keelhob_settings', []);
 $caps = isset($s['capabilities']) && is_array($s['capabilities']) ? $s['capabilities'] : [];
 $caps[${JSON.stringify(group)}] = ${on ? 'true' : 'false'};
 $s['capabilities'] = $caps;
-update_option('claudpress_settings', $s);
+update_option('keelhob_settings', $s);
 echo 'ok';
 `;
-  const file = join(tmpdir(), `cp-cap-${Date.now()}.php`);
+  const file = join(tmpdir(), `kh-cap-${Date.now()}.php`);
   try {
     writeFileSync(file, php);
     const r = spawnSync('php', [WP_CLI, `--path=${RIG_PATH}`, 'eval-file', file], { encoding: 'utf8' });

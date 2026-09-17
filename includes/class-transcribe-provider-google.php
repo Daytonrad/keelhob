@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
  * Gemini transcribes as a side effect of generateContent: the audio goes in as
  * an inline part with an instruction to write down what it hears.
  */
-final class Claudpress_Transcribe_Provider_Google extends Claudpress_Transcribe_Provider
+final class Keelhob_Transcribe_Provider_Google extends Keelhob_Transcribe_Provider
 {
     public static function id(): string { return 'google'; }
     public static function label(): string { return 'Google (Gemini audio)'; }

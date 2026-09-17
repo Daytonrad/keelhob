@@ -16,7 +16,7 @@
  *     were to save broken code or start again from a blank prompt.
  *
  * Both are the same root cause, so both are fixed by the same change: make it a
- * conversation. Claudpress_Studio_Chat holds the rules; this file is the
+ * conversation. Keelhob_Studio_Chat holds the rules; this file is the
  * screen, and it renders exactly two things — a transcript and a box to type in.
  *
  * WHAT DID NOT CHANGE, AND MUST NOT. Nothing is written to the snippets table
@@ -30,51 +30,51 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Studio_Compose
+final class Keelhob_Studio_Compose
 {
     public static function render(): void
     {
         self::enqueue();
 
-        $ready = Claudpress_Provider_Settings_Ready();
+        $ready = Keelhob_Provider_Settings_Ready();
         ?>
-        <div class="cp-chat-wrap">
-            <div class="cp-chat-head">
-                <h2><?php esc_html_e('Describe what you want', 'claudpress'); ?></h2>
-                <button type="button" class="button-link cp-chat-clear" id="cp-chat-clear"><?php
-                    esc_html_e('Clear chat', 'claudpress');
+        <div class="kh-chat-wrap">
+            <div class="kh-chat-head">
+                <h2><?php esc_html_e('Describe what you want', 'keelhob'); ?></h2>
+                <button type="button" class="button-link kh-chat-clear" id="kh-chat-clear"><?php
+                    esc_html_e('Clear chat', 'keelhob');
                 ?></button>
             </div>
 
             <?php if (!$ready) : ?>
                 <div class="notice notice-warning">
-                    <p><strong><?php esc_html_e('No AI provider is connected yet.', 'claudpress'); ?></strong></p>
-                    <p><?php esc_html_e('Compose needs a provider key. Everything below still works once one is set — you are not missing a feature, only a connection.', 'claudpress'); ?></p>
-                    <p><a class="button" href="<?php echo esc_url(admin_url('admin.php?page=claudpress-automation')); ?>"><?php esc_html_e('Connect a provider', 'claudpress'); ?></a></p>
+                    <p><strong><?php esc_html_e('No AI provider is connected yet.', 'keelhob'); ?></strong></p>
+                    <p><?php esc_html_e('Compose needs a provider key. Everything below still works once one is set — you are not missing a feature, only a connection.', 'keelhob'); ?></p>
+                    <p><a class="button" href="<?php echo esc_url(admin_url('admin.php?page=keelhob-automation')); ?>"><?php esc_html_e('Connect a provider', 'keelhob'); ?></a></p>
                 </div>
             <?php endif; ?>
 
-            <div class="cp-chat" id="cp-chat" role="log" aria-live="polite" aria-label="<?php esc_attr_e('Conversation', 'claudpress'); ?>">
-                <div class="cp-chat-empty" id="cp-chat-empty">
-                    <p><strong><?php esc_html_e('Say what you want to happen, not how to code it.', 'claudpress'); ?></strong></p>
-                    <p><?php esc_html_e('“Hide the price on out-of-stock products” is a better opener than “add a filter to woocommerce_get_price_html”.', 'claudpress'); ?></p>
-                    <p><?php esc_html_e('You can keep talking afterwards — ask for changes, point out a mistake, or ask why it did something. It remembers the whole conversation.', 'claudpress'); ?></p>
+            <div class="kh-chat" id="kh-chat" role="log" aria-live="polite" aria-label="<?php esc_attr_e('Conversation', 'keelhob'); ?>">
+                <div class="kh-chat-empty" id="kh-chat-empty">
+                    <p><strong><?php esc_html_e('Say what you want to happen, not how to code it.', 'keelhob'); ?></strong></p>
+                    <p><?php esc_html_e('“Hide the price on out-of-stock products” is a better opener than “add a filter to woocommerce_get_price_html”.', 'keelhob'); ?></p>
+                    <p><?php esc_html_e('You can keep talking afterwards — ask for changes, point out a mistake, or ask why it did something. It remembers the whole conversation.', 'keelhob'); ?></p>
                 </div>
             </div>
 
-            <div class="cp-chat-status" id="cp-chat-status" hidden></div>
+            <div class="kh-chat-status" id="kh-chat-status" hidden></div>
 
-            <div class="cp-chat-composer">
-                <textarea id="cp-chat-input" rows="3" class="large-text"
-                          placeholder="<?php esc_attr_e('e.g. Add a free-shipping banner to the cart page when the total is over 200.', 'claudpress'); ?>"></textarea>
-                <div class="cp-chat-send-row">
-                    <span class="description"><?php esc_html_e('Enter sends. Shift+Enter makes a new line.', 'claudpress'); ?></span>
-                    <button type="button" class="button button-primary" id="cp-chat-send"><?php esc_html_e('Send', 'claudpress'); ?></button>
+            <div class="kh-chat-composer">
+                <textarea id="kh-chat-input" rows="3" class="large-text"
+                          placeholder="<?php esc_attr_e('e.g. Add a free-shipping banner to the cart page when the total is over 200.', 'keelhob'); ?>"></textarea>
+                <div class="kh-chat-send-row">
+                    <span class="description"><?php esc_html_e('Enter sends. Shift+Enter makes a new line.', 'keelhob'); ?></span>
+                    <button type="button" class="button button-primary" id="kh-chat-send"><?php esc_html_e('Send', 'keelhob'); ?></button>
                 </div>
             </div>
 
-            <p class="description cp-chat-foot">
-                <?php esc_html_e('Nothing here is saved until you click Save on a block, and it always saves switched OFF. Leaving this tab clears the conversation.', 'claudpress'); ?>
+            <p class="description kh-chat-foot">
+                <?php esc_html_e('Nothing here is saved until you click Save on a block, and it always saves switched OFF. Leaving this tab clears the conversation.', 'keelhob'); ?>
             </p>
         </div>
         <?php
@@ -91,32 +91,32 @@ final class Claudpress_Studio_Compose
     private static function enqueue(): void
     {
         wp_enqueue_style(
-            'claudpress-studio',
-            CLAUDPRESS_URL . 'assets/css/studio.css',
+            'keelhob-studio',
+            KEELHOB_URL . 'assets/css/studio.css',
             [],
-            Claudpress::asset_version('assets/css/studio.css')
+            Keelhob::asset_version('assets/css/studio.css')
         );
 
         wp_enqueue_script(
-            'claudpress-studio-compose',
-            CLAUDPRESS_URL . 'assets/js/studio-compose.js',
+            'keelhob-studio-compose',
+            KEELHOB_URL . 'assets/js/studio-compose.js',
             [],
-            Claudpress::asset_version('assets/js/studio-compose.js'),
+            Keelhob::asset_version('assets/js/studio-compose.js'),
             true
         );
 
-        wp_localize_script('claudpress-studio-compose', 'cpStudioCompose', [
+        wp_localize_script('keelhob-studio-compose', 'cpStudioCompose', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
-            'nonce'   => wp_create_nonce(Claudpress_Studio::NONCE),
+            'nonce'   => wp_create_nonce(Keelhob_Studio::NONCE),
             'i18n'    => [
-                'thinking'    => __('Thinking…', 'claudpress'),
-                'fixing'      => __('That code did not parse. Asking it to fix that…', 'claudpress'),
-                'typeFirst'   => __('Type something first.', 'claudpress'),
-                'unreachable' => __('Could not reach the AI.', 'claudpress'),
-                'you'         => __('You', 'claudpress'),
-                'ai'          => __('AI', 'claudpress'),
-                'site'        => __('Syntax check', 'claudpress'),
-                'clearAsk'    => __('Clear this conversation? It cannot be brought back.', 'claudpress'),
+                'thinking'    => __('Thinking…', 'keelhob'),
+                'fixing'      => __('That code did not parse. Asking it to fix that…', 'keelhob'),
+                'typeFirst'   => __('Type something first.', 'keelhob'),
+                'unreachable' => __('Could not reach the AI.', 'keelhob'),
+                'you'         => __('You', 'keelhob'),
+                'ai'          => __('AI', 'keelhob'),
+                'site'        => __('Syntax check', 'keelhob'),
+                'clearAsk'    => __('Clear this conversation? It cannot be brought back.', 'keelhob'),
             ],
         ]);
     }
@@ -130,18 +130,18 @@ final class Claudpress_Studio_Compose
      * repeat that correctly in a second language, and the day it got it wrong,
      * a snippet containing a <script> tag would run in wp-admin.
      *
-     * @param array $segments from Claudpress_Studio_Chat::segments()
+     * @param array $segments from Keelhob_Studio_Chat::segments()
      */
     public static function message_html(array $segments): string
     {
         ob_start();
         ?>
-        <div class="cp-msg cp-msg-ai">
-            <div class="cp-msg-who"><?php esc_html_e('AI', 'claudpress'); ?></div>
-            <div class="cp-msg-body">
+        <div class="kh-msg kh-msg-ai">
+            <div class="kh-msg-who"><?php esc_html_e('AI', 'keelhob'); ?></div>
+            <div class="kh-msg-body">
                 <?php foreach ($segments as $seg) : ?>
                     <?php if (($seg['kind'] ?? '') === 'text') : ?>
-                        <div class="cp-msg-text"><?php echo nl2br(esc_html((string) $seg['text'])); ?></div>
+                        <div class="kh-msg-text"><?php echo nl2br(esc_html((string) $seg['text'])); ?></div>
                     <?php else : ?>
                         <?php echo self::block_html($seg); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?>
                     <?php endif; ?>
@@ -170,20 +170,20 @@ final class Claudpress_Studio_Compose
 
         ob_start();
         ?>
-        <div class="cp-code<?php echo $ok ? '' : ' cp-code-bad'; ?>">
-            <div class="cp-code-head">
-                <span class="cp-code-lang"><?php echo esc_html($type); ?></span>
+        <div class="kh-code<?php echo $ok ? '' : ' kh-code-bad'; ?>">
+            <div class="kh-code-head">
+                <span class="kh-code-lang"><?php echo esc_html($type); ?></span>
                 <?php if ($ok) : ?>
-                    <span class="cp-lint cp-lint-ok"><?php esc_html_e('syntax check passed', 'claudpress'); ?></span>
+                    <span class="kh-lint kh-lint-ok"><?php esc_html_e('syntax check passed', 'keelhob'); ?></span>
                 <?php else : ?>
-                    <span class="cp-lint cp-lint-bad"><?php esc_html_e('syntax check failed', 'claudpress'); ?></span>
+                    <span class="kh-lint kh-lint-bad"><?php esc_html_e('syntax check failed', 'keelhob'); ?></span>
                 <?php endif; ?>
             </div>
 
-            <pre class="cp-code-body"><code><?php echo esc_html($code); ?></code></pre>
+            <pre class="kh-code-body"><code><?php echo esc_html($code); ?></code></pre>
 
             <?php if (!$ok) : ?>
-                <p class="cp-lint-detail"><code><?php echo esc_html($error); ?></code></p>
+                <p class="kh-lint-detail"><code><?php echo esc_html($error); ?></code></p>
                 <?php
                 /*
                  * The button is rendered even when the automatic retry is about
@@ -197,27 +197,27 @@ final class Claudpress_Studio_Compose
                  */
                 ?>
                 <p>
-                    <button type="button" class="button cp-chat-fix"
+                    <button type="button" class="button kh-chat-fix"
                             data-error="<?php echo esc_attr($error); ?>"
                             data-type="<?php echo esc_attr($type); ?>"><?php
-                        esc_html_e('Ask it to fix this', 'claudpress');
+                        esc_html_e('Ask it to fix this', 'keelhob');
                     ?></button>
                 </p>
             <?php endif; ?>
 
-            <form class="cp-code-save" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                <?php wp_nonce_field(Claudpress_Studio::NONCE); ?>
-                <input type="hidden" name="action" value="claudpress_studio">
+            <form class="kh-code-save" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field(Keelhob_Studio::NONCE); ?>
+                <input type="hidden" name="action" value="keelhob_studio">
                 <input type="hidden" name="studio_action" value="save_composed">
                 <input type="hidden" name="code" value="<?php echo esc_attr($code); ?>">
                 <input type="hidden" name="snippet_type" value="<?php echo esc_attr($type); ?>">
-                <input type="hidden" name="ai_prompt" value="" class="cp-code-prompt">
+                <input type="hidden" name="ai_prompt" value="" class="kh-code-prompt">
                 <input type="text" name="name" class="regular-text" required
-                       placeholder="<?php esc_attr_e('Name this snippet', 'claudpress'); ?>">
+                       placeholder="<?php esc_attr_e('Name this snippet', 'keelhob'); ?>">
                 <button class="button"><?php
                     echo $ok
-                        ? esc_html__('Save it (switched off)', 'claudpress')
-                        : esc_html__('Save anyway (stays switched off)', 'claudpress');
+                        ? esc_html__('Save it (switched off)', 'keelhob')
+                        : esc_html__('Save anyway (stays switched off)', 'keelhob');
                 ?></button>
             </form>
         </div>
@@ -227,8 +227,8 @@ final class Claudpress_Studio_Compose
 }
 
 /** Small helper so the template does not have to know how providers are configured. */
-function Claudpress_Provider_Settings_Ready(): bool
+function Keelhob_Provider_Settings_Ready(): bool
 {
-    $s = Claudpress::instance()->settings();
+    $s = Keelhob::instance()->settings();
     return trim((string) ($s['agent_api_key'] ?? '')) !== '';
 }

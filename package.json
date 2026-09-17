@@ -1,5 +1,5 @@
 {
-  "name": "claudpress-dev",
+  "name": "keelhob-dev",
   "private": true,
   "version": "0.0.0",
   "description": "Dev tooling only. The plugin itself is PHP and ships no JavaScript dependencies; nothing here is copied into the release zip by bin/build-zip.sh.",

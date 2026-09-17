@@ -9,7 +9,7 @@ body:
         project than most donations. Thank you for taking the time.
 
         **If this is a security issue, close this and report it privately:**
-        https://github.com/calflint/claudpress/security/advisories/new
+        https://github.com/calflint/keelhob/security/advisories/new
 
   - type: textarea
     id: what
@@ -40,7 +40,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Claudpress version
+      label: Keelhob version
       placeholder: "2.0.0 — shown next to the title on the Connect screen"
     validations:
       required: true
@@ -64,7 +64,7 @@ body:
     attributes:
       label: Anything from the Activity log
       description: >
-        Claudpress > Activity records every tool call. Paste anything relevant.
+        Keelhob > Activity records every tool call. Paste anything relevant.
         Secrets are redacted there automatically, but do give it a glance before
         pasting.
       render: text

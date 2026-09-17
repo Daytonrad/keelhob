@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Logger
+final class Keelhob_Logger
 {
     /**
      * Lowered from 500 in 1.11: the Activity screen renders this table ten rows
@@ -22,7 +22,7 @@ final class Claudpress_Logger
     public static function table(): string
     {
         global $wpdb;
-        return $wpdb->prefix . 'claudpress_log';
+        return $wpdb->prefix . 'keelhob_log';
     }
 
     public static function install_table(): void

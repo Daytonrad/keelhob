@@ -13,12 +13,12 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Agent_Runs
+final class Keelhob_Agent_Runs
 {
     public static function table(): string
     {
         global $wpdb;
-        return $wpdb->prefix . 'claudpress_agent_runs';
+        return $wpdb->prefix . 'keelhob_agent_runs';
     }
 
     public static function install_table(): void
@@ -58,7 +58,7 @@ final class Claudpress_Agent_Runs
         // in one request would credit the first run's skills to the second, and
         // the record exists precisely because it must be more trustworthy than
         // the agent's own account.
-        Claudpress_Tool_Registry::reset_skills_loaded();
+        Keelhob_Tool_Registry::reset_skills_loaded();
 
         global $wpdb;
         $ok = $wpdb->insert(self::table(), [
@@ -89,7 +89,7 @@ final class Claudpress_Agent_Runs
             'output_tokens' => (int) ($fields['output_tokens'] ?? 0),
             'cost_usd'      => round((float) ($fields['cost_usd'] ?? 0), 5),
             'summary'       => mb_substr((string) ($fields['summary'] ?? ''), 0, 8000),
-            'skills_used'   => substr(implode(', ', Claudpress_Tool_Registry::skills_loaded()), 0, 500),
+            'skills_used'   => substr(implode(', ', Keelhob_Tool_Registry::skills_loaded()), 0, 500),
             'detail'        => mb_substr((string) wp_json_encode($fields['detail'] ?? []), 0, 20000),
         ];
         $wpdb->update(self::table(), $row, ['id' => $id]);

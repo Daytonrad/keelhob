@@ -13,7 +13,7 @@
  * and that callable is what a site owner or another plugin later passes to
  * remove_action() or checks against. Keeping every one of them as a method on
  * this class means splitting the UI up changed no callable, so nothing that was
- * hooked to Claudpress_Admin before the split can have quietly stopped working
+ * hooked to Keelhob_Admin before the split can have quietly stopped working
  * after it. render_skills() has delegated this way since the Skills screen was
  * added; the rest now follow it.
  */
@@ -22,7 +22,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Admin
+final class Keelhob_Admin
 {
     /** Bump when what the owner is agreeing to materially changes. */
     const CONSENT_VERSION = 1;
@@ -31,8 +31,8 @@ final class Claudpress_Admin
     {
         add_action('admin_menu', [$this, 'menu']);
         // Decoration only, and admin-only: the front end never loads it.
-        Claudpress_Brand::hooks();
-        add_action('admin_post_claudpress_save', [$this, 'handle_save']);
+        Keelhob_Brand::hooks();
+        add_action('admin_post_keelhob_save', [$this, 'handle_save']);
         add_action('admin_bar_menu', [$this, 'admin_bar'], 100);
         // Runs LAST, after anything that could remove the node. See chip_watchdog().
         add_action('admin_bar_menu', [$this, 'chip_watchdog'], PHP_INT_MAX);
@@ -40,31 +40,31 @@ final class Claudpress_Admin
         add_action('admin_notices', [$this, 'upgrade_notice']);
         // Both of these accept an API key so an unsaved one can be tested;
         // see guard_provider_ajax() for why that changes what they must check.
-        add_action('wp_ajax_claudpress_fetch_models', [$this, 'ajax_fetch_models']);
-        add_action('wp_ajax_claudpress_test_connection', [$this, 'ajax_test_connection']);
-        add_action('wp_ajax_claudpress_test_media', [$this, 'ajax_test_media']);
-        add_action('wp_ajax_claudpress_fetch_media_models', [$this, 'ajax_fetch_media_models']);
+        add_action('wp_ajax_keelhob_fetch_models', [$this, 'ajax_fetch_models']);
+        add_action('wp_ajax_keelhob_test_connection', [$this, 'ajax_test_connection']);
+        add_action('wp_ajax_keelhob_test_media', [$this, 'ajax_test_media']);
+        add_action('wp_ajax_keelhob_fetch_media_models', [$this, 'ajax_fetch_media_models']);
     }
 
     public function menu(): void
     {
-        // The brand mark, not a dashicon. Claudpress_Brand::styles() undims it:
+        // The brand mark, not a dashicon. Keelhob_Brand::styles() undims it:
         // WordPress assumes a menu image is a monochrome glyph and fades it.
-        add_menu_page('Claudpress', 'Claudpress', 'manage_options', 'claudpress', [$this, 'render'], Claudpress_Brand::menu_icon(), 58);
-        add_submenu_page('claudpress', __('Connect', 'claudpress'), __('Connect', 'claudpress'), 'manage_options', 'claudpress', [$this, 'render']);
+        add_menu_page('Keelhob', 'Keelhob', 'manage_options', 'keelhob', [$this, 'render'], Keelhob_Brand::menu_icon(), 58);
+        add_submenu_page('keelhob', __('Connect', 'keelhob'), __('Connect', 'keelhob'), 'manage_options', 'keelhob', [$this, 'render']);
         // Directly after Connect: this is the primary "what has the AI done to
         // my site" surface, and it must be easy to find in a hurry.
         // Skills sit next to Snippets for the same reason: both answer "what is
         // this agent actually working from?", and the Pro list on that screen is
         // the only honest place to say what expertise exists but is not here.
-        add_submenu_page('claudpress', __('Skills', 'claudpress'), __('Skills', 'claudpress'), 'manage_options', 'claudpress-skills', [$this, 'render_skills']);
-        add_submenu_page('claudpress', __('Automation', 'claudpress'), __('Automation', 'claudpress'), 'manage_options', 'claudpress-automation', [$this, 'render_automation']);
-        add_submenu_page('claudpress', __('Guide', 'claudpress'), __('Guide', 'claudpress'), 'manage_options', 'claudpress-guide', [$this, 'render_guide']);
-        add_submenu_page('claudpress', __('Activity', 'claudpress'), __('Activity', 'claudpress'), 'manage_options', 'claudpress-activity', [$this, 'render_activity']);
+        add_submenu_page('keelhob', __('Skills', 'keelhob'), __('Skills', 'keelhob'), 'manage_options', 'keelhob-skills', [$this, 'render_skills']);
+        add_submenu_page('keelhob', __('Automation', 'keelhob'), __('Automation', 'keelhob'), 'manage_options', 'keelhob-automation', [$this, 'render_automation']);
+        add_submenu_page('keelhob', __('Guide', 'keelhob'), __('Guide', 'keelhob'), 'manage_options', 'keelhob-guide', [$this, 'render_guide']);
+        add_submenu_page('keelhob', __('Activity', 'keelhob'), __('Activity', 'keelhob'), 'manage_options', 'keelhob-activity', [$this, 'render_activity']);
 
         // Last in the list on purpose: it is an ask, not a feature, and it
         // should never sit above something someone came here to do.
-        Claudpress_Donate::menu();
+        Keelhob_Donate::menu();
     }
 
     /**
@@ -74,13 +74,13 @@ final class Claudpress_Admin
      * hiding a safety warning must not hide it from a colleague who has never
      * seen it and does not know an AI agent is attached to this site.
      */
-    const HIDE_NOTICE_META = 'claudpress_hide_abilities_notice';
+    const HIDE_NOTICE_META = 'keelhob_hide_abilities_notice';
 
     /**
-     * "AI abilities are ON", on Claudpress screens, and now dismissible.
+     * "AI abilities are ON", on Keelhob screens, and now dismissible.
      *
      * WHY IT IS SAFE TO LET SOMEBODY HIDE THIS. Because there is a second
-     * indicator that cannot be hidden: admin_bar() puts `Claudpress: ON` in the
+     * indicator that cannot be hidden: admin_bar() puts `Keelhob: ON` in the
      * WordPress toolbar, and that is a better warning than this banner - always
      * present, never dismissible, and on screens this banner never reaches.
      *
@@ -96,13 +96,13 @@ final class Claudpress_Admin
      * "can I hide this?" is no.
      *
      * THE HOLE THE MEASUREMENT LEFT. A snippet could still call
-     * remove_node('claudpress'), or inject admin CSS hiding #wpadminbar.
+     * remove_node('keelhob'), or inject admin CSS hiding #wpadminbar.
      *
      * The intended guard was to ask the toolbar, here, whether our node exists.
      * That does not work, and the browser layer is how we found out: at
-     * admin_notices the toolbar has not been built, so `get_node('claudpress')`
+     * admin_notices the toolbar has not been built, so `get_node('keelhob')`
      * returns null on EVERY request. A probe on the rig reported
-     * `nodes=0 claudpress=no` on a page whose toolbar rendered correctly
+     * `nodes=0 keelhob=no` on a page whose toolbar rendered correctly
      * moments later. Shipped as written, it would have removed the dismiss
      * option entirely while reading like a careful safety check.
      *
@@ -115,14 +115,14 @@ final class Claudpress_Admin
     public function notice(): void
     {
         $screen = get_current_screen();
-        if (!$screen || strpos($screen->id, 'claudpress') === false) {
+        if (!$screen || strpos($screen->id, 'keelhob') === false) {
             return;
         }
-        if (!Claudpress::instance()->abilities_enabled()) {
+        if (!Keelhob::instance()->abilities_enabled()) {
             return;
         }
 
-        if (!empty($_GET['claudpress_hide_abilities']) && check_admin_referer('claudpress_hide_abilities')) {
+        if (!empty($_GET['keelhob_hide_abilities']) && check_admin_referer('keelhob_hide_abilities')) {
             update_user_meta(get_current_user_id(), self::HIDE_NOTICE_META, self::notice_fingerprint());
         }
 
@@ -132,9 +132,9 @@ final class Claudpress_Admin
         }
 
         printf(
-            '<div class="notice notice-warning claudpress-abilities-notice"><p><strong>%s</strong> %s%s</p></div>',
-            esc_html__('Claudpress AI abilities are ON.', 'claudpress'),
-            esc_html__('A connected AI agent can read and modify everything on this site. Use development/staging sites only.', 'claudpress'),
+            '<div class="notice notice-warning keelhob-abilities-notice"><p><strong>%s</strong> %s%s</p></div>',
+            esc_html__('Keelhob AI abilities are ON.', 'keelhob'),
+            esc_html__('A connected AI agent can read and modify everything on this site. Use development/staging sites only.', 'keelhob'),
             $hideable ? self::hide_link() : ''
         );
     }
@@ -143,10 +143,10 @@ final class Claudpress_Admin
     private static function hide_link(): string
     {
         return sprintf(
-            ' <a href="%s" id="cp-hide-abilities-notice" style="margin-left:8px;">%s</a><br><span style="color:#646970;font-size:12px;">%s</span>',
-            esc_url(wp_nonce_url(add_query_arg('claudpress_hide_abilities', '1'), 'claudpress_hide_abilities')),
-            esc_html__('Hide this notice', 'claudpress'),
-            esc_html__('The toolbar will still show "Claudpress: ON" on every screen, so the site never stops telling you.', 'claudpress')
+            ' <a href="%s" id="kh-hide-abilities-notice" style="margin-left:8px;">%s</a><br><span style="color:#646970;font-size:12px;">%s</span>',
+            esc_url(wp_nonce_url(add_query_arg('keelhob_hide_abilities', '1'), 'keelhob_hide_abilities')),
+            esc_html__('Hide this notice', 'keelhob'),
+            esc_html__('The toolbar will still show "Keelhob: ON" on every screen, so the site never stops telling you.', 'keelhob')
         );
     }
 
@@ -168,17 +168,17 @@ final class Claudpress_Admin
     public static function notice_fingerprint(): string
     {
         $enabled = [];
-        foreach (array_keys(Claudpress_Capabilities::groups()) as $group) {
-            if (Claudpress_Capabilities::is_group_enabled($group)) {
+        foreach (array_keys(Keelhob_Capabilities::groups()) as $group) {
+            if (Keelhob_Capabilities::is_group_enabled($group)) {
                 $enabled[] = $group;
             }
         }
         sort($enabled);
 
         return substr(md5((string) wp_json_encode([
-            'on'      => Claudpress::instance()->abilities_enabled(),
+            'on'      => Keelhob::instance()->abilities_enabled(),
             'groups'  => $enabled,
-            'version' => CLAUDPRESS_VERSION,
+            'version' => KEELHOB_VERSION,
         ])), 0, 16);
     }
 
@@ -201,7 +201,7 @@ final class Claudpress_Admin
      * abilities on is rarely the only administrator, and the colleague who
      * dismissed this warning last month agreed to a different site.
      *
-     * REGISTERED FROM Claudpress::boot(), NOT from hooks(), and static for that
+     * REGISTERED FROM Keelhob::boot(), NOT from hooks(), and static for that
      * reason. hooks() only runs behind is_admin(), so hooking it there meant a
      * change made over WP-CLI, over the REST route, or by an agent through
      * manage_option left every dismissal standing - which is to say it did not
@@ -232,10 +232,10 @@ final class Claudpress_Admin
      * Will the unhideable indicator be on this page?
      *
      * THE OBVIOUS IMPLEMENTATION DOES NOT WORK, and it was measured rather than
-     * reasoned about. Asking `$GLOBALS['wp_admin_bar']->get_node('claudpress')`
+     * reasoned about. Asking `$GLOBALS['wp_admin_bar']->get_node('keelhob')`
      * from `admin_notices` returns null on every request: the toolbar has not
      * been built yet at that point. A probe printed at admin_notices on the rig
-     * reported `nodes=0 claudpress=no` on a page whose toolbar rendered
+     * reported `nodes=0 keelhob=no` on a page whose toolbar rendered
      * perfectly a few lines later.
      *
      * Shipped as written, that guard would have permanently removed the dismiss
@@ -256,7 +256,7 @@ final class Claudpress_Admin
      * If something removed the chip, un-dismiss the banner.
      *
      * Registered on `admin_bar_menu` at a very late priority, so it runs after
-     * anything that might call remove_node('claudpress') - a snippet, another
+     * anything that might call remove_node('keelhob') - a snippet, another
      * plugin, a theme. By then the banner for this request has already printed,
      * which is why this cannot prevent one bad page; it makes sure there is not
      * a second one.
@@ -270,7 +270,7 @@ final class Claudpress_Admin
         if (!current_user_can('manage_options') || !is_object($bar) || !method_exists($bar, 'get_node')) {
             return;
         }
-        if ($bar->get_node('claudpress') === null) {
+        if ($bar->get_node('keelhob') === null) {
             delete_user_meta(get_current_user_id(), self::HIDE_NOTICE_META);
         }
     }
@@ -285,7 +285,7 @@ final class Claudpress_Admin
      * the right default, but doing it silently would mean an owner discovering
      * by accident that automations they relied on had stopped.
      *
-     * Deliberately not limited to Claudpress screens, and deliberately not
+     * Deliberately not limited to Keelhob screens, and deliberately not
      * auto-dismissed on view: someone who never opens the plugin's own pages is
      * exactly the person who most needs to read this.
      */
@@ -294,32 +294,32 @@ final class Claudpress_Admin
         if (!current_user_can('manage_options')) {
             return;
         }
-        $reset = get_option('claudpress_paid_tier_reset', '');
+        $reset = get_option('keelhob_paid_tier_reset', '');
         if ($reset === '' || $reset === 'dismissed' || $reset === 'none') {
             return;
         }
 
-        if (!empty($_GET['claudpress_ack_paid_tier']) && check_admin_referer('claudpress_ack_paid_tier')) {
-            update_option('claudpress_paid_tier_reset', 'dismissed');
+        if (!empty($_GET['keelhob_ack_paid_tier']) && check_admin_referer('keelhob_ack_paid_tier')) {
+            update_option('keelhob_paid_tier_reset', 'dismissed');
             return;
         }
 
         $groups = array_filter(array_map('trim', explode(',', (string) $reset)));
         $labels = [];
-        $all    = Claudpress_Capabilities::groups();
+        $all    = Keelhob_Capabilities::groups();
         foreach ($groups as $group) {
             $labels[] = (string) ($all[$group]['label'] ?? $group);
         }
 
         printf(
             '<div class="notice notice-warning"><p><strong>%s</strong></p><p>%s</p><p><strong>%s</strong></p><p><a class="button button-primary" href="%s">%s</a> <a class="button" href="%s">%s</a></p></div>',
-            esc_html__('Claudpress is free now, and some capabilities were switched off.', 'claudpress'),
-            esc_html__('Every paid feature is included at no cost. Because the old paid tier was also the only thing keeping the riskiest tools out of reach, these areas now start switched OFF, and you decide which to turn back on:', 'claudpress'),
+            esc_html__('Keelhob is free now, and some capabilities were switched off.', 'keelhob'),
+            esc_html__('Every paid feature is included at no cost. Because the old paid tier was also the only thing keeping the riskiest tools out of reach, these areas now start switched OFF, and you decide which to turn back on:', 'keelhob'),
             esc_html(implode(' · ', $labels)),
-            esc_url(admin_url('admin.php?page=claudpress&tab=settings')),
-            esc_html__('Review capabilities', 'claudpress'),
-            esc_url(wp_nonce_url(add_query_arg('claudpress_ack_paid_tier', '1'), 'claudpress_ack_paid_tier')),
-            esc_html__('Got it', 'claudpress')
+            esc_url(admin_url('admin.php?page=keelhob&tab=settings')),
+            esc_html__('Review capabilities', 'keelhob'),
+            esc_url(wp_nonce_url(add_query_arg('keelhob_ack_paid_tier', '1'), 'keelhob_ack_paid_tier')),
+            esc_html__('Got it', 'keelhob')
         );
     }
 
@@ -328,14 +328,14 @@ final class Claudpress_Admin
         if (!current_user_can('manage_options')) {
             return;
         }
-        $on = Claudpress::instance()->abilities_enabled();
+        $on = Keelhob::instance()->abilities_enabled();
         $bar->add_node([
-            'id'    => 'claudpress',
+            'id'    => 'keelhob',
             // The mark carries its own inline sizing, so this node stays correct
             // if it is ever registered outside is_admin().
-            'title' => Claudpress_Brand::bar_mark()
-                . 'Claudpress: ' . ($on ? __('🟢 ON', 'claudpress') : __('⚪ OFF', 'claudpress')),
-            'href'  => admin_url('admin.php?page=claudpress'),
+            'title' => Keelhob_Brand::bar_mark()
+                . 'Keelhob: ' . ($on ? __('🟢 ON', 'keelhob') : __('⚪ OFF', 'keelhob')),
+            'href'  => admin_url('admin.php?page=keelhob'),
         ]);
     }
 
@@ -349,52 +349,52 @@ final class Claudpress_Admin
 
     public function render_skills(): void
     {
-        (new Claudpress_Admin_Skills())->render();
+        (new Keelhob_Admin_Skills())->render();
     }
 
     public function render(): void
     {
-        (new Claudpress_Admin_Screens())->render();
+        (new Keelhob_Admin_Screens())->render();
     }
 
     public function render_automation(): void
     {
-        (new Claudpress_Admin_Automation())->render_automation();
+        (new Keelhob_Admin_Automation())->render_automation();
     }
 
     public function render_guide(): void
     {
-        (new Claudpress_Admin_Screens())->render_guide();
+        (new Keelhob_Admin_Screens())->render_guide();
     }
 
     public function render_activity(): void
     {
-        (new Claudpress_Admin_Screens())->render_activity();
+        (new Keelhob_Admin_Screens())->render_activity();
     }
 
     public function handle_save(): void
     {
-        (new Claudpress_Admin_Settings())->handle_save();
+        (new Keelhob_Admin_Settings())->handle_save();
     }
 
     public function ajax_fetch_models(): void
     {
-        (new Claudpress_Admin_Providers())->ajax_fetch_models();
+        (new Keelhob_Admin_Providers())->ajax_fetch_models();
     }
 
     public function ajax_test_connection(): void
     {
-        (new Claudpress_Admin_Providers())->ajax_test_connection();
+        (new Keelhob_Admin_Providers())->ajax_test_connection();
     }
 
     public function ajax_test_media(): void
     {
-        (new Claudpress_Admin_Providers())->ajax_test_media();
+        (new Keelhob_Admin_Providers())->ajax_test_media();
     }
 
     public function ajax_fetch_media_models(): void
     {
-        (new Claudpress_Admin_Providers())->ajax_fetch_media_models();
+        (new Keelhob_Admin_Providers())->ajax_fetch_media_models();
     }
 
     /**
@@ -405,7 +405,7 @@ final class Claudpress_Admin
      */
     public static function consent_is_stale(): bool
     {
-        $s = Claudpress::instance()->settings();
+        $s = Keelhob::instance()->settings();
         if (empty($s['abilities_enabled'])) {
             return false;
         }

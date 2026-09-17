@@ -2,7 +2,7 @@
 /**
  * The skill standard — what makes a skill fit to ship, expressed as code.
  *
- * Claudpress skills used to be connected by prose. One skill mentioned another
+ * Keelhob skills used to be connected by prose. One skill mentioned another
  * somewhere in its body, and a test looked for that name with strpos(). That
  * check passed on a skill whose only reference was "unlike web-design-master",
  * which links nothing, and it could never answer the questions that actually
@@ -36,7 +36,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Skill_Standard
+final class Keelhob_Skill_Standard
 {
     /**
      * How the agent should treat a skill.
@@ -203,7 +203,7 @@ final class Claudpress_Skill_Standard
         'the', 'and', 'for', 'with', 'that', 'this', 'from', 'into', 'when', 'what',
         'use', 'used', 'using', 'user', 'users', 'any', 'all', 'not', 'you', 'your',
         'its', 'has', 'have', 'are', 'was', 'were', 'can', 'will', 'would', 'should',
-        'site', 'sites', 'page', 'pages', 'wordpress', 'skill', 'skills', 'claudpress',
+        'site', 'sites', 'page', 'pages', 'wordpress', 'skill', 'skills', 'keelhob',
         'before', 'after', 'them', 'they', 'their', 'than', 'then', 'each', 'every',
         'one', 'two', 'more', 'most', 'some', 'other', 'others', 'about', 'over',
         'make', 'makes', 'made', 'need', 'needs', 'want', 'wants', 'ask', 'asks',
@@ -221,7 +221,7 @@ final class Claudpress_Skill_Standard
     /**
      * Split a comma-separated front-matter list into clean slugs.
      *
-     * The front matter is not YAML — Claudpress_Skills::parse_markdown() matches
+     * The front matter is not YAML — Keelhob_Skills::parse_markdown() matches
      * one key per line with no nesting and no lists — so every edge field is one
      * line of comma-separated names, and this is what turns it into an array.
      *
@@ -830,7 +830,7 @@ final class Claudpress_Skill_Standard
     /**
      * What the session-start catalog costs in bytes.
      *
-     * Counted the way Claudpress_MCP_Server::format_skill_catalog() actually
+     * Counted the way Keelhob_MCP_Server::format_skill_catalog() actually
      * prints a line, not with a flat per-skill allowance. The first version
      * added 60 bytes a skill for the edges and reported 9 KB against a real
      * catalog of 10.8 KB, because build-standard is the router and names

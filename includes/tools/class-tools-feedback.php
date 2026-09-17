@@ -16,9 +16,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Tools_Feedback
+final class Keelhob_Tools_Feedback
 {
-    public static function register(Claudpress_Tool_Registry $r): void
+    public static function register(Keelhob_Tool_Registry $r): void
     {
         $r->add(
             'feedback_status',
@@ -62,7 +62,7 @@ final class Claudpress_Tools_Feedback
      */
     public static function status(array $args): array
     {
-        if (!Claudpress_Feedback::enabled()) {
+        if (!Keelhob_Feedback::enabled()) {
             return [
                 'success' => true,
                 'due'     => false,
@@ -75,14 +75,14 @@ final class Claudpress_Tools_Feedback
         // is the real thing and not a preview of it.
         $add = isset($args['add_note']) ? trim((string) $args['add_note']) : '';
         if ($add !== '') {
-            Claudpress_Feedback::record([
+            Keelhob_Feedback::record([
                 'friction' => 'wrong_visual_result',
                 'note'     => $add,
                 'source'   => 'agent',
             ]);
         }
 
-        if (!Claudpress_Feedback::should_offer()) {
+        if (!Keelhob_Feedback::should_offer()) {
             return [
                 'success' => true,
                 'due'     => false,
@@ -90,7 +90,7 @@ final class Claudpress_Tools_Feedback
             ];
         }
 
-        $report = Claudpress_Feedback::build_report();
+        $report = Keelhob_Feedback::build_report();
         if (empty($report['events'])) {
             return ['success' => true, 'due' => false, 'reason' => 'Nothing to report. Say nothing.'];
         }
@@ -102,7 +102,7 @@ final class Claudpress_Tools_Feedback
             'omitted'  => $report['omitted'],
             'assurance' => 'No site address, no page content, no keys. Names and addresses are stripped in PHP before this text existed.',
             'show_user' => self::draft_text($report),
-            'next'      => 'Show the user show_user exactly as written. Then ask: "Send this to the Claudpress project? Or is there anything you would add or change?" If they add something, call feedback_status again with add_note. Call feedback_send only after a clear yes or no.',
+            'next'      => 'Show the user show_user exactly as written. Then ask: "Send this to the Keelhob project? Or is there anything you would add or change?" If they add something, call feedback_status again with add_note. Call feedback_send only after a clear yes or no.',
         ];
     }
 
@@ -117,10 +117,10 @@ final class Claudpress_Tools_Feedback
      */
     public static function not_due_reason(?int $now = null): string
     {
-        if (Claudpress_Feedback::count_unsent() < 1) {
+        if (Keelhob_Feedback::count_unsent() < 1) {
             return 'Nothing has gone wrong since the last report. Say nothing.';
         }
-        if (($now ?? time()) < Claudpress_Feedback::retry_after()) {
+        if (($now ?? time()) < Keelhob_Feedback::retry_after()) {
             return 'A report is ready, but the project\'s endpoint was at its daily limit. Holding until tomorrow. Say nothing — this is not a problem with this site.';
         }
         return 'A report was already offered within the last 7 days. Say nothing.';
@@ -139,7 +139,7 @@ final class Claudpress_Tools_Feedback
         $approved = !empty($args['approved']);
 
         if (!$approved) {
-            Claudpress_Feedback::mark_offered();
+            Keelhob_Feedback::mark_offered();
             return [
                 'success' => true,
                 'sent'    => false,
@@ -147,13 +147,13 @@ final class Claudpress_Tools_Feedback
             ];
         }
 
-        if (!Claudpress_Feedback::enabled()) {
-            Claudpress_Feedback::mark_offered();
+        if (!Keelhob_Feedback::enabled()) {
+            Keelhob_Feedback::mark_offered();
             return ['success' => false, 'error' => 'The feedback log is switched off on this site.'];
         }
 
-        $report = Claudpress_Feedback::build_report();
-        $result = Claudpress_Feedback::send($report);
+        $report = Keelhob_Feedback::build_report();
+        $result = Keelhob_Feedback::send($report);
 
         // THE THROTTLED CASE IS NOT A FAILURE, and the difference is why the
         // clock is not touched here.
@@ -171,7 +171,7 @@ final class Claudpress_Tools_Feedback
         // later is the first step toward "remember my answer and stop asking",
         // which is where this stops being consent.
         if (!empty($result['throttled'])) {
-            Claudpress_Feedback::mark_retry_after();
+            Keelhob_Feedback::mark_retry_after();
             return [
                 'success'   => true,
                 'sent'      => false,
@@ -184,7 +184,7 @@ final class Claudpress_Tools_Feedback
         // Every other failure is reported as a fact and then dropped. No retry,
         // no queue: a failed report is worth far less than a session derailed by
         // an error about a report.
-        Claudpress_Feedback::mark_offered();
+        Keelhob_Feedback::mark_offered();
 
         return [
             'success' => true,
@@ -200,7 +200,7 @@ final class Claudpress_Tools_Feedback
     public static function draft_text(array $report): string
     {
         $lines = [
-            'A few things went wrong while working on this site. I can send this to the Claudpress project. This is all of it:',
+            'A few things went wrong while working on this site. I can send this to the Keelhob project. This is all of it:',
             '',
         ];
         $n = 0;

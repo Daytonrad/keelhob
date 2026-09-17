@@ -2,20 +2,20 @@
 /**
  * The front-end reachability check, shared by every risky write.
  *
- * Extracted out of Claudpress_Snippets, which was the first thing to need it:
+ * Extracted out of Keelhob_Snippets, which was the first thing to need it:
  * a snippet returned HTTP 503 from the front end, a containerised host read
  * that as "this server is dead" and stopped routing to it — wp-admin and the
  * REST API included, with nothing having errored. execute_php, execute_sql,
  * write_file and manage_plugin/manage_theme activation can all cause the same
  * failure and none of them were checking. This class holds the check itself;
- * each risky write calls Claudpress_Health::guard() explicitly.
+ * each risky write calls Keelhob_Health::guard() explicitly.
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Health
+final class Keelhob_Health
 {
     /**
      * One anonymous GET of the home page.
@@ -28,7 +28,7 @@ final class Claudpress_Health
      */
     public static function probe_home(): array
     {
-        $url = add_query_arg('claudpress_probe', (string) time(), home_url('/'));
+        $url = add_query_arg('keelhob_probe', (string) time(), home_url('/'));
 
         $res = wp_remote_get($url, [
             'timeout'     => 10,
@@ -37,8 +37,8 @@ final class Claudpress_Health
             // this check is about.
             'sslverify'   => false,
             'cookies'     => [],
-            'headers'     => ['Cache-Control' => 'no-cache', 'X-Claudpress-Probe' => '1'],
-            'user-agent'  => 'Claudpress/' . CLAUDPRESS_VERSION . ' (front-end reachability check)',
+            'headers'     => ['Cache-Control' => 'no-cache', 'X-Keelhob-Probe' => '1'],
+            'user-agent'  => 'Keelhob/' . KEELHOB_VERSION . ' (front-end reachability check)',
         ]);
 
         if (is_wp_error($res)) {
@@ -144,7 +144,7 @@ final class Claudpress_Health
      */
     public static function guard(array $result, string $subject, ?callable $revert = null): array
     {
-        if (!apply_filters('claudpress_verify_health', true, $subject)) {
+        if (!apply_filters('keelhob_verify_health', true, $subject)) {
             return $result;
         }
 

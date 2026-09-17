@@ -75,7 +75,7 @@ Ask the owner which of these they have, in one message, and say plainly that
 
 ### Guiding them through connecting one
 
-These live on the **owner's AI client**, not in WordPress. Claudpress cannot
+These live on the **owner's AI client**, not in WordPress. Keelhob cannot
 install them, and neither can you — say so rather than pretending to try.
 
 For a custom connector (this is the DataForSEO path):
@@ -95,7 +95,7 @@ everywhere: in Search Console, export the account as CSV, unzip it, and hand
 the folder to the agent. Old data is still data.
 
 **Be honest about money.** DataForSEO gives about $1 of trial credit and a
-small audit fits inside it. SEMrush trials are about a week. Claudpress takes
+small audit fits inside it. SEMrush trials are about a week. Keelhob takes
 no cut, has no affiliate link, and gains nothing from either choice.
 
 ---

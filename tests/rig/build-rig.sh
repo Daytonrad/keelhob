@@ -21,7 +21,7 @@ WP_VERSION="${WP_VERSION:-7.1}"
 SQLITE_VERSION="${SQLITE_VERSION:-3.0.1}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-RIG="${1:-${CP_RIG_ROOT:-}}"
+RIG="${1:-${KH_RIG_ROOT:-}}"
 
 if [ -z "$RIG" ]; then
   echo "Usage: bash tests/rig/build-rig.sh /path/to/rig" >&2
@@ -47,7 +47,7 @@ for ext in pdo_sqlite sodium openssl; do
 done
 
 # Downloads live outside the rig itself so a CI cache can hold them across runs.
-CACHE="${CP_RIG_CACHE:-$RIG/.downloads}"
+CACHE="${KH_RIG_CACHE:-$RIG/.downloads}"
 WP="$RIG/wordpress"
 IMPL="$WP/wp-content/plugins/sqlite-database-integration"
 
@@ -98,7 +98,7 @@ file_put_contents($file, $body);
 ' "$WP/wp-content/db.php" "$IMPL_ABS"
 
 # ---- wp-config --------------------------------------------------------------
-# Real salts, not placeholders: Claudpress_Secrets derives its encryption key
+# Real salts, not placeholders: Keelhob_Secrets derives its encryption key
 # from AUTH_KEY, SECURE_AUTH_KEY and AUTH_SALT, so a config with the shipped
 # "put your unique phrase here" values would appear to work and hide a bug.
 # Generated locally rather than fetched from api.wordpress.org, so building a
@@ -151,14 +151,14 @@ php -l "$WP/wp-config.php" > /dev/null
 # A symlink (or a Windows junction) is the right thing on a development machine,
 # because edits are picked up with no rebuild. It is the wrong thing in CI. PHP
 # resolves symlinks in __FILE__, so plugin_dir_path(__FILE__) - and therefore
-# CLAUDPRESS_DIR - points at the checkout, OUTSIDE wp-content/plugins. Only
+# KEELHOB_DIR - points at the checkout, OUTSIDE wp-content/plugins. Only
 # plugin_basename() and plugins_url() are symlink-aware, through the
 # $wp_plugin_paths map WordPress builds for exactly this case. A copy puts every
 # path where a real install puts it, and removes the question.
 #
-# Set CP_RIG_LINK=1 for the development edit loop, where that trade is worth it.
-DEST="$WP/wp-content/plugins/claudpress"
-if [ "${CP_RIG_LINK:-0}" = "1" ]; then
+# Set KH_RIG_LINK=1 for the development edit loop, where that trade is worth it.
+DEST="$WP/wp-content/plugins/keelhob"
+if [ "${KH_RIG_LINK:-0}" = "1" ]; then
   ln -s "$ROOT" "$DEST"
 
   # `ln -s` reporting success is not evidence that a symlink exists. Git Bash on
@@ -174,13 +174,13 @@ if [ "${CP_RIG_LINK:-0}" = "1" ]; then
   # leaving it would hand back exactly the stale rig this is meant to prevent.
   if [ ! -L "$DEST" ]; then
     rm -rf "$DEST"
-    echo "CP_RIG_LINK=1 was asked for, but this shell cannot make symlinks." >&2
+    echo "KH_RIG_LINK=1 was asked for, but this shell cannot make symlinks." >&2
     echo "ln -s exited 0 and produced a plain directory, which would have gone" >&2
     echo "stale the moment you edited anything. Nothing was left behind." >&2
     echo >&2
     echo "On Git Bash for Windows, either:" >&2
     echo "  export MSYS=winsymlinks:nativestrict   # and enable Developer Mode" >&2
-    echo "or drop CP_RIG_LINK and use the copy, which is the default:" >&2
+    echo "or drop KH_RIG_LINK and use the copy, which is the default:" >&2
     echo "  bash tests/rig/build-rig.sh \"$RIG\"" >&2
     echo "  bash tests/rig/sync-plugin.sh \"$WP\"   # after each change" >&2
     exit 2
@@ -188,7 +188,7 @@ if [ "${CP_RIG_LINK:-0}" = "1" ]; then
   echo "Plugin:  symlinked from $ROOT"
 else
   mkdir -p "$DEST"
-  cp "$ROOT/claudpress.php" "$ROOT/uninstall.php" "$ROOT/readme.txt" "$DEST/"
+  cp "$ROOT/keelhob.php" "$ROOT/uninstall.php" "$ROOT/readme.txt" "$DEST/"
   # assets/ ships in the zip, so it must be here too. Leave it out and the rig
   # shows a broken image where the sidebar icon goes — which looks like a bug in
   # the plugin rather than a gap in this script.
@@ -205,33 +205,33 @@ cp "$ROOT/tests/rig/ai-mock.php" "$WP/wp-content/mu-plugins/"
 # shellcheck disable=SC2086
 $WPCLI --path="$WP" core install \
   --url=http://localhost:8899 \
-  --title="Claudpress Rig" \
+  --title="Keelhob Rig" \
   --admin_user=admin \
   --admin_password=rigpass \
   --admin_email=rig@example.test \
   --skip-email > /dev/null
 
 # shellcheck disable=SC2086
-$WPCLI --path="$WP" plugin activate claudpress > /dev/null
+$WPCLI --path="$WP" plugin activate keelhob > /dev/null
 
 # A rig that built but did not load the plugin would let every check "pass" by
 # never running, so prove it is there before handing the path back.
 # shellcheck disable=SC2086
 $WPCLI --path="$WP" eval '
-if ( ! defined( "CLAUDPRESS_VERSION" ) ) {
-    fwrite( STDERR, "Claudpress did not load\n" );
+if ( ! defined( "KEELHOB_VERSION" ) ) {
+    fwrite( STDERR, "Keelhob did not load\n" );
     exit( 1 );
 }
-printf( "Loaded:  WordPress %s, Claudpress %s\n", get_bloginfo( "version" ), CLAUDPRESS_VERSION );
+printf( "Loaded:  WordPress %s, Keelhob %s\n", get_bloginfo( "version" ), KEELHOB_VERSION );
 // realpath() on both sides before comparing. Comparing the raw strings gave a
 // false OUTSIDE on Windows whenever the rig sat under a path with an 8.3 short
-// name: PHP resolved CLAUDPRESS_DIR to "C:/Users/FLINTSBWOY/..." while
+// name: PHP resolved KEELHOB_DIR to "C:/Users/FLINTSBWOY/..." while
 // WP_PLUGIN_DIR still read "C:/Users/FLINTS~1/...". Same directory, no shared
 // prefix. A check that cries wolf on a correct rig gets ignored on a broken one.
-$cp_dir = wp_normalize_path( (string) ( realpath( CLAUDPRESS_DIR ) ?: CLAUDPRESS_DIR ) );
+$kh_dir = wp_normalize_path( (string) ( realpath( KEELHOB_DIR ) ?: KEELHOB_DIR ) );
 $wp_dir = wp_normalize_path( (string) ( realpath( WP_PLUGIN_DIR ) ?: WP_PLUGIN_DIR ) );
-printf( "Paths:   CLAUDPRESS_DIR %s wp-content/plugins\n",
-    strpos( $cp_dir, $wp_dir ) === 0 ? "is inside" : "is OUTSIDE" );
+printf( "Paths:   KEELHOB_DIR %s wp-content/plugins\n",
+    strpos( $kh_dir, $wp_dir ) === 0 ? "is inside" : "is OUTSIDE" );
 '
 
 echo

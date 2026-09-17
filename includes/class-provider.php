@@ -37,10 +37,10 @@ if (!defined('ABSPATH')) {
  *   raw         array   the untouched decoded body (adapters need it to echo
  *                       the assistant turn back verbatim)
  */
-abstract class Claudpress_Provider
+abstract class Keelhob_Provider
 {
     /** Transient prefix for a fetched model list — one entry per provider id. */
-    private const MODELS_CACHE = 'claudpress_models_';
+    private const MODELS_CACHE = 'keelhob_models_';
 
     /** How many models the dropdown offers before it stops being a dropdown. */
     public const MODELS_SHOWN = 10;
@@ -147,7 +147,7 @@ abstract class Claudpress_Provider
      * Where to ask the vendor which models this key may actually use.
      *
      * Derived from the chat endpoint rather than hardcoded, so an owner pointing
-     * Claudpress at a gateway gets that gateway's catalogue rather than the
+     * Keelhob at a gateway gets that gateway's catalogue rather than the
      * vendor's — a list has to describe the host the requests actually go to.
      * '' means the vendor publishes no such endpoint at all.
      *
@@ -175,13 +175,13 @@ abstract class Claudpress_Provider
 
     // ---------------------------------------------------------------- registry
 
-    /** @return array<string, class-string<Claudpress_Provider>> */
+    /** @return array<string, class-string<Keelhob_Provider>> */
     public static function providers(): array
     {
-        return (array) apply_filters('claudpress_llm_providers', [
-            'anthropic' => Claudpress_Provider_Anthropic::class,
-            'openai'    => Claudpress_Provider_OpenAI::class,
-            'google'    => Claudpress_Provider_Google::class,
+        return (array) apply_filters('keelhob_llm_providers', [
+            'anthropic' => Keelhob_Provider_Anthropic::class,
+            'openai'    => Keelhob_Provider_OpenAI::class,
+            'google'    => Keelhob_Provider_Google::class,
         ]);
     }
 
@@ -189,13 +189,13 @@ abstract class Claudpress_Provider
     public static function get(string $id): string
     {
         $all = self::providers();
-        return $all[$id] ?? Claudpress_Provider_Anthropic::class;
+        return $all[$id] ?? Keelhob_Provider_Anthropic::class;
     }
 
     /** The adapter selected in settings. */
     public static function current(): string
     {
-        $s = Claudpress::instance()->settings();
+        $s = Keelhob::instance()->settings();
         return self::get((string) ($s['agent_provider'] ?? 'anthropic'));
     }
 
@@ -210,7 +210,7 @@ abstract class Claudpress_Provider
      * a question nobody asked. Blank override fields fall back to storage.
      *
      * @param array $override provider|api_key|endpoint|model, any subset
-     * @return array{id: string, class: class-string<Claudpress_Provider>, key: string, endpoint: string, model: string}
+     * @return array{id: string, class: class-string<Keelhob_Provider>, key: string, endpoint: string, model: string}
      */
     /**
      * The currently configured provider, resolved.
@@ -220,7 +220,7 @@ abstract class Claudpress_Provider
      * just wants to know what this site is set up to talk to, so they get a
      * read-only view of that and no way to smuggle a different key in.
      *
-     * @return array{id: string, class: class-string<Claudpress_Provider>, key: string, endpoint: string, model: string}
+     * @return array{id: string, class: class-string<Keelhob_Provider>, key: string, endpoint: string, model: string}
      */
     public static function configured(): array
     {
@@ -229,7 +229,7 @@ abstract class Claudpress_Provider
 
     protected static function resolve(array $override): array
     {
-        $s    = Claudpress::instance()->settings();
+        $s    = Keelhob::instance()->settings();
         $pick = static function (string $field, $stored) use ($override): string {
             $typed = isset($override[$field]) ? trim((string) $override[$field]) : '';
             return $typed !== '' ? $typed : trim((string) $stored);
@@ -237,7 +237,7 @@ abstract class Claudpress_Provider
 
         $id  = $pick('provider', $s['agent_provider'] ?? 'anthropic');
         $id  = isset(self::providers()[$id]) ? $id : 'anthropic';
-        /** @var class-string<Claudpress_Provider> $cls */
+        /** @var class-string<Keelhob_Provider> $cls */
         $cls = self::get($id);
 
         // Stored key, endpoint and model belong to the stored provider. Falling
@@ -266,7 +266,7 @@ abstract class Claudpress_Provider
      */
     public static function cached_models(string $id, string $keep = ''): array
     {
-        /** @var class-string<Claudpress_Provider> $cls */
+        /** @var class-string<Keelhob_Provider> $cls */
         $cls    = self::get($id);
         $cached = get_transient(self::MODELS_CACHE . $id);
         $out    = (is_array($cached) && $cached) ? array_map('strval', $cached) : [];
@@ -314,18 +314,18 @@ abstract class Claudpress_Provider
     public static function fetch_models(array $override = [])
     {
         $r = self::resolve($override);
-        /** @var class-string<Claudpress_Provider> $cls */
+        /** @var class-string<Keelhob_Provider> $cls */
         $cls = $r['class'];
 
         if ($r['key'] === '') {
-            return new WP_Error('claudpress_no_key', __('Add an API key first, then refresh the model list.', 'claudpress'));
+            return new WP_Error('keelhob_no_key', __('Add an API key first, then refresh the model list.', 'keelhob'));
         }
 
         $url = $cls::models_list_url($r['endpoint']);
         if ($url === '') {
             return new WP_Error(
-                'claudpress_no_model_list',
-                __('This provider does not publish a model list — type the model name your service uses.', 'claudpress')
+                'keelhob_no_model_list',
+                __('This provider does not publish a model list — type the model name your service uses.', 'keelhob')
             );
         }
 
@@ -338,15 +338,15 @@ abstract class Claudpress_Provider
         $data = json_decode((string) wp_remote_retrieve_body($resp), true);
 
         if ($code < 200 || $code >= 300) {
-            return new WP_Error('claudpress_api', self::http_error($cls, $code, is_array($data) ? $data : []));
+            return new WP_Error('keelhob_api', self::http_error($cls, $code, is_array($data) ? $data : []));
         }
         if (!is_array($data)) {
-            return new WP_Error('claudpress_parse', __('The model list could not be read.', 'claudpress'));
+            return new WP_Error('keelhob_parse', __('The model list could not be read.', 'keelhob'));
         }
 
         $models = $cls::parse_models($data);
         if (!$models) {
-            return new WP_Error('claudpress_no_models', __('That provider returned no models this plugin can use.', 'claudpress'));
+            return new WP_Error('keelhob_no_models', __('That provider returned no models this plugin can use.', 'keelhob'));
         }
 
         // A week, not an hour: vendors add models occasionally, and the Refresh
@@ -369,11 +369,11 @@ abstract class Claudpress_Provider
     public static function test_connection(array $override = [])
     {
         $r = self::resolve($override);
-        /** @var class-string<Claudpress_Provider> $cls */
+        /** @var class-string<Keelhob_Provider> $cls */
         $cls = $r['class'];
 
         if ($r['key'] === '') {
-            return new WP_Error('claudpress_no_key', __('Add an API key first, then test it.', 'claudpress'));
+            return new WP_Error('keelhob_no_key', __('Add an API key first, then test it.', 'keelhob'));
         }
 
         $body = $cls::body($r['model'], 'Reply with the single word OK.', [], [$cls::user_message('Say OK.')]);
@@ -394,10 +394,10 @@ abstract class Claudpress_Provider
         $data = json_decode((string) wp_remote_retrieve_body($resp), true);
 
         if ($code < 200 || $code >= 300) {
-            return new WP_Error('claudpress_api', self::http_error($cls, $code, is_array($data) ? $data : []));
+            return new WP_Error('keelhob_api', self::http_error($cls, $code, is_array($data) ? $data : []));
         }
         if (!is_array($data)) {
-            return new WP_Error('claudpress_parse', __('The provider answered with something this plugin could not read.', 'claudpress'));
+            return new WP_Error('keelhob_parse', __('The provider answered with something this plugin could not read.', 'keelhob'));
         }
 
         return ['provider' => $r['id'], 'label' => $cls::label(), 'model' => $r['model']];
@@ -410,25 +410,25 @@ abstract class Claudpress_Provider
      * was rejected" tells them which box to go and look at. The vendor's own
      * message is preferred where there is one, because it is usually specific.
      *
-     * @param class-string<Claudpress_Provider> $cls
+     * @param class-string<Keelhob_Provider> $cls
      */
     private static function http_error(string $cls, int $code, array $data): string
     {
         if ($code === 401 || $code === 403) {
-            return __('Your API key was rejected. Check it above.', 'claudpress');
+            return __('Your API key was rejected. Check it above.', 'keelhob');
         }
         $msg = $data ? $cls::error_message($data) : '';
         if ($msg !== '') {
             return $msg;
         }
         if ($code === 404) {
-            return __('That address returned nothing. Check the endpoint under Advanced.', 'claudpress');
+            return __('That address returned nothing. Check the endpoint under Advanced.', 'keelhob');
         }
         if ($code === 429) {
-            return __('Your provider is rate-limiting this key. Wait a moment and try again.', 'claudpress');
+            return __('Your provider is rate-limiting this key. Wait a moment and try again.', 'keelhob');
         }
         /* translators: %d: HTTP status code. */
-        return sprintf(__('The provider refused the request (HTTP %d).', 'claudpress'), $code);
+        return sprintf(__('The provider refused the request (HTTP %d).', 'keelhob'), $code);
     }
 
     /**

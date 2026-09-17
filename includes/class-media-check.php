@@ -24,7 +24,7 @@ if (!defined('ABSPATH')) {
  * costs nothing, and it separates the two failures that actually matter: a key
  * the vendor rejects, and a model this account cannot reach.
  */
-final class Claudpress_Media_Check
+final class Keelhob_Media_Check
 {
     /**
      * @param array<string,string> $headers auth only
@@ -33,7 +33,7 @@ final class Claudpress_Media_Check
     public static function run(string $url, array $headers, string $model)
     {
         if ($url === '') {
-            return new WP_Error('claudpress_no_url', __('This provider cannot be tested automatically.', 'claudpress'));
+            return new WP_Error('keelhob_no_url', __('This provider cannot be tested automatically.', 'keelhob'));
         }
 
         $resp = wp_remote_get($url, ['timeout' => 20, 'headers' => $headers]);
@@ -50,31 +50,31 @@ final class Claudpress_Media_Check
         $msg  = is_array($data) ? (string) ($data['error']['message'] ?? '') : '';
 
         if ($code === 401 || $code === 403) {
-            return new WP_Error('claudpress_key', __('Your API key was rejected. Check it above.', 'claudpress'));
+            return new WP_Error('keelhob_key', __('Your API key was rejected. Check it above.', 'keelhob'));
         }
         if ($code === 404) {
-            return new WP_Error('claudpress_model', sprintf(
+            return new WP_Error('keelhob_model', sprintf(
                 /* translators: %s: model id. */
-                __('The key works, but your account cannot reach %s. Pick another model, or enable it with your provider.', 'claudpress'),
+                __('The key works, but your account cannot reach %s. Pick another model, or enable it with your provider.', 'keelhob'),
                 $model
             ));
         }
         if ($code === 429) {
-            return new WP_Error('claudpress_rate', __('The provider is rate-limiting this key. Wait a moment and test again.', 'claudpress'));
+            return new WP_Error('keelhob_rate', __('The provider is rate-limiting this key. Wait a moment and test again.', 'keelhob'));
         }
         if ($msg !== '') {
-            return new WP_Error('claudpress_api', $msg);
+            return new WP_Error('keelhob_api', $msg);
         }
 
-        return new WP_Error('claudpress_api', sprintf(
+        return new WP_Error('keelhob_api', sprintf(
             /* translators: %d: HTTP status code. */
-            __('The provider answered with HTTP %d.', 'claudpress'),
+            __('The provider answered with HTTP %d.', 'keelhob'),
             $code
         ));
     }
     // ---- the model list ---------------------------------------------------
 
-    const MODELS_CACHE = 'claudpress_media_models_';
+    const MODELS_CACHE = 'keelhob_media_models_';
     const MODELS_SHOWN = 12;
 
     /**
@@ -112,7 +112,7 @@ final class Claudpress_Media_Check
                 if ($id === '' || in_array($id, $seen, true)) {
                     continue;
                 }
-                $out[]  = ['id' => $id, 'note' => __('Newer — offered by your provider, not yet described here.', 'claudpress')];
+                $out[]  = ['id' => $id, 'note' => __('Newer — offered by your provider, not yet described here.', 'keelhob')];
                 $seen[] = $id;
             }
         }
@@ -123,7 +123,7 @@ final class Claudpress_Media_Check
         // stopped advertising it. A model silently vanishing from the dropdown
         // would switch the site to a different one on the next save.
         if ($keep !== '' && !in_array($keep, array_column($out, 'id'), true)) {
-            array_unshift($out, ['id' => $keep, 'note' => __('your saved model', 'claudpress')]);
+            array_unshift($out, ['id' => $keep, 'note' => __('your saved model', 'keelhob')]);
         }
 
         return $out;
@@ -138,14 +138,14 @@ final class Claudpress_Media_Check
     public static function refresh(string $cls, string $kind, string $pid, string $key, string $endpoint, string $keep = '')
     {
         if (trim($key) === '') {
-            return new WP_Error('claudpress_no_key', __('Add an API key first, then refresh the model list.', 'claudpress'));
+            return new WP_Error('keelhob_no_key', __('Add an API key first, then refresh the model list.', 'keelhob'));
         }
 
         $url = $cls::models_list_url($endpoint);
         if ($url === '') {
             return new WP_Error(
-                'claudpress_no_model_list',
-                __('This provider does not publish a model list. The models above are the ones this plugin supports.', 'claudpress')
+                'keelhob_no_model_list',
+                __('This provider does not publish a model list. The models above are the ones this plugin supports.', 'keelhob')
             );
         }
 
@@ -158,13 +158,13 @@ final class Claudpress_Media_Check
         $data = json_decode((string) wp_remote_retrieve_body($resp), true);
 
         if ($code === 401 || $code === 403) {
-            return new WP_Error('claudpress_key', __('Your API key was rejected. Check it above.', 'claudpress'));
+            return new WP_Error('keelhob_key', __('Your API key was rejected. Check it above.', 'keelhob'));
         }
         if ($code < 200 || $code >= 300 || !is_array($data)) {
             $msg = is_array($data) ? (string) ($data['error']['message'] ?? '') : '';
-            return new WP_Error('claudpress_api', $msg !== '' ? $msg : sprintf(
+            return new WP_Error('keelhob_api', $msg !== '' ? $msg : sprintf(
                 /* translators: %d: HTTP status code. */
-                __('The model list could not be read (HTTP %d).', 'claudpress'),
+                __('The model list could not be read (HTTP %d).', 'keelhob'),
                 $code
             ));
         }
@@ -184,8 +184,8 @@ final class Claudpress_Media_Check
     {
         foreach (['image', 'voice'] as $kind) {
             $all = $kind === 'image'
-                ? Claudpress_Image_Provider::providers()
-                : Claudpress_Transcribe_Provider::providers();
+                ? Keelhob_Image_Provider::providers()
+                : Keelhob_Transcribe_Provider::providers();
             foreach (array_keys($all) as $pid) {
                 delete_transient(self::MODELS_CACHE . $kind . '_' . $pid);
             }

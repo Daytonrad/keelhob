@@ -21,9 +21,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Undo
+final class Keelhob_Undo
 {
-    const OPTION = 'claudpress_undo_stack';
+    const OPTION = 'keelhob_undo_stack';
 
     /** How many undoable turns to keep per scope (a scope is usually a chat id). */
     const KEEP = 5;

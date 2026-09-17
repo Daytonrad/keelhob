@@ -123,7 +123,7 @@ that drops Google Analytics for a privacy-respecting alternative — or for
 nothing — needs no banner, no consent log and a much shorter policy. Offer
 this. It is frequently the right call and nobody suggests it.
 
-Claudpress's own `site_readiness` tool checks whether privacy and terms pages
+Keelhob's own `site_readiness` tool checks whether privacy and terms pages
 exist. It cannot check whether the banner works. That part is this skill's job.
 
 ---

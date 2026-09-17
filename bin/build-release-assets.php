@@ -18,7 +18,7 @@
  * environment first (so CI can inject it) and from a .env file only as a
  * fallback. It is never printed, and it never reaches the output files.
  *
- * That .env lives OUTSIDE this repository, in the sibling claudpress-vital/
+ * That .env lives OUTSIDE this repository, in the sibling keelhob-vital/
  * directory. It holds a live Ed25519 signing key, and a secret sitting next to
  * public source is one `git add -A -f` away from being published forever. The
  * path is resolved relative to the repository rather than hardcoded, so a
@@ -39,7 +39,7 @@ if (!extension_loaded('sodium')) {
 
 // Resolved relative to the repo, never as an absolute path: this has to work
 // on a machine that is not the one it was written on.
-$vault_env  = dirname($root) . '/claudpress-vital/.env';
+$vault_env  = dirname($root) . '/keelhob-vital/.env';
 $legacy_env = $root . '/.env';
 
 $read_env = static function (string $path): string {
@@ -101,9 +101,9 @@ if (!hash_equals($embedded, $derived)) {
 
 // ---- version ------------------------------------------------------------
 
-$boot = (string) file_get_contents($root . '/claudpress.php');
-if (!preg_match("/define\('CLAUDPRESS_VERSION',\s*'([^']+)'\)/", $boot, $m)) {
-    $fail('Could not read CLAUDPRESS_VERSION out of claudpress.php.');
+$boot = (string) file_get_contents($root . '/keelhob.php');
+if (!preg_match("/define\('KEELHOB_VERSION',\s*'([^']+)'\)/", $boot, $m)) {
+    $fail('Could not read KEELHOB_VERSION out of keelhob.php.');
 }
 $version = $m[1];
 
@@ -121,7 +121,7 @@ if (!defined('ABSPATH')) {
 require_once $root . '/includes/class-skills-remote.php';
 
 $is_markdown_safe = static function (string $body): bool {
-    return Claudpress_Skills_Remote::is_markdown_safe($body);
+    return Keelhob_Skills_Remote::is_markdown_safe($body);
 };
 
 $files = glob($root . '/skills/*.md');

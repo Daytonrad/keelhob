@@ -31,7 +31,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Skills_Remote
+final class Keelhob_Skills_Remote
 {
     /**
      * Where the skills live: two static assets on the newest GitHub release.
@@ -46,7 +46,7 @@ final class Claudpress_Skills_Remote
      * Still overridable — by constant for a whole install, by filter for a
      * single site or a test.
      */
-    const DEFAULT_ENDPOINT = 'https://github.com/calflint/claudpress/releases/latest/download';
+    const DEFAULT_ENDPOINT = 'https://github.com/calflint/keelhob/releases/latest/download';
 
     /** The manifest: one entry per skill, with a version. */
     const MANIFEST_FILE = 'skills.json';
@@ -73,8 +73,8 @@ final class Claudpress_Skills_Remote
     /** How long past the TTL cached skills are still used rather than mistrusted. */
     const GRACE = 2592000; // 30 days
 
-    const OPTION_CACHE   = 'claudpress_skills_cache';
-    const OPTION_HISTORY = 'claudpress_skills_history';
+    const OPTION_CACHE   = 'keelhob_skills_cache';
+    const OPTION_HISTORY = 'keelhob_skills_history';
 
     /** Refreshes kept for the changelog on the Skills screen. */
     const HISTORY_KEEP = 10;
@@ -90,14 +90,14 @@ final class Claudpress_Skills_Remote
 
     public static function endpoint(): string
     {
-        $base = defined('CLAUDPRESS_SKILLS_ENDPOINT') ? (string) CLAUDPRESS_SKILLS_ENDPOINT : self::DEFAULT_ENDPOINT;
-        return untrailingslashit((string) apply_filters('claudpress_skills_endpoint', $base));
+        $base = defined('KEELHOB_SKILLS_ENDPOINT') ? (string) KEELHOB_SKILLS_ENDPOINT : self::DEFAULT_ENDPOINT;
+        return untrailingslashit((string) apply_filters('keelhob_skills_endpoint', $base));
     }
 
     /** Raw 32-byte verification key, or '' when we have none. */
     public static function public_key(): string
     {
-        $b64 = (string) apply_filters('claudpress_skills_public_key', self::PUBLIC_KEY_B64);
+        $b64 = (string) apply_filters('keelhob_skills_public_key', self::PUBLIC_KEY_B64);
         if ($b64 === '') {
             return '';
         }
@@ -107,7 +107,7 @@ final class Claudpress_Skills_Remote
 
     private static function store()
     {
-        return self::$store ?: Claudpress::instance()->skills;
+        return self::$store ?: Keelhob::instance()->skills;
     }
 
     // ---- cache freshness (pure) -------------------------------------------
@@ -220,14 +220,14 @@ final class Claudpress_Skills_Remote
     public static function verify(string $payload, string $signature_b64): array
     {
         if (!function_exists('sodium_crypto_sign_verify_detached')) {
-            return ['ok' => false, 'error' => 'This server has no libsodium, so Claudpress cannot verify that a downloaded skill really came from us. Remote skills are disabled — ask your host to enable the sodium extension.'];
+            return ['ok' => false, 'error' => 'This server has no libsodium, so Keelhob cannot verify that a downloaded skill really came from us. Remote skills are disabled — ask your host to enable the sodium extension.'];
         }
         $key = self::public_key();
         if ($key === '') {
             return ['ok' => false, 'error' => 'No skills signing key is configured in this build, so nothing downloaded can be verified.'];
         }
         if ($signature_b64 === '') {
-            return ['ok' => false, 'error' => 'The skills server sent an unsigned response. Refusing it — Claudpress never installs an unsigned skill.'];
+            return ['ok' => false, 'error' => 'The skills server sent an unsigned response. Refusing it — Keelhob never installs an unsigned skill.'];
         }
         $sig = base64_decode($signature_b64, true);
         if (!is_string($sig) || strlen($sig) !== SODIUM_CRYPTO_SIGN_BYTES) {
@@ -241,7 +241,7 @@ final class Claudpress_Skills_Remote
         }
         return $ok
             ? ['ok' => true, 'error' => '']
-            : ['ok' => false, 'error' => 'The skills response failed signature verification. It was modified in transit or did not come from Claudpress. Nothing was installed.'];
+            : ['ok' => false, 'error' => 'The skills response failed signature verification. It was modified in transit or did not come from Keelhob. Nothing was installed.'];
     }
 
     /**
@@ -253,7 +253,7 @@ final class Claudpress_Skills_Remote
     {
         $envelope = json_decode($json, true);
         if (!is_array($envelope) || !isset($envelope['payload'])) {
-            return ['ok' => false, 'error' => 'The skills server sent a response Claudpress could not read.', 'data' => []];
+            return ['ok' => false, 'error' => 'The skills server sent a response Keelhob could not read.', 'data' => []];
         }
         $payload = (string) $envelope['payload'];
         $check   = self::verify($payload, (string) ($envelope['signature'] ?? ''));
@@ -299,7 +299,7 @@ final class Claudpress_Skills_Remote
             }
             // Only remote rows are refreshable, so anything else is not "needed"
             // however out of date it looks — see install_one().
-            if (Claudpress_Skills::normalize_source((string) ($row['source'] ?? '')) !== Claudpress_Skills::SOURCE_REMOTE) {
+            if (Keelhob_Skills::normalize_source((string) ($row['source'] ?? '')) !== Keelhob_Skills::SOURCE_REMOTE) {
                 continue;
             }
             $same_version = (string) ($row['version'] ?? '') === (string) ($entry['version'] ?? '');
@@ -336,8 +336,8 @@ final class Claudpress_Skills_Remote
         $store    = self::store();
         $existing = $store->get_by_name($name);
         if ($existing) {
-            $source = Claudpress_Skills::normalize_source((string) ($existing['source'] ?? ''));
-            if ($source !== Claudpress_Skills::SOURCE_REMOTE) {
+            $source = Keelhob_Skills::normalize_source((string) ($existing['source'] ?? ''));
+            if ($source !== Keelhob_Skills::SOURCE_REMOTE) {
                 // Bundled and local rows are somebody else's: the zip's, or the
                 // owner's. A download never wins that argument.
                 return 'skipped-local';
@@ -349,7 +349,7 @@ final class Claudpress_Skills_Remote
             'description' => (string) ($skill['description'] ?? ''),
             'body'        => $body,
             'version'     => (string) ($skill['version'] ?? ''),
-            'source'      => Claudpress_Skills::SOURCE_REMOTE,
+            'source'      => Keelhob_Skills::SOURCE_REMOTE,
             // Keep the owner's on/off choices across an update.
             'enabled'        => $existing ? (int) $existing['enabled'] : 1,
             'enable_agentic' => $existing ? (int) $existing['enable_agentic'] : 1,
@@ -536,10 +536,10 @@ final class Claudpress_Skills_Remote
      */
     private static function log(array $result): void
     {
-        if (!class_exists('Claudpress')) {
+        if (!class_exists('Keelhob')) {
             return;
         }
-        $logger = Claudpress::instance()->logger ?? null;
+        $logger = Keelhob::instance()->logger ?? null;
         if (!is_object($logger) || !method_exists($logger, 'record')) {
             return;
         }

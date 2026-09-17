@@ -30,4 +30,4 @@ if ($ran === 0) {
     exit(1);
 }
 
-exit(CP_Test::summary());
+exit(KH_Test::summary());

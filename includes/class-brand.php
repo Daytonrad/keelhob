@@ -1,6 +1,6 @@
 <?php
 /**
- * The Claudpress mark, in the few places WordPress gives a plugin to put one.
+ * The Keelhob mark, in the few places WordPress gives a plugin to put one.
  *
  * One class so there is exactly one answer to "where does the logo live", and
  * so a future rename or redraw is a single edit rather than a grep. Everything
@@ -25,14 +25,14 @@
  * Nothing here forces the mark into a square. It is 1.7 times wider than it is
  * tall and stays that way; the CSS sets a width and lets the height follow.
  *
- * @package Claudpress
+ * @package Keelhob
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Brand
+final class Keelhob_Brand
 {
     /** Where the files live, relative to the plugin root. */
     const PATH = 'assets/img/';
@@ -46,7 +46,7 @@ final class Claudpress_Brand
     /** Wide-mark height beside an <h1>, in CSS pixels. */
     const HEADING_PX = 28;
 
-    /** Registered from Claudpress_Admin::hooks(), so nothing loads on the front end. */
+    /** Registered from Keelhob_Admin::hooks(), so nothing loads on the front end. */
     public static function hooks(): void
     {
         add_action('admin_enqueue_scripts', [__CLASS__, 'styles']);
@@ -55,13 +55,13 @@ final class Claudpress_Brand
     /**
      * Absolute URL of one brand file.
      *
-     * Built from CLAUDPRESS_URL rather than plugins_url() so it is correct for
+     * Built from KEELHOB_URL rather than plugins_url() so it is correct for
      * a plugin installed under a renamed directory, and so it stays testable
      * without a WordPress install.
      */
     public static function url(string $file): string
     {
-        return CLAUDPRESS_URL . self::PATH . $file;
+        return KEELHOB_URL . self::PATH . $file;
     }
 
     /**
@@ -113,13 +113,13 @@ final class Claudpress_Brand
      * already building, and so the tests can assert on it without buffering.
      *
      * The alt is deliberately empty. The heading beside it already says
-     * "Claudpress"; a screen reader announcing the word twice is worse than a
+     * "Keelhob"; a screen reader announcing the word twice is worse than a
      * decorative image announcing nothing.
      */
     public static function heading_mark(): string
     {
         return sprintf(
-            '<img src="%s" alt="" width="%d" height="%d" class="claudpress-brand-mark" '
+            '<img src="%s" alt="" width="%d" height="%d" class="keelhob-brand-mark" '
                 . 'style="height:%dpx;width:auto;vertical-align:-6px;margin-right:10px;" />',
             esc_url(self::url('logo.png')),
             48,
@@ -132,7 +132,7 @@ final class Claudpress_Brand
      * The square mark, sized for the admin bar.
      *
      * Styled inline rather than from styles(). Today the node is registered
-     * from Claudpress_Admin::hooks(), which only runs under is_admin(), so a
+     * from Keelhob_Admin::hooks(), which only runs under is_admin(), so a
      * class would work — but an admin-bar item is the single most likely thing
      * to be moved to the front end later, and styles() would not follow it
      * there. Inline sizing costs forty bytes and cannot come apart.
@@ -143,7 +143,7 @@ final class Claudpress_Brand
         // toolbar is light in the "Light" scheme and dark in the other eight,
         // and a mask filled with currentColor is right in all of them without
         // being told which one it is in. styles() draws it.
-        return '<span class="claudpress-bar-mark" aria-hidden="true"></span>';
+        return '<span class="keelhob-bar-mark" aria-hidden="true"></span>';
     }
 
     /**
@@ -175,13 +175,13 @@ final class Claudpress_Brand
         $menu_top = (int) round((34 - $menu_h) / 2);
 
         $css = '@supports ((-webkit-mask-image:url("")) or (mask-image:url(""))){'
-            . '#adminmenu #toplevel_page_claudpress .wp-menu-image::before{'
+            . '#adminmenu #toplevel_page_keelhob .wp-menu-image::before{'
             . 'content:"";display:block;'
             . 'width:' . self::MENU_PX . 'px;height:' . $menu_h . 'px;'
             . 'margin:' . $menu_top . 'px auto 0;'
             . 'background-color:currentColor;'
             . '-webkit-mask:' . $mask . ';mask:' . $mask . ';}'
-            . '#wp-admin-bar-claudpress .claudpress-bar-mark{'
+            . '#wp-admin-bar-keelhob .keelhob-bar-mark{'
             . 'display:inline-block;vertical-align:middle;'
             . 'width:' . self::BAR_PX . 'px;height:' . $bar_h . 'px;'
             . 'margin:0 6px 2px 0;'
