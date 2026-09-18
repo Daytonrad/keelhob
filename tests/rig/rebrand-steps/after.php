@@ -147,7 +147,12 @@ kh_rebrand_check('the MCP route is registered under the new namespace', true, in
 kh_rebrand_check('the old MCP namespace is gone', false, in_array($legacy . '/v1', $namespaces, true));
 
 // Reading through the plugin's OWN classes, which is what an agent does.
-kh_rebrand_check('Keelhob_Skills::all() can read the adopted rows', (int) $before['tables']['skills'], count((array) (new Keelhob_Skills())->all()));
+/*
+ * One row fewer than the fingerprint recorded, and that is arithmetic, not
+ * loss: the marker was planted BEFORE the counts were taken and torn down a
+ * few lines above, so it is counted there and gone here.
+ */
+kh_rebrand_check('Keelhob_Skills::all() can read the adopted rows', (int) $before['tables']['skills'] - 1, count((array) (new Keelhob_Skills())->all()));
 
 $fails = kh_rebrand_tally(true, true);
 printf("\n%s\n", $fails === 0

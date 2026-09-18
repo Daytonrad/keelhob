@@ -39,6 +39,28 @@
 # counter silently stays at zero while FAIL lines scroll past and the script
 # exits 0.
 
+# HOW TO BUILD A RIG TO RUN THIS AGAINST.
+#
+# It needs a site running the OLD plugin, which this branch no longer contains.
+# Build one from the last commit before the rename, in a throwaway worktree, so
+# the rig you keep for day-to-day work is never touched:
+#
+#   git worktree add /c/kh-oldwt <commit-before-the-rename>
+#   cd /c/kh-oldwt
+#   CP_RIG_CACHE=/c/wp-rig/.downloads bash tests/rig/build-rig.sh /c/wp-rig2
+#
+# Then seed it with a site's worth of data, giving every table a DIFFERENT row
+# count, so a table that ends up holding another table's rows is visible rather
+# than merely plausible. Use a real 36-character UUID for the site id:
+# Keelhob_Updater::site_id() replaces anything shorter, which reads as data loss
+# and is not.
+#
+# BUILD THE RIG FRESH FOR EVERY RUN. This check moves tables around and drops
+# them. A rig that has been through it once, or been hand-edited to "put things
+# back", stops being evidence -- it cannot tell you whether a table survived
+# because the code is right or because a previous run left it there. That is
+# how a bug that abandoned the owner's snippets went unnoticed for three runs.
+
 set -uo pipefail
 
 WP_DIR="${1:-/c/wp-rig/wordpress}"
