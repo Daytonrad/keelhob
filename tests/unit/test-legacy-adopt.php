@@ -75,14 +75,66 @@ class KH_Adopt_WPDB extends KH_Test_WPDB
         return null;
     }
 
+    /**
+     * Columns, so the copy fallback can be exercised here and not only on the
+     * rig. Every table answers the same shape unless a test says otherwise:
+     * what the copy needs is a non-empty intersection, not a real schema.
+     *
+     * @var array<string,string[]>
+     */
+    public array $columns = [];
+
+    /** @var string[] default columns for any table with no entry above */
+    public array $default_columns = ['id', 'name', 'body'];
+
+    public function get_col($query, $column = 0)
+    {
+        if (preg_match('/SHOW COLUMNS FROM `([^`]+)`/', (string) $query, $m)) {
+            if (!in_array($m[1], $this->existing, true)) {
+                return [];
+            }
+            return $this->columns[$m[1]] ?? $this->default_columns;
+        }
+        return [];
+    }
+
     public function query($query)
     {
-        $this->queries[] = (string) $query;
+        $q             = (string) $query;
+        $this->queries[] = $q;
+
         // A RENAME makes the new table start existing and the old one stop.
-        if (preg_match('/RENAME TABLE `([^`]+)` TO `([^`]+)`/', (string) $query, $m)) {
-            $this->existing = array_values(array_diff($this->existing, [$m[1]]));
-            $this->existing[] = $m[2];
+        // Both dialects, because the production code tries both.
+        if (preg_match('/RENAME TABLE `([^`]+)` TO `([^`]+)`/', $q, $m)
+            || preg_match('/ALTER TABLE `([^`]+)` RENAME TO `([^`]+)`/', $q, $m)) {
+            if (in_array($m[1], $this->existing, true)) {
+                $this->existing        = array_values(array_diff($this->existing, [$m[1]]));
+                $this->existing[]      = $m[2];
+                $this->counts[$m[2]]   = $this->counts[$m[1]] ?? 0;
+                unset($this->counts[$m[1]]);
+            }
+            return 1;
         }
+
+        // The copy fallback: rows land in the destination.
+        if (preg_match('/INSERT INTO `([^`]+)` \([^)]*\) SELECT .* FROM `([^`]+)`/s', $q, $m)) {
+            $this->counts[$m[1]] = ($this->counts[$m[1]] ?? 0) + ($this->counts[$m[2]] ?? 0);
+            return $this->counts[$m[2]] ?? 0;
+        }
+
+        // And only then does the original go.
+        if (preg_match('/DROP TABLE `([^`]+)`/', $q, $m)) {
+            $this->existing = array_values(array_diff($this->existing, [$m[1]]));
+            unset($this->counts[$m[1]]);
+            return 1;
+        }
+
+        // install_table() creating the destination during a copy.
+        if (preg_match('/CREATE TABLE `?([A-Za-z0-9_]+)`?\s*\(/i', $q, $m)
+            && !in_array($m[1], $this->existing, true)) {
+            $this->existing[] = $m[1];
+        }
+
         return 1;
     }
 }
@@ -93,8 +145,12 @@ $kh_real_wpdb = $GLOBALS['wpdb'];
 $fresh_legacy = static function (): KH_Adopt_WPDB {
     $db = new KH_Adopt_WPDB();
     foreach (['agent_runs', 'chat', 'feedback', 'log', 'memory', 'skills',
-              'snippet_log', 'snippet_revisions', 'snippets', 'tasks'] as $t) {
-        $db->existing[] = 'wp_' . 'claud' . 'press_' . $t;
+              'snippet_log', 'snippet_revisions', 'snippets', 'tasks'] as $i => $t) {
+        $name = 'wp_' . 'claud' . 'press_' . $t;
+        $db->existing[] = $name;
+        // A distinct count each, so a table that ends up holding another
+        // table's rows is visible rather than plausible.
+        $db->counts[$name] = $i + 1;
     }
     return $db;
 };

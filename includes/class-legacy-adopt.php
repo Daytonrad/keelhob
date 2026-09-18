@@ -120,6 +120,14 @@ final class Keelhob_Legacy_Adopt
         }
 
         // ------------------------------------------------------------ tables
+        //
+        // Tables we deliberately declined to touch, because real data already
+        // sits under the new name. Recorded rather than inferred: "the old
+        // table is still here and so is the new one" is TRUE both for a refusal
+        // and for a copy that failed, and calling a failure a refusal is how
+        // this step came to report a success it had not achieved.
+        $refused = [];
+
         foreach (self::TABLES as $base) {
             $old = $wpdb->prefix . self::LEGACY . '_' . $base;
             $new = $wpdb->prefix . 'keelhob_' . $base;
@@ -133,29 +141,45 @@ final class Keelhob_Legacy_Adopt
             // real rows would be abandoned to protect nothing. The same applies
             // to the tables activation creates before adoption gets a turn.
             if (self::table_exists($new) && self::row_count($new) > 0) {
+                $refused[] = $base;
                 continue;
             }
-            // TWO DIALECTS. MySQL takes RENAME TABLE. SQLite, which the test
-            // rig runs on through a drop-in, only understands
-            // ALTER TABLE ... RENAME TO and silently does nothing with the
-            // first form. Try the standard one, then fall back, then verify --
-            // never assume a statement worked because it did not error.
-            // phpcs:ignore WordPress.DB.PreparedSQL -- identifiers, not values;
-            // both names are built from this class's own constants.
-            $wpdb->query("RENAME TABLE `{$old}` TO `{$new}`");
-            if (!self::table_exists($new)) {
-                // phpcs:ignore WordPress.DB.PreparedSQL
-                $wpdb->query("ALTER TABLE `{$old}` RENAME TO `{$new}`");
+            // An EMPTY table already standing under the new name is a shell,
+            // and no rename can write over a name that is taken -- MySQL errors,
+            // SQLite quietly declines. Copying is the only route left.
+            //
+            // THE BUG THIS FIXES, caught on a clean rig. The copy used to be
+            // reached only when the destination was ABSENT, so the shell case
+            // fell through every branch, moved nothing at all, and was then
+            // reported as migrated because a table by that name existed. The
+            // owner's five snippets stayed in the old table and the new one
+            // was empty.
+            $shell = self::table_exists($new);
+
+            if (!$shell) {
+                // TWO DIALECTS. MySQL takes RENAME TABLE. SQLite, which the
+                // test rig runs on through a drop-in, only understands
+                // ALTER TABLE ... RENAME TO and silently does nothing with the
+                // first form. Try the standard one, then fall back, then
+                // verify -- never assume a statement worked because it did not
+                // error.
+                // phpcs:ignore WordPress.DB.PreparedSQL -- identifiers, not
+                // values; both names are built from this class's own constants.
+                $wpdb->query("RENAME TABLE `{$old}` TO `{$new}`");
+                if (!self::table_exists($new)) {
+                    // phpcs:ignore WordPress.DB.PreparedSQL
+                    $wpdb->query("ALTER TABLE `{$old}` RENAME TO `{$new}`");
+                }
             }
-            if (!self::table_exists($new)) {
-                // Neither rename worked. Measured on the test rig: the SQLite
-                // drop-in errors on RENAME TABLE and accepts
-                // ALTER TABLE ... RENAME TO while silently doing nothing. Copy
-                // the rows instead.
+
+            if ($shell || !self::table_exists($new)) {
                 self::copy_table($base, $old, $new);
                 $report['copied'][] = $base;
             }
-            if (self::table_exists($new)) {
+
+            // Moved means the OLD table is gone. A table that merely exists
+            // under the new name proves nothing: that was the false green.
+            if (!self::table_exists($old)) {
                 $report['tables'][] = $base;
             }
         }
@@ -234,10 +258,12 @@ final class Keelhob_Legacy_Adopt
             if (!self::table_exists($wpdb->prefix . self::LEGACY . '_' . $base)) {
                 continue;
             }
-            // An old table left behind BECAUSE a new one already existed is a
-            // deliberate refusal, not a failure. Retrying would never change
-            // it. Anything else genuinely did not move.
-            if (self::table_exists($wpdb->prefix . 'keelhob_' . $base)) {
+            // An old table left behind because real data already sat under
+            // the new name is a deliberate refusal, not a failure, and
+            // retrying would never change it. Everything else genuinely did
+            // not move -- including a copy that ran and came up short, which
+            // must NOT be excused just because a table by the new name exists.
+            if (in_array($base, $refused, true)) {
                 $orphaned[] = $base;
             } else {
                 $stragglers[] = $base;

@@ -91,7 +91,19 @@ kh_rebrand_check('every settings key came across', (int) $before['options']['set
 kh_rebrand_check('the provider API key is still present', (bool) $before['options']['has_api_key'], !empty($settings['agent_api_key']));
 kh_rebrand_check('and it is the same length, so it was not truncated', (int) $before['options']['api_key_len'], isset($settings['agent_api_key']) ? strlen((string) $settings['agent_api_key']) : 0);
 kh_rebrand_check('the hashed connection token is unchanged', (string) $before['options']['token_hash_head'], isset($settings['token_hash']) ? substr((string) $settings['token_hash'], 0, 8) : '');
-kh_rebrand_check('the abilities switch kept its value', (bool) $before['options']['abilities'], !empty($settings['abilities_enabled']));
+/*
+ * ABILITIES MUST BE OFF, and that is the point rather than a defect.
+ *
+ * Keelhob::on_deactivate() turns the master safety switch off, and step 2 of
+ * this check deactivates the old plugin. So the value CANNOT survive a
+ * handover, and an earlier version of this line asserted that it did -- which
+ * would have made a correct safety feature look like data loss, or, worse,
+ * pushed someone into "fixing" it by carrying a live write switch across a
+ * plugin swap the owner has not finished yet.
+ *
+ * The owner re-ticks it once, deliberately, on the new plugin's settings page.
+ */
+kh_rebrand_check('abilities are off, because deactivating the old plugin turns them off', false, !empty($settings['abilities_enabled']));
 kh_rebrand_check('the site id came across', (string) $before['options']['site_id'], (string) get_option('keelhob_site_id', ''));
 kh_rebrand_check('the old settings option is gone', false, get_option($legacy . '_settings', null) !== null);
 

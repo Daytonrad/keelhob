@@ -336,6 +336,18 @@ class KH_Test_WPDB
     /** Real $wpdb has these; the adoption step uses them to probe for a table. */
     public string $last_error = '';
 
+    /*
+     * Real $wpdb names its core tables as properties, and code that rewrites
+     * post meta or sweeps transients reads them. Leaving them off made every
+     * such run emit "Undefined property" into the suite output, which is noise
+     * that a genuine warning then hides behind.
+     */
+    public string $postmeta = 'wp_postmeta';
+    public string $options  = 'wp_options';
+
+    /** Real $wpdb sets this after every insert; callers read it straight back. */
+    public int $insert_id = 0;
+
     public function suppress_errors($suppress = true)
     {
         return false;
