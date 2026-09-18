@@ -60,11 +60,17 @@ class KH_Adopt_WPDB extends KH_Test_WPDB
      * whether last_error was set. The double mirrors that: a table it does not
      * hold produces an error, exactly as the database would.
      */
+    /** @var array<string,int> rows per table, defaulting to 0 */
+    public array $counts = [];
+
     public function get_var($query, $column = 0, $row = 0)
     {
         if (preg_match('/SELECT 1 FROM `([^`]+)` LIMIT 1/', (string) $query, $m)) {
             $this->last_error = in_array($m[1], $this->existing, true) ? '' : "Table '{$m[1]}' doesn't exist";
             return null;
+        }
+        if (preg_match('/SELECT COUNT\(\*\) FROM `([^`]+)`/', (string) $query, $m)) {
+            return (string) ($this->counts[$m[1]] ?? 0);
         }
         return null;
     }
@@ -162,9 +168,17 @@ KH_Test::group('Adoption never clobbers data already under the new name');
 kh_test_reset_options();
 $GLOBALS['wpdb'] = $db = $fresh_legacy();
 update_option('active_plugins', []);
-// This site has ALREADY been written to under the new name. Older data must
-// not be allowed to overwrite it: that is a regression dressed as a migration.
+// This site has ALREADY been written to under the new name, AND the table holds
+// rows. Older data must not be allowed to overwrite it: that is a regression
+// dressed as a migration.
+//
+// The row count matters. An EMPTY table under the new name is a shell, not
+// data: Keelhob_Snippets::install_table() creates snippets and
+// snippet_revisions together, so one iteration leaves an empty sibling behind,
+// and treating that as "already migrated" abandoned the real rows to protect
+// nothing.
 $db->existing[] = 'wp_keelhob_snippets';
+$db->counts['wp_keelhob_snippets'] = 5;
 update_option($legacy_opt . 'settings', ['agent_api_key' => 'sk-OLD']);
 update_option('keelhob_settings', ['agent_api_key' => 'sk-CURRENT']);
 
@@ -174,6 +188,28 @@ KH_Test::ok(!in_array('snippets', $report['tables'], true), 'the snippets table 
 KH_Test::same(9, count($report['tables']), 'the other nine still moved');
 KH_Test::same(['agent_api_key' => 'sk-CURRENT'], get_option('keelhob_settings'), 'the current settings survived');
 KH_Test::same(null, get_option($legacy_opt . 'settings', null), 'and the superseded copy was cleaned up');
+
+// ---------------------------------------------------------------------------
+KH_Test::group('An empty table under the new name does not block the move');
+
+/*
+ * THE BUG THIS PINS, found on the rig.
+ *
+ * Keelhob_Snippets::install_table() creates BOTH snippets and
+ * snippet_revisions. The loop reaches snippet_revisions first, its installer
+ * leaves an empty keelhob_snippets behind, and the next iteration then saw a
+ * destination that "already existed" and walked away from the owner's real
+ * snippets to protect a table with nothing in it.
+ */
+kh_test_reset_options();
+$GLOBALS['wpdb'] = $db = $fresh_legacy();
+update_option('active_plugins', []);
+$db->existing[] = 'wp_keelhob_snippets';   // exists
+$db->counts['wp_keelhob_snippets'] = 0;    // and is empty
+
+$report = Keelhob_Legacy_Adopt::run();
+KH_Test::ok(in_array('snippets', $report['tables'], true), 'the snippets rows still moved into the empty shell');
+KH_Test::same(10, count($report['tables']), 'and every table moved, not nine');
 
 // ---------------------------------------------------------------------------
 KH_Test::group('Adoption runs exactly once');

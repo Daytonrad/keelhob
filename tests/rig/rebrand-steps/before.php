@@ -28,13 +28,22 @@ $out    = ['tables' => [], 'options' => []];
 
 // Plant first, so the marker is included in the counts recorded below.
 $marker = 'rebrand-marker-' . wp_generate_password(12, false);
-$wpdb->insert($wpdb->prefix . $legacy . '_skills', [
+$planted = $wpdb->insert($wpdb->prefix . $legacy . '_skills', [
     'name'        => $marker,
     'description' => 'Planted by tests/rig/rebrand-check.sh. Removed by the same run.',
     'body'        => '# marker',
     'source'      => 'user',
-    'active'      => 0,
+    'enabled'     => 0,
 ]);
+
+// Fail LOUDLY. The first version named a column that does not exist, the insert
+// quietly did nothing, and the check on the other side then looked for a row
+// that had never been planted -- reporting a failure whose real cause was in
+// this file. A marker that can go missing unnoticed proves nothing.
+if (!$planted) {
+    echo 'MARKER_INSERT_FAILED: ' . $wpdb->last_error;
+    exit(1);
+}
 $out['marker'] = $marker;
 
 foreach (['agent_runs', 'chat', 'feedback', 'log', 'memory', 'skills',

@@ -58,6 +58,27 @@ final class Keelhob_Legacy_Adopt
         'pro_licence', 'pro_licence_valid',
     ];
 
+    /**
+     * Which class owns each table's schema.
+     *
+     * Only needed by the copy fallback, which has to create the destination
+     * with real keys and AUTO_INCREMENT before moving rows into it. Writing the
+     * CREATE TABLE out again here would be a second copy of the schema that
+     * nobody would remember to update.
+     */
+    private const INSTALLERS = [
+        'agent_runs'        => 'Keelhob_Agent_Runs',
+        'chat'              => 'Keelhob_Telegram',
+        'feedback'          => 'Keelhob_Feedback',
+        'log'               => 'Keelhob_Logger',
+        'memory'            => 'Keelhob_Memory',
+        'skills'            => 'Keelhob_Skills',
+        'snippet_log'       => 'Keelhob_Snippet_Log',
+        'snippet_revisions' => 'Keelhob_Snippets',
+        'snippets'          => 'Keelhob_Snippets',
+        'tasks'             => 'Keelhob_Tasks',
+    ];
+
     /** The scheduled hook the old name registered. */
     private const CRON_HOOK = 'claudpress_cron_tick';
 
@@ -103,7 +124,15 @@ final class Keelhob_Legacy_Adopt
             $old = $wpdb->prefix . self::LEGACY . '_' . $base;
             $new = $wpdb->prefix . 'keelhob_' . $base;
 
-            if (!self::table_exists($old) || self::table_exists($new)) {
+            if (!self::table_exists($old)) {
+                continue;
+            }
+            // An EMPTY destination is not data, it is a shell. Keelhob_Snippets
+            // ::install_table() creates snippets AND snippet_revisions, so the
+            // earlier iteration leaves an empty keelhob_snippets behind and the
+            // real rows would be abandoned to protect nothing. The same applies
+            // to the tables activation creates before adoption gets a turn.
+            if (self::table_exists($new) && self::row_count($new) > 0) {
                 continue;
             }
             // TWO DIALECTS. MySQL takes RENAME TABLE. SQLite, which the test
@@ -117,6 +146,14 @@ final class Keelhob_Legacy_Adopt
             if (!self::table_exists($new)) {
                 // phpcs:ignore WordPress.DB.PreparedSQL
                 $wpdb->query("ALTER TABLE `{$old}` RENAME TO `{$new}`");
+            }
+            if (!self::table_exists($new)) {
+                // Neither rename worked. Measured on the test rig: the SQLite
+                // drop-in errors on RENAME TABLE and accepts
+                // ALTER TABLE ... RENAME TO while silently doing nothing. Copy
+                // the rows instead.
+                self::copy_table($base, $old, $new);
+                $report['copied'][] = $base;
             }
             if (self::table_exists($new)) {
                 $report['tables'][] = $base;
@@ -216,6 +253,83 @@ final class Keelhob_Legacy_Adopt
 
         update_option(self::DONE_FLAG, gmdate('c'), false);
         return $report;
+    }
+
+    /**
+     * Build the destination properly, move the rows, and only then let go of
+     * the original.
+     *
+     * The order is the whole point. A copy that drops the source before proving
+     * the rows landed is not a migration, it is a deletion with extra steps. So
+     * the old table survives until the new one is provably holding at least as
+     * many rows, and if anything goes wrong the site still has its data under
+     * the old name and run() will decline to mark itself finished.
+     *
+     * Columns are matched BY NAME, never by position. A site upgrading from an
+     * older release can have fewer columns than the current schema, and
+     * "INSERT INTO new SELECT * FROM old" would either fail outright or, worse,
+     * shift every value one column to the left.
+     */
+    private static function copy_table(string $base, string $old, string $new): void
+    {
+        global $wpdb;
+
+        $class = self::INSTALLERS[$base] ?? '';
+        if ($class === '' || !is_callable([$class, 'install_table'])) {
+            return;
+        }
+        // The plugin's own CREATE TABLE, so the new table gets its keys and its
+        // AUTO_INCREMENT rather than the shapeless thing a bare copy produces.
+        call_user_func([$class, 'install_table']);
+        if (!self::table_exists($new)) {
+            return;
+        }
+
+        $shared = array_values(array_intersect(self::columns($old), self::columns($new)));
+        if ($shared === []) {
+            return;
+        }
+        $list = '`' . implode('`, `', $shared) . '`';
+
+        // phpcs:ignore WordPress.DB.PreparedSQL -- identifiers only.
+        $wpdb->query("INSERT INTO `{$new}` ({$list}) SELECT {$list} FROM `{$old}`");
+
+        $before = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$old}`");
+        $after  = (int) $wpdb->get_var("SELECT COUNT(*) FROM `{$new}`");
+        if ($after >= $before) {
+            // phpcs:ignore WordPress.DB.PreparedSQL
+            $wpdb->query("DROP TABLE `{$old}`");
+        }
+    }
+
+    /** Rows in a table, or 0 if it cannot be read. */
+    private static function row_count(string $table): int
+    {
+        global $wpdb;
+        $previous = $wpdb->suppress_errors(true);
+        // phpcs:ignore WordPress.DB.PreparedSQL -- an identifier, not a value.
+        $count = $wpdb->get_var("SELECT COUNT(*) FROM `{$table}`");
+        $wpdb->suppress_errors($previous);
+        return (int) $count;
+    }
+
+    /**
+     * Column names, by name.
+     *
+     * SHOW COLUMNS rather than information_schema: it is what the SQLite
+     * drop-in on the test rig actually implements, and it is cheap on MySQL.
+     *
+     * @return string[]
+     */
+    private static function columns(string $table): array
+    {
+        global $wpdb;
+        $previous = $wpdb->suppress_errors(true);
+        // phpcs:ignore WordPress.DB.PreparedSQL -- an identifier, not a value.
+        $cols = (array) $wpdb->get_col("SHOW COLUMNS FROM `{$table}`");
+        $wpdb->suppress_errors($previous);
+
+        return array_values(array_filter(array_map('strval', $cols), static fn(string $c): bool => $c !== ''));
     }
 
     /**

@@ -59,7 +59,7 @@ $readable = static function (string $table) use ($wpdb): bool {
 
 // These only ever grow: the plugin writes to them while it boots, so a count
 // that went UP is correct and a count that went DOWN is data loss.
-$append_only = ['log' => true, 'snippet_log' => true, 'agent_runs' => true];
+$append_only = ['log' => true, 'snippet_log' => true, 'agent_runs' => true, 'memory' => true, 'skills' => true];
 
 echo "Tables\n";
 foreach ($before['tables'] as $base => $count) {
