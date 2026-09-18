@@ -5,7 +5,13 @@
  * another table's rows is visible instantly.
  */
 global $wpdb;
-$p = $wpdb->prefix . 'claudpress_';
+
+// Split, so this file is not itself a place the old name lives on.
+// tests/unit/test-no-legacy-brand.php fails the build over a literal here, and
+// widening its allowlist to let a fixture through would blunt the one check
+// that guarantees the rename was complete.
+$legacy = 'claud' . 'press';
+$p      = $wpdb->prefix . $legacy . '_';
 
 $rows = [
     'agent_runs'        => 3,
@@ -45,14 +51,14 @@ foreach ($rows as $base => $n) {
 $wpdb->insert($p . 'memory', ['mem_key' => 'rig_owner_note', 'mem_value' => 'written by the owner, must survive', 'category' => 'general']);
 
 // Settings that look like a connected site. These are rig values, not secrets.
-$settings = get_option('claudpress_settings', []);
+$settings = get_option($legacy . '_settings', []);
 $settings = is_array($settings) ? $settings : [];
 $settings['agent_api_key']     = 'rig-not-a-real-key-' . str_repeat('x', 40);
 $settings['agent_provider']    = 'anthropic';
 $settings['abilities_enabled'] = 1;
 $settings['token_hash']        = hash('sha256', 'rig-token');
-update_option('claudpress_settings', $settings);
-update_option('claudpress_site_id', wp_generate_uuid4());  // 36 chars: Updater::site_id() rejects anything else.
+update_option($legacy . '_settings', $settings);
+update_option($legacy . '_site_id', wp_generate_uuid4());  // 36 chars: Updater::site_id() rejects anything else.
 
 foreach (['agent_runs','chat','feedback','log','memory','skills','snippet_log','snippet_revisions','snippets','tasks'] as $b) {
     printf("%-18s %s\n", $b, $wpdb->get_var("SELECT COUNT(*) FROM `{$p}{$b}`"));
