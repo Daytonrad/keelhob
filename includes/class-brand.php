@@ -22,8 +22,14 @@
  *   logo.png          the whole mark in colour at its natural width. Used
  *                     beside an <h1>, where there is room for it.
  *
- * Nothing here forces the mark into a square. It is 1.7 times wider than it is
+ * Nothing here forces the mark into a square. The mark is wider than it is
  * tall and stays that way; the CSS sets a width and lets the height follow.
+ *
+ * The exact ratio is NOT written into the CSS. It is MARK_W and MARK_H below,
+ * which are the real pixels of mark-mono-40.png, and tests/unit/test-brand.php
+ * reads the file and fails if they drift apart. The previous version hardcoded
+ * 23/40 in two places, and a redrawn mark then rendered squashed in the
+ * sidebar while every test still passed.
  *
  * @package Keelhob
  */
@@ -36,6 +42,16 @@ final class Keelhob_Brand
 {
     /** Where the files live, relative to the plugin root. */
     const PATH = 'assets/img/';
+
+    /**
+     * The real pixel size of mark-mono-40.png.
+     *
+     * Every height on screen is derived from this ratio, so re-exporting the
+     * mark at a different shape is a two-number edit here and nowhere else.
+     * test-brand.php opens the file and asserts these match it.
+     */
+    const MARK_W = 40;
+    const MARK_H = 33;
 
     /** Menu-icon WIDTH in the admin sidebar, in CSS pixels. Height follows. */
     const MENU_PX = 20;
@@ -122,7 +138,7 @@ final class Keelhob_Brand
             '<img src="%s" alt="" width="%d" height="%d" class="keelhob-brand-mark" '
                 . 'style="height:%dpx;width:auto;vertical-align:-6px;margin-right:10px;" />',
             esc_url(self::url('logo.png')),
-            48,
+            (int) round(self::HEADING_PX * self::MARK_W / self::MARK_H),
             self::HEADING_PX,
             self::HEADING_PX
         );
@@ -166,10 +182,10 @@ final class Keelhob_Brand
     {
         $mask = "url('" . esc_url_raw(self::url('mark-mono-40.png')) . "') no-repeat center / contain";
 
-        // 40x23 is the file. Height is derived so a future re-export at another
-        // size cannot silently change the shape on screen.
-        $menu_h = (int) round(self::MENU_PX * 23 / 40);
-        $bar_h  = (int) round(self::BAR_PX * 23 / 40);
+        // Heights come from the mark's own proportions, so a re-export at a
+        // different shape cannot silently squash it on screen.
+        $menu_h = (int) round(self::MENU_PX * self::MARK_H / self::MARK_W);
+        $bar_h  = (int) round(self::BAR_PX * self::MARK_H / self::MARK_W);
 
         // Vertically centred in WordPress's own 34px menu row.
         $menu_top = (int) round((34 - $menu_h) / 2);

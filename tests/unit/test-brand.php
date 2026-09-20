@@ -55,6 +55,14 @@ $mono = $to_path(Keelhob_Brand::url('mark-mono-40.png'));
 KH_Test::ok(is_file($mono) && filesize($mono) > 0, 'mark-mono-40.png exists and is not empty');
 [$mono_w, $mono_h] = $png_size($mono);
 KH_Test::same(40, $mono_w, 'the menu mark is 40px wide for a 20px slot, so it is sharp on a retina screen');
+
+// The constants ARE the ratio every height on screen is derived from. If the
+// mark is redrawn and these are not updated with it, the sidebar renders a
+// squashed or stretched logo and nothing else would notice -- the previous
+// version hardcoded 23/40 inside styles(), so the file and the CSS could
+// disagree forever while this suite stayed green.
+KH_Test::same($mono_w, Keelhob_Brand::MARK_W, 'MARK_W matches the real width of the mark file');
+KH_Test::same($mono_h, Keelhob_Brand::MARK_H, 'MARK_H matches the real height of the mark file');
 KH_Test::ok(
     $mono_h < $mono_w && $mono_h > $mono_w / 2.5,
     'the menu mark keeps the mark its own proportions — not squashed into a square, and not cropped to part of the logo'
@@ -85,7 +93,14 @@ KH_Test::contains('mark-mono-40.png', $css, 'the mask points at the mark file');
 KH_Test::contains('currentColor', $css, 'the mark is filled with the menu text colour, not a fixed one');
 KH_Test::contains('-webkit-mask:', $css, 'the prefixed property is there too — Safari still needs it');
 KH_Test::contains('@supports', $css, 'the mask is behind @supports: without one, background-color alone paints a solid rectangle');
-KH_Test::contains('width:20px;height:12px', $css, 'the sidebar box keeps the mark proportions (20 wide, 12 tall), so nothing is squashed');
+// Computed from the file, not typed in. Typing the number here would just be
+// the same hardcoded ratio in a third place.
+$expect_h = (int) round(Keelhob_Brand::MENU_PX * $mono_h / $mono_w);
+KH_Test::contains(
+    'width:' . Keelhob_Brand::MENU_PX . 'px;height:' . $expect_h . 'px',
+    $css,
+    'the sidebar box keeps the mark proportions (' . Keelhob_Brand::MENU_PX . ' wide, ' . $expect_h . ' tall), so nothing is squashed'
+);
 KH_Test::ok(
     strpos($css, 'admin-color-') === false,
     'no rule names a colour scheme — that is the whole point of using currentColor'
