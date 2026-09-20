@@ -12,14 +12,14 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_MCP_Server
+final class Keelhob_MCP_Server
 {
     const PROTOCOL_VERSION = '2025-06-18';
 
-    /** @var Claudpress_Tool_Registry */
+    /** @var Keelhob_Tool_Registry */
     private $registry;
 
-    public function __construct(Claudpress_Tool_Registry $registry)
+    public function __construct(Keelhob_Tool_Registry $registry)
     {
         $this->registry = $registry;
     }
@@ -91,9 +91,9 @@ final class Claudpress_MCP_Server
                 'logging'   => (object) [],
             ],
             'serverInfo' => [
-                'name'    => 'Claudpress',
-                'title'   => 'Claudpress — WordPress control for AI',
-                'version' => CLAUDPRESS_VERSION,
+                'name'    => 'Keelhob',
+                'title'   => 'Keelhob — WordPress control for AI',
+                'version' => KEELHOB_VERSION,
             ],
             'instructions' => $this->server_instructions(),
         ];
@@ -118,7 +118,7 @@ final class Claudpress_MCP_Server
      * Shared verbatim by interactive MCP sessions and unattended runs, so the
      * site behaves the same whichever way it is driven.
      *
-     * Filter 'claudpress_operating_protocol' to tune this for your own site.
+     * Filter 'keelhob_operating_protocol' to tune this for your own site.
      */
     public static function operating_protocol(): string
     {
@@ -139,7 +139,7 @@ final class Claudpress_MCP_Server
             '',
             '6a. NEVER send a 4xx or 5xx status from the front end of a live site. Not for a coming-soon page, not for maintenance mode, not for a paywall. Managed and containerised hosts poll the home page to decide whether the site is alive; a 503 there is read as "this server is dead" and the host stops routing traffic to it — taking wp-admin and this MCP endpoint down with it. You would then have no way to undo your own change, because every way of undoing it is HTTP. This has actually happened. Serve the alternative page with status 200 and use <meta name="robots" content="noindex"> to keep it out of search results; that achieves the same thing and cannot take the site off the internet.',
             '',
-            '6b. Never let a snippet block wp-login.php, /wp-admin, /wp-json, wp-cron.php or xmlrpc.php. Anything that gates the front end must let those through, or the owner is locked out of their own site and you are locked out with them. If you install anything that changes what a logged-out visitor sees, verify it as a logged-out visitor before you report it as done: fetch the home page with no cookies and confirm the status code is 200. If you cannot verify it, deactivate it. The owner\'s last resort is adding define(\'CLAUDPRESS_SNIPPETS_OFF\', true); to wp-config.php, which disables every snippet — tell them that line exists if a snippet you installed ever breaks their site.',
+            '6b. Never let a snippet block wp-login.php, /wp-admin, /wp-json, wp-cron.php or xmlrpc.php. Anything that gates the front end must let those through, or the owner is locked out of their own site and you are locked out with them. If you install anything that changes what a logged-out visitor sees, verify it as a logged-out visitor before you report it as done: fetch the home page with no cookies and confirm the status code is 200. If you cannot verify it, deactivate it. The owner\'s last resort is adding define(\'KEELHOB_SNIPPETS_OFF\', true); to wp-config.php, which disables every snippet — tell them that line exists if a snippet you installed ever breaks their site.',
             '',
             '6c. The plugin now checks the front end for you after a risky write, and you must read the answer. After snippet_save, snippet_toggle, execute_php, a write query through execute_sql, write_file, edit_file, delete_file, write_sandbox_file, and plugin/theme activation, it loads the home page as a logged-out visitor. Three things can come back. front_end_check: "FAILED" means your change took the site down and was UNDONE where it could be — do not repeat it, read the note, and fix the cause. site_down: true means the site is broken but your change was not what broke it; stop and tell the owner rather than piling more changes onto a site that is already down. Neither field present means the check passed or could not reach the site from itself, which many hosts block — on those hosts the check proves nothing and rule 5 still applies to you. execute_php and execute_sql cannot be undone automatically, so there the report is all you get.',
             '',
@@ -209,10 +209,10 @@ final class Claudpress_MCP_Server
             '',
             '16e. Spend context like money, because it is. Do not re-read what you have already read this session. Do not fetch a whole file or table for one function or one row - read the range, query the column, filter server-side. Do not paste large output back to show your work, and do not give the plan, the code, and then a summary of the code. Say it once, exactly.',
             '',
-            '15. Offer the feedback report only when the plugin says it is due, and never send it without a yes. Call feedback_status when you are writing up finished work. If it says due, show the WHOLE draft it returns - every event, nothing summarised or folded away - then ask "Send this to the Claudpress project? Or is there anything you would add or change?". If they add anything, call feedback_status again with their addition, show the new draft in full, and ask again. Only call feedback_send after an explicit yes. If they say no, call feedback_send with approved=false and do not raise it again in this session. Never send a report they have not seen word for word, never add a note describing their site or its content, and never argue with a refusal.',
+            '15. Offer the feedback report only when the plugin says it is due, and never send it without a yes. Call feedback_status when you are writing up finished work. If it says due, show the WHOLE draft it returns - every event, nothing summarised or folded away - then ask "Send this to the Keelhob project? Or is there anything you would add or change?". If they add anything, call feedback_status again with their addition, show the new draft in full, and ask again. Only call feedback_send after an explicit yes. If they say no, call feedback_send with approved=false and do not raise it again in this session. Never send a report they have not seen word for word, never add a note describing their site or its content, and never argue with a refusal.',
         ];
 
-        return (string) apply_filters('claudpress_operating_protocol', implode("\n", $rules));
+        return (string) apply_filters('keelhob_operating_protocol', implode("\n", $rules));
     }
 
     /**
@@ -221,26 +221,26 @@ final class Claudpress_MCP_Server
      */
     private function server_instructions(): string
     {
-        $enabled = Claudpress::instance()->abilities_enabled();
+        $enabled = Keelhob::instance()->abilities_enabled();
         $lines = [];
-        $lines[] = 'Claudpress connects you to a WordPress site with full programmatic control.';
+        $lines[] = 'Keelhob connects you to a WordPress site with full programmatic control.';
         $lines[] = $enabled
             ? 'AI abilities are ENABLED — you may read and modify this site.'
-            : 'AI abilities are DISABLED. Ask the site owner to enable them in WP Admin > Claudpress before making changes. Read-only introspection may still work.';
+            : 'AI abilities are DISABLED. Ask the site owner to enable them in WP Admin > Keelhob before making changes. Read-only introspection may still work.';
         $lines[] = '';
         $lines[] = 'The universal escape hatch is execute_php: it runs arbitrary PHP in the full WordPress runtime ($wpdb, WP_Query, WooCommerce, every plugin API). Prefer the dedicated high-level tools for common work, and fall back to execute_php for anything not covered.';
         $lines[] = 'Powers include: content and blogging (create_post, upload_media), the WooCommerce catalogue (wc_product/wc_coupon/wc_settings), SEO (seo_meta/seo_schema/seo_sitemap), live code that changes the site (snippet_save - PHP/CSS/JS/HTML, incl. pixel-perfect custom page templates), Elementor page building (elementor_page + elementor_settings prepare_for_ai), the filesystem (read_file/write_file/edit_file), raw execution (execute_php/execute_sql), images (image_search free / image_generate), a full status snapshot (get_dashboard), and a read-only build grade (site_readiness). Whatever tools/list returns is the whole truth about what you can do here - do not assume a tool exists because it is normal for WordPress.';
         $lines[] = 'START HERE: call memory_list once at the beginning — it holds this site\'s operating context (build mode, builder, conventions). Persist new durable decisions with memory_save. Memory and skills are shared by every connected agent.';
         $lines[] = '';
         $lines[] = self::operating_protocol();
-        $builder = Claudpress::instance()->get('builder', 'auto');
+        $builder = Keelhob::instance()->get('builder', 'auto');
         if ($builder && $builder !== 'auto') {
             $lines[] = 'Configured page builder: ' . $builder . '. Build with this unless told otherwise.';
         }
-        $off = Claudpress_Capabilities::disabled_labels();
+        $off = Keelhob_Capabilities::disabled_labels();
         if (!empty($off)) {
             $lines[] = '';
-            $lines[] = 'OFF-LIMITS: the owner has switched these capabilities OFF — their tools are hidden and will be refused. Do not attempt them, and do not use execute_php/execute_sql/snippets/file writes to work around them. If one is needed, say plainly that the owner can enable it under Claudpress > Settings > Capabilities. Off: ' . implode('; ', $off) . '.';
+            $lines[] = 'OFF-LIMITS: the owner has switched these capabilities OFF — their tools are hidden and will be refused. Do not attempt them, and do not use execute_php/execute_sql/snippets/file writes to work around them. If one is needed, say plainly that the owner can enable it under Keelhob > Settings > Capabilities. Off: ' . implode('; ', $off) . '.';
         }
 
         $catalog = self::skill_catalog_block();
@@ -269,7 +269,7 @@ final class Claudpress_MCP_Server
      * resources/read. Sending fifteen full skills at session start would cost
      * more context than the whole conversation that follows.
      *
-     * Public and static because Claudpress_Agent_Runtime needs the identical
+     * Public and static because Keelhob_Agent_Runtime needs the identical
      * block. Unattended and Telegram runs used to get the operating protocol
      * and the site memory but no catalog at all, so an agent on a phone could
      * see that a skill_list tool existed and nothing about what was in it — it
@@ -284,8 +284,8 @@ final class Claudpress_MCP_Server
         // table is unreadable, gets a session with no catalog rather than a
         // fatal error in the middle of a Telegram reply. The tools still work
         // either way; only the shortcut to knowing they exist is lost.
-        $service = Claudpress::instance()->skills;
-        $skills  = $service instanceof Claudpress_Skills ? $service->agentic_catalog() : [];
+        $service = Keelhob::instance()->skills;
+        $skills  = $service instanceof Keelhob_Skills ? $service->agentic_catalog() : [];
 
         return self::format_skill_catalog($skills);
     }
@@ -294,7 +294,7 @@ final class Claudpress_MCP_Server
      * The catalog array in, the prompt block out. No lookups, no globals.
      *
      * Split from skill_catalog_block() so the wording can be tested without a
-     * database — Claudpress_Skills is final and reads $wpdb directly, so the
+     * database — Keelhob_Skills is final and reads $wpdb directly, so the
      * only way to assert on this text otherwise is to stand up a schema for it.
      *
      * Each line carries the skill's role and its declared edges, not just its
@@ -302,7 +302,7 @@ final class Claudpress_MCP_Server
      * before loading a single body the agent can see that this one is a gate,
      * that finishing that one implies another, and that some work is not done
      * until a named skill has run. It costs about 50 bytes a skill, and
-     * Claudpress_Skill_Standard::CATALOG_BUDGET is what stops it growing
+     * Keelhob_Skill_Standard::CATALOG_BUDGET is what stops it growing
      * without anyone noticing.
      *
      * @param array<int,array{name:string,description:string,role?:string,next_skills?:string[],verified_by?:string[]}> $skills
@@ -322,8 +322,8 @@ final class Claudpress_MCP_Server
             // overwhelming majority "any" would spend bytes in every session to
             // say nothing, and would train the reader to skip the field on the
             // two or three lines where it matters.
-            $surface = (string) ($s['surface'] ?? Claudpress_Skill_Standard::SURFACE_DEFAULT);
-            if ($surface !== Claudpress_Skill_Standard::SURFACE_DEFAULT) {
+            $surface = (string) ($s['surface'] ?? Keelhob_Skill_Standard::SURFACE_DEFAULT);
+            if ($surface !== Keelhob_Skill_Standard::SURFACE_DEFAULT) {
                 $tail[] = 'needs: ' . $surface;
             }
             if (!empty($s['next_skills'])) {
@@ -332,7 +332,7 @@ final class Claudpress_MCP_Server
                 // are one skill_get away, and rule 11 sends the agent there
                 // before it builds anything.
                 $next  = (array) $s['next_skills'];
-                $shown = array_slice($next, 0, Claudpress_Skill_Standard::CATALOG_EDGES);
+                $shown = array_slice($next, 0, Keelhob_Skill_Standard::CATALOG_EDGES);
                 $more  = count($next) - count($shown);
                 $tail[] = 'then: ' . implode(', ', $shown) . ($more > 0 ? sprintf(' +%d more', $more) : '');
             }
@@ -363,7 +363,7 @@ final class Claudpress_MCP_Server
     {
         $out = [];
         foreach ($this->registry->list() as $tool) {
-            if (Claudpress_Capabilities::tool_allowed($tool['name'])) {
+            if (Keelhob_Capabilities::tool_allowed($tool['name'])) {
                 $out[] = $tool;
             }
         }
@@ -383,16 +383,16 @@ final class Claudpress_MCP_Server
         }
 
         // Master safety switch: only a small allowlist works while abilities are off.
-        if (!Claudpress::instance()->abilities_enabled() && !in_array($name, self::always_allowed(), true)) {
-            return $this->tool_error('AI abilities are disabled on this site. Enable them in WP Admin > Claudpress to use this tool.');
+        if (!Keelhob::instance()->abilities_enabled() && !in_array($name, self::always_allowed(), true)) {
+            return $this->tool_error('AI abilities are disabled on this site. Enable them in WP Admin > Keelhob to use this tool.');
         }
 
         // Capability toggle: the owner has switched this area off-limits.
-        if (!Claudpress_Capabilities::tool_allowed($name)) {
-            $group = Claudpress_Capabilities::tool_group($name);
-            $label = $group ? (Claudpress_Capabilities::groups()[$group]['label'] ?? $group) : $name;
+        if (!Keelhob_Capabilities::tool_allowed($name)) {
+            $group = Keelhob_Capabilities::tool_group($name);
+            $label = $group ? (Keelhob_Capabilities::groups()[$group]['label'] ?? $group) : $name;
             return $this->tool_error(sprintf(
-                'The "%s" capability is switched OFF for this site, so "%s" is off-limits. Do not retry, and do not reach the same outcome through execute_php, execute_sql, snippets or file writes — that is working around a decision the owner made on purpose. Tell the owner they can enable the "%s" group under Claudpress > Settings > Capabilities.',
+                'The "%s" capability is switched OFF for this site, so "%s" is off-limits. Do not retry, and do not reach the same outcome through execute_php, execute_sql, snippets or file writes — that is working around a decision the owner made on purpose. Tell the owner they can enable the "%s" group under Keelhob > Settings > Capabilities.',
                 $label,
                 $name,
                 $group ?? $name
@@ -400,12 +400,12 @@ final class Claudpress_MCP_Server
         }
 
         // Policy guardrails (interactive context).
-        $blocked = Claudpress_Policy::check($name, $args, 'interactive');
+        $blocked = Keelhob_Policy::check($name, $args, 'interactive');
         if ($blocked !== null) {
             return $this->tool_error($blocked);
         }
 
-        @set_time_limit(CLAUDPRESS_MAX_EXECUTION_TIME);
+        @set_time_limit(KEELHOB_MAX_EXECUTION_TIME);
 
         try {
             $data = $this->registry->call($name, $args);
@@ -442,7 +442,7 @@ final class Claudpress_MCP_Server
     private function prompts_list(): array
     {
         $out = [];
-        foreach (Claudpress::instance()->skills->prompt_catalog() as $s) {
+        foreach (Keelhob::instance()->skills->prompt_catalog() as $s) {
             $out[] = [
                 'name'        => $s['name'],
                 'description' => $s['description'],
@@ -455,7 +455,7 @@ final class Claudpress_MCP_Server
     private function prompts_get(array $params): array
     {
         $name  = (string) ($params['name'] ?? '');
-        $skill = Claudpress::instance()->skills->get_by_name($name);
+        $skill = Keelhob::instance()->skills->get_by_name($name);
         if (!$skill) {
             throw new Exception('Unknown prompt: ' . $name);
         }
@@ -473,16 +473,16 @@ final class Claudpress_MCP_Server
     private function resources_list(): array
     {
         $out = [];
-        foreach (Claudpress::instance()->memory->all() as $m) {
+        foreach (Keelhob::instance()->memory->all() as $m) {
             $out[] = [
-                'uri'      => 'claudpress://memory/' . $m['key'],
+                'uri'      => 'keelhob://memory/' . $m['key'],
                 'name'     => 'Memory: ' . $m['key'],
                 'mimeType' => 'text/plain',
             ];
         }
-        foreach (Claudpress::instance()->skills->all() as $s) {
+        foreach (Keelhob::instance()->skills->all() as $s) {
             $out[] = [
-                'uri'      => 'claudpress://skill/' . $s['name'],
+                'uri'      => 'keelhob://skill/' . $s['name'],
                 'name'     => 'Skill: ' . $s['name'],
                 'mimeType' => 'text/markdown',
             ];
@@ -493,15 +493,15 @@ final class Claudpress_MCP_Server
     private function resources_read(array $params): array
     {
         $uri = (string) ($params['uri'] ?? '');
-        if (str_starts_with($uri, 'claudpress://memory/')) {
-            $key = substr($uri, strlen('claudpress://memory/'));
-            $m   = Claudpress::instance()->memory->get($key);
+        if (str_starts_with($uri, 'keelhob://memory/')) {
+            $key = substr($uri, strlen('keelhob://memory/'));
+            $m   = Keelhob::instance()->memory->get($key);
             $text = $m ? (string) $m['value'] : '';
             return ['contents' => [['uri' => $uri, 'mimeType' => 'text/plain', 'text' => $text]]];
         }
-        if (str_starts_with($uri, 'claudpress://skill/')) {
-            $name = substr($uri, strlen('claudpress://skill/'));
-            $s    = Claudpress::instance()->skills->get_by_name($name);
+        if (str_starts_with($uri, 'keelhob://skill/')) {
+            $name = substr($uri, strlen('keelhob://skill/'));
+            $s    = Keelhob::instance()->skills->get_by_name($name);
             $text = $s ? (string) $s['body'] : '';
             return ['contents' => [['uri' => $uri, 'mimeType' => 'text/markdown', 'text' => $text]]];
         }

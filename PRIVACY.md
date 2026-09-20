@@ -1,13 +1,13 @@
 # Privacy
 
-Claudpress hands an AI agent full control of a WordPress site. That is a lot of
+Keelhob hands an AI agent full control of a WordPress site. That is a lot of
 trust to ask for, so this document says exactly what leaves your server, and
 every claim in it can be checked against the code — the file is named beside
 each one.
 
 ## The short version
 
-Claudpress makes **one** network request of its own accord: an update check.
+Keelhob makes **one** network request of its own accord: an update check.
 Everything else happens only because you entered a key or connected a client,
 and goes to a service you chose.
 
@@ -15,7 +15,7 @@ There is one more thing that can leave your server, and it never leaves without
 you reading it first and saying yes: a **feedback report**. It is described in
 full below.
 
-Claudpress has no analytics, no session recording, no error reporting service,
+Keelhob has no analytics, no session recording, no error reporting service,
 no advertising, and no third-party scripts anywhere in the admin. The feedback
 report is none of those, and the section on it says exactly why — including the
 parts that are fair to be uneasy about.
@@ -25,10 +25,10 @@ parts that are fair to be uneasy about.
 ## The update check, and the public count
 
 **Code:** [`includes/class-updater.php`](includes/class-updater.php)
-**Endpoint:** `https://api.claudpress.com/v1/version`
+**Endpoint:** `https://api.keelhob.com/v1/version`
 **Frequency:** at most twice a day, cached in between.
 
-Claudpress is not in the WordPress.org plugin directory, so nothing tells you
+Keelhob is not in the WordPress.org plugin directory, so nothing tells you
 when a new version exists unless the plugin asks. The same request is how the
 project counts how many sites are running it.
 
@@ -42,7 +42,7 @@ installs" number from exactly this mechanism.
 | Field | Value | Why |
 |---|---|---|
 | `site_id` | A random UUID generated once on your site | So two check-ins from the same site are not counted twice |
-| `version` | The Claudpress version running | To know which release to offer, and what is still in the wild |
+| `version` | The Keelhob version running | To know which release to offer, and what is still in the wild |
 | `wp` | Your WordPress version | To know which versions still need supporting |
 | `php` | Your PHP version | The same |
 | `locale` | Your site language, e.g. `en_US` | Whether translating is worth doing, and into what |
@@ -103,7 +103,7 @@ number that flatters.
 
 ### Turning it off
 
-**Claudpress → Settings → "Do not include this site in the public count."**
+**Keelhob → Settings → "Do not include this site in the public count."**
 
 The update check then goes straight to `https://api.github.com` instead. You
 still get every update, including security ones. An opt-out that quietly stops
@@ -114,7 +114,7 @@ your security updates is not an opt-out, so this one does not.
 ## The feedback report
 
 **Code:** [`includes/class-feedback.php`](includes/class-feedback.php)
-**Endpoint:** `https://api.claudpress.com/v1/feedback`
+**Endpoint:** `https://api.keelhob.com/v1/feedback`
 **Frequency:** at most once a week, and only when you say yes.
 
 ### Why this exists
@@ -128,7 +128,7 @@ today it evaporates when you close the window.
 
 ### What is recorded on your own site
 
-When **Claudpress → Settings → "Help improve Claudpress"** is ticked, the plugin
+When **Keelhob → Settings → "Help improve Keelhob"** is ticked, the plugin
 notes friction in a table in your own database. Nothing is sent by this.
 
 It records only these things, and each is one row:
@@ -147,7 +147,7 @@ most 200 characters of note.
 **Retention:** 30 days, or 50 rows, whichever comes first. Older rows are
 deleted automatically.
 
-**You can read every row and delete them all** at Claudpress → Activity →
+**You can read every row and delete them all** at Keelhob → Activity →
 Feedback log.
 
 **Untick the box and nothing is recorded at all.** Not "recorded but not sent" —
@@ -168,7 +168,7 @@ characters, plus exactly these fields:
 | Field | Value |
 |---|---|
 | `site_id` | The same random UUID as the update check — not derived from your address |
-| `plugin_version` | The Claudpress version running |
+| `plugin_version` | The Keelhob version running |
 | `events` | Up to five entries of: friction type, tool name, skill name, attempt count, note |
 | `omitted` | How many problems did not fit, as a number |
 
@@ -211,12 +211,12 @@ answer and stopping asking, which is the line where this stops being consent.
 ### What the endpoint does with it
 
 Stores the fields above, keyed by `site_id`. **No IP address is logged.** Rows
-older than 90 days are deleted. The public page on claudpress.com shows only
+older than 90 days are deleted. The public page on keelhob.com shows only
 grouped counts — how many distinct sites hit a given problem — and never a note.
 
 ### Deleting what was already sent
 
-**Claudpress → Activity → Feedback log → "Clear, and delete what was sent."**
+**Keelhob → Activity → Feedback log → "Clear, and delete what was sent."**
 
 This sends `DELETE /v1/feedback?site_id=…` and removes every report the server
 holds for your site, then clears the local log. Anonymous data normally cannot
@@ -225,7 +225,7 @@ UUID, so it can ask.
 
 ### Turning it off
 
-**Claudpress → Settings → untick "Help improve Claudpress."** Recording stops
+**Keelhob → Settings → untick "Help improve Keelhob."** Recording stops
 immediately and you are never asked again. Nothing else about the plugin
 changes.
 
@@ -234,7 +234,7 @@ changes.
 ## Skill updates
 
 **Code:** [`includes/class-skills-remote.php`](includes/class-skills-remote.php)
-**Endpoint:** `https://github.com/calflint/claudpress/releases/latest/download/`
+**Endpoint:** `https://github.com/calflint/keelhob/releases/latest/download/`
 
 Downloads two public files. No key, no account, and **nothing about your site is
 sent** — it is a plain file download, the same as clicking the link yourself.
@@ -268,7 +268,7 @@ you picked. `readme.txt` carries the terms and privacy links for each.
   through the Telegram Bot API. Messages are also stored in your own database as
   history until you clear them.
 - **Voice notes** — the audio goes to the transcription provider you chose.
-- **Deploy** — your content bundle goes only to the Claudpress site whose URL and
+- **Deploy** — your content bundle goes only to the Keelhob site whose URL and
   token you configured.
 
 ## Your data stays yours

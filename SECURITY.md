@@ -5,7 +5,7 @@
 **Do not open a public issue for a security problem.**
 
 Report it privately through GitHub's
-[security advisory form](https://github.com/calflint/claudpress/security/advisories/new),
+[security advisory form](https://github.com/calflint/keelhob/security/advisories/new),
 which is private between you and the maintainer until a fix ships.
 
 You will get an acknowledgement within 72 hours. If you do not, assume it was
@@ -70,7 +70,7 @@ implies otherwise.
 
 ## Deployment advice
 
-Claudpress is documented as development and staging only. If you have put it on
+Keelhob is documented as development and staging only. If you have put it on
 a production site, that is your call to make — but enable only the capability
 groups you need, keep backups, and treat the endpoint token like a root
 password, because it is one.

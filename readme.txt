@@ -1,11 +1,11 @@
-=== Claudpress ===
+=== Keelhob ===
 Contributors: calflint
 Tags: mcp, ai, claude, woocommerce, seo, automation
 Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
-Donate link: https://ko-fi.com/claudpress
-Stable tag: 1.2.0
+Donate link: https://ko-fi.com/keelhob
+Stable tag: 2.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -13,13 +13,13 @@ Self-contained MCP server that lets an AI agent (Claude Code, Claude Desktop, Cu
 
 == Description ==
 
-Claudpress turns your WordPress site into an MCP (Model Context Protocol) server. Connect any MCP-compatible AI client and it can manage content, run your WooCommerce store, handle SEO, edit files and execute PHP — with cross-session memory and a skills engine. No external dependencies, no Node bridge for HTTP clients, and every feature unlocked: there is no paid tier, no trial and nothing held back.
+Keelhob turns your WordPress site into an MCP (Model Context Protocol) server. Connect any MCP-compatible AI client and it can manage content, run your WooCommerce store, handle SEO, edit files and execute PHP — with cross-session memory and a skills engine. No external dependencies, no Node bridge for HTTP clients, and every feature unlocked: there is no paid tier, no trial and nothing held back.
 
-This plugin is NOT in the WordPress.org plugin directory, and will not be: it executes arbitrary PHP, which the directory does not allow. It is installed from a zip and updates itself from this project's GitHub releases (https://github.com/calflint/claudpress/releases).
+This plugin is NOT in the WordPress.org plugin directory, and will not be: it executes arbitrary PHP, which the directory does not allow. It is installed from a zip and updates itself from this project's GitHub releases (https://github.com/calflint/keelhob/releases).
 
 Features:
 
-* MCP Streamable-HTTP endpoint at /wp-json/claudpress/v1/mcp
+* MCP Streamable-HTTP endpoint at /wp-json/keelhob/v1/mcp
 * Bearer token or Application Password authentication
 * execute_php / execute_sql universal power tools
 * Content: posts, pages, any CPT, media, taxonomies, menus
@@ -72,7 +72,7 @@ nothing from Composer — the plugin runs from its own source, so there is no su
 underneath it to compromise. For software with this much reach that is worth more than any feature.
 There is a composer.json, and it exists only for the test and analysis tooling: its require block is
 empty on purpose and vendor/ is not in the shipped zip. SECURITY.md
-(https://github.com/calflint/claudpress/blob/main/SECURITY.md) covers what is in scope and how to
+(https://github.com/calflint/keelhob/blob/main/SECURITY.md) covers what is in scope and how to
 report something.
 
 == About eval() ==
@@ -105,7 +105,7 @@ there is refused with the locations that do work. `header`, `footer`, `before_co
   copy-paste step you do yourself.
 * **No independent security audit.** ~2,500 unit assertions and a live rig against real WordPress,
   and nobody outside this project has read the code. Commissioning that is the top line in
-  FUNDING.md (https://github.com/calflint/claudpress/blob/main/FUNDING.md).
+  FUNDING.md (https://github.com/calflint/keelhob/blob/main/FUNDING.md).
 * **Permissions are coarse.** Capability groups, on or off — no per-tool approval and no queue
   that asks before a destructive action runs.
 * **No rollback.** /undo reverses one turn and only content: posts, pages, products. Not settings,
@@ -115,8 +115,8 @@ there is refused with the locations that do work. `header`, `footer`, `before_co
 * **No data importer.** Nothing reads a Shopify, Wix or Squarespace export and loads it in. The
   site-clone skills rebuild a site's design and structure by looking at it, which is a different
   job: orders, customers and stock do not come across. Going the other way, a variable product only
-  half-migrates between Claudpress sites: the page moves, its attributes and variations do not, and
-  the import says so.
+  half-migrates between Keelhob sites: the page moves, its attributes and variations do not, and the
+  import says so.
 * **One agent at a time**, no background job queue: a long interactive build lives inside the
   session that started it. **Not translated**, either — strings are wrapped, no translation ships.
 * **Telegram needs a public HTTPS URL** with a valid certificate — a localhost or self-signed
@@ -124,16 +124,16 @@ there is refused with the locations that do work. `header`, `footer`, `before_co
 * **Not on WordPress.org**, and it will not be: the directory does not allow a plugin that
   executes arbitrary PHP. Install the zip; it updates itself from GitHub releases.
 
-ROADMAP.md (https://github.com/calflint/claudpress/blob/main/ROADMAP.md) says which of these are
-being fixed, and in what order.
+ROADMAP.md (https://github.com/calflint/keelhob/blob/main/ROADMAP.md) says which of these are being
+fixed, and in what order.
 
 == Support this project ==
 
-Claudpress is free, GPL, and stays that way. There is no paid version, no locked feature and no
+Keelhob is free, GPL, and stays that way. There is no paid version, no locked feature and no
 trial. It is built in evenings around a full-time job, and donations are the only thing deciding
 whether it keeps being built.
 
-https://ko-fi.com/claudpress
+https://ko-fi.com/keelhob
 
 Other things that help just as much: report a bug you hit, write a skill and open a pull request
 (skills are plain markdown, no PHP needed), star the repository, or just tell someone. Nothing here
@@ -145,18 +145,18 @@ This plugin can send data to third-party APIs. Nothing is sent until you enter a
 key for that service, and no service is contacted at all if you leave its key blank.
 
 The one exception is the update check, described first below. It is the only
-request Claudpress makes on its own, and you can switch it off without losing
+request Keelhob makes on its own, and you can switch it off without losing
 updates.
 
 **Updates and the public count (on by default, one setting to turn off).**
-Claudpress is not in the WordPress.org directory, so it checks
-https://api.claudpress.com/v1/version for new versions the way the directory
+Keelhob is not in the WordPress.org directory, so it checks
+https://api.keelhob.com/v1/version for new versions the way the directory
 otherwise would. That same request is how the project counts how many sites are
 running it, which is the only measure it has of whether any of this is worth
 continuing.
 
 What is sent, in full: a random ID generated on your site (not derived from your
-address, domain or email, so it cannot be traced back to you), the Claudpress
+address, domain or email, so it cannot be traced back to you), the Keelhob
 version, your WordPress and PHP versions, your site language, whether this is a
 multisite, whether WooCommerce is active, which page builder is configured,
 whether AI abilities are switched on, the names of the capability groups you
@@ -174,16 +174,16 @@ next, and a bare install count cannot say whether anyone comes back, which
 features people actually turn on, or whether the PHP floor can move. The
 alternative we did not take was putting an analytics service in your admin.
 
-Turn it off under Claudpress > Settings and the update check goes straight to
+Turn it off under Keelhob > Settings and the update check goes straight to
 GitHub (https://api.github.com) instead — you keep getting every update,
 including security ones, and this site simply is not counted.
 
 **The feedback report (on by default, nothing sent without your yes).**
 When something goes wrong while the agent works - a tool errors, a permission
-blocks real work, or it tries the same thing three times - Claudpress notes it in
+blocks real work, or it tries the same thing three times - Keelhob notes it in
 a table in your own database. Nothing is sent by that. About once a week, and
 only if something actually went wrong, the agent shows you a short summary and
-asks whether to send it to https://api.claudpress.com/v1/feedback. You see the
+asks whether to send it to https://api.keelhob.com/v1/feedback. You see the
 whole thing before you answer, and you can change it or refuse.
 
 What is sent, in full: the same random site ID as the update check, the plugin
@@ -198,9 +198,9 @@ is lost: your notes are kept, your weekly offer is not used up, and it asks agai
 the next day.
 
 The local notes are kept for 30 days or 50 entries, whichever comes first. You
-can read every one of them and delete them all at Claudpress > Activity, and the
+can read every one of them and delete them all at Keelhob > Activity, and the
 same screen can ask the server to delete every report it already holds for your
-site. Untick "Help improve Claudpress" under Claudpress > Settings and nothing is
+site. Untick "Help improve Keelhob" under Keelhob > Settings and nothing is
 recorded at all.
 
 **Your MCP client (Claude Code, Claude Desktop, Cursor, Codex, or any other).**
@@ -209,8 +209,8 @@ goes to that client's model provider under that provider's terms. This is the
 whole point of the plugin, and it is the largest single disclosure here: an agent
 you connect can read your posts, orders, customers and files.
 
-**Autonomous runs (optional — Claudpress > Automation).** When you add an agent
-API key and schedule an autonomous task, Claudpress sends the task instruction,
+**Autonomous runs (optional — Keelhob > Automation).** When you add an agent
+API key and schedule an autonomous task, Keelhob sends the task instruction,
 your site name and URL, the stored site memory, the tool list, and each tool's
 results to the provider you selected, in order to decide the next step:
 
@@ -252,10 +252,10 @@ above — using your own key. Only the audio is sent; the transcript comes back 
 is shown to you before anything acts on it.
 
 **Deploy (optional).** export_bundle/deploy_push send your content bundle only to
-the destination Claudpress site whose URL and token you configure.
+the destination Keelhob site whose URL and token you configure.
 
-**Skill updates (optional).** Claudpress can check GitHub
-(https://github.com/calflint/claudpress/releases - terms:
+**Skill updates (optional).** Keelhob can check GitHub
+(https://github.com/calflint/keelhob/releases - terms:
 https://docs.github.com/site-policy/github-terms/github-terms-of-service -
 privacy: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement)
 for newer versions of the bundled skills. It is a plain download of two public
@@ -267,7 +267,7 @@ skill is discarded rather than installed.
 
 Add this line to wp-config.php, above the "That's all, stop editing" comment:
 
-define('CLAUDPRESS_SNIPPETS_OFF', true);
+define('KEELHOB_SNIPPETS_OFF', true);
 
 Every snippet stops running immediately, whatever the admin page says about it.
 Remove the line to switch them back on. Nothing is deleted.
@@ -290,19 +290,36 @@ the site.
 
 == Installation ==
 
-1. Download claudpress.zip from https://github.com/calflint/claudpress/releases
+1. Download keelhob.zip from https://github.com/calflint/keelhob/releases
 2. Upload it via Plugins > Add New > Upload Plugin, then Activate.
-3. Open the Claudpress admin page.
+3. Open the Keelhob admin page.
 4. Enable AI abilities. Read "How risky this is, honestly" above first, and start on a staging copy
    with a backup you have actually restored.
 5. Copy the "Connect Claude Code" command from the Connect page and run it in your terminal.
 
 Eight capability groups are switched off until you turn them on: store_orders, payments, shipping,
 tax, users, updates, comms and deploy. Autonomous runs are also off until you add a provider API key
-under Claudpress > Automation. Pick your provider there — the model guide next to the field lists
+under Keelhob > Automation. Pick your provider there — the model guide next to the field lists
 the exact model IDs to type for each one.
 
 == Changelog ==
+
+= 2.0.0 =
+
+* **Renamed.** This plugin was previously published under a different name, one
+  that contained "Claud" and read as Anthropic's Claude trademark. It is now
+  Keelhob. Nothing it does has changed. See docs/why-the-name-changed.md for the
+  reasoning and the upgrade order.
+* **Your data comes with you.** Snippets, skills, memory, tasks, logs, settings
+  and your connection token are all adopted automatically on the first load.
+  Deactivate the old plugin BEFORE activating this one, check everything is
+  there, then delete the old one.
+* **You must reconnect your AI client.** The MCP address changed to
+  /wp-json/keelhob/v1/mcp. An old configuration will fail with a 404. Copy the
+  new command from the Connect screen.
+* Everything that was written for 1.2.0 ships here: Gemini tool-list fixes, the
+  hourly-digest timezone fix, per-bot Telegram replay marks, the chat-style AI
+  Compose screen, and counts on every list tool.
 
 = 1.2.0 =
 
@@ -373,7 +390,7 @@ the exact model IDs to type for each one.
   fitted.
 * New: **you can hide the "AI abilities are ON" banner.** Per person, not per
   site, so hiding it does not hide it from a colleague. It comes back whenever
-  what the AI is allowed to do changes. The toolbar still says "Claudpress: ON"
+  what the AI is allowed to do changes. The toolbar still says "Keelhob: ON"
   on every screen, and that cannot be hidden - which is the only reason the
   banner may be.
 * Changed: the Donate button is on the Connect screen and the Donate page, and
@@ -394,14 +411,14 @@ the exact model IDs to type for each one.
 
 * New: **the feedback log.** When something goes wrong while the agent works - a
   tool errors, a permission blocks real work, or it tries the same thing three
-  times - Claudpress notes it in your own database. About once a week, and only
+  times - Keelhob notes it in your own database. About once a week, and only
   if something actually went wrong, the agent shows you a short summary and asks
   whether to send it to the project. You see the whole thing first and you can
   change it or say no. Nothing is ever sent without your yes.
-* New: Claudpress > Activity now shows every note in that log, and two buttons -
+* New: Keelhob > Activity now shows every note in that log, and two buttons -
   one that wipes it, one that also asks the project to delete every report it
   already holds for your site.
-* New: the "Help improve Claudpress" setting, under Claudpress > Settings. Untick
+* New: the "Help improve Keelhob" setting, under Keelhob > Settings. Untick
   it and nothing is recorded at all - not "recorded but not sent". Nothing.
 * New: `contribute-feedback` skill, which teaches the agent how to word a note
   and what must never go in one.
@@ -427,7 +444,7 @@ so if you are on 1.1.0 or later you already have all of it.
   guidance was there.
 * New: your AI now agrees the cost with you before starting anything slow or expensive, such as a
   whole-site audit.
-* New: Claudpress now has its own icon in the WordPress admin menu, on every Claudpress screen, in
+* New: Keelhob now has its own icon in the WordPress admin menu, on every Keelhob screen, in
   the toolbar, and on the Updates screen, instead of a generic placeholder.
 * Security: the plugin now checks that your site still loads for a logged-out visitor after any
   change that could break it — saving or switching on a snippet, running PHP or a write query,
@@ -461,7 +478,7 @@ so if you are on 1.1.0 or later you already have all of it.
   anywhere, but it was exposed somewhere it should not have been, so it was retired rather than
   trusted. Nothing you have installed is affected, and the plugin still updates normally.
 * Fixed: the "External services" section above named the wrong address for the update check. It
-  said claudpress.com; the real address is api.claudpress.com/v1/version, which is what PRIVACY.md
+  said keelhob.com; the real address is api.keelhob.com/v1/version, which is what PRIVACY.md
   and the code have always used. Wrong wording in the one section that tells you where your data
   goes, so it is called out here rather than fixed quietly.
 * Changed: the three safety sections of this file are now generated from README.md, so the two can
@@ -469,7 +486,7 @@ so if you are on 1.1.0 or later you already have all of it.
 
 = 1.0.1 =
 * Fixed: the update check pointed at a route that never existed, so it always failed. It now
-  calls api.claudpress.com. Updates already worked via the GitHub fallback added in 1.0.0; this
+  calls api.keelhob.com. Updates already worked via the GitHub fallback added in 1.0.0; this
   makes the anonymous install count work too.
 * Fixed: switching the Autonomy capability off did not actually refuse the agent_runs tool,
   although the dashboard said it did.
@@ -483,7 +500,7 @@ so if you are on 1.1.0 or later you already have all of it.
   runtime dependencies and no vendor directory.
 
 = 1.0.0 - first public release =
-* The first public release of Claudpress. Everything is in this one GPL plugin: content, design,
+* The first public release of Keelhob. Everything is in this one GPL plugin: content, design,
   snippets, SEO, files, images, memory, skills, code execution, WooCommerce products and orders,
   payments, shipping, tax, users, updates, email, deploy to production, the Snippets Studio, and all
   fifteen expert skills. There is no paid tier, no licence, no trial and nothing held back. The
@@ -513,11 +530,11 @@ so if you are on 1.1.0 or later you already have all of it.
   WordPress and WooCommerce.
 
 The development history before this release is in the repository's git log and on the releases page:
-https://github.com/calflint/claudpress/releases
+https://github.com/calflint/keelhob/releases
 
 == Upgrade notice ==
 
 = 1.0.0 =
 First public release. Eight capability groups (store_orders, payments, shipping, tax, users,
 updates, comms, deploy) ship switched off and are forced off on upgrade — turn back on the ones you
-want under Claudpress > Capabilities.
+want under Keelhob > Capabilities.

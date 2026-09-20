@@ -4,7 +4,7 @@
 #
 #   bash tests/rig/run-all.sh /path/to/rig/wordpress
 #
-# Or set CP_RIG once and drop the argument.
+# Or set KH_RIG once and drop the argument.
 #
 # The unit suite (php tests/run.php) runs against hand-written stubs and is
 # fast. This runs against a real WordPress with a real database, and catches the
@@ -15,11 +15,11 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WP="${1:-${CP_RIG:-}}"
+WP="${1:-${KH_RIG:-}}"
 
 if [ -z "$WP" ]; then
   echo "Usage: bash tests/rig/run-all.sh /path/to/rig/wordpress" >&2
-  echo "   or: export CP_RIG=/path/to/rig/wordpress" >&2
+  echo "   or: export KH_RIG=/path/to/rig/wordpress" >&2
   exit 2
 fi
 

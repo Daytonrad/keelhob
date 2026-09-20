@@ -3,19 +3,19 @@
  * Migration engine — the staging→production bridge. Serializes a chosen set of
  * site entities (pages, posts, products, snippets, skills, memory, selected
  * options incl. Elementor/SEO meta) into a portable JSON bundle, and imports a
- * bundle into another Claudpress site. This is the "build on staging, then ship
+ * bundle into another Keelhob site. This is the "build on staging, then ship
  * to production" workflow, without a full database sync.
  *
  * Design goals: idempotent upserts (match by slug/sku/name/key so re-importing
  * updates rather than duplicates) and no secret leakage (never exports the
- * Claudpress settings option, which holds API keys/tokens).
+ * Keelhob settings option, which holds API keys/tokens).
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Migration
+final class Keelhob_Migration
 {
     // 3 = snippets carry uid/tags/purpose/impact, so re-importing upserts.
     // v2 bundles still import: no uid simply means every snippet inserts,
@@ -30,9 +30,9 @@ final class Claudpress_Migration
     {
         return [
             '_elementor_data', '_elementor_edit_mode', '_elementor_template_type', '_elementor_version',
-            '_wp_page_template', '_claudpress_schema',
-            '_claudpress_seo_title', '_claudpress_seo_desc', '_claudpress_seo_kw', '_claudpress_seo_canonical',
-            '_claudpress_seo_noindex', '_claudpress_seo_nofollow', '_claudpress_seo_og_title', '_claudpress_seo_og_desc', '_claudpress_seo_og_image',
+            '_wp_page_template', '_keelhob_schema',
+            '_keelhob_seo_title', '_keelhob_seo_desc', '_keelhob_seo_kw', '_keelhob_seo_canonical',
+            '_keelhob_seo_noindex', '_keelhob_seo_nofollow', '_keelhob_seo_og_title', '_keelhob_seo_og_desc', '_keelhob_seo_og_image',
             '_yoast_wpseo_title', '_yoast_wpseo_metadesc', 'rank_math_title', 'rank_math_description',
         ];
     }
@@ -41,7 +41,7 @@ final class Claudpress_Migration
     private static function option_whitelist(): array
     {
         return [
-            'blogname', 'blogdescription', 'claudpress_redirects', 'claudpress_site_schema', 'claudpress_robots_extra',
+            'blogname', 'blogdescription', 'keelhob_redirects', 'keelhob_site_schema', 'keelhob_robots_extra',
             'woocommerce_currency', 'woocommerce_default_country', 'woocommerce_weight_unit', 'woocommerce_dimension_unit',
         ];
     }
@@ -61,13 +61,13 @@ final class Claudpress_Migration
             $entities['products'] = self::export_posts('product', $opts);
         }
         if (in_array('snippets', $types, true)) {
-            $entities['snippets'] = Claudpress_Snippets::all_full();
+            $entities['snippets'] = Keelhob_Snippets::all_full();
         }
         if (in_array('skills', $types, true)) {
-            $entities['skills'] = Claudpress::instance()->skills->all();
+            $entities['skills'] = Keelhob::instance()->skills->all();
         }
         if (in_array('memory', $types, true)) {
-            $entities['memory'] = Claudpress::instance()->memory->all();
+            $entities['memory'] = Keelhob::instance()->memory->all();
         }
         if (in_array('options', $types, true)) {
             $opts_out = [];
@@ -268,7 +268,7 @@ final class Claudpress_Migration
             // together — exported from a site that predates the check. Saving
             // it is refused, so recording it as updated would be a lie in the
             // one report the owner reads to find out what arrived.
-            $saved = Claudpress_Snippets::save($s);
+            $saved = Keelhob_Snippets::save($s);
             if (empty($saved['success'])) {
                 $report['skipped'][] = 'snippet:' . ($s['name'] ?? '') . ' — ' . (string) ($saved['error'] ?? 'refused');
                 continue;
@@ -276,11 +276,11 @@ final class Claudpress_Migration
             $report['updated'][] = 'snippet:' . ($s['name'] ?? '');
         }
         foreach (($e['skills'] ?? []) as $s) {
-            Claudpress::instance()->skills->save($s);
+            Keelhob::instance()->skills->save($s);
             $report['updated'][] = 'skill:' . ($s['name'] ?? '');
         }
         foreach (($e['memory'] ?? []) as $m) {
-            Claudpress::instance()->memory->save((string) ($m['key'] ?? ''), (string) ($m['value'] ?? ''), (string) ($m['category'] ?? 'general'));
+            Keelhob::instance()->memory->save((string) ($m['key'] ?? ''), (string) ($m['value'] ?? ''), (string) ($m['category'] ?? 'general'));
             $report['updated'][] = 'memory:' . ($m['key'] ?? '');
         }
         if (!empty($e['options']) && is_array($e['options'])) {

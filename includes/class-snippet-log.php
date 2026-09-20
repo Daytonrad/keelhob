@@ -9,7 +9,7 @@
  * done to your site is not a feature, it is the condition for trusting any of
  * this at all.
  *
- * Ring-buffered like Claudpress_Logger: nobody audits a snippet edit from eight
+ * Ring-buffered like Keelhob_Logger: nobody audits a snippet edit from eight
  * months ago, and an unbounded table on a shared host is a bill, not a service.
  */
 
@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Snippet_Log
+final class Keelhob_Snippet_Log
 {
     const MAX_ROWS = 200;
 
@@ -27,7 +27,7 @@ final class Claudpress_Snippet_Log
     public static function table(): string
     {
         global $wpdb;
-        return $wpdb->prefix . 'claudpress_snippet_log';
+        return $wpdb->prefix . 'keelhob_snippet_log';
     }
 
     public static function install_table(): void
@@ -68,7 +68,7 @@ final class Claudpress_Snippet_Log
 
         $wpdb->insert(self::table(), [
             'snippet_uid'  => mb_substr($uid, 0, 40),
-            'snippet_name' => mb_substr($name !== '' ? $name : __('Untitled snippet', 'claudpress'), 0, 191),
+            'snippet_name' => mb_substr($name !== '' ? $name : __('Untitled snippet', 'keelhob'), 0, 191),
             'event'        => $event,
             'actor'        => self::actor(),
             'user_id'      => function_exists('get_current_user_id') ? (int) get_current_user_id() : 0,
@@ -95,7 +95,7 @@ final class Claudpress_Snippet_Log
     /**
      * Was this the owner clicking a button, or the agent working on its own?
      *
-     * The user id cannot answer that by itself: Claudpress_Auth signs the agent
+     * The user id cannot answer that by itself: Keelhob_Auth signs the agent
      * in as a real administrator (wp_set_current_user), so an agent-driven
      * request looks exactly like the owner's. What does separate them is the
      * door they came through — the agent only ever arrives over the REST/MCP
@@ -147,17 +147,17 @@ final class Claudpress_Snippet_Log
     {
         switch ($event) {
             case 'created':
-                return __('Created', 'claudpress');
+                return __('Created', 'keelhob');
             case 'updated':
-                return __('Edited', 'claudpress');
+                return __('Edited', 'keelhob');
             case 'activated':
-                return __('Activated', 'claudpress');
+                return __('Activated', 'keelhob');
             case 'deactivated':
-                return __('Deactivated', 'claudpress');
+                return __('Deactivated', 'keelhob');
             case 'deleted':
-                return __('Deleted', 'claudpress');
+                return __('Deleted', 'keelhob');
             case 'fatal_deactivated':
-                return __('Auto-disabled after a fatal error', 'claudpress');
+                return __('Auto-disabled after a fatal error', 'keelhob');
         }
         return $event;
     }

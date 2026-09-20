@@ -4,11 +4,11 @@
  * seen the new version.
  *
  * WHY A WIPE AND NOT JUST A DOWNGRADE. maybe_upgrade() returns early when
- * `claudpress_db_version` already matches the running version. Copying old
+ * `keelhob_db_version` already matches the running version. Copying old
  * files over a new database therefore proves nothing: the migration under test
  * never runs, and every assertion afterwards passes for the wrong reason.
  *
- * SCOPED TO claudpress_. The rig also carries VibeSnip and a WordPress install
+ * SCOPED TO keelhob_. The rig also carries VibeSnip and a WordPress install
  * the owner does not want rebuilt, so this sweeps by prefix and by nothing
  * else — the same approach uninstall.php uses, for the same reason: a
  * hand-written list of table names goes stale the moment somebody adds a table.
@@ -31,14 +31,14 @@ $neighbour = [
     'posts'  => (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->posts}"),
     'users'  => (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->users}"),
 ];
-update_option('cp_upgrade_neighbour', $neighbour, false);
+update_option('kh_upgrade_neighbour', $neighbour, false);
 
 // --- tables ----------------------------------------------------------------
-$like   = $wpdb->esc_like($wpdb->prefix . 'claudpress_') . '%';
+$like   = $wpdb->esc_like($wpdb->prefix . 'keelhob_') . '%';
 $tables = (array) $wpdb->get_col($wpdb->prepare('SHOW TABLES LIKE %s', $like));
 $dropped = 0;
 foreach ($tables as $table) {
-    if (strpos((string) $table, $wpdb->prefix . 'claudpress_') !== 0) {
+    if (strpos((string) $table, $wpdb->prefix . 'keelhob_') !== 0) {
         continue;
     }
     $wpdb->query('DROP TABLE IF EXISTS `' . str_replace('`', '', (string) $table) . '`');
@@ -46,27 +46,27 @@ foreach ($tables as $table) {
 }
 
 // --- options and transients ------------------------------------------------
-// cp_upgrade_* is this harness's own scratch space and must survive the sweep,
-// which is why it is not named claudpress_*.
+// kh_upgrade_* is this harness's own scratch space and must survive the sweep,
+// which is why it is not named keelhob_*.
 $opts = (array) $wpdb->get_col(
     "SELECT option_name FROM {$wpdb->options}
-      WHERE option_name LIKE 'claudpress%'
-         OR option_name LIKE '_transient_claudpress%'
-         OR option_name LIKE '_transient_timeout_claudpress%'"
+      WHERE option_name LIKE 'keelhob%'
+         OR option_name LIKE '_transient_keelhob%'
+         OR option_name LIKE '_transient_timeout_keelhob%'"
 );
 foreach ($opts as $name) {
     delete_option($name);
 }
 
 // --- user meta and cron ----------------------------------------------------
-$metas = (array) $wpdb->get_col("SELECT DISTINCT meta_key FROM {$wpdb->usermeta} WHERE meta_key LIKE 'claudpress%'");
+$metas = (array) $wpdb->get_col("SELECT DISTINCT meta_key FROM {$wpdb->usermeta} WHERE meta_key LIKE 'keelhob%'");
 foreach ($metas as $key) {
     delete_metadata('user', 0, $key, '', true);
 }
 
 foreach ((array) _get_cron_array() as $ts => $hooks) {
     foreach (array_keys((array) $hooks) as $hook) {
-        if (strpos((string) $hook, 'claudpress') === 0) {
+        if (strpos((string) $hook, 'keelhob') === 0) {
             wp_clear_scheduled_hook($hook);
         }
     }
@@ -75,7 +75,7 @@ foreach ((array) _get_cron_array() as $ts => $hooks) {
 $left = (array) $wpdb->get_col($wpdb->prepare('SHOW TABLES LIKE %s', $like));
 
 printf(
-    "      dropped %d table(s), %d option(s), %d meta key(s); %d claudpress table(s) left\n",
+    "      dropped %d table(s), %d option(s), %d meta key(s); %d keelhob table(s) left\n",
     $dropped,
     count($opts),
     count($metas),
@@ -89,6 +89,6 @@ printf(
 );
 
 if (count($left) > 0) {
-    echo "      FAILED: claudpress tables survived the wipe\n";
+    echo "      FAILED: keelhob tables survived the wipe\n";
     exit(1);
 }

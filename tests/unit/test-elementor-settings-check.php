@@ -7,60 +7,60 @@
  *
  * The tree-walking half needs a live Elementor (widgets_manager,
  * elements_manager) to resolve real control lists, so it isn't unit-tested
- * here — it's verified against the real claudpress.com Home page tree
+ * here — it's verified against the real keelhob.com Home page tree
  * instead. What IS unit-testable, and is the part that decides whether the
  * check cries wolf on correct pages, is the pure classification: given a
  * settings-key list and a known-controls list, which keys are unknown.
  */
 
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-elementor.php';
+require_once KEELHOB_DIR . 'includes/tools/class-tools-elementor.php';
 
-CP_Test::group('Elementor settings check — classify_unknown_keys()');
+KH_Test::group('Elementor settings check — classify_unknown_keys()');
 
-CP_Test::same(
+KH_Test::same(
     [],
-    Claudpress_Tools_Elementor::classify_unknown_keys(['title', 'link'], ['title', 'link', 'icon']),
+    Keelhob_Tools_Elementor::classify_unknown_keys(['title', 'link'], ['title', 'link', 'icon']),
     'keys present in the known-controls list are not flagged'
 );
 
-CP_Test::same(
+KH_Test::same(
     ['menu', 'menu_color'],
-    Claudpress_Tools_Elementor::classify_unknown_keys(['menu', 'menu_color'], ['nav_menu', 'menu_text_color']),
-    'the real claudpress.com bug is caught: menu/menu_color against nav_menu/menu_text_color controls'
+    Keelhob_Tools_Elementor::classify_unknown_keys(['menu', 'menu_color'], ['nav_menu', 'menu_text_color']),
+    'the real keelhob.com bug is caught: menu/menu_color against nav_menu/menu_text_color controls'
 );
 
-CP_Test::same(
+KH_Test::same(
     [],
-    Claudpress_Tools_Elementor::classify_unknown_keys(
+    Keelhob_Tools_Elementor::classify_unknown_keys(
         ['typography_font_size_mobile', 'title_tablet', 'width_widescreen', 'height_laptop', 'gap_tablet_extra', 'padding_mobile_extra'],
         ['typography_font_size', 'title', 'width', 'height', 'gap', 'padding']
     ),
     'every responsive suffix is stripped before comparing: _mobile, _tablet, _widescreen, _laptop, _tablet_extra, _mobile_extra'
 );
 
-CP_Test::same(
+KH_Test::same(
     ['size_mobile_extra'],
-    Claudpress_Tools_Elementor::classify_unknown_keys(['size_mobile_extra'], ['size_mobile']),
+    Keelhob_Tools_Elementor::classify_unknown_keys(['size_mobile_extra'], ['size_mobile']),
     'a suffix is stripped whole, not partially — size_mobile_extra does not fall back to matching a size_mobile control'
 );
 
-CP_Test::same(
+KH_Test::same(
     [],
-    Claudpress_Tools_Elementor::classify_unknown_keys(
+    Keelhob_Tools_Elementor::classify_unknown_keys(
         ['__globals__', '__dynamic__', '_element_id', '_css_classes', '_flex_size', '_margin', '_padding'],
         [] // none of these come from the widget's own get_controls() at all
     ),
     'Elementor\'s own meta keys and the whole _-prefixed common/advanced stack are always allowed, even against an empty control list'
 );
 
-CP_Test::same(
+KH_Test::same(
     ['totally_made_up_key'],
-    Claudpress_Tools_Elementor::classify_unknown_keys(['title', 'totally_made_up_key'], ['title', 'link']),
+    Keelhob_Tools_Elementor::classify_unknown_keys(['title', 'totally_made_up_key'], ['title', 'link']),
     'a genuinely unknown key is still caught alongside legitimate ones'
 );
 
-CP_Test::same(
+KH_Test::same(
     [],
-    Claudpress_Tools_Elementor::classify_unknown_keys([], ['title', 'link']),
+    Keelhob_Tools_Elementor::classify_unknown_keys([], ['title', 'link']),
     'no settings keys means no warnings'
 );

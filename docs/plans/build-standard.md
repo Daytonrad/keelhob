@@ -2,7 +2,7 @@
 
 > **Status (v1.10.0): all five phases are implemented.**
 >
-> Shipped: the three Tier 0 rules in `Claudpress_MCP_Server::operating_protocol()`; the
+> Shipped: the three Tier 0 rules in `Keelhob_MCP_Server::operating_protocol()`; the
 > `build-standard` and `security-standard` skills; the seven domain skills turned into
 > gates; the tiered intake and the three-section completion report; the adoption rules
 > folded into `site-safety`; and Phase 3, the `site_readiness` MCP tool
@@ -47,11 +47,11 @@ Verified against the source, not assumed.
 
 | # | Finding | Evidence | Consequence |
 |---|---|---|---|
-| **R1** | **A mandatory standard cannot live only in a skill.** | `Claudpress_Skills::agentic_catalog()` requires `enabled=1 AND enable_agentic=1`. | Disable one skill and the entire contract silently vanishes. |
+| **R1** | **A mandatory standard cannot live only in a skill.** | `Keelhob_Skills::agentic_catalog()` requires `enabled=1 AND enable_agentic=1`. | Disable one skill and the entire contract silently vanishes. |
 | **R2** | **The delivery claim was wrong.** v1 said "ship with a version bump so `skill_refresh` carries it". | `bundled_action()` returns `keep` when `bundled_hash` is empty — true for every skill installed before 1.9.0 — and keeps owner-edited skills forever. | A version bump alone delivers nothing. The standard would never reach existing sites. |
 | **R3** | **The fix loop never terminates and invites gaming.** | "repeat until 0 Blockers and 0 Highs" with the same agent scoring and fixing. | A High needing an owner decision loops forever; the cheapest exit is to downgrade the finding. |
 | **R4** | **Self-audit conflict of interest.** | The audit skill *asks* the agent to be harsher on its own work. | A plea, not a mechanism. |
-| **R5** | **Half the Definition of Done is unverifiable here.** | Claudpress has no browser; both real audits marked responsive/console "Not verified". | Requiring "no horizontal scroll at 375px" forces the agent to either stall or lie. |
+| **R5** | **Half the Definition of Done is unverifiable here.** | Keelhob has no browser; both real audits marked responsive/console "Not verified". | Requiring "no horizontal scroll at 375px" forces the agent to either stall or lie. |
 | **R6** | **No page-level vs site-level split.** | — | A full-site audit for one new page is disproportionate, so it gets skipped. |
 | **R7** | **No rollback for automated fixes.** | Snippets are reversible and content has `/undo`; option and file changes are not. | A bad automated fix has no undo. |
 | **R8** | **Content-integrity rule had an imagery hole.** | It covered numbers and testimonials but not invented *people*. Pranknologia had staff named "Jordan · Merchandising". | Same lie, same legal exposure, not covered. |
@@ -60,7 +60,7 @@ Verified against the source, not assumed.
 | **R11** | **No contract for owner-only actions.** | — | "Done" quietly hides what only the owner can do. |
 | **R12** | **Security was almost entirely absent.** | One bullet, in the *why* list. Nothing in the Definition of Done. | The exact gap that produced the audited failures. |
 | **R13** | **Intake could balloon.** | Adding security questions to an already-long intake. | Defeats the one-prompt goal. |
-| **R14** | **Greenfield assumption.** | Claudpress is routinely pointed at sites that already exist. | No defined behaviour for adopting someone else's site. |
+| **R14** | **Greenfield assumption.** | Keelhob is routinely pointed at sites that already exist. | No defined behaviour for adopting someone else's site. |
 
 ---
 
@@ -166,7 +166,7 @@ not a security control, and it is a lockout risk.
 
 ### Needs a browser — state, never fake (**R5**)
 Viewport sweep at 375/768/1280/1440, console errors, real touch-target sizes, animation
-smoothness. Claudpress has no browser. The agent must use markup-level proxies (fixed
+smoothness. Keelhob has no browser. The agent must use markup-level proxies (fixed
 widths, unconstrained images, missing labels) and then **list these as outstanding in the
 completion report** — never silently pass them. If the client the agent runs in *does* have
 a browser, it must use it.
@@ -251,7 +251,7 @@ The promise, stated at kickoff:
 
 ## Phase 5 — adopting an existing site (**R14**)
 
-Claudpress is often pointed at a site that already exists. Building rules do not apply
+Keelhob is often pointed at a site that already exists. Building rules do not apply
 cleanly to someone else's work.
 
 Rule: **audit first, report, then ask before changing anything you did not build.** Never

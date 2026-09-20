@@ -8,9 +8,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Tools_Content
+final class Keelhob_Tools_Content
 {
-    public static function register(Claudpress_Tool_Registry $r): void
+    public static function register(Keelhob_Tool_Registry $r): void
     {
         $r->add('create_post', 'Create a post, page, or any post type. Supports title, content (HTML or blocks), excerpt, status, slug, author, date, categories/tags (by name or ID), custom taxonomies, meta fields, featured image (URL or media ID), and page template/parent.', [
             'type' => 'object',

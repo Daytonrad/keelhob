@@ -1,6 +1,6 @@
-# Contributing to Claudpress
+# Contributing to Keelhob
 
-Claudpress is free, GPL, and community-funded. Contributions of every size are
+Keelhob is free, GPL, and community-funded. Contributions of every size are
 wanted and every one is credited in the release notes.
 
 You do not need to be a PHP developer to help. The single most valuable
@@ -34,7 +34,7 @@ contribution to this project is a **skill**, and skills are plain markdown.
    a documentation bug.
 4. **Fix a `good first issue`.** They are genuinely that.
 5. **Translate.** Every user-facing string goes through `__()` with the
-   `claudpress` text domain.
+   `keelhob` text domain.
 6. **Tell someone.** There is no marketing budget.
 
 ---
@@ -42,8 +42,8 @@ contribution to this project is a **skill**, and skills are plain markdown.
 ## Running the tests — no Docker needed
 
 ```bash
-git clone https://github.com/calflint/claudpress.git
-cd claudpress
+git clone https://github.com/calflint/keelhob.git
+cd keelhob
 php tests/run.php          # the whole unit suite, ~2,500 assertions
 php tests/run.php snippets # only files matching "snippets"
 ```
@@ -55,7 +55,7 @@ bootstrap is a test suite nobody runs.
 Build the installable zip:
 
 ```bash
-bash bin/build-zip.sh      # → build/claudpress.zip
+bash bin/build-zip.sh      # → build/keelhob.zip
 ```
 
 ### If you edit README.md
@@ -116,7 +116,7 @@ A pull request is ready when:
 - [ ] `php -l` is clean on every file you touched.
 - [ ] Anything with decision logic has a test. Anything that touches a real site
       has a rig check.
-- [ ] User-facing strings use `__()` / `esc_html__()` with the `claudpress`
+- [ ] User-facing strings use `__()` / `esc_html__()` with the `keelhob`
       text domain.
 - [ ] Output is escaped, input is sanitised, and anything that writes checks a
       capability and a nonce.
@@ -130,7 +130,7 @@ You do not need to bump the version; that happens at release.
 
 ## The rules that are not style preferences
 
-Claudpress hands an AI agent unrestricted control of someone's WordPress site.
+Keelhob hands an AI agent unrestricted control of someone's WordPress site.
 That makes a few things different from an ordinary plugin.
 
 **Never widen what leaves the user's server without saying so.** The update
@@ -154,7 +154,7 @@ aims for.
 
 **Never break an owner's stored data.** Renaming a `wp_options` key silently
 wipes somebody's configuration. If a key must change, migrate it in
-`Claudpress::maybe_upgrade()` and say so.
+`Keelhob::maybe_upgrade()` and say so.
 
 ---
 

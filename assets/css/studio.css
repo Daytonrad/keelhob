@@ -17,11 +17,11 @@
 /* The two-column shell                                                       */
 /* ========================================================================== */
 
-.cp-edit-title {
+.kh-edit-title {
 	margin: 16px 0 12px;
 }
 
-.cp-grid {
+.kh-grid {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) 320px;
 	gap: 20px;
@@ -37,16 +37,16 @@
  * pushed the sidebar off screen on any narrow window.
  */
 @media screen and (max-width: 1100px) {
-	.cp-grid {
+	.kh-grid {
 		grid-template-columns: minmax(0, 1fr);
 	}
 }
 
-.cp-main {
+.kh-main {
 	min-width: 0;
 }
 
-.cp-side {
+.kh-side {
 	display: flex;
 	flex-direction: column;
 	gap: 16px;
@@ -56,7 +56,7 @@
 /* The name field                                                             */
 /* ========================================================================== */
 
-.cp-title-input {
+.kh-title-input {
 	width: 100%;
 	padding: 10px 12px;
 	font-size: 18px;
@@ -68,7 +68,7 @@
 /* The editor frame                                                           */
 /* ========================================================================== */
 
-.cp-editor-shell {
+.kh-editor-shell {
 	border: 1px solid #c3c4c7;
 	border-radius: 6px;
 	overflow: hidden;
@@ -83,7 +83,7 @@
  * and a language pill. None of it is functional. All of it is why somebody
  * looks at the screen and knows what they are looking at.
  */
-.cp-editor-bar {
+.kh-editor-bar {
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -93,7 +93,7 @@
 	font-size: 13px;
 }
 
-.cp-lang-dot {
+.kh-lang-dot {
 	width: 11px;
 	height: 11px;
 	border-radius: 50%;
@@ -102,18 +102,18 @@
 }
 
 /* Language colours, borrowed from the conventions people already know. */
-.cp-lang-php .cp-lang-dot { background: #8892bf; }
-.cp-lang-css .cp-lang-dot { background: #2965f1; }
-.cp-lang-js .cp-lang-dot { background: #d6ba32; }
-.cp-lang-html .cp-lang-dot { background: #e34c26; }
+.kh-lang-php .kh-lang-dot { background: #8892bf; }
+.kh-lang-css .kh-lang-dot { background: #2965f1; }
+.kh-lang-js .kh-lang-dot { background: #d6ba32; }
+.kh-lang-html .kh-lang-dot { background: #e34c26; }
 
-.cp-file-name {
+.kh-file-name {
 	font-family: Consolas, Monaco, "Andale Mono", monospace;
 	font-weight: 600;
 	color: #1d2327;
 }
 
-.cp-lang-pill {
+.kh-lang-pill {
 	font-size: 11px;
 	font-weight: 700;
 	letter-spacing: 0.04em;
@@ -124,7 +124,7 @@
 }
 
 /* Pushed to the right end of the bar. */
-.cp-ask-btn {
+.kh-ask-btn {
 	margin-left: auto;
 	background: none;
 	border: 1px solid #c3c4c7;
@@ -136,12 +136,12 @@
 	cursor: pointer;
 }
 
-.cp-ask-btn:hover:not(:disabled) {
+.kh-ask-btn:hover:not(:disabled) {
 	border-color: #2271b1;
 	background: #f0f6fc;
 }
 
-.cp-ask-btn:disabled {
+.kh-ask-btn:disabled {
 	color: #a7aaad;
 	cursor: default;
 }
@@ -154,13 +154,13 @@
  * textarea because once the editor starts, the textarea is hidden and
  * CodeMirror's own element is what has a size.
  */
-.cp-editor-shell .CodeMirror {
+.kh-editor-shell .CodeMirror {
 	height: 420px;
 	border: 0;
 	border-radius: 0;
 }
 
-.cp-editor-shell textarea.cp-code {
+.kh-editor-shell textarea.kh-code {
 	display: block;
 	width: 100%;
 	min-height: 420px;
@@ -173,19 +173,19 @@
 	resize: vertical;
 }
 
-#cp-editor-warning .notice {
+#kh-editor-warning .notice {
 	margin: 0;
 	border-radius: 0;
 }
 
-.cp-hint {
+.kh-hint {
 	margin: 6px 2px 14px;
 	min-height: 1em;
 	color: #646970;
 	font-size: 12px;
 }
 
-.cp-hint.cp-hint-warn {
+.kh-hint.kh-hint-warn {
 	color: #8c5e00;
 }
 
@@ -193,19 +193,19 @@
 /* Fields in the main column                                                  */
 /* ========================================================================== */
 
-.cp-field-label {
+.kh-field-label {
 	display: block;
 	margin: 16px 0 5px;
 	font-weight: 600;
 }
 
-.cp-ask-hint {
+.kh-ask-hint {
 	margin: 10px 0;
 	color: #646970;
 	font-size: 12px;
 }
 
-.cp-ask-hint code {
+.kh-ask-hint code {
 	font-size: 12px;
 	background: #f0f0f1;
 	padding: 1px 6px;
@@ -216,14 +216,14 @@
 /* Sidebar panels                                                             */
 /* ========================================================================== */
 
-.cp-panel {
+.kh-panel {
 	background: #fff;
 	border: 1px solid #c3c4c7;
 	border-radius: 6px;
 	padding: 14px 16px 16px;
 }
 
-.cp-panel h3 {
+.kh-panel h3 {
 	margin: 0 0 12px;
 	font-size: 11px;
 	font-weight: 700;
@@ -232,28 +232,28 @@
 	color: #646970;
 }
 
-.cp-panel .cp-field-label:first-of-type {
+.kh-panel .kh-field-label:first-of-type {
 	margin-top: 0;
 }
 
-.cp-panel select.widefat,
-.cp-panel input.widefat {
+.kh-panel select.widefat,
+.kh-panel input.widefat {
 	max-width: 100%;
 }
 
-.cp-microcopy {
+.kh-microcopy {
 	margin: 8px 0 0;
 	color: #646970;
 	font-size: 12px;
 	line-height: 1.5;
 }
 
-.cp-status-line {
+.kh-status-line {
 	margin: 0 0 12px;
 	font-size: 13px;
 }
 
-.cp-status {
+.kh-status {
 	display: inline-block;
 	margin-left: 4px;
 	padding: 2px 9px;
@@ -264,22 +264,22 @@
 	text-transform: uppercase;
 }
 
-.cp-status-on {
+.kh-status-on {
 	background: #edfaef;
 	color: #00713b;
 }
 
-.cp-status-off {
+.kh-status-off {
 	background: #f0f0f1;
 	color: #646970;
 }
 
-.cp-status-error {
+.kh-status-error {
 	background: #fcf0f1;
 	color: #b32d2e;
 }
 
-.cp-save-buttons {
+.kh-save-buttons {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
@@ -289,13 +289,13 @@
 /* Revisions                                                                  */
 /* ========================================================================== */
 
-.cp-revisions {
+.kh-revisions {
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
 
-.cp-revisions li {
+.kh-revisions li {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) auto;
 	grid-template-areas:
@@ -307,29 +307,29 @@
 	border-bottom: 1px solid #f0f0f1;
 }
 
-.cp-revisions li:last-child {
+.kh-revisions li:last-child {
 	border-bottom: 0;
 	padding-bottom: 0;
 }
 
-.cp-rev-note {
+.kh-rev-note {
 	grid-area: note;
 	font-size: 13px;
 	color: #1d2327;
 	overflow-wrap: anywhere;
 }
 
-.cp-rev-meta {
+.kh-rev-meta {
 	grid-area: meta;
 	font-size: 11px;
 	color: #646970;
 }
 
-.cp-rev-restore {
+.kh-rev-restore {
 	grid-area: button;
 }
 
-.cp-restore-form {
+.kh-restore-form {
 	margin: 0;
 }
 
@@ -337,7 +337,7 @@
 /* The AI report                                                              */
 /* ========================================================================== */
 
-.cp-review {
+.kh-review {
 	background: #fff;
 	border: 1px solid #c3c4c7;
 	border-radius: 6px;
@@ -345,40 +345,40 @@
 	margin: 0 0 14px;
 }
 
-.cp-review > :first-child {
+.kh-review > :first-child {
 	margin-top: 0;
 }
 
-.cp-review > :last-child {
+.kh-review > :last-child {
 	margin-bottom: 0;
 }
 
-.cp-review-aside {
+.kh-review-aside {
 	color: #646970;
 }
 
-.cp-review-aside::before {
+.kh-review-aside::before {
 	content: "— ";
 }
 
-.cp-review-risks-head {
+.kh-review-risks-head {
 	margin-bottom: 4px;
 }
 
-.cp-review-risks {
+.kh-review-risks {
 	margin: 0 0 8px 18px;
 	list-style: disc;
 }
 
-.cp-verdict-safe { color: #00713b; }
-.cp-verdict-caution { color: #8c5e00; }
-.cp-verdict-unsafe { color: #b32d2e; }
+.kh-verdict-safe { color: #00713b; }
+.kh-verdict-caution { color: #8c5e00; }
+.kh-verdict-unsafe { color: #b32d2e; }
 
 /* ========================================================================== */
 /* Conditional logic                                                          */
 /* ========================================================================== */
 
-.cp-conditions {
+.kh-conditions {
 	margin: 20px 0 0;
 	padding: 14px 16px;
 	background: #fff;
@@ -386,7 +386,7 @@
 	border-radius: 6px;
 }
 
-.cp-cond-enable {
+.kh-cond-enable {
 	display: flex;
 	align-items: flex-start;
 	gap: 8px;
@@ -394,17 +394,17 @@
 	cursor: pointer;
 }
 
-.cp-cond-body {
+.kh-cond-body {
 	margin-top: 14px;
 	padding-top: 14px;
 	border-top: 1px solid #f0f0f1;
 }
 
-.cp-cond-relation {
+.kh-cond-relation {
 	margin: 0 0 10px;
 }
 
-.cp-cond-rules:empty::before {
+.kh-cond-rules:empty::before {
 	content: attr(data-empty);
 	display: block;
 	padding: 8px 0 10px;
@@ -412,7 +412,7 @@
 	font-size: 12px;
 }
 
-.cp-cond-rule {
+.kh-cond-rule {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -420,16 +420,16 @@
 	padding: 7px 0;
 }
 
-.cp-cond-rule select,
-.cp-cond-rule input[type="text"] {
+.kh-cond-rule select,
+.kh-cond-rule input[type="text"] {
 	max-width: 100%;
 }
 
-.cp-cond-rule .cp-cond-type { min-width: 140px; }
-.cp-cond-rule .cp-cond-op { min-width: 120px; }
-.cp-cond-rule .cp-cond-value { min-width: 180px; flex: 1 1 180px; }
+.kh-cond-rule .kh-cond-type { min-width: 140px; }
+.kh-cond-rule .kh-cond-op { min-width: 120px; }
+.kh-cond-rule .kh-cond-value { min-width: 180px; flex: 1 1 180px; }
 
-.cp-cond-remove {
+.kh-cond-remove {
 	background: none;
 	border: 0;
 	padding: 4px 6px;
@@ -439,7 +439,7 @@
 	line-height: 1;
 }
 
-.cp-cond-remove:hover {
+.kh-cond-remove:hover {
 	text-decoration: underline;
 }
 
@@ -447,7 +447,7 @@
 /* The list screen                                                            */
 /* ========================================================================== */
 
-.cp-snippet-id {
+.kh-snippet-id {
 	color: #8c8f94;
 	font-size: 12px;
 	font-variant-numeric: tabular-nums;
@@ -466,11 +466,11 @@
  * so the two Studio screens share one stylesheet rather than shipping two
  * inline blocks that style the same product.
  */
-.cp-toggle-form {
+.kh-toggle-form {
 	margin: 0;
 }
 
-.cp-switch {
+.kh-switch {
 	display: inline-flex;
 	align-items: center;
 	gap: 7px;
@@ -481,7 +481,7 @@
 	font-size: 13px;
 }
 
-.cp-switch-track {
+.kh-switch-track {
 	position: relative;
 	width: 30px;
 	height: 16px;
@@ -491,7 +491,7 @@
 	flex: none;
 }
 
-.cp-switch-knob {
+.kh-switch-knob {
 	position: absolute;
 	top: 2px;
 	left: 2px;
@@ -502,39 +502,39 @@
 	transition: left 0.12s ease;
 }
 
-.cp-switch-on .cp-switch-track {
+.kh-switch-on .kh-switch-track {
 	background: #00794b;
 }
 
-.cp-switch-on .cp-switch-knob {
+.kh-switch-on .kh-switch-knob {
 	left: 16px;
 }
 
-.cp-switch-label {
+.kh-switch-label {
 	color: #50575e;
 }
 
-.cp-switch-on .cp-switch-label {
+.kh-switch-on .kh-switch-label {
 	color: #00794b;
 	font-weight: 600;
 }
 
-.cp-switch:hover .cp-switch-track {
+.kh-switch:hover .kh-switch-track {
 	background: #8c8f94;
 }
 
-.cp-switch-on:hover .cp-switch-track {
+.kh-switch-on:hover .kh-switch-track {
 	background: #00603b;
 }
 
-.cp-switch:focus-visible {
+.kh-switch:focus-visible {
 	outline: 2px solid #2271b1;
 	outline-offset: 2px;
 	border-radius: 4px;
 }
 
 /* A snippet whose rules mean it does not run everywhere says so in the list. */
-.cp-cond-badge {
+.kh-cond-badge {
 	display: inline-block;
 	margin-top: 3px;
 	padding: 1px 7px;
@@ -550,10 +550,10 @@
  * The type pill in the list.
  *
  * Same shape and same dot colour as the editor toolbar, so a snippet looks
- * like the same snippet on both screens. .cp-lang-* above already carries the
+ * like the same snippet on both screens. .kh-lang-* above already carries the
  * dot colours; this only supplies the pill around it.
  */
-.cp-type-pill {
+.kh-type-pill {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
@@ -567,7 +567,7 @@
 	white-space: nowrap;
 }
 
-.cp-type-pill .cp-lang-dot {
+.kh-type-pill .kh-lang-dot {
 	width: 8px;
 	height: 8px;
 }
@@ -581,27 +581,27 @@
    built out of ordinary page flow ends up unusable.
    --------------------------------------------------------------------------- */
 
-.cp-chat-wrap {
+.kh-chat-wrap {
 	max-width: 900px;
 }
 
-.cp-chat-head {
+.kh-chat-head {
 	display: flex;
 	align-items: baseline;
 	justify-content: space-between;
 	gap: 12px;
 }
 
-.cp-chat-head h2 {
+.kh-chat-head h2 {
 	margin: 0;
 }
 
-.cp-chat-clear {
+.kh-chat-clear {
 	color: #b32d2e;
 	text-decoration: none;
 }
 
-.cp-chat {
+.kh-chat {
 	/*
 	 * THE NUMBER THAT WAS WRONG, AND HOW IT WAS FOUND.
 	 *
@@ -627,24 +627,24 @@
 	border-radius: 6px;
 }
 
-.cp-chat-empty {
+.kh-chat-empty {
 	color: #646970;
 	max-width: 60ch;
 }
 
-.cp-chat-empty p {
+.kh-chat-empty p {
 	margin: 0 0 8px;
 }
 
-.cp-msg {
+.kh-msg {
 	margin: 0 0 16px;
 }
 
-.cp-msg:last-child {
+.kh-msg:last-child {
 	margin-bottom: 0;
 }
 
-.cp-msg-who {
+.kh-msg-who {
 	font-size: 11px;
 	font-weight: 600;
 	letter-spacing: .04em;
@@ -653,42 +653,42 @@
 	margin-bottom: 4px;
 }
 
-.cp-msg-body {
+.kh-msg-body {
 	border-radius: 6px;
 	padding: 10px 12px;
 }
 
-.cp-msg-you .cp-msg-body {
+.kh-msg-you .kh-msg-body {
 	background: #f0f0f1;
 }
 
-.cp-msg-ai .cp-msg-body {
+.kh-msg-ai .kh-msg-body {
 	background: #f6f7f7;
 	border-left: 3px solid #2271b1;
 }
 
-.cp-msg-text {
+.kh-msg-text {
 	/* Model output contains indented code even outside fences, and collapsing
 	   that whitespace turns a readable answer into one long line. */
 	white-space: pre-wrap;
 	word-break: break-word;
 }
 
-.cp-msg-note {
+.kh-msg-note {
 	font-size: 12px;
 	color: #646970;
 	padding: 6px 12px;
 	border-left: 3px solid #dcdcde;
 }
 
-.cp-msg-error {
+.kh-msg-error {
 	color: #b32d2e;
 	border-left-color: #d63638;
 }
 
 /* ---- a code block inside a message ---- */
 
-.cp-code {
+.kh-code {
 	margin: 12px 0 0;
 	border: 1px solid #dcdcde;
 	border-radius: 6px;
@@ -696,11 +696,11 @@
 	background: #fff;
 }
 
-.cp-code-bad {
+.kh-code-bad {
 	border-color: #d63638;
 }
 
-.cp-code-head {
+.kh-code-head {
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -710,23 +710,23 @@
 	font-size: 12px;
 }
 
-.cp-code-lang {
+.kh-code-lang {
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: .04em;
 	color: #646970;
 }
 
-.cp-lint-ok {
+.kh-lint-ok {
 	color: #00794b;
 }
 
-.cp-lint-bad {
+.kh-lint-bad {
 	color: #d63638;
 	font-weight: 600;
 }
 
-.cp-code-body {
+.kh-code-body {
 	/* Its own scroller. Long lines of PHP are the one thing on this screen
 	   allowed to be wider than the page, and only inside this box. */
 	margin: 0;
@@ -739,7 +739,7 @@
 	line-height: 1.6;
 }
 
-.cp-code-body code {
+.kh-code-body code {
 	background: none;
 	color: inherit;
 	padding: 0;
@@ -747,11 +747,11 @@
 	white-space: pre;
 }
 
-.cp-lint-detail {
+.kh-lint-detail {
 	margin: 10px 12px 0;
 }
 
-.cp-lint-detail code {
+.kh-lint-detail code {
 	color: #b32d2e;
 	background: #fcf0f1;
 	display: block;
@@ -759,11 +759,11 @@
 	word-break: break-word;
 }
 
-.cp-code .cp-chat-fix {
+.kh-code .kh-chat-fix {
 	margin: 0 12px;
 }
 
-.cp-code-save {
+.kh-code-save {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -772,20 +772,20 @@
 	border-top: 1px solid #f0f0f1;
 }
 
-.cp-code-save input[type="text"] {
+.kh-code-save input[type="text"] {
 	flex: 1 1 220px;
 	min-width: 0;
 }
 
 /* ---- the composer ---- */
 
-.cp-chat-status {
+.kh-chat-status {
 	color: #646970;
 	font-style: italic;
 	margin: 0 0 8px;
 }
 
-.cp-chat-composer {
+.kh-chat-composer {
 	/*
 	 * Belt and braces for the same failure. If the window is short enough that
 	 * even the clamped transcript overflows, the composer rides the bottom of
@@ -798,12 +798,12 @@
 	padding: 8px 0;
 }
 
-.cp-chat-composer textarea {
+.kh-chat-composer textarea {
 	width: 100%;
 	font-size: 14px;
 }
 
-.cp-chat-send-row {
+.kh-chat-send-row {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -811,17 +811,17 @@
 	margin-top: 6px;
 }
 
-.cp-chat-foot {
+.kh-chat-foot {
 	margin-top: 10px;
 	max-width: 70ch;
 }
 
 @media screen and (max-width: 782px) {
-	.cp-chat {
+	.kh-chat {
 		max-height: none;
 	}
 
-	.cp-chat-send-row {
+	.kh-chat-send-row {
 		flex-direction: column;
 		align-items: stretch;
 	}

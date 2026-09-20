@@ -6,7 +6,7 @@
  *
  * Every check names the baseline row it replaces. The baselines are the twelve
  * measurements in docs/plans/snippets-rebuild.md, taken on 2026-09-13 against
- * Claudpress 1.1.0. Before the work in that plan, this file is expected to be
+ * Keelhob 1.1.0. Before the work in that plan, this file is expected to be
  * almost entirely RED, and that red run is the baseline reproducing itself.
  *
  * FIXTURES ARE TORN DOWN IN THE SAME RUN THAT ASSERTS ON THEM, including when
@@ -36,7 +36,7 @@ const CLI = opt.cli || null;
 const wpOpts = { path: RIG, cli: CLI };
 
 const PREFIX = 'ZZ UI';
-const STUDIO = `${WP}/wp-admin/admin.php?page=claudpress-studio`;
+const STUDIO = `${WP}/wp-admin/admin.php?page=keelhob-studio`;
 
 const r = new Report();
 
@@ -69,7 +69,7 @@ function seed() {
       ['${PREFIX} delta errored', 'php', 'add_action("init", function () { return true; });', 'everywhere', 0, 20],
     ];
     foreach ($specs as $s) {
-      $res = Claudpress_Snippets::save([
+      $res = Keelhob_Snippets::save([
         'name' => $s[0], 'snippet_type' => $s[1], 'code' => $s[2],
         'location' => $s[3], 'active' => $s[4], 'priority' => $s[5],
         'description' => 'Browser-check fixture. Safe to delete.',
@@ -79,7 +79,7 @@ function seed() {
     }
     global $wpdb;
     $wpdb->update(
-      $wpdb->prefix . 'claudpress_snippets',
+      $wpdb->prefix . 'keelhob_snippets',
       ['last_error' => 'Fixture error: syntax error, unexpected end of file'],
       ['id' => $ids[3]]
     );
@@ -93,7 +93,7 @@ function seed() {
      * that saving records one — and "the feature exists but never fires" is
      * precisely the failure mode this whole file was written for.
      */
-    Claudpress_Snippets::save([
+    Keelhob_Snippets::save([
       'id' => $ids[0],
       'conditions' => ['enabled' => true, 'relation' => 'AND', 'rules' => [
         ['type' => 'user_status', 'operator' => 'is', 'value' => 'logged_in'],
@@ -101,7 +101,7 @@ function seed() {
       ]],
     ]);
     // A different body, so save() records a revision the way an edit would.
-    Claudpress_Snippets::save([
+    Keelhob_Snippets::save([
       'id' => $ids[0],
       'code' => 'add_action("init", function () { return true; }); // v2',
     ]);
@@ -116,20 +116,20 @@ function teardown() {
   return wpJson(
     `
     $gone = [];
-    foreach (Claudpress_Snippets::query([]) as $row) {
+    foreach (Keelhob_Snippets::query([]) as $row) {
       if (strpos((string) $row['name'], '${PREFIX}') === 0) {
-        Claudpress_Snippets::delete((int) $row['id']);
+        Keelhob_Snippets::delete((int) $row['id']);
         $gone[] = (int) $row['id'];
       }
     }
-    echo json_encode(['deleted' => $gone, 'remaining' => count(Claudpress_Snippets::query([]))]);
+    echo json_encode(['deleted' => $gone, 'remaining' => count(Keelhob_Snippets::query([]))]);
   `,
     wpOpts
   );
 }
 
 const isActive = (id) =>
-  wpEval(`$s = Claudpress_Snippets::get(${id}); echo (int) ($s['active'] ?? -1);`, wpOpts).trim();
+  wpEval(`$s = Keelhob_Snippets::get(${id}); echo (int) ($s['active'] ?? -1);`, wpOpts).trim();
 
 /* ------------------------------------------------------------------ */
 /* Checks                                                              */
@@ -153,7 +153,7 @@ async function checkEditor(page, ids) {
   const info = await page.evaluate(() => {
     const cm = document.querySelector('.CodeMirror');
     const first = cm?.querySelector('.CodeMirror-line');
-    const rect = (first || cm || document.getElementById('cp-code'))?.getBoundingClientRect();
+    const rect = (first || cm || document.getElementById('kh-code'))?.getBoundingClientRect();
     return {
       hasCodeMirror: !!cm,
       hasLineNumbers: !!cm?.querySelector('.CodeMirror-linenumber'),
@@ -175,10 +175,10 @@ async function checkEditor(page, ids) {
       // still being in the way when the whole point is that they no longer are.
       fieldsAboveCode: (() => {
         const codeTop = rect ? rect.top + window.scrollY : Infinity;
-        return [...document.querySelectorAll('#cp-studio-form input:not([type=hidden]), #cp-studio-form select, #cp-studio-form textarea:not(#cp-code)')]
+        return [...document.querySelectorAll('#kh-studio-form input:not([type=hidden]), #kh-studio-form select, #kh-studio-form textarea:not(#kh-code)')]
           .filter((el) => el.getBoundingClientRect().top + window.scrollY < codeTop).length;
       })(),
-      askAiButton: !!document.getElementById('cp-ask-ai'),
+      askAiButton: !!document.getElementById('kh-ask-ai'),
     };
   });
 
@@ -223,7 +223,7 @@ async function checkEditor(page, ids) {
    * have been pinned to one. Anchored on the form instead.
    */
   const buttons = await page.evaluate(() =>
-    [...document.querySelectorAll('#cp-studio-form button[type="submit"]')].map((b) => ({
+    [...document.querySelectorAll('#kh-studio-form button[type="submit"]')].map((b) => ({
       text: b.textContent.trim(),
       primary: b.className.includes('button-primary'),
     }))
@@ -247,10 +247,10 @@ async function checkEditor(page, ids) {
       const e = document.querySelector(s);
       return e ? e.getBoundingClientRect() : null;
     };
-    const main = rect('.cp-main');
-    const side = rect('.cp-side');
-    const bar = rect('.cp-editor-bar');
-    const cm = rect('.cp-editor-shell .CodeMirror');
+    const main = rect('.kh-main');
+    const side = rect('.kh-side');
+    const bar = rect('.kh-editor-bar');
+    const cm = rect('.kh-editor-shell .CodeMirror');
     return {
       hasGrid: !!(main && side),
       // A real two-column layout, not two stacked blocks with a grid class on
@@ -258,29 +258,29 @@ async function checkEditor(page, ids) {
       // they share a top.
       sideOnTheRight: !!(main && side) && side.x >= main.x + main.width - 1 && Math.abs(side.y - main.y) < 4,
       barAboveCode: !!(bar && cm) && bar.y + bar.height <= cm.y + 1,
-      fileName: document.getElementById('cp-file-name')?.textContent || '',
-      pill: document.getElementById('cp-lang-pill')?.textContent || '',
+      fileName: document.getElementById('kh-file-name')?.textContent || '',
+      pill: document.getElementById('kh-lang-pill')?.textContent || '',
       dotPainted: (() => {
-        const d = document.querySelector('.cp-lang-dot');
+        const d = document.querySelector('.kh-lang-dot');
         if (!d) return false;
         const c = getComputedStyle(d).backgroundColor;
         // Not transparent, and not the default grey — the dot must be saying
         // something about the language rather than just existing.
         return c !== 'rgba(0, 0, 0, 0)' && c !== 'rgb(140, 143, 148)';
       })(),
-      panels: [...document.querySelectorAll('.cp-panel h3')].map((e) => e.textContent.trim()),
-      condRows: document.querySelectorAll('.cp-cond-rule').length,
-      condBodyVisible: !document.getElementById('cp-cond-body')?.hidden,
+      panels: [...document.querySelectorAll('.kh-panel h3')].map((e) => e.textContent.trim()),
+      condRows: document.querySelectorAll('.kh-cond-rule').length,
+      condBodyVisible: !document.getElementById('kh-cond-body')?.hidden,
       // A populated rule row: three controls, all with a value.
       condRowComplete: (() => {
-        const row = document.querySelector('.cp-cond-rule');
+        const row = document.querySelector('.kh-cond-rule');
         if (!row) return false;
         const fields = [...row.querySelectorAll('select, input')];
         return fields.length >= 3 && fields.slice(0, 3).every((f) => f.value !== '');
       })(),
-      revisionRows: document.querySelectorAll('.cp-revisions li').length,
-      restoreWired: [...document.querySelectorAll('.cp-rev-restore')].every(
-        (b) => b.getAttribute('form') === 'cp-restore-form'
+      revisionRows: document.querySelectorAll('.kh-revisions li').length,
+      restoreWired: [...document.querySelectorAll('.kh-rev-restore')].every(
+        (b) => b.getAttribute('form') === 'kh-restore-form'
       ),
     };
   });
@@ -330,7 +330,7 @@ async function checkToggle(page, ids) {
     if (!row) return { found: false, reason: 'row not found' };
     // Deliberately NOT .row-actions: what is being asserted is that a control
     // exists outside the hover-only zone.
-    const ctl = row.querySelector('.cp-status-toggle button, button[data-cp-toggle]');
+    const ctl = row.querySelector('.kh-status-toggle button, button[data-cp-toggle]');
     if (!ctl) return { found: false, reason: 'no status control outside .row-actions' };
     const rect = ctl.getBoundingClientRect();
     const cs = getComputedStyle(ctl);
@@ -375,7 +375,7 @@ async function checkToggle(page, ids) {
       `active ${before} -> ${after}`
     );
     // Put it back, so the run is repeatable and the later filter counts hold.
-    wpEval(`Claudpress_Snippets::save(['id' => ${ids[1]}, 'active' => 0]);`, wpOpts);
+    wpEval(`Keelhob_Snippets::save(['id' => ${ids[1]}, 'active' => 0]);`, wpOpts);
   } else {
     r.fail('B7', 'clicking it really changes the stored state', 'no control to click');
     await shoot(page, 'toggle-missing');
@@ -466,30 +466,30 @@ async function checkNoDeadControls(page, ids) {
   // The agent-facing id, carried over from the deleted second screen.
   await page.goto(`${STUDIO}&tab=all&s=${encodeURIComponent(PREFIX)}`, { waitUntil: 'load' });
   const idShown = await page.evaluate(
-    (id) => [...document.querySelectorAll('.cp-snippet-id')].some((el) => el.textContent.trim() === `#${id}`),
+    (id) => [...document.querySelectorAll('.kh-snippet-id')].some((el) => el.textContent.trim() === `#${id}`),
     ids[0]
   );
   r.check('—', 'each row shows the number you would say to the agent', idShown);
 
   await page.goto(`${STUDIO}&tab=edit&snippet=${ids[0]}`, { waitUntil: 'load' });
-  const hint = await page.evaluate(() => document.querySelector('.cp-ask-hint')?.textContent.trim() || '');
+  const hint = await page.evaluate(() => document.querySelector('.kh-ask-hint')?.textContent.trim() || '');
   r.check('—', 'and the edit screen explains it once', /tell me about snippet/i.test(hint), hint.slice(0, 70));
 
   // ...but not on a new snippet, where there is no number yet.
   await page.goto(`${STUDIO}&tab=edit`, { waitUntil: 'load' });
-  const onNew = await page.evaluate(() => !!document.querySelector('.cp-ask-hint'));
+  const onNew = await page.evaluate(() => !!document.querySelector('.kh-ask-hint'));
   r.check('—', 'and says nothing on a snippet that has no number yet', !onNew);
 }
 
 /** B11 — how many times one screen asks for money. */
 async function checkDonate(page) {
   const screens = [
-    ['claudpress', true],
-    ['claudpress-studio', false],
-    ['claudpress-skills', false],
-    ['claudpress-guide', false],
-    ['claudpress-activity', false],
-    ['claudpress-automation', false],
+    ['keelhob', true],
+    ['keelhob-studio', false],
+    ['keelhob-skills', false],
+    ['keelhob-guide', false],
+    ['keelhob-activity', false],
+    ['keelhob-automation', false],
   ];
   for (const [slug, allowed] of screens) {
     await page.goto(`${WP}/wp-admin/admin.php?page=${slug}`, { waitUntil: 'domcontentloaded' });
@@ -526,7 +526,7 @@ async function checkPluginsRow(page) {
   await page.goto(`${WP}/wp-admin/plugins.php`, { waitUntil: 'load' });
 
   const row = await page.evaluate(() => {
-    const tr = document.querySelector('tr[data-plugin*="claudpress"]');
+    const tr = document.querySelector('tr[data-plugin*="keelhob"]');
     if (!tr) return { found: false };
     const desc = tr.querySelector('.plugin-description, .column-description');
     const snippets = [...tr.querySelectorAll('a')].find((a) => a.textContent.trim() === 'Snippets');
@@ -590,9 +590,9 @@ async function checkCompose(page) {
   await page.goto(`${STUDIO}&tab=compose`, { waitUntil: 'load' });
 
   const shell = await page.evaluate(() => ({
-    chat: !!document.getElementById('cp-chat'),
-    input: !!document.getElementById('cp-chat-input'),
-    clear: !!document.getElementById('cp-chat-clear'),
+    chat: !!document.getElementById('kh-chat'),
+    input: !!document.getElementById('kh-chat-input'),
+    clear: !!document.getElementById('kh-chat-clear'),
     wired: typeof window.cpComposeBindMessage === 'function',
   }));
 
@@ -611,16 +611,16 @@ async function checkCompose(page) {
  * assumed, on every run.
  */
 async function checkBanner(page) {
-  const wasOn = wpEval(`echo (int) Claudpress::instance()->get('abilities_enabled', false);`, wpOpts).trim();
-  wpEval(`Claudpress::instance()->update(['abilities_enabled' => true]);`, wpOpts);
-  wpEval(`delete_user_meta(get_user_by('login', '${USER}')->ID, 'claudpress_hide_abilities_notice');`, wpOpts);
+  const wasOn = wpEval(`echo (int) Keelhob::instance()->get('abilities_enabled', false);`, wpOpts).trim();
+  wpEval(`Keelhob::instance()->update(['abilities_enabled' => true]);`, wpOpts);
+  wpEval(`delete_user_meta(get_user_by('login', '${USER}')->ID, 'keelhob_hide_abilities_notice');`, wpOpts);
 
   try {
     await page.goto(`${STUDIO}&tab=all`, { waitUntil: 'load' });
     const before = await page.evaluate(() => ({
-      banner: !!document.querySelector('.claudpress-abilities-notice'),
-      chip: (document.querySelector('#wp-admin-bar-claudpress')?.textContent || '').trim(),
-      dismiss: !!document.querySelector('.claudpress-abilities-notice .notice-dismiss, #cp-hide-abilities-notice'),
+      banner: !!document.querySelector('.keelhob-abilities-notice'),
+      chip: (document.querySelector('#wp-admin-bar-keelhob')?.textContent || '').trim(),
+      dismiss: !!document.querySelector('.keelhob-abilities-notice .notice-dismiss, #kh-hide-abilities-notice'),
     }));
     r.check('B16', 'the abilities banner shows while abilities are on', before.banner);
     r.check('B16', 'the toolbar chip is present', /on/i.test(before.chip), before.chip || 'no chip');
@@ -628,13 +628,13 @@ async function checkBanner(page) {
 
     // Dismiss it the way the product does, then reload.
     wpEval(
-      `update_user_meta(get_user_by('login', '${USER}')->ID, 'claudpress_hide_abilities_notice', Claudpress_Admin::notice_fingerprint());`,
+      `update_user_meta(get_user_by('login', '${USER}')->ID, 'keelhob_hide_abilities_notice', Keelhob_Admin::notice_fingerprint());`,
       wpOpts
     );
     await page.goto(`${STUDIO}&tab=all`, { waitUntil: 'load' });
     const after = await page.evaluate(() => ({
-      banner: !!document.querySelector('.claudpress-abilities-notice'),
-      chip: (document.querySelector('#wp-admin-bar-claudpress')?.textContent || '').trim(),
+      banner: !!document.querySelector('.keelhob-abilities-notice'),
+      chip: (document.querySelector('#wp-admin-bar-keelhob')?.textContent || '').trim(),
     }));
     r.check('B16', 'the banner stays hidden once dismissed', !after.banner);
     r.check(
@@ -645,15 +645,15 @@ async function checkBanner(page) {
     );
 
     // Toggling abilities must bring the warning back.
-    wpEval(`Claudpress::instance()->update(['abilities_enabled' => false]);`, wpOpts);
-    wpEval(`Claudpress::instance()->update(['abilities_enabled' => true]);`, wpOpts);
+    wpEval(`Keelhob::instance()->update(['abilities_enabled' => false]);`, wpOpts);
+    wpEval(`Keelhob::instance()->update(['abilities_enabled' => true]);`, wpOpts);
     await page.goto(`${STUDIO}&tab=all`, { waitUntil: 'load' });
-    const again = await page.evaluate(() => !!document.querySelector('.claudpress-abilities-notice'));
+    const again = await page.evaluate(() => !!document.querySelector('.keelhob-abilities-notice'));
     r.check('B16', 'the banner RETURNS after abilities are toggled off and on', again);
   } finally {
     wpEval(
-      `Claudpress::instance()->update(['abilities_enabled' => ${wasOn === '1' ? 'true' : 'false'}]);` +
-        `delete_user_meta(get_user_by('login', '${USER}')->ID, 'claudpress_hide_abilities_notice');`,
+      `Keelhob::instance()->update(['abilities_enabled' => ${wasOn === '1' ? 'true' : 'false'}]);` +
+        `delete_user_meta(get_user_by('login', '${USER}')->ID, 'keelhob_hide_abilities_notice');`,
       wpOpts
     );
   }

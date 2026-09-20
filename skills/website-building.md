@@ -52,7 +52,7 @@ client edits weekly.
 
 Be honest with the user about these three, up front:
 
-1. **Generating the footage.** Claudpress has `image_generate` and `image_search` for
+1. **Generating the footage.** Keelhob has `image_generate` and `image_search` for
    stills only. There is no video generation tool here. The user supplies the clip, or
    generates it with a video tool of their own.
 2. **Re-encoding it.** A raw clip will not scrub — seeking between distant keyframes

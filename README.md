@@ -1,12 +1,12 @@
 <div align="center">
 
-# Claudpress
+# Keelhob
 
 **Build your WordPress site or store from one prompt. Free, forever.**
 
-[![CI](https://github.com/calflint/claudpress/actions/workflows/ci.yml/badge.svg)](https://github.com/calflint/claudpress/actions/workflows/ci.yml)
+[![CI](https://github.com/calflint/keelhob/actions/workflows/ci.yml/badge.svg)](https://github.com/calflint/keelhob/actions/workflows/ci.yml)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](LICENSE)
-[![Donate on Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20this%20project-c2185b.svg)](https://ko-fi.com/claudpress)
+[![Donate on Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20this%20project-c2185b.svg)](https://ko-fi.com/keelhob)
 [![Roadmap](https://img.shields.io/badge/Roadmap-what's%20next-333.svg)](ROADMAP.md)
 
 </div>
@@ -18,7 +18,7 @@
 
 WordPress shipped a famous five-minute install, back when standing up a database-driven site took
 days. It kept that promise. Then the hard part moved: installing is trivial now, and building is
-twenty plugins and a week you did not plan to spend. Claudpress puts the five minutes back where the
+twenty plugins and a week you did not plan to spend. Keelhob puts the five minutes back where the
 work actually is, with a database, a store, and code you actually own.
 
 Install one plugin, connect Claude Code (or Claude Desktop, Cursor, Codex, any MCP client), and say
@@ -43,7 +43,7 @@ tour: **[docs/features.md](docs/features.md)**.
 - **No data importer.** Nothing reads a Shopify, Wix or Squarespace export and loads it in. The
   site-clone skills rebuild a site's *design and structure* by looking at it, which is a different
   job: orders, customers and stock do not come across. Going the other way, a variable product only
-  half-migrates between Claudpress sites: the page moves, its attributes and variations do not, and
+  half-migrates between Keelhob sites: the page moves, its attributes and variations do not, and
   the import says so.
 - **One agent at a time**, no background job queue: a long interactive build lives inside the
   session that started it. **Not translated**, either — strings are wrapped, no translation ships.
@@ -68,28 +68,28 @@ tour: **[docs/features.md](docs/features.md)**.
 
 ## Why it is free
 
-Claudpress was built as a free core with a paid add-on beside it. The paid version was designed,
+Keelhob was built as a free core with a paid add-on beside it. The paid version was designed,
 built and finished — payments, orders, deploy, the Snippets Studio, six expert skills — and then
 given away, because a plugin whose whole point is handing people back a promise should not take
 part of that promise away again at a checkout. It runs on donations instead. Every feature is in
 this repository: no paid tier, no locked capability, no trial, no upsell in the admin, and no
 telemetry beyond an update check you can switch off ([exactly what it sends](PRIVACY.md)).
 
-**[Support Claudpress on Ko-fi](https://ko-fi.com/claudpress)** — or star the repo, report a bug,
+**[Support Keelhob on Ko-fi](https://ko-fi.com/keelhob)** — or star the repo, report a bug,
 or write a skill. Skills are plain markdown; no PHP needed.
 
 ## Install
 
-1. Download `claudpress.zip` from the [latest release](https://github.com/calflint/claudpress/releases).
+1. Download `keelhob.zip` from the [latest release](https://github.com/calflint/keelhob/releases).
 2. WordPress admin → **Plugins → Add New → Upload Plugin** → the zip → **Install Now** → **Activate**.
-3. Open **Claudpress** in the admin menu.
+3. Open **Keelhob** in the admin menu.
 
 Requires WordPress 6.3+ and PHP 8.0+. WooCommerce and any SEO plugin (Yoast, Rank Math, AIOSEO,
-SEOPress) are auto-detected if present; none are required. **Claudpress → Connect** then prints a
+SEOPress) are auto-detected if present; none are required. **Keelhob → Connect** then prints a
 ready-to-paste command with your real URL and token in it:
 
 ```bash
-claude mcp add claudpress-yoursite --transport http https://yoursite.com/wp-json/claudpress/v1/mcp --header "Authorization: Bearer cp_xxxxxxxx"
+claude mcp add keelhob-yoursite --transport http https://yoursite.com/wp-json/keelhob/v1/mcp --header "Authorization: Bearer kh_xxxxxxxx"
 ```
 
 Run it, start a new session, and the tools appear. Try *"list the plugins on this site"*. The
@@ -101,7 +101,7 @@ with the bearer token or a WordPress Application Password.
 Put this in `wp-config.php`, above the *"That's all, stop editing"* line:
 
 ```php
-define('CLAUDPRESS_SNIPPETS_OFF', true);
+define('KEELHOB_SNIPPETS_OFF', true);
 ```
 
 Every snippet stops running immediately, whatever the admin page says. Remove the line to switch
@@ -191,7 +191,7 @@ The plugin runs from source; there is nothing to build.
 
 ```bash
 php tests/run.php                 # unit suite, ~2,500 assertions, no composer, no WP install
-bash bin/build-zip.sh             # → build/claudpress.zip
+bash bin/build-zip.sh             # → build/keelhob.zip
 
 composer install                  # dev tooling only — the plugin itself needs none of it
 composer analyse                  # PHPStan, level 1, analysed against the PHP 8.0 floor
@@ -211,6 +211,10 @@ job. Bug reports, skills, translations and pull requests are wanted and credited
 
 [Roadmap](ROADMAP.md) · [Funding](FUNDING.md) · [Contributing](CONTRIBUTING.md) ·
 [Security](SECURITY.md) · [Privacy](PRIVACY.md) · [Code of conduct](CODE_OF_CONDUCT.md)
+
+**Renamed in 2.0.0.** This project was published under a different name until then, one that read
+as an AI vendor's trademark. Nothing it does changed. Why, and how to upgrade an existing site:
+**[docs/why-the-name-changed.md](docs/why-the-name-changed.md)**.
 
 GPL-2.0-or-later. Inspired by [Novamira](https://novamira.ai), rebuilt from scratch with no
 external dependencies and no WordPress 6.9 requirement. Built with Claude Code.

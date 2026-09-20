@@ -1,16 +1,16 @@
 # Funding
 
-Claudpress is free, GPL, and stays that way. This page is the budget: what the
+Keelhob is free, GPL, and stays that way. This page is the budget: what the
 project spends money on, why each line exists, and what sponsorship does and
 does not buy.
 
-**[Support on Ko-fi](https://ko-fi.com/claudpress)**
+**[Support on Ko-fi](https://ko-fi.com/keelhob)**
 
 ---
 
 ## Why this project needs money at all
 
-Claudpress hands an AI agent full control of a website — arbitrary PHP, the
+Keelhob hands an AI agent full control of a website — arbitrary PHP, the
 filesystem, the database, the store. Software in that position needs three
 things that a spare evening cannot produce: an outside security review by people
 who do not already believe the code is fine, infrastructure that stays up
@@ -41,7 +41,7 @@ line below is smaller.
 
 Small, ongoing, and dull:
 
-- The `claudpress.com` domain — about **$15 a year**.
+- The `keelhob.com` domain — about **$15 a year**.
 - Hosting for the site and the docs.
 - The endpoint that serves version checks and the public install count — a small
   VPS, about **$60 to $120 a year**.
@@ -50,7 +50,7 @@ Roughly **$100 to $200 a year** in total. The install count comes from the
 update check, which sends four fields and no identifying information at all —
 [PRIVACY.md](PRIVACY.md) lists them, and it is switchable off in Settings
 without costing you updates. WordPress.org active installs are deliberately not
-counted: Claudpress executes arbitrary PHP and SQL, so the directory may never
+counted: Keelhob executes arbitrary PHP and SQL, so the directory may never
 list it.
 
 ---
@@ -66,7 +66,7 @@ obvious "done" — the code-health list in [ROADMAP.md](ROADMAP.md) is full of i
 
 ## Maintainer time
 
-Claudpress is built and maintained by one person alongside a full-time job.
+Keelhob is built and maintained by one person alongside a full-time job.
 Sponsorship turns that into a predictable release cadence rather than whatever
 fits into a given month: triage answered on a schedule, releases that land when
 they were said to, and the unglamorous work that never wins an argument against
@@ -84,7 +84,7 @@ If your business runs on WordPress, this problem is yours too: users leaving for
 AI builders take your hosting, your themes, your plugins and your agency work
 with them.
 
-- Logo and link in the README and on claudpress.com.
+- Logo and link in the README and on keelhob.com.
 - Named in every release while sponsoring.
 - Direct input on the roadmap. Not a vote — a conversation, early, before things
   are built.
@@ -123,7 +123,7 @@ sponsoring it to be worth doing.
 ## Services (entirely optional, and not part of the plugin)
 
 Live one-to-one sessions, taught rather than delivered. You share your screen,
-the maintainer walks you through connecting and configuring Claudpress on your
+the maintainer walks you through connecting and configuring Keelhob on your
 own site while you do it, and you ask whatever you want along the way. A booking
 link is emailed after purchase.
 
@@ -133,6 +133,6 @@ link is emailed after purchase.
 | **Build-along session** — from $100 | The above, then building the site or store together in the same way. You bring your own API keys. |
 
 These are teaching sessions, not done-for-you work: nothing is handed over
-finished. Requested through claudpress.com. **The plugin behaves identically
+finished. Requested through keelhob.com. **The plugin behaves identically
 whether you buy anything or not**, and it always will — there is no version of
 this where paying makes the software better.

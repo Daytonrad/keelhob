@@ -2,7 +2,7 @@
 #
 # Build the installable WordPress plugin zip.
 #
-#   bash bin/build-zip.sh             → build/claudpress.zip
+#   bash bin/build-zip.sh             → build/keelhob.zip
 #   bash bin/build-zip.sh ~/Downloads → also copies it there
 #
 # WordPress expects a single top-level directory inside the archive matching the
@@ -19,13 +19,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD="$ROOT/build"
 
-STAGE="$BUILD/claudpress"
-ZIP="$BUILD/claudpress.zip"
+STAGE="$BUILD/keelhob"
+ZIP="$BUILD/keelhob.zip"
 
-VERSION="$(grep -oP "define\('CLAUDPRESS_VERSION',\s*'\K[^']+" "$ROOT/claudpress.php" || true)"
-[ -n "$VERSION" ] || { echo "Could not read CLAUDPRESS_VERSION from claudpress.php" >&2; exit 1; }
+VERSION="$(grep -oP "define\('KEELHOB_VERSION',\s*'\K[^']+" "$ROOT/keelhob.php" || true)"
+[ -n "$VERSION" ] || { echo "Could not read KEELHOB_VERSION from keelhob.php" >&2; exit 1; }
 
-echo "Building Claudpress $VERSION"
+echo "Building Keelhob $VERSION"
 
 # Only what this script owns. "rm -rf $BUILD" would also delete skills.json
 # and skills-bundle.json, which bin/build-release-assets.php writes into the
@@ -53,12 +53,12 @@ mkdir -p "$STAGE"
 # given ref.
 #
 # PATHS SHIPPED — keep in step with the list in the header comment above.
-PATHS=(claudpress.php uninstall.php readme.txt includes skills assets)
+PATHS=(keelhob.php uninstall.php readme.txt includes skills assets)
 # assets is the brand images. Small and few, but the admin menu icon is a URL
 # into that directory: if it does not ship, every install gets a broken image in
 # the sidebar, which reads as a broken plugin rather than a missing decoration.
 
-REF="${CLAUDPRESS_BUILD_REF:-HEAD}"
+REF="${KEELHOB_BUILD_REF:-HEAD}"
 
 if git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
     # Refuse a dirty tree by default. Warning instead would be friendlier, and
@@ -116,7 +116,7 @@ echo "Skills: $actual_skills staged."
 for img in mark-mono-40.png icon-128.png icon-256.png logo.png; do
   if [ ! -s "$STAGE/assets/img/$img" ]; then
     echo "::error::assets/img/$img missing from the staged zip." >&2
-    echo "Claudpress_Brand builds admin URLs into that directory; a missing file is a broken image on every install." >&2
+    echo "Keelhob_Brand builds admin URLs into that directory; a missing file is a broken image on every install." >&2
     exit 1
   fi
 done
@@ -158,7 +158,7 @@ PYZIP
   fi
 }
 
-zip_dir claudpress "$ZIP"
+zip_dir keelhob "$ZIP"
 
 if command -v unzip > /dev/null 2>&1; then
   entries="$(unzip -Z1 "$ZIP" | wc -l | tr -d ' ')"
@@ -169,6 +169,6 @@ echo "Built $ZIP — $entries entries, $(du -h "$ZIP" | cut -f1)"
 
 # Optional: drop a copy wherever the caller asked for it.
 if [ "${1:-}" != "" ]; then
-  cp "$ZIP" "$1/claudpress.zip"
+  cp "$ZIP" "$1/keelhob.zip"
   echo "Copied the zip to $1"
 fi

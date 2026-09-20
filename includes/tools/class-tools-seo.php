@@ -2,7 +2,7 @@
 /**
  * SEO tools. Reads/writes post SEO across the major SEO plugins (Yoast, Rank
  * Math, All in One SEO, SEOPress) by writing the meta keys each one uses, and
- * falls back to Claudpress's own meta + <head> injection when none is present.
+ * falls back to Keelhob's own meta + <head> injection when none is present.
  * Also: on-page analysis (classical + GEO/AI-search signals), JSON-LD schema
  * (incl. quick generators + @graph), redirects, robots.txt, sitemap, llms.txt,
  * and per-AI-crawler access control.
@@ -12,11 +12,11 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Tools_SEO
+final class Keelhob_Tools_SEO
 {
-    public static function register(Claudpress_Tool_Registry $r): void
+    public static function register(Keelhob_Tool_Registry $r): void
     {
-        $r->add('seo_meta', 'Get or set the SEO metadata of a post/page/product: SEO title, meta description, focus keyword, canonical URL, robots (noindex/nofollow), and Open Graph/Twitter title+description+image. Writes to whichever SEO plugin is active (Yoast, Rank Math, AIOSEO, SEOPress) and to a Claudpress fallback so the values apply even with no SEO plugin. Actions: get, set.', [
+        $r->add('seo_meta', 'Get or set the SEO metadata of a post/page/product: SEO title, meta description, focus keyword, canonical URL, robots (noindex/nofollow), and Open Graph/Twitter title+description+image. Writes to whichever SEO plugin is active (Yoast, Rank Math, AIOSEO, SEOPress) and to a Keelhob fallback so the values apply even with no SEO plugin. Actions: get, set.', [
             'type' => 'object',
             'properties' => [
                 'action'        => ['type' => 'string', 'enum' => ['get', 'set'], 'default' => 'get'],
@@ -35,13 +35,13 @@ final class Claudpress_Tools_SEO
         ], [self::class, 'seo_meta'], ['destructiveHint' => true]);
 
 
-        $r->add('seo_schema', 'Attach JSON-LD structured data to a post (or the whole site). Two ways to call it: (1) pass a full "schema" object/array yourself — pass an array of objects to layer several types on one page (rendered as @graph); or (2) pass "generate" (one of: article, faq, howto, local_business, person) plus "data" and Claudpress builds valid schema.org JSON-LD for you, including the Article author as a Person from the post author\'s WordPress profile — the schema type AI answer engines rely on most for E-E-A-T attribution. Actions: set, get, delete.', [
+        $r->add('seo_schema', 'Attach JSON-LD structured data to a post (or the whole site). Two ways to call it: (1) pass a full "schema" object/array yourself — pass an array of objects to layer several types on one page (rendered as @graph); or (2) pass "generate" (one of: article, faq, howto, local_business, person) plus "data" and Keelhob builds valid schema.org JSON-LD for you, including the Article author as a Person from the post author\'s WordPress profile — the schema type AI answer engines rely on most for E-E-A-T attribution. Actions: set, get, delete.', [
             'type' => 'object',
             'properties' => [
                 'action'     => ['type' => 'string', 'enum' => ['set', 'get', 'delete'], 'default' => 'set'],
                 'post_id'    => ['type' => 'integer', 'description' => 'Omit for site-wide schema.'],
-                'schema'     => ['type' => 'object', 'description' => 'A JSON-LD object, or an array of objects to layer as @graph (Claudpress adds @context).'],
-                'generate'   => ['type' => 'string', 'enum' => ['article', 'faq', 'howto', 'local_business', 'person'], 'description' => 'Have Claudpress build the JSON-LD instead of writing it by hand.'],
+                'schema'     => ['type' => 'object', 'description' => 'A JSON-LD object, or an array of objects to layer as @graph (Keelhob adds @context).'],
+                'generate'   => ['type' => 'string', 'enum' => ['article', 'faq', 'howto', 'local_business', 'person'], 'description' => 'Have Keelhob build the JSON-LD instead of writing it by hand.'],
                 'data'       => ['type' => 'object', 'description' => 'Fields for the chosen "generate" type, e.g. faq: {"items":[{"question":"...","answer":"..."}]}; local_business: {"name","address","phone","hours"}; howto: {"steps":["...","..."]}.'],
             ],
             'required' => ['action'],
@@ -67,7 +67,7 @@ final class Claudpress_Tools_SEO
             'required' => ['post_id'],
         ], [self::class, 'seo_analyze'], ['readOnlyHint' => true]);
 
-        $r->add('seo_redirect', 'Manage 301/302 redirects via a built-in Claudpress redirect table that runs on template_redirect (independent of any redirect plugin the site may also have active). Actions: add, list, delete.', [
+        $r->add('seo_redirect', 'Manage 301/302 redirects via a built-in Keelhob redirect table that runs on template_redirect (independent of any redirect plugin the site may also have active). Actions: add, list, delete.', [
             'type' => 'object',
             'properties' => [
                 'action' => ['type' => 'string', 'enum' => ['add', 'list', 'delete'], 'default' => 'list'],
@@ -101,10 +101,10 @@ final class Claudpress_Tools_SEO
                 'title' => '_seopress_titles_title', 'description' => '_seopress_titles_desc', 'focus_keyword' => '_seopress_analysis_target_kw',
                 'canonical' => '_seopress_robots_canonical',
             ],
-            'claudpress' => [ // fallback keys, injected by self::inject_head()
-                'title' => '_claudpress_seo_title', 'description' => '_claudpress_seo_desc', 'focus_keyword' => '_claudpress_seo_kw',
-                'canonical' => '_claudpress_seo_canonical', 'noindex' => '_claudpress_seo_noindex', 'nofollow' => '_claudpress_seo_nofollow',
-                'og_title' => '_claudpress_seo_og_title', 'og_description' => '_claudpress_seo_og_desc', 'og_image' => '_claudpress_seo_og_image',
+            'keelhob' => [ // fallback keys, injected by self::inject_head()
+                'title' => '_keelhob_seo_title', 'description' => '_keelhob_seo_desc', 'focus_keyword' => '_keelhob_seo_kw',
+                'canonical' => '_keelhob_seo_canonical', 'noindex' => '_keelhob_seo_noindex', 'nofollow' => '_keelhob_seo_nofollow',
+                'og_title' => '_keelhob_seo_og_title', 'og_description' => '_keelhob_seo_og_desc', 'og_image' => '_keelhob_seo_og_image',
             ],
         ];
     }
@@ -132,11 +132,11 @@ final class Claudpress_Tools_SEO
             }
             // Robots (fallback + Rank Math array).
             if (array_key_exists('noindex', $args)) {
-                update_post_meta($post_id, '_claudpress_seo_noindex', (int) (bool) $args['noindex']);
+                update_post_meta($post_id, '_keelhob_seo_noindex', (int) (bool) $args['noindex']);
                 $written[] = 'noindex';
             }
             if (array_key_exists('nofollow', $args)) {
-                update_post_meta($post_id, '_claudpress_seo_nofollow', (int) (bool) $args['nofollow']);
+                update_post_meta($post_id, '_keelhob_seo_nofollow', (int) (bool) $args['nofollow']);
                 $written[] = 'nofollow';
             }
             return ['success' => true, 'post_id' => $post_id, 'written' => $written, 'active_seo' => self::active_seo_plugins()];
@@ -157,8 +157,8 @@ final class Claudpress_Tools_SEO
             }
             $out[$field] = $val;
         }
-        $out['noindex']  = (bool) get_post_meta($post_id, '_claudpress_seo_noindex', true);
-        $out['nofollow'] = (bool) get_post_meta($post_id, '_claudpress_seo_nofollow', true);
+        $out['noindex']  = (bool) get_post_meta($post_id, '_keelhob_seo_noindex', true);
+        $out['nofollow'] = (bool) get_post_meta($post_id, '_keelhob_seo_nofollow', true);
         return ['success' => true, 'post_id' => $post_id, 'meta' => $out, 'active_seo' => self::active_seo_plugins()];
     }
 
@@ -172,7 +172,7 @@ final class Claudpress_Tools_SEO
                 $found[] = $label;
             }
         }
-        return $found ?: ['Claudpress fallback'];
+        return $found ?: ['Keelhob fallback'];
     }
 
     // ---- analysis ---------------------------------------------------------
@@ -184,14 +184,14 @@ final class Claudpress_Tools_SEO
     {
         $action  = $args['action'] ?? 'set';
         $post_id = (int) ($args['post_id'] ?? 0);
-        $key     = '_claudpress_schema';
+        $key     = '_keelhob_schema';
 
         if ($action === 'delete') {
-            $post_id ? delete_post_meta($post_id, $key) : delete_option('claudpress_site_schema');
+            $post_id ? delete_post_meta($post_id, $key) : delete_option('keelhob_site_schema');
             return ['success' => true];
         }
         if ($action === 'get') {
-            $val = $post_id ? get_post_meta($post_id, $key, true) : get_option('claudpress_site_schema');
+            $val = $post_id ? get_post_meta($post_id, $key, true) : get_option('keelhob_site_schema');
             return ['success' => true, 'schema' => $val ?: null];
         }
 
@@ -217,7 +217,7 @@ final class Claudpress_Tools_SEO
         if ($post_id) {
             update_post_meta($post_id, $key, $json);
         } else {
-            update_option('claudpress_site_schema', $json);
+            update_option('keelhob_site_schema', $json);
         }
         return ['success' => true, 'schema' => $schema, 'note' => 'Injected into the page <head> as JSON-LD.'];
     }
@@ -319,14 +319,14 @@ final class Claudpress_Tools_SEO
                     'note' => 'Google no longer supports sitemap ping; submit/verify the sitemap in Search Console instead.',
                 ];
             case 'get_robots':
-                return ['success' => true, 'robots' => apply_filters('robots_txt', '', true), 'extra' => get_option('claudpress_robots_extra', ''), 'ai_crawlers' => self::ai_crawler_settings()];
+                return ['success' => true, 'robots' => apply_filters('robots_txt', '', true), 'extra' => get_option('keelhob_robots_extra', ''), 'ai_crawlers' => self::ai_crawler_settings()];
             case 'set_robots':
-                update_option('claudpress_robots_extra', (string) ($args['content'] ?? ''));
+                update_option('keelhob_robots_extra', (string) ($args['content'] ?? ''));
                 return ['success' => true, 'note' => 'Extra robots.txt rules stored and appended to the virtual robots.txt.'];
             case 'get_llms_txt':
-                return ['success' => true, 'llms_txt' => get_option('claudpress_llms_txt', ''), 'url' => home_url('/llms.txt')];
+                return ['success' => true, 'llms_txt' => get_option('keelhob_llms_txt', ''), 'url' => home_url('/llms.txt')];
             case 'set_llms_txt':
-                update_option('claudpress_llms_txt', (string) ($args['content'] ?? ''));
+                update_option('keelhob_llms_txt', (string) ($args['content'] ?? ''));
                 return ['success' => true, 'url' => home_url('/llms.txt'), 'note' => 'Served at /llms.txt. Follow the llmstxt.org format: H1 name, one-line blockquote summary, then H2 link sections — this is what AI answer engines read to understand and cite the site.'];
             case 'get_ai_crawlers':
                 return ['success' => true, 'bots' => self::ai_crawler_settings()];
@@ -337,7 +337,7 @@ final class Claudpress_Tools_SEO
                         $current[$bot] = (bool) $allow;
                     }
                 }
-                update_option('claudpress_ai_crawlers', $current);
+                update_option('keelhob_ai_crawlers', $current);
                 return ['success' => true, 'bots' => $current];
             case 'get_sitemap':
             default:
@@ -359,7 +359,7 @@ final class Claudpress_Tools_SEO
             'CCBot'             => true, // Common Crawl (feeds many LLMs)
             'Bytespider'        => true, // ByteDance / TikTok LLMs
         ];
-        $stored = get_option('claudpress_ai_crawlers', []);
+        $stored = get_option('keelhob_ai_crawlers', []);
         return is_array($stored) ? array_merge($defaults, array_intersect_key($stored, $defaults)) : $defaults;
     }
 
@@ -381,7 +381,7 @@ final class Claudpress_Tools_SEO
         return home_url('/wp-sitemap.xml'); // WordPress core sitemap
     }
 
-    // ---- front-end injection (registered from Claudpress boot via hooks below) ----
+    // ---- front-end injection (registered from Keelhob boot via hooks below) ----
 
     public static function hooks(): void
     {
@@ -399,7 +399,7 @@ final class Claudpress_Tools_SEO
         if ($path !== 'llms.txt') {
             return;
         }
-        $content = get_option('claudpress_llms_txt', '');
+        $content = get_option('keelhob_llms_txt', '');
         if ($content === '') {
             return; // let it 404 rather than serve an empty file
         }
@@ -441,26 +441,26 @@ final class Claudpress_Tools_SEO
     /**
      * Apply the stored SEO title to <title>.
      *
-     * `seo_meta` has always accepted and stored `_claudpress_seo_title`, but
+     * `seo_meta` has always accepted and stored `_keelhob_seo_title`, but
      * nothing ever read it back, so setting an SEO title silently did nothing.
      */
     public static function filter_title($title)
     {
-        if (self::active_seo_plugins() !== ['Claudpress fallback']) {
+        if (self::active_seo_plugins() !== ['Keelhob fallback']) {
             return $title;
         }
         $id = self::current_seo_post_id();
         if (!$id) {
             return $title;
         }
-        $custom = (string) get_post_meta($id, '_claudpress_seo_title', true);
+        $custom = (string) get_post_meta($id, '_keelhob_seo_title', true);
         return $custom !== '' ? $custom : $title;
     }
 
     public static function inject_head(): void
     {
         // Site-wide schema.
-        $site_schema = get_option('claudpress_site_schema');
+        $site_schema = get_option('keelhob_site_schema');
         if ($site_schema) {
             echo "\n<script type=\"application/ld+json\">" . $site_schema . "</script>\n";
         }
@@ -469,39 +469,39 @@ final class Claudpress_Tools_SEO
             return;
         }
 
-        $schema = get_post_meta($id, '_claudpress_schema', true);
+        $schema = get_post_meta($id, '_keelhob_schema', true);
         if ($schema) {
             echo "\n<script type=\"application/ld+json\">" . $schema . "</script>\n";
         }
 
         // Fallback meta only if no dedicated SEO plugin is active.
-        if (self::active_seo_plugins() !== ['Claudpress fallback']) {
+        if (self::active_seo_plugins() !== ['Keelhob fallback']) {
             return;
         }
-        $desc = get_post_meta($id, '_claudpress_seo_desc', true);
+        $desc = get_post_meta($id, '_keelhob_seo_desc', true);
         if ($desc) {
             echo '<meta name="description" content="' . esc_attr($desc) . "\">\n";
         }
-        $canonical = get_post_meta($id, '_claudpress_seo_canonical', true);
+        $canonical = get_post_meta($id, '_keelhob_seo_canonical', true);
         if ($canonical) {
             echo '<link rel="canonical" href="' . esc_url($canonical) . "\">\n";
         }
         $robots = [];
-        if (get_post_meta($id, '_claudpress_seo_noindex', true)) {
+        if (get_post_meta($id, '_keelhob_seo_noindex', true)) {
             $robots[] = 'noindex';
         }
-        if (get_post_meta($id, '_claudpress_seo_nofollow', true)) {
+        if (get_post_meta($id, '_keelhob_seo_nofollow', true)) {
             $robots[] = 'nofollow';
         }
         if ($robots) {
             echo '<meta name="robots" content="' . esc_attr(implode(',', $robots)) . "\">\n";
         }
         // NOTE the key names: seo_meta stores og:description as `og_desc`, not
-        // `og_description`. This loop used to build `_claudpress_seo_og_description`,
+        // `og_description`. This loop used to build `_keelhob_seo_og_description`,
         // which matches nothing, so og:description was silently never emitted.
         $og = [];
         foreach (['og_title' => 'og:title', 'og_desc' => 'og:description', 'og_image' => 'og:image'] as $meta_key => $prop) {
-            $v = get_post_meta($id, '_claudpress_seo_' . $meta_key, true);
+            $v = get_post_meta($id, '_keelhob_seo_' . $meta_key, true);
             if ($v) {
                 $og[$prop] = $v;
                 echo '<meta property="' . esc_attr($prop) . '" content="' . esc_attr($v) . "\">\n";
@@ -524,7 +524,7 @@ final class Claudpress_Tools_SEO
 
     public static function do_redirects(): void
     {
-        $store = get_option('claudpress_redirects', []);
+        $store = get_option('keelhob_redirects', []);
         if (empty($store) || !is_array($store)) {
             return;
         }
@@ -551,7 +551,7 @@ final class Claudpress_Tools_SEO
                 $output .= "User-agent: {$bot}\nDisallow: /\n\n";
             }
         }
-        $extra = get_option('claudpress_robots_extra', '');
+        $extra = get_option('keelhob_robots_extra', '');
         return $extra ? $output . "\n" . $extra . "\n" : $output;
     }
 
@@ -567,7 +567,7 @@ final class Claudpress_Tools_SEO
         $words = str_word_count($body);
         $slug  = $post->post_name;
 
-        $meta   = Claudpress_Tools_SEO::seo_meta(['action' => 'get', 'post_id' => $post->ID]);
+        $meta   = Keelhob_Tools_SEO::seo_meta(['action' => 'get', 'post_id' => $post->ID]);
         $seo_title = $meta['meta']['title'] ?? '';
         $seo_desc  = $meta['meta']['description'] ?? '';
 
@@ -631,7 +631,7 @@ final class Claudpress_Tools_SEO
         $has_list_or_table = (bool) preg_match('/<(ul|ol|table)[\s>]/i', $post->post_content);
         $geo_checks[] = ['check' => 'List/table structuring present', 'ok' => $has_list_or_table, 'note' => 'Lists and tables are the most extractable/citable content shape for LLM answer engines.'];
 
-        $schema = Claudpress_Tools_SEO::seo_schema(['action' => 'get', 'post_id' => $post->ID]);
+        $schema = Keelhob_Tools_SEO::seo_schema(['action' => 'get', 'post_id' => $post->ID]);
         $has_schema = !empty($schema['schema']);
         $geo_checks[] = ['check' => 'JSON-LD schema attached', 'ok' => $has_schema, 'note' => 'Use seo_schema to attach Article/FAQPage/HowTo/Product schema — AI engines weight structured data heavily for attribution.'];
 
@@ -668,7 +668,7 @@ final class Claudpress_Tools_SEO
     public static function seo_redirect(array $args): array
     {
         $action = $args['action'] ?? 'list';
-        $store  = get_option('claudpress_redirects', []);
+        $store  = get_option('keelhob_redirects', []);
         if (!is_array($store)) {
             $store = [];
         }
@@ -677,12 +677,12 @@ final class Claudpress_Tools_SEO
             case 'add':
                 $from = '/' . ltrim((string) ($args['from'] ?? ''), '/');
                 $store[$from] = ['to' => (string) ($args['to'] ?? ''), 'type' => (int) ($args['type'] ?? 301)];
-                update_option('claudpress_redirects', $store);
+                update_option('keelhob_redirects', $store);
                 return ['success' => true, 'from' => $from, 'to' => $store[$from]['to'], 'total' => count($store)];
             case 'delete':
                 $id = '/' . ltrim((string) ($args['id'] ?? $args['from'] ?? ''), '/');
                 unset($store[$id]);
-                update_option('claudpress_redirects', $store);
+                update_option('keelhob_redirects', $store);
                 return ['success' => true, 'deleted' => $id];
             case 'list':
             default:

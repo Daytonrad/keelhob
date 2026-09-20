@@ -4,18 +4,18 @@
  *   - export_bundle: serialize chosen entities to a portable JSON bundle.
  *   - import_bundle:  import a bundle produced by export_bundle into this site.
  *   - deploy_push:    push a freshly-exported bundle straight to a configured
- *                     production Claudpress site over its /import endpoint.
+ *                     production Keelhob site over its /import endpoint.
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Tools_Deploy
+final class Keelhob_Tools_Deploy
 {
-    public static function register(Claudpress_Tool_Registry $r): void
+    public static function register(Keelhob_Tool_Registry $r): void
     {
-        $types = Claudpress_Migration::TYPES;
+        $types = Keelhob_Migration::TYPES;
 
         $r->add('export_bundle', 'Export a portable JSON bundle of this site\'s content and config: pages, posts, products (simple products in full; a variable product\'s content only — its attributes and variations are not portable), snippets, skills, memory, nav menus with their theme locations, widgets/sidebars, and selected options — incl. Elementor & SEO meta. Secrets (API keys/tokens) are never included. Use as the first half of a staging→production migration. Returns the bundle.', [
             'type' => 'object',
@@ -35,7 +35,7 @@ final class Claudpress_Tools_Deploy
             'required' => ['bundle'],
         ], [self::class, 'import_bundle'], ['destructiveHint' => true]);
 
-        $r->add('deploy_push', 'Export the chosen entities and push them straight to your PRODUCTION Claudpress site (configured under Claudpress > Settings: deploy target URL + token), which imports them. One-call staging→production ship. Confirm with the owner before pushing to a live site.', [
+        $r->add('deploy_push', 'Export the chosen entities and push them straight to your PRODUCTION Keelhob site (configured under Keelhob > Settings: deploy target URL + token), which imports them. One-call staging→production ship. Confirm with the owner before pushing to a live site.', [
             'type' => 'object',
             'properties' => [
                 'types'       => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => $types]],
@@ -47,7 +47,7 @@ final class Claudpress_Tools_Deploy
 
     public static function export_bundle(array $a): array
     {
-        $bundle = Claudpress_Migration::export((array) ($a['types'] ?? []), [
+        $bundle = Keelhob_Migration::export((array) ($a['types'] ?? []), [
             'status' => $a['status'] ?? null,
             'limit'  => $a['limit'] ?? -1,
         ]);
@@ -68,23 +68,23 @@ final class Claudpress_Tools_Deploy
         if (!is_array($bundle)) {
             return ['success' => false, 'error' => 'bundle must be an object.'];
         }
-        return Claudpress_Migration::import($bundle, (string) ($a['mode'] ?? 'upsert'));
+        return Keelhob_Migration::import($bundle, (string) ($a['mode'] ?? 'upsert'));
     }
 
     public static function deploy_push(array $a): array
     {
-        $s     = Claudpress::instance()->settings();
+        $s     = Keelhob::instance()->settings();
         $url   = rtrim((string) ($a['target_url'] ?? ($s['deploy_target_url'] ?? '')), '/');
         $token = (string) ($a['target_token'] ?? ($s['deploy_target_token'] ?? ''));
 
         if ($url === '' || $token === '') {
-            return ['success' => false, 'error' => 'No production target configured. Set the deploy target URL + token in Claudpress > Settings, or pass target_url and target_token.'];
+            return ['success' => false, 'error' => 'No production target configured. Set the deploy target URL + token in Keelhob > Settings, or pass target_url and target_token.'];
         }
 
         $export = self::export_bundle(['types' => $a['types'] ?? []]);
         $bundle = $export['bundle'];
 
-        $endpoint = $url . '/wp-json/' . CLAUDPRESS_REST_NAMESPACE . '/import';
+        $endpoint = $url . '/wp-json/' . KEELHOB_REST_NAMESPACE . '/import';
         $resp = wp_remote_post($endpoint, [
             'timeout' => 120,
             'headers' => ['Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json'],

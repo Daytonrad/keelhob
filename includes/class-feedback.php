@@ -15,7 +15,7 @@
  *   - Not a transcript. The conversation is never sent and the user's own words
  *     are never stored verbatim — only a characterisation of what went wrong.
  *
- * PRIVACY.md says, in writing, that Claudpress has no analytics and no error
+ * PRIVACY.md says, in writing, that Keelhob has no analytics and no error
  * reporting. PostHog was rejected for the plugin on that exact sentence, and
  * this sends more sensitive data than PostHog would have. So the bar is higher,
  * not lower, and everything here follows from one idea:
@@ -35,13 +35,13 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Feedback
+final class Keelhob_Feedback
 {
     /** The one setting. Default ON — see the docblock on default_enabled(). */
     const SETTING = 'feedback_log';
 
     /** When the agent last offered to send, whatever the answer was. */
-    const OPTION_LAST_OFFER = 'claudpress_feedback_last_offer';
+    const OPTION_LAST_OFFER = 'keelhob_feedback_last_offer';
 
     /**
      * The earliest the agent may offer again after a throttled send.
@@ -52,9 +52,9 @@ final class Claudpress_Feedback
      * collapsing them would spend the whole week's single offer on a request
      * that never arrived.
      */
-    const OPTION_RETRY_AFTER = 'claudpress_feedback_retry_after';
+    const OPTION_RETRY_AFTER = 'keelhob_feedback_retry_after';
 
-    const ENDPOINT = 'https://api.claudpress.com/v1/feedback';
+    const ENDPOINT = 'https://api.keelhob.com/v1/feedback';
 
     /**
      * Retention. Deliberately tighter than the 90 days the server keeps,
@@ -125,7 +125,7 @@ final class Claudpress_Feedback
     public static function table(): string
     {
         global $wpdb;
-        return $wpdb->prefix . 'claudpress_feedback';
+        return $wpdb->prefix . 'keelhob_feedback';
     }
 
     public static function install_table(): void
@@ -167,10 +167,10 @@ final class Claudpress_Feedback
 
     public static function enabled(): bool
     {
-        if (!class_exists('Claudpress')) {
+        if (!class_exists('Keelhob')) {
             return false;
         }
-        $v = Claudpress::instance()->get(self::SETTING, self::default_enabled());
+        $v = Keelhob::instance()->get(self::SETTING, self::default_enabled());
         return (bool) $v;
     }
 
@@ -631,8 +631,8 @@ final class Claudpress_Feedback
     public static function payload(array $report): array
     {
         return [
-            'site_id'        => Claudpress_Updater::site_id(),
-            'plugin_version' => CLAUDPRESS_VERSION,
+            'site_id'        => Keelhob_Updater::site_id(),
+            'plugin_version' => KEELHOB_VERSION,
             'events'         => $report['events'],
             'omitted'        => (int) ($report['omitted'] ?? 0),
         ];
@@ -684,7 +684,7 @@ final class Claudpress_Feedback
      */
     public static function forget_remote(): bool
     {
-        $res = wp_remote_request(self::ENDPOINT . '?site_id=' . rawurlencode(Claudpress_Updater::site_id()), [
+        $res = wp_remote_request(self::ENDPOINT . '?site_id=' . rawurlencode(Keelhob_Updater::site_id()), [
             'method'  => 'DELETE',
             'timeout' => 5,
         ]);
@@ -698,21 +698,21 @@ final class Claudpress_Feedback
     {
         switch ($friction) {
             case 'repeated_correction':
-                return __('Got it wrong more than once', 'claudpress');
+                return __('Got it wrong more than once', 'keelhob');
             case 'tool_failed':
-                return __('A tool failed', 'claudpress');
+                return __('A tool failed', 'keelhob');
             case 'tool_missing':
-                return __('Something the plugin cannot do', 'claudpress');
+                return __('Something the plugin cannot do', 'keelhob');
             case 'wrong_visual_result':
-                return __('Did as asked, looked wrong', 'claudpress');
+                return __('Did as asked, looked wrong', 'keelhob');
             case 'docs_gap':
-                return __('The docs did not say', 'claudpress');
+                return __('The docs did not say', 'keelhob');
             case 'skill_gap':
-                return __('No skill covered this', 'claudpress');
+                return __('No skill covered this', 'keelhob');
             case 'policy_blocked':
-                return __('A permission blocked real work', 'claudpress');
+                return __('A permission blocked real work', 'keelhob');
             case 'llm_rejected':
-                return __('The AI provider refused our request', 'claudpress');
+                return __('The AI provider refused our request', 'keelhob');
         }
         return $friction;
     }

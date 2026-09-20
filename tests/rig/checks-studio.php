@@ -9,20 +9,20 @@
  * Run: wp eval-file tests/rig/checks-studio.php
  */
 
-$GLOBALS['cp_rig_pass'] = 0;
-$GLOBALS['cp_rig_fail'] = 0;
+$GLOBALS['kh_rig_pass'] = 0;
+$GLOBALS['kh_rig_fail'] = 0;
 function check($label, $ok, $detail = '') {
-    $ok ? $GLOBALS['cp_rig_pass']++ : $GLOBALS['cp_rig_fail']++;
+    $ok ? $GLOBALS['kh_rig_pass']++ : $GLOBALS['kh_rig_fail']++;
     printf("%s  %s%s\n", $ok ? 'PASS' : 'FAIL', str_pad($label, 52), $detail);
 }
 
 wp_set_current_user(1);
 set_current_screen('admin');
 
-check('the Studio class loaded', class_exists('Claudpress_Studio'));
+check('the Studio class loaded', class_exists('Keelhob_Studio'));
 
 // Something to list.
-$made = Claudpress_Snippets::save([
+$made = Keelhob_Snippets::save([
     'name'         => 'Studio rig snippet',
     'description'  => 'Created by the rig check.',
     'code'         => "<?php add_filter('the_content', fn(\$c) => \$c);",
@@ -34,9 +34,9 @@ $made_id = (int) ($made['id'] ?? 0);
 check('a snippet exists to list', $made_id > 0);
 
 $render = static function (string $tab, array $extra = []): string {
-    $_GET = array_merge(['page' => Claudpress_Studio::SLUG, 'tab' => $tab], $extra);
+    $_GET = array_merge(['page' => Keelhob_Studio::SLUG, 'tab' => $tab], $extra);
     ob_start();
-    (new Claudpress_Studio())->render();
+    (new Keelhob_Studio())->render();
     return (string) ob_get_clean();
 };
 
@@ -51,13 +51,13 @@ foreach (['all', 'edit', 'compose', 'library'] as $tab) {
     check('tab "' . $tab . '" renders', $err === '' && strlen($out) > 400, $err ?: strlen($out) . ' bytes');
     check('  no notice leaked into "' . $tab . '"', stripos($out, 'Warning:') === false && stripos($out, 'Fatal') === false);
     // Three tabs now, not four: the Library tab was deleted in 1.2.0 because it
-    // could never appear. Counted from Claudpress_Studio::tabs() rather than
+    // could never appear. Counted from Keelhob_Studio::tabs() rather than
     // hard-coded, so adding a real tab does not need this line edited - the
     // previous version said "four" long after there were three.
     check(
         '  every tab is linked from "' . $tab . '"',
-        substr_count($out, 'nav-tab ') >= count(Claudpress_Studio::tabs()),
-        count(Claudpress_Studio::tabs()) . ' expected, ' . substr_count($out, 'nav-tab ') . ' found'
+        substr_count($out, 'nav-tab ') >= count(Keelhob_Studio::tabs()),
+        count(Keelhob_Studio::tabs()) . ' expected, ' . substr_count($out, 'nav-tab ') . ' found'
     );
 }
 
@@ -76,26 +76,26 @@ check('no GET link performs an action', strpos($all, 'studio_action=activate') =
 // --- the editor ---
 $edit = $render('edit', ['snippet' => $made_id]);
 check('the editor loads the snippet', strpos($edit, 'Studio rig snippet') !== false);
-check('the editor offers Ask AI', strpos($edit, 'cp-ask-ai') !== false);
+check('the editor offers Ask AI', strpos($edit, 'kh-ask-ai') !== false);
 check('the editor has both save buttons', strpos($edit, 'and_activate') !== false);
 check('the code is escaped, not stripped', strpos($edit, '&lt;?php') !== false);
 
 // --- compose ---
 $compose = $render('compose');
 // Compose is a CHAT now, not a three-step wizard. The old id was
-// cp-compose-prompt, a single textarea that fed a one-shot plan request; it had
+// kh-compose-prompt, a single textarea that fed a one-shot plan request; it had
 // no memory of its own last answer, which is what made a syntax error a dead
 // end and made a prose reply look like a failure.
-check('compose renders the transcript', strpos($compose, 'id="cp-chat"') !== false);
-check('compose renders with no key configured', strpos($compose, 'cp-chat-input') !== false);
-check('...and a Send button next to it', strpos($compose, 'cp-chat-send') !== false);
-check('...and says so rather than hiding', strpos($compose, 'No AI provider is connected') !== false || trim((string) Claudpress::instance()->get('agent_api_key')) !== '');
+check('compose renders the transcript', strpos($compose, 'id="kh-chat"') !== false);
+check('compose renders with no key configured', strpos($compose, 'kh-chat-input') !== false);
+check('...and a Send button next to it', strpos($compose, 'kh-chat-send') !== false);
+check('...and says so rather than hiding', strpos($compose, 'No AI provider is connected') !== false || trim((string) Keelhob::instance()->get('agent_api_key')) !== '');
 
 // --- library ---
 // The Library tab is GONE, not hidden.
 //
-// It used to be shown only when Claudpress_Studio_Library::has_items() said so,
-// and that could never be true: has_items() asked Claudpress_Snippet_Library,
+// It used to be shown only when Keelhob_Studio_Library::has_items() said so,
+// and that could never be true: has_items() asked Keelhob_Snippet_Library,
 // a class nobody ever wrote. An unreachable screen shipped in every zip.
 //
 // This asserts the two things that matter after deleting it: the tab is not
@@ -103,8 +103,8 @@ check('...and says so rather than hiding', strpos($compose, 'No AI provider is c
 // than erroring - current_tab() falls back to the list for anything it does not
 // recognise.
 $library = $render('library');
-check('the Library tab is not offered', !array_key_exists('library', Claudpress_Studio::tabs()));
-check('...and Claudpress_Studio_Library is gone from the build', !class_exists('Claudpress_Studio_Library'));
+check('the Library tab is not offered', !array_key_exists('library', Keelhob_Studio::tabs()));
+check('...and Keelhob_Studio_Library is gone from the build', !class_exists('Keelhob_Studio_Library'));
 check('...and an old ?tab=library link falls back to the list, not an error',
     strpos($library, 'Studio rig snippet') !== false && stripos($library, 'Fatal') === false);
 
@@ -112,9 +112,9 @@ check('...and an old ?tab=library link falls back to the list, not an error',
 // rows whose source is 'library', and the badge that renders them must survive
 // the removal of the screen that once created them.
 check('a snippet whose source is "library" still renders its badge',
-    strpos(Claudpress_Studio::source_badge('library'), 'Library') !== false);
+    strpos(Keelhob_Studio::source_badge('library'), 'Library') !== false);
 check('...and "library" is still a valid stored source',
-    in_array('library', Claudpress_Snippets::SOURCES, true));
+    in_array('library', Keelhob_Snippets::SOURCES, true));
 
 // The pairing flow made this promise in words. It is gone; the promise is not.
 check('no Studio screen asks for a password',
@@ -122,7 +122,7 @@ check('no Studio screen asks for a password',
 
 // --- the two verdicts, side by side ---
 ob_start();
-Claudpress_Studio_Edit::review_panel([
+Keelhob_Studio_Edit::review_panel([
     'ai_review'    => wp_json_encode(['verdict' => 'caution', 'summary' => 'Test summary.', 'risks' => ['One risk']]),
     'ai_review_at' => current_time('mysql'),
     'last_error'   => '',
@@ -135,15 +135,15 @@ check('...and says which one decides', strpos($panel, 'decides whether the snipp
 check('...and that the opinion does not', strpos($panel, 'does not gate anything') !== false);
 
 // --- the AI helpers ---
-check('fences are stripped from a model reply', Claudpress_Studio_AI::strip_fences("```php\n<?php echo 1;\n```") === '<?php echo 1;');
-check('JSON is found inside prose', (Claudpress_Studio_AI::json('Here you go: {"a":1} hope that helps') ?? [])['a'] === 1);
-check('type comes from the code, not the label', Claudpress_Studio_AI::guess_type("<?php echo 1;") === 'php');
-check('...css is recognised', Claudpress_Studio_AI::guess_type(".a { color: red; }") === 'css');
+check('fences are stripped from a model reply', Keelhob_Studio_AI::strip_fences("```php\n<?php echo 1;\n```") === '<?php echo 1;');
+check('JSON is found inside prose', (Keelhob_Studio_AI::json('Here you go: {"a":1} hope that helps') ?? [])['a'] === 1);
+check('type comes from the code, not the label', Keelhob_Studio_AI::guess_type("<?php echo 1;") === 'php');
+check('...css is recognised', Keelhob_Studio_AI::guess_type(".a { color: red; }") === 'css');
 
-Claudpress_Snippets::delete($made_id);
+Keelhob_Snippets::delete($made_id);
 $_GET = [];
 
-printf("\n%d passed, %d failed\n", $GLOBALS['cp_rig_pass'], $GLOBALS['cp_rig_fail']);
-if ($GLOBALS['cp_rig_fail'] > 0) {
+printf("\n%d passed, %d failed\n", $GLOBALS['kh_rig_pass'], $GLOBALS['kh_rig_fail']);
+if ($GLOBALS['kh_rig_fail'] > 0) {
     exit(1);
 }

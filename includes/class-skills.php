@@ -7,7 +7,7 @@
  * The idea of loadable, description-matched playbooks is not original to this
  * project; other MCP plugins offer something similar, and bundling expert ones
  * with the product is a common pattern. The schema, the table, the parser and
- * every skill shipped here were written for Claudpress and share no code with
+ * every skill shipped here were written for Keelhob and share no code with
  * anything else. See seed_bundled_skills().
  */
 
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Skills
+final class Keelhob_Skills
 {
     /** Shipped in the plugin zip. */
     const SOURCE_BUNDLED = 'bundled';
@@ -29,7 +29,7 @@ final class Claudpress_Skills
     public static function table(): string
     {
         global $wpdb;
-        return $wpdb->prefix . 'claudpress_skills';
+        return $wpdb->prefix . 'keelhob_skills';
     }
 
     public static function install_table(): void
@@ -77,7 +77,7 @@ final class Claudpress_Skills
      *
      * Guessing here is not optional — every row that keeps an empty source would
      * be treated as unknown forever, and the refresh guard would have nothing to
-     * decide on. `bundled_hash` is the evidence: Claudpress only ever wrote it
+     * decide on. `bundled_hash` is the evidence: Keelhob only ever wrote it
      * when it installed a bundled skill, so a row that has one came from us and
      * a row that does not was authored on this site.
      */
@@ -141,11 +141,11 @@ final class Claudpress_Skills
         // empty rather than left alone on purpose: if an edit removes a
         // `verified_by` line, the row must lose the edge too, or the site keeps
         // enforcing a link the author deleted.
-        $row['role']        = Claudpress_Skill_Standard::role($args);
-        $row['surface']     = Claudpress_Skill_Standard::surface($args);
-        $row['requires']    = implode(', ', Claudpress_Skill_Standard::slugs((string) ($args['requires'] ?? '')));
-        $row['next_skills'] = implode(', ', Claudpress_Skill_Standard::slugs((string) ($args['next_skills'] ?? '')));
-        $row['verified_by'] = implode(', ', Claudpress_Skill_Standard::slugs((string) ($args['verified_by'] ?? '')));
+        $row['role']        = Keelhob_Skill_Standard::role($args);
+        $row['surface']     = Keelhob_Skill_Standard::surface($args);
+        $row['requires']    = implode(', ', Keelhob_Skill_Standard::slugs((string) ($args['requires'] ?? '')));
+        $row['next_skills'] = implode(', ', Keelhob_Skill_Standard::slugs((string) ($args['next_skills'] ?? '')));
+        $row['verified_by'] = implode(', ', Keelhob_Skill_Standard::slugs((string) ($args['verified_by'] ?? '')));
 
         if (array_key_exists('bundled_hash', $args)) {
             $row['bundled_hash'] = (string) $args['bundled_hash'];
@@ -213,10 +213,10 @@ final class Claudpress_Skills
                 $out[] = [
                     'name'        => $s['name'],
                     'description' => $s['description'],
-                    'role'        => Claudpress_Skill_Standard::role($s),
-                    'surface'     => Claudpress_Skill_Standard::surface($s),
-                    'next_skills' => Claudpress_Skill_Standard::slugs((string) ($s['next_skills'] ?? '')),
-                    'verified_by' => Claudpress_Skill_Standard::slugs((string) ($s['verified_by'] ?? '')),
+                    'role'        => Keelhob_Skill_Standard::role($s),
+                    'surface'     => Keelhob_Skill_Standard::surface($s),
+                    'next_skills' => Keelhob_Skill_Standard::slugs((string) ($s['next_skills'] ?? '')),
+                    'verified_by' => Keelhob_Skill_Standard::slugs((string) ($s['verified_by'] ?? '')),
                 ];
             }
         }
@@ -271,7 +271,7 @@ final class Claudpress_Skills
                     // could point at another was a sentence in its body, which
                     // no script can read — so nothing could detect a loop, cost
                     // a chain, or generate a router. Kept as raw single-line
-                    // strings here; Claudpress_Skill_Standard::slugs() is what
+                    // strings here; Keelhob_Skill_Standard::slugs() is what
                     // turns them into lists, because the front-matter parser
                     // has no concept of one.
                     case 'role':
@@ -314,7 +314,7 @@ final class Claudpress_Skills
      * been running since the previous release, so the bundled skills silently
      * froze at whatever version was installed first.
      *
-     * `bundled_hash` is what tells the two apart. It records the body Claudpress
+     * `bundled_hash` is what tells the two apart. It records the body Keelhob
      * last wrote. If the stored body still hashes to it, nobody has edited the
      * skill and it is safe to replace with the newer text. If it differs, the
      * owner (or an agent) rewrote it, and their version is left alone.
@@ -327,7 +327,7 @@ final class Claudpress_Skills
     {
         $report = ['installed' => [], 'updated' => [], 'kept' => []];
         $skills = self::instance_free();
-        $dir    = CLAUDPRESS_DIR . 'skills';
+        $dir    = KEELHOB_DIR . 'skills';
         if (!is_dir($dir)) {
             return $report;
         }
@@ -343,7 +343,7 @@ final class Claudpress_Skills
             $parsed['name']         = $name;
             $parsed['bundled_hash'] = md5((string) ($parsed['body'] ?? ''));
             $parsed['source']       = self::SOURCE_BUNDLED;
-            $parsed['version']      = defined('CLAUDPRESS_VERSION') ? (string) CLAUDPRESS_VERSION : '';
+            $parsed['version']      = defined('KEELHOB_VERSION') ? (string) KEELHOB_VERSION : '';
 
             $existing = $skills->get_by_name($name);
             switch (self::bundled_action($existing, $parsed['bundled_hash'], $force)) {
@@ -434,16 +434,16 @@ final class Claudpress_Skills
             }
         }
 
-        if (Claudpress_Skill_Standard::role($existing) !== Claudpress_Skill_Standard::role($parsed)) {
+        if (Keelhob_Skill_Standard::role($existing) !== Keelhob_Skill_Standard::role($parsed)) {
             return true;
         }
-        if (Claudpress_Skill_Standard::surface($existing) !== Claudpress_Skill_Standard::surface($parsed)) {
+        if (Keelhob_Skill_Standard::surface($existing) !== Keelhob_Skill_Standard::surface($parsed)) {
             return true;
         }
 
         foreach (['requires', 'next_skills', 'verified_by'] as $edge) {
-            $was = Claudpress_Skill_Standard::slugs((string) ($existing[$edge] ?? ''));
-            $now = Claudpress_Skill_Standard::slugs((string) ($parsed[$edge] ?? ''));
+            $was = Keelhob_Skill_Standard::slugs((string) ($existing[$edge] ?? ''));
+            $now = Keelhob_Skill_Standard::slugs((string) ($parsed[$edge] ?? ''));
             if ($was !== $now) {
                 return true;
             }
@@ -474,7 +474,7 @@ final class Claudpress_Skills
     }
 
     /** Static helper so activation (no booted singleton) can use the store. */
-    private static function instance_free(): Claudpress_Skills
+    private static function instance_free(): Keelhob_Skills
     {
         return new self();
     }

@@ -13,9 +13,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Tasks
+final class Keelhob_Tasks
 {
-    const HOOK = 'claudpress_cron_tick';
+    const HOOK = 'keelhob_cron_tick';
 
     const INTERVALS = [
         'hourly'     => 3600,
@@ -31,7 +31,7 @@ final class Claudpress_Tasks
     public static function table(): string
     {
         global $wpdb;
-        return $wpdb->prefix . 'claudpress_tasks';
+        return $wpdb->prefix . 'keelhob_tasks';
     }
 
     public static function install_table(): void
@@ -169,11 +169,11 @@ final class Claudpress_Tasks
 
         // Update alerts are checked on the tick rather than on page loads, so a
         // visitor never pays for a plugin-update lookup.
-        Claudpress_Events::cron_check();
+        Keelhob_Events::cron_check();
 
         // Housekeeping: keep the agent run log and chat transcripts bounded.
-        Claudpress_Agent_Runs::prune(90);
-        Claudpress_Telegram::prune(30);
+        Keelhob_Agent_Runs::prune(90);
+        Keelhob_Telegram::prune(30);
     }
 
     // ---- execution --------------------------------------------------------
@@ -187,7 +187,7 @@ final class Claudpress_Tasks
         @set_time_limit(0);
 
         if ($task['mode'] === 'autonomous') {
-            $res = Claudpress_Agent_Runtime::run((string) $task['instruction'], [
+            $res = Keelhob_Agent_Runtime::run((string) $task['instruction'], [
                 'allow_risky' => (bool) $task['allow_risky'],
                 'context'     => 'task',
                 'task_id'     => (int) $task['id'],
@@ -196,8 +196,8 @@ final class Claudpress_Tasks
             $summary = $ok ? (string) ($res['summary'] ?? '') : ('ERROR: ' . ($res['error'] ?? 'unknown'));
             $subject = sprintf('[%s] Automation: %s', get_bloginfo('name'), $task['name']);
         } else {
-            $snapshot = Claudpress_Digest::snapshot();
-            $summary  = Claudpress_Digest::format_text($snapshot);
+            $snapshot = Keelhob_Digest::snapshot();
+            $summary  = Keelhob_Digest::format_text($snapshot);
             $ok       = true;
             $subject  = sprintf('[%s] Status digest', get_bloginfo('name'));
             $res      = ['success' => true];
@@ -206,7 +206,7 @@ final class Claudpress_Tasks
         self::record_run($id, $ok ? 'ok' : 'error', $summary);
 
         if ((int) $task['notify'] === 1) {
-            Claudpress_Notifier::send($subject, $summary);
+            Keelhob_Notifier::send($subject, $summary);
         }
 
         return ['success' => $ok, 'task' => $task['name'], 'summary' => $summary, 'detail' => $res];

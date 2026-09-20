@@ -2,24 +2,24 @@
 /**
  * Autonomous agent runtime. Given a plain-language instruction and an LLM API
  * key (Anthropic Messages API by default), this runs a real agentic loop
- * *inside* WordPress: the model plans, calls Claudpress tools, reads the
+ * *inside* WordPress: the model plans, calls Keelhob tools, reads the
  * results, and continues until the task is done — then returns a summary. This
  * is what lets the site run itself on a schedule with no external client open.
  *
- * Every tool call passes through Claudpress_Policy in 'autonomous' context, so
+ * Every tool call passes through Keelhob_Policy in 'autonomous' context, so
  * an unattended run cannot do something irreversible or costly without opt-in.
  *
  * Unattended means nobody is there to retry a blip or notice a runaway bill, so
  * the loop also: retries transient API failures with exponential backoff, meters
  * token spend against per-run and per-day caps, and records every run to
- * Claudpress_Agent_Runs for the owner to review.
+ * Keelhob_Agent_Runs for the owner to review.
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Agent_Runtime
+final class Keelhob_Agent_Runtime
 {
     const DEFAULT_MODEL    = 'claude-sonnet-5';
     const DEFAULT_ENDPOINT = 'https://api.anthropic.com/v1/messages';
@@ -33,7 +33,7 @@ final class Claudpress_Agent_Runtime
     /**
      * Approximate list prices in USD per million tokens, matched by model-name
      * prefix (longest match wins). Used only to estimate spend for the caps and
-     * the run log — filter 'claudpress_model_prices' to correct or extend it.
+     * the run log — filter 'keelhob_model_prices' to correct or extend it.
      *
      * These are estimates for budgeting, not billing. Vendors change prices
      * without notice; the authoritative number is on your provider invoice.
@@ -64,7 +64,7 @@ final class Claudpress_Agent_Runtime
             'gemini-2.5-pro' => ['in' => 1.25, 'out' => 10.0],
             'gemini-2.5-flash' => ['in' => 0.3, 'out' => 2.5],
         ];
-        return (array) apply_filters('claudpress_model_prices', $prices);
+        return (array) apply_filters('keelhob_model_prices', $prices);
     }
 
     /** Longest-prefix price lookup; falls back to Sonnet-class pricing. */
@@ -126,7 +126,7 @@ final class Claudpress_Agent_Runtime
     /** Cap settings, merged over defaults. 0 = unlimited. */
     public static function caps(): array
     {
-        $s = Claudpress::instance()->settings();
+        $s = Keelhob::instance()->settings();
         return [
             'max_usd_per_run'    => (float) ($s['agent_max_usd_per_run'] ?? 0.50),
             'max_tokens_per_run' => (int) ($s['agent_max_tokens_per_run'] ?? 300000),
@@ -148,10 +148,10 @@ final class Claudpress_Agent_Runtime
     {
         if ($starting) {
             if (!empty($caps['max_runs_per_day']) && ($day['runs'] ?? 0) >= $caps['max_runs_per_day']) {
-                return sprintf('Daily run cap reached (%d runs in the last 24h). Raise it in Claudpress > Automation.', (int) $caps['max_runs_per_day']);
+                return sprintf('Daily run cap reached (%d runs in the last 24h). Raise it in Keelhob > Automation.', (int) $caps['max_runs_per_day']);
             }
             if (!empty($caps['max_usd_per_day']) && ($day['cost'] ?? 0) >= $caps['max_usd_per_day']) {
-                return sprintf('Daily spend cap reached ($%.2f of $%.2f in the last 24h). Raise it in Claudpress > Automation.', (float) ($day['cost'] ?? 0), (float) $caps['max_usd_per_day']);
+                return sprintf('Daily spend cap reached ($%.2f of $%.2f in the last 24h). Raise it in Keelhob > Automation.', (float) ($day['cost'] ?? 0), (float) $caps['max_usd_per_day']);
             }
             return null;
         }
@@ -175,7 +175,7 @@ final class Claudpress_Agent_Runtime
      * and an empty message is a hard API error), and the run always ends on the
      * new user instruction, so a trailing stored user turn is harmless.
      *
-     * @param class-string<Claudpress_Provider> $provider
+     * @param class-string<Keelhob_Provider> $provider
      */
     public static function history_messages(string $provider, array $history): array
     {
@@ -200,17 +200,17 @@ final class Claudpress_Agent_Runtime
      */
     public static function run(string $instruction, array $opts = []): array
     {
-        $s   = Claudpress::instance()->settings();
+        $s   = Keelhob::instance()->settings();
         $key = (string) ($s['agent_api_key'] ?? '');
         if ($key === '') {
-            return ['success' => false, 'error' => 'No agent API key configured. Add a provider API key in WP Admin > Claudpress > Automation to enable autonomous runs.'];
+            return ['success' => false, 'error' => 'No agent API key configured. Add a provider API key in WP Admin > Keelhob > Automation to enable autonomous runs.'];
         }
-        if (!Claudpress::instance()->abilities_enabled()) {
-            return ['success' => false, 'error' => 'AI abilities are disabled; autonomous runs are paused. Enable abilities in Claudpress settings.'];
+        if (!Keelhob::instance()->abilities_enabled()) {
+            return ['success' => false, 'error' => 'AI abilities are disabled; autonomous runs are paused. Enable abilities in Keelhob settings.'];
         }
 
-        /** @var class-string<Claudpress_Provider> $provider */
-        $provider  = Claudpress_Provider::current();
+        /** @var class-string<Keelhob_Provider> $provider */
+        $provider  = Keelhob_Provider::current();
         // A blank endpoint means "use the provider default"; a non-blank one is
         // an owner override for a gateway, proxy or self-hosted deployment.
         $endpoint  = trim((string) ($s['agent_api_endpoint'] ?? '')) ?: $provider::default_endpoint();
@@ -221,14 +221,14 @@ final class Claudpress_Agent_Runtime
 
         // ---- budget gate (before we spend a cent) ----
         $caps = self::caps();
-        $day  = Claudpress_Agent_Runs::usage_since(24);
+        $day  = Keelhob_Agent_Runs::usage_since(24);
         $stop = self::cap_exceeded($caps, ['cost' => 0, 'tokens' => 0], $day, true);
         if ($stop !== null) {
             return ['success' => false, 'error' => $stop, 'cost_capped' => true, 'usage_24h' => $day];
         }
 
-        $run_id   = Claudpress_Agent_Runs::start($instruction, $context, $model, (int) ($opts['task_id'] ?? 0) ?: null);
-        $registry = Claudpress::instance()->registry;
+        $run_id   = Keelhob_Agent_Runs::start($instruction, $context, $model, (int) ($opts['task_id'] ?? 0) ?: null);
+        $registry = Keelhob::instance()->registry;
 
         // A whitelist (the read-only chat role) is applied to what the model is
         // even told about, as well as to dispatch below. Offering a tool and
@@ -238,7 +238,7 @@ final class Claudpress_Agent_Runtime
             // An empty whitelist is not "no restrictions" and must never be read
             // as one. Some vendors also reject an empty tools array outright, so
             // say what happened rather than surfacing a confusing API error.
-            Claudpress_Agent_Runs::finish($run_id, ['status' => 'error', 'summary' => 'No tools available to this actor.']);
+            Keelhob_Agent_Runs::finish($run_id, ['status' => 'error', 'summary' => 'No tools available to this actor.']);
             return ['success' => false, 'error' => 'There are no tools available to this conversation, so there is nothing I can do here.'];
         }
         $tools = self::tools_for_api($registry, $allow_tools);
@@ -293,11 +293,11 @@ final class Claudpress_Agent_Runtime
                 if ($allow_tools !== null && !in_array($name, $allow_tools, true)) {
                     $result  = ['success' => false, 'error' => 'This conversation is read-only; that tool is not available here.', 'policy_blocked' => true];
                     $blocked = 'read-only conversation';
-                } elseif (!Claudpress_Capabilities::tool_allowed($name)) {
+                } elseif (!Keelhob_Capabilities::tool_allowed($name)) {
                     $result  = ['success' => false, 'error' => 'That capability is turned off by the site owner.', 'policy_blocked' => true];
                     $blocked = 'capability off';
                 } else {
-                    $blocked = Claudpress_Policy::check($name, $args, 'autonomous', $task_opts);
+                    $blocked = Keelhob_Policy::check($name, $args, 'autonomous', $task_opts);
                     if ($blocked !== null) {
                         $result = ['success' => false, 'error' => $blocked, 'policy_blocked' => true];
                     } elseif (!$registry->has($name)) {
@@ -378,7 +378,7 @@ final class Claudpress_Agent_Runtime
 
     private static function record(int $run_id, string $status, array $usage, int $steps, array $tool_calls, string $summary, array $detail): void
     {
-        Claudpress_Agent_Runs::finish($run_id, [
+        Keelhob_Agent_Runs::finish($run_id, [
             'status'        => $status,
             'steps'         => $steps,
             'tool_calls'    => count($tool_calls),
@@ -405,8 +405,8 @@ final class Claudpress_Agent_Runtime
         // rather than a fatal in the middle of a Telegram reply. The catalog
         // was hardened against exactly this and the line above it was not.
         $mem     = [];
-        $service = Claudpress::instance()->memory;
-        if ($service instanceof Claudpress_Memory) {
+        $service = Keelhob::instance()->memory;
+        if ($service instanceof Keelhob_Memory) {
             foreach ($service->all() as $m) {
                 $mem[] = '- ' . $m['key'] . ': ' . $m['value'];
             }
@@ -419,7 +419,7 @@ final class Claudpress_Agent_Runtime
         // to discover that build-standard existed. A Telegram agent would build
         // a page with none of the taste, SEO or safety work the skills carry,
         // and nothing anywhere would say why.
-        $catalog = Claudpress_MCP_Server::skill_catalog_block();
+        $catalog = Keelhob_MCP_Server::skill_catalog_block();
         $skills_block = $catalog !== '' ? "\n\n" . $catalog : '';
 
         // Which of the three session types this run actually is.
@@ -433,8 +433,8 @@ final class Claudpress_Agent_Runtime
         // Appended after the catalog on purpose: the catalog is what explains
         // what the labels mean, and this is the sentence that tells the agent
         // which one it is holding.
-        $surface_block = "\n\n" . Claudpress_Skill_Standard::session_surface_notice(
-            $interactive ? 'interactive' : Claudpress_Skill_Standard::SURFACE_DEFAULT
+        $surface_block = "\n\n" . Keelhob_Skill_Standard::session_surface_notice(
+            $interactive ? 'interactive' : Keelhob_Skill_Standard::SURFACE_DEFAULT
         );
 
         if ($interactive) {
@@ -442,12 +442,12 @@ final class Claudpress_Agent_Runtime
         }
 
         return implode("\n", [
-            'You are the Claudpress autonomous operator for the WordPress/WooCommerce site "' . get_bloginfo('name') . '" (' . home_url() . ').',
+            'You are the Keelhob autonomous operator for the WordPress/WooCommerce site "' . get_bloginfo('name') . '" (' . home_url() . ').',
             'You run UNATTENDED on a schedule — no human will answer questions mid-run, so never ask; make sound decisions and act, then report.',
             '',
             // The same protocol interactive sessions get: one definition, so a
             // scheduled run cannot quietly hold itself to a looser standard.
-            Claudpress_MCP_Server::operating_protocol(),
+            Keelhob_MCP_Server::operating_protocol(),
             '',
             'BECAUSE THIS RUN IS UNATTENDED, additionally:',
             '- Nobody can catch a mistake before it reaches visitors. When a choice is between a reversible action and an irreversible one, take the reversible one and note the alternative in your summary.',
@@ -471,10 +471,10 @@ final class Claudpress_Agent_Runtime
         $where = $channel !== '' ? ' over ' . $channel : '';
 
         return implode("\n", [
-            'You are the Claudpress operator for the WordPress/WooCommerce site "' . get_bloginfo('name') . '" (' . home_url() . ').',
+            'You are the Keelhob operator for the WordPress/WooCommerce site "' . get_bloginfo('name') . '" (' . home_url() . ').',
             'You are in a LIVE conversation with the site owner' . $where . '. They are waiting on their phone right now.',
             '',
-            Claudpress_MCP_Server::operating_protocol(),
+            Keelhob_MCP_Server::operating_protocol(),
             '',
             'BECAUSE THIS IS A LIVE CHAT, additionally:',
             '- You MAY ask one short clarifying question when a request is genuinely ambiguous and guessing wrong would be expensive or hard to undo. Otherwise just do the work — do not check in on every step.',
@@ -492,11 +492,11 @@ final class Claudpress_Agent_Runtime
      * Registry tools in the neutral shape the provider adapters consume.
      * Each adapter maps 'schema' onto its vendor's parameter field.
      */
-    private static function tools_for_api(Claudpress_Tool_Registry $registry, ?array $allow_tools = null): array
+    private static function tools_for_api(Keelhob_Tool_Registry $registry, ?array $allow_tools = null): array
     {
         $tools = [];
         foreach ($registry->list() as $t) {
-            if (!Claudpress_Capabilities::tool_allowed($t['name'])) {
+            if (!Keelhob_Capabilities::tool_allowed($t['name'])) {
                 continue; // owner switched this capability off
             }
             if ($allow_tools !== null && !in_array($t['name'], $allow_tools, true)) {
@@ -519,11 +519,11 @@ final class Claudpress_Agent_Runtime
      * One provider API call, with retry/backoff around transient failures.
      * Adds a '_retries' key so the caller can account for them.
      *
-     * @param class-string<Claudpress_Provider> $provider
+     * @param class-string<Keelhob_Provider> $provider
      */
     private static function call_api(string $provider, string $endpoint, string $key, string $model, string $system, array $tools, array $messages): array
     {
-        $attempts = (int) apply_filters('claudpress_agent_max_attempts', self::MAX_ATTEMPTS);
+        $attempts = (int) apply_filters('keelhob_agent_max_attempts', self::MAX_ATTEMPTS);
         $attempts = max(1, min(8, $attempts));
         $retries  = 0;
         $last     = 'unknown error';
@@ -577,14 +577,14 @@ final class Claudpress_Agent_Runtime
                 }
             }
             $wait_ms = self::backoff_delay_ms($attempt, $retry_after);
-            Claudpress::instance()->logger->record('agent_retry', ['attempt' => $attempt + 1, 'wait_ms' => $wait_ms], ['success' => false, 'error' => $last]);
+            Keelhob::instance()->logger->record('agent_retry', ['attempt' => $attempt + 1, 'wait_ms' => $wait_ms], ['success' => false, 'error' => $last]);
             usleep($wait_ms * 1000);
         }
 
         // The single place every failed LLM call leaves. A vendor that refuses
         // the request we BUILT is a bug in this plugin, and until now it was
         // the one kind of failure the feedback log could not see.
-        Claudpress_Feedback::observe_llm_error($provider::id(), $last_code, $last);
+        Keelhob_Feedback::observe_llm_error($provider::id(), $last_code, $last);
 
         return ['error' => $last . ($retries ? sprintf(' (after %d %s)', $retries, $retries === 1 ? 'retry' : 'retries') : ''), '_retries' => $retries];
     }

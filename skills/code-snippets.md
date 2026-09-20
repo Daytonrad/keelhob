@@ -26,7 +26,7 @@ Not for content edits, and not for design work a theme setting or page builder a
 - **php** — runs in WordPress. Do NOT include `<?php` tags. Register hooks/filters/shortcodes or define functions. Location `everywhere` (default) runs on `plugins_loaded`; `admin_only` / `frontend_only` scope it.
 - **css** — injected in `<head>` (location `header`) — theme/layout tweaks.
 - **js** — injected in `header` or `footer` — behavior, tracking, pixels.
-- **html** — output in `header`, `footer`, `before_content`, `after_content`, or via `[claudpress_snippet id=N]`.
+- **html** — output in `header`, `footer`, `before_content`, `after_content`, or via `[keelhob_snippet id=N]`.
 
 ## Locations
 `everywhere`, `admin_only`, `frontend_only`, `header`, `footer`, `before_content`, `after_content`, `shortcode`, `page_template` (serve raw PHP/HTML as a whole page for `target_id` — the pixel-perfect page mode).
@@ -36,7 +36,7 @@ Pass `conditions` to scope loading: `{ "logged_in": true, "front_page": true, "p
 
 ## Always explain the snippet to the owner
 
-The site owner sees every snippet on the **Claudpress > Snippets** admin page, and
+The site owner sees every snippet on the **Keelhob > Snippets** admin page, and
 those four fields are the only thing standing between them and a page full of
 unexplained code they are afraid to switch off. Fill all four, every time:
 

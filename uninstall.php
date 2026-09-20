@@ -1,6 +1,6 @@
 <?php
 /**
- * Claudpress uninstall.
+ * Keelhob uninstall.
  *
  * Deleting a plugin is routinely how someone troubleshoots a conflict: turn it
  * off, delete it, see if the problem goes away, put it back. Before 1.10.1 that
@@ -21,8 +21,8 @@
  *
  * It used to be two hand-written lists. They drifted, exactly the way
  * hand-written lists do: by 1.2.0 the plugin created TEN tables and the list
- * named six, so `claudpress_snippet_revisions`, `claudpress_chat`,
- * `claudpress_agent_runs` and `claudpress_feedback` survived a delete that the
+ * named six, so `keelhob_snippet_revisions`, `keelhob_chat`,
+ * `keelhob_agent_runs` and `keelhob_feedback` survived a delete that the
  * owner had explicitly asked to be total. Nine options and every transient were
  * in the same position.
  *
@@ -31,8 +31,8 @@
  * revisions table still holds every version of every one of them.
  *
  * A prefix sweep cannot drift, because nothing has to be remembered. Every
- * table this plugin makes is `{$wpdb->prefix}claudpress_…`, every option and
- * transient is `claudpress_…`, and every user meta key is `claudpress_…`.
+ * table this plugin makes is `{$wpdb->prefix}keelhob_…`, every option and
+ * transient is `keelhob_…`, and every user meta key is `keelhob_…`.
  * A new feature that follows those conventions is cleaned up on the day it is
  * written, by a file nobody had to remember to edit.
  *
@@ -48,7 +48,7 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
 global $wpdb;
 
 // Read the flag first, while the option still exists.
-$settings   = get_option('claudpress_settings');
+$settings   = get_option('keelhob_settings');
 $delete_all = is_array($settings) && !empty($settings['delete_data_on_uninstall']);
 
 if (!$delete_all) {
@@ -61,16 +61,16 @@ if (!$delete_all) {
  * ---------------------------------------------------------------------- tables
  *
  * SHOW TABLES LIKE, not a list. `_` is a single-character wildcard in SQL LIKE,
- * so it is escaped — unescaped, `claudpress_%` would also match a table called
- * `claudpressXfoo`, which is not ours to drop.
+ * so it is escaped — unescaped, `keelhob_%` would also match a table called
+ * `keelhobXfoo`, which is not ours to drop.
  */
-$like   = $wpdb->esc_like($wpdb->prefix . 'claudpress_') . '%';
+$like   = $wpdb->esc_like($wpdb->prefix . 'keelhob_') . '%';
 $tables = $wpdb->get_col($wpdb->prepare('SHOW TABLES LIKE %s', $like));
 
 foreach ((array) $tables as $table) {
     // Belt and braces. get_col() returns whatever the server says; only drop a
     // name this file could itself have produced.
-    if (strpos((string) $table, $wpdb->prefix . 'claudpress_') !== 0) {
+    if (strpos((string) $table, $wpdb->prefix . 'keelhob_') !== 0) {
         continue;
     }
     $wpdb->query('DROP TABLE IF EXISTS `' . str_replace('`', '', $table) . '`');
@@ -80,12 +80,12 @@ foreach ((array) $tables as $table) {
  * --------------------------------------------------------------------- options
  *
  * Options and transients live in the same table, so one sweep covers
- * `claudpress_*`, `_transient_claudpress_*` and `_transient_timeout_claudpress_*`.
+ * `keelhob_*`, `_transient_keelhob_*` and `_transient_timeout_keelhob_*`.
  *
- * `claudpress_settings` is held back and deleted last, because it carries the
+ * `keelhob_settings` is held back and deleted last, because it carries the
  * flag that authorised everything here.
  */
-$opt_like = $wpdb->esc_like('claudpress_') . '%';
+$opt_like = $wpdb->esc_like('keelhob_') . '%';
 $names    = $wpdb->get_col(
     $wpdb->prepare(
         "SELECT option_name FROM {$wpdb->options}
@@ -93,13 +93,13 @@ $names    = $wpdb->get_col(
             OR option_name LIKE %s
             OR option_name LIKE %s",
         $opt_like,
-        $wpdb->esc_like('_transient_claudpress_') . '%',
-        $wpdb->esc_like('_transient_timeout_claudpress_') . '%'
+        $wpdb->esc_like('_transient_keelhob_') . '%',
+        $wpdb->esc_like('_transient_timeout_keelhob_') . '%'
     )
 );
 
 foreach ((array) $names as $name) {
-    if ($name === 'claudpress_settings') {
+    if ($name === 'keelhob_settings') {
         continue;
     }
     // delete_option() rather than a DELETE, so the object cache is invalidated
@@ -113,8 +113,8 @@ if (is_multisite()) {
         $wpdb->prepare(
             "SELECT meta_key FROM {$wpdb->sitemeta}
              WHERE meta_key LIKE %s OR meta_key LIKE %s",
-            $wpdb->esc_like('_site_transient_claudpress_') . '%',
-            $wpdb->esc_like('_site_transient_timeout_claudpress_') . '%'
+            $wpdb->esc_like('_site_transient_keelhob_') . '%',
+            $wpdb->esc_like('_site_transient_timeout_keelhob_') . '%'
         )
     );
     foreach ((array) $site_names as $name) {
@@ -129,13 +129,13 @@ if (is_multisite()) {
  * the abilities notice. Deleted by key so the object cache for each user is
  * cleared with it.
  *
- * Note the leading-underscore keys that AI writes onto POSTS (`_claudpress_*`)
+ * Note the leading-underscore keys that AI writes onto POSTS (`_keelhob_*`)
  * are deliberately NOT touched — see the closing note.
  */
 $meta_keys = $wpdb->get_col(
     $wpdb->prepare(
         "SELECT DISTINCT meta_key FROM {$wpdb->usermeta} WHERE meta_key LIKE %s",
-        $wpdb->esc_like('claudpress_') . '%'
+        $wpdb->esc_like('keelhob_') . '%'
     )
 );
 foreach ((array) $meta_keys as $key) {
@@ -155,7 +155,7 @@ $cron = _get_cron_array();
 if (is_array($cron)) {
     foreach ($cron as $timestamp => $hooks) {
         foreach ((array) $hooks as $hook => $events) {
-            if (strpos((string) $hook, 'claudpress_') !== 0) {
+            if (strpos((string) $hook, 'keelhob_') !== 0) {
                 continue;
             }
             foreach ((array) $events as $event) {
@@ -166,15 +166,15 @@ if (is_array($cron)) {
 }
 
 // Last, because it held the flag that authorised everything above.
-delete_option('claudpress_settings');
+delete_option('keelhob_settings');
 
 /*
  * Deliberately left in place, even here:
  *
- * - `wp-content/claudpress-sandbox/` and anything else on disk. A filesystem
+ * - `wp-content/keelhob-sandbox/` and anything else on disk. A filesystem
  *   wipe is not something to do from an uninstall hook, and it can hold work
  *   the owner still wants.
- * - `_claudpress_*` post meta. That is AI-written metadata ATTACHED TO POSTS the
+ * - `_keelhob_*` post meta. That is AI-written metadata ATTACHED TO POSTS the
  *   owner is keeping — SEO titles, schema, redirect notes. Removing the plugin
  *   should not silently strip metadata off content that stays on the site.
  *

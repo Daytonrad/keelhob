@@ -329,7 +329,7 @@ and `seo-audit-and-fix` will measure it.
 ## 8. Going deeper
 
 Public resources worth reading when a job needs more than this file. They are
-not bundled with Claudpress and nothing here depends on them — fetch them if
+not bundled with Keelhob and nothing here depends on them — fetch them if
 you have network access, and skip them if you do not.
 
 | Resource | What it teaches |

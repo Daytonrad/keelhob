@@ -8,7 +8,7 @@
  * still a button — no modal, no dismissal state, no timer.
  */
 
-CP_Test::group('Donate — the ask appears twice, not on every screen');
+KH_Test::group('Donate — the ask appears twice, not on every screen');
 
 /*
  * THIS TEST USED TO ASSERT THE OPPOSITE, and the reversal is the point.
@@ -49,54 +49,54 @@ $screens = [
 
 $total = 0;
 foreach ($screens as $file) {
-    $src      = file_get_contents(CLAUDPRESS_DIR . $file);
-    $found    = substr_count($src, 'Claudpress_Donate::button()');
+    $src      = file_get_contents(KEELHOB_DIR . $file);
+    $found    = substr_count($src, 'Keelhob_Donate::button()');
     $expected = $allowed[$file] ?? 0;
-    CP_Test::same($expected, $found, basename($file) . ' asks for money exactly ' . $expected . ' time(s)');
+    KH_Test::same($expected, $found, basename($file) . ' asks for money exactly ' . $expected . ' time(s)');
     $total += $found;
 }
-CP_Test::same(1, $total, 'one button across every admin screen, on Connect');
+KH_Test::same(1, $total, 'one button across every admin screen, on Connect');
 
 // The button itself is untouched. Removing call sites must not quietly remove
 // the ability to ask at all - that is a different decision, and not this one.
-CP_Test::ok(
-    method_exists('Claudpress_Donate', 'button'),
+KH_Test::ok(
+    method_exists('Keelhob_Donate', 'button'),
     'the button still exists as a method, so this is reversible in one line per screen'
 );
-CP_Test::ok(
-    method_exists('Claudpress_Donate', 'action_link'),
+KH_Test::ok(
+    method_exists('Keelhob_Donate', 'action_link'),
     'and the Plugins-row link, which is convention rather than a plea, is untouched'
 );
 
 // The Donate page is the second placement and must actually be reachable.
-CP_Test::ok(method_exists('Claudpress_Donate', 'menu'), 'the Donate page is still in the menu');
-CP_Test::ok(method_exists('Claudpress_Donate', 'render'), 'and still renders');
+KH_Test::ok(method_exists('Keelhob_Donate', 'menu'), 'the Donate page is still in the menu');
+KH_Test::ok(method_exists('Keelhob_Donate', 'render'), 'and still renders');
 
-CP_Test::group('Donate — no screen was missed');
+KH_Test::group('Donate — no screen was missed');
 
 // A file-by-file list goes stale the moment somebody adds a screen. This asks
 // the whole includes/ directory instead, so a new screen with a button has to
 // be a deliberate decision rather than an oversight in either direction.
 $stray = [];
-foreach (glob(CLAUDPRESS_DIR . 'includes/*.php') as $file) {
+foreach (glob(KEELHOB_DIR . 'includes/*.php') as $file) {
     $rel = 'includes/' . basename($file);
     if (($allowed[$rel] ?? 0) > 0 || basename($file) === 'class-donate.php') {
         continue;
     }
-    if (strpos((string) file_get_contents($file), 'Claudpress_Donate::button()') !== false) {
+    if (strpos((string) file_get_contents($file), 'Keelhob_Donate::button()') !== false) {
         $stray[] = basename($file);
     }
 }
-CP_Test::same([], $stray, 'no file outside the two agreed placements asks for money');
+KH_Test::same([], $stray, 'no file outside the two agreed placements asks for money');
 
-CP_Test::group('Donate — it is a button, not a nag');
+KH_Test::group('Donate — it is a button, not a nag');
 
-$src = file_get_contents(CLAUDPRESS_DIR . 'includes/class-donate.php');
+$src = file_get_contents(KEELHOB_DIR . 'includes/class-donate.php');
 
 // Comments stripped, because the file explains at length WHY it does not nag,
 // and a naive scan of the whole file finds those words and fails. The question
 // is what the code does, not what the prose says about it.
-$code = php_strip_whitespace(CLAUDPRESS_DIR . 'includes/class-donate.php');
+$code = php_strip_whitespace(KEELHOB_DIR . 'includes/class-donate.php');
 
 // The specific failure modes this project has decided against. Each of these
 // buys one donation and costs the goodwill that was the entire point.
@@ -107,35 +107,35 @@ foreach ([
     'wp_die'         => 'nothing blocks',
     'add_days'       => 'no "ask again in N days" counter',
 ] as $needle => $why) {
-    CP_Test::ok(stripos($code, $needle) === false, $why);
+    KH_Test::ok(stripos($code, $needle) === false, $why);
 }
 
-CP_Test::group('Donate — an unset link renders nothing rather than a dead one');
+KH_Test::group('Donate — an unset link renders nothing rather than a dead one');
 
 // button() returns early on an empty URL. A Donate button that 404s is worse
 // than no Donate button: it reads as abandonment.
-CP_Test::contains("if (CLAUDPRESS_DONATE_URL === '')", $src, 'the button is skipped when no link is configured');
-CP_Test::contains('is_array($links) || CLAUDPRESS_DONATE_URL', $src, 'and so is the plugins-row link');
+KH_Test::contains("if (KEELHOB_DONATE_URL === '')", $src, 'the button is skipped when no link is configured');
+KH_Test::contains('is_array($links) || KEELHOB_DONATE_URL', $src, 'and so is the plugins-row link');
 
-CP_Test::group('Donate — the link is configurable in one place');
+KH_Test::group('Donate — the link is configurable in one place');
 
-CP_Test::ok(defined('CLAUDPRESS_DONATE_URL'), 'the donate URL is a constant');
-CP_Test::ok(defined('CLAUDPRESS_REPO_URL'), 'the repo URL is a constant');
-CP_Test::ok(defined('CLAUDPRESS_SERVICES_URL'), 'the services URL is a constant');
+KH_Test::ok(defined('KEELHOB_DONATE_URL'), 'the donate URL is a constant');
+KH_Test::ok(defined('KEELHOB_REPO_URL'), 'the repo URL is a constant');
+KH_Test::ok(defined('KEELHOB_SERVICES_URL'), 'the services URL is a constant');
 
-$plugin = file_get_contents(CLAUDPRESS_DIR . 'claudpress.php');
-CP_Test::contains("if (!defined('CLAUDPRESS_DONATE_URL'))", $plugin, 'and can be overridden before load, so a fork does not have to patch a file');
+$plugin = file_get_contents(KEELHOB_DIR . 'keelhob.php');
+KH_Test::contains("if (!defined('KEELHOB_DONATE_URL'))", $plugin, 'and can be overridden before load, so a fork does not have to patch a file');
 
 // The one thing a donate link must never do: leak who is asking.
-CP_Test::ok(strpos($src, 'site_id') === false, 'the donate link carries no identifiers');
-CP_Test::ok(strpos($src, 'home_url') === false, 'and does not attach the site address');
+KH_Test::ok(strpos($src, 'site_id') === false, 'the donate link carries no identifiers');
+KH_Test::ok(strpos($src, 'home_url') === false, 'and does not attach the site address');
 
-CP_Test::group('Donate — the plugins row gets Donate, Settings and Snippets');
+KH_Test::group('Donate — the plugins row gets Donate, Settings and Snippets');
 
-$links = Claudpress_Donate::action_link(['deactivate' => '<a href="#">Deactivate</a>']);
-CP_Test::same(4, count($links), 'three links are added alongside Deactivate');
-CP_Test::contains('ko-fi.com', $links[0], 'Donate comes first');
-CP_Test::contains('page=claudpress', $links[1], 'Settings second');
+$links = Keelhob_Donate::action_link(['deactivate' => '<a href="#">Deactivate</a>']);
+KH_Test::same(4, count($links), 'three links are added alongside Deactivate');
+KH_Test::contains('ko-fi.com', $links[0], 'Donate comes first');
+KH_Test::contains('page=keelhob', $links[1], 'Settings second');
 
 /*
  * Snippets on the Plugins row, and ORDER MATTERS here.
@@ -149,16 +149,16 @@ CP_Test::contains('page=claudpress', $links[1], 'Settings second');
  * Third, though. Settings is what most people came for, and a row of links
  * that buries it has made itself worse.
  */
-CP_Test::contains('Snippets', $links[2], 'Snippets third');
-CP_Test::contains('page=' . Claudpress_Studio::SLUG, $links[2], 'and it points at the real Studio slug');
+KH_Test::contains('Snippets', $links[2], 'Snippets third');
+KH_Test::contains('page=' . Keelhob_Studio::SLUG, $links[2], 'and it points at the real Studio slug');
 
 // Built from the constant, not typed out. Renaming the page must not leave a
 // dead link on the Plugins screen - the one place nobody thinks to re-check.
-CP_Test::ok(
-    strpos(php_strip_whitespace(CLAUDPRESS_DIR . 'includes/class-donate.php'), "page=claudpress-studio") === false,
-    'the Snippets slug is taken from Claudpress_Studio::SLUG, never hard-coded'
+KH_Test::ok(
+    strpos(php_strip_whitespace(KEELHOB_DIR . 'includes/class-donate.php'), "page=keelhob-studio") === false,
+    'the Snippets slug is taken from Keelhob_Studio::SLUG, never hard-coded'
 );
 
 // Never rewrite somebody else's plugin row.
-$other = Claudpress_Donate::row_meta(['x'], 'some-other-plugin/other.php');
-CP_Test::same(['x'], $other, 'another plugin\'s row meta is left completely alone');
+$other = Keelhob_Donate::row_meta(['x'], 'some-other-plugin/other.php');
+KH_Test::same(['x'], $other, 'another plugin\'s row meta is left completely alone');

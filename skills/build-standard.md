@@ -115,7 +115,7 @@ the recovery path stated first (the secret URL emailed and documented, and how t
 
 ### Needs a browser — state, never fake
 
-Claudpress has no browser. Viewport sweeps at 375/768/1280/1440, console errors, real
+Keelhob has no browser. Viewport sweeps at 375/768/1280/1440, console errors, real
 touch-target sizes, and animation smoothness cannot be verified from markup alone — do not
 claim they were. Use markup-level proxies instead:
 
@@ -294,7 +294,7 @@ State this at kickoff, in plain language, before building anything:
 
 ## Existing sites (adoption)
 
-Claudpress is often pointed at a site that already exists, not a blank install. Building
+Keelhob is often pointed at a site that already exists, not a blank install. Building
 rules do not apply cleanly to someone else's work, and the compromise-detection checks in
 `security-standard` §5 have to run **before** anything else — building on a site that is
 already backdoored just adds a second layer to clean up later.

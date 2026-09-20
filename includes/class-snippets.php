@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Snippets
+final class Keelhob_Snippets
 {
     /** @var int|null id of the snippet currently executing, for crash attribution */
     private static $running = null;
@@ -30,7 +30,7 @@ final class Claudpress_Snippets
     public static function table(): string
     {
         global $wpdb;
-        return $wpdb->prefix . 'claudpress_snippets';
+        return $wpdb->prefix . 'keelhob_snippets';
     }
 
     public static function install_table(): void
@@ -95,7 +95,7 @@ final class Claudpress_Snippets
     public static function revisions_table(): string
     {
         global $wpdb;
-        return $wpdb->prefix . 'claudpress_snippet_revisions';
+        return $wpdb->prefix . 'keelhob_snippet_revisions';
     }
 
     /**
@@ -165,7 +165,7 @@ final class Claudpress_Snippets
      * Pre-flight parse check for a snippet body.
      *
      * Uses token_get_all(..., TOKEN_PARSE) rather than shell_exec('php -l'),
-     * matching Claudpress_Tools_Filesystem — many hosts disable shell functions
+     * matching Keelhob_Tools_Filesystem — many hosts disable shell functions
      * outright. Snippet PHP carries no opening tag, so one is prefixed; a
      * page_template body is raw markup with <?php islands and lints as-is.
      *
@@ -231,12 +231,12 @@ final class Claudpress_Snippets
         // manager, or a shell — with no working site and no database client. So
         // the recovery path deliberately does not depend on the thing that broke.
         //
-        //     define('CLAUDPRESS_SNIPPETS_OFF', true);   // in wp-config.php
+        //     define('KEELHOB_SNIPPETS_OFF', true);   // in wp-config.php
         //
         // Checked FIRST so it wins over everything, and documented in readme.txt
         // under "If a snippet breaks your site" — a kill switch nobody can find
         // is not a kill switch.
-        if (defined('CLAUDPRESS_SNIPPETS_OFF') && CLAUDPRESS_SNIPPETS_OFF) {
+        if (defined('KEELHOB_SNIPPETS_OFF') && KEELHOB_SNIPPETS_OFF) {
             add_action('admin_notices', [self::class, 'kill_switch_notice']);
             return;
         }
@@ -244,7 +244,7 @@ final class Claudpress_Snippets
         // Snippet execution is independent of the AI abilities master switch —
         // once saved, snippets are site code and must run for real visitors,
         // exactly like any snippet plugin. A separate kill-switch can disable all.
-        if (!Claudpress::instance()->get('run_snippets', true)) {
+        if (!Keelhob::instance()->get('run_snippets', true)) {
             return;
         }
 
@@ -252,7 +252,7 @@ final class Claudpress_Snippets
         add_action('wp_head', [self::class, 'output_header'], 20);
         add_action('wp_footer', [self::class, 'output_footer'], 20);
         add_filter('the_content', [self::class, 'wrap_content'], 20);
-        add_shortcode('claudpress_snippet', [self::class, 'shortcode']);
+        add_shortcode('keelhob_snippet', [self::class, 'shortcode']);
         add_filter('template_include', [self::class, 'maybe_page_template'], 99);
     }
 
@@ -270,9 +270,9 @@ final class Claudpress_Snippets
             return;
         }
         echo '<div class="notice notice-warning"><p><strong>'
-            . esc_html__('Claudpress: all code snippets are switched off.', 'claudpress')
+            . esc_html__('Keelhob: all code snippets are switched off.', 'keelhob')
             . '</strong> '
-            . esc_html__('CLAUDPRESS_SNIPPETS_OFF is defined in wp-config.php, so no snippet runs, whatever its status says here. Remove that line to switch them back on.', 'claudpress')
+            . esc_html__('KEELHOB_SNIPPETS_OFF is defined in wp-config.php, so no snippet runs, whatever its status says here. Remove that line to switch them back on.', 'keelhob')
             . '</p></div>';
     }
 
@@ -337,10 +337,10 @@ final class Claudpress_Snippets
             }
             switch ($snip->snippet_type) {
                 case 'css':
-                    echo "\n<style id=\"claudpress-snippet-{$snip->id}\">\n" . $snip->code . "\n</style>\n";
+                    echo "\n<style id=\"keelhob-snippet-{$snip->id}\">\n" . $snip->code . "\n</style>\n";
                     break;
                 case 'js':
-                    echo "\n<script id=\"claudpress-snippet-{$snip->id}\">\n" . $snip->code . "\n</script>\n";
+                    echo "\n<script id=\"keelhob-snippet-{$snip->id}\">\n" . $snip->code . "\n</script>\n";
                     break;
                 case 'html':
                     echo "\n" . $snip->code . "\n";
@@ -376,7 +376,7 @@ final class Claudpress_Snippets
 
     public static function shortcode($atts): string
     {
-        $atts = shortcode_atts(['id' => 0], $atts, 'claudpress_snippet');
+        $atts = shortcode_atts(['id' => 0], $atts, 'keelhob_snippet');
         $snip = self::get((int) $atts['id']);
         if (!$snip || (int) $snip['active'] !== 1) {
             return '';
@@ -455,7 +455,7 @@ final class Claudpress_Snippets
             }
         } catch (Throwable $e) {
             self::deactivate_with_error((int) $snip->id, $e->getMessage());
-            echo '<!-- Claudpress template snippet error: ' . esc_html($e->getMessage()) . ' -->';
+            echo '<!-- Keelhob template snippet error: ' . esc_html($e->getMessage()) . ' -->';
         }
         self::$running = null;
     }
@@ -468,7 +468,7 @@ final class Claudpress_Snippets
         }
         if (self::$running) {
             self::deactivate_with_error(self::$running, $error['message']);
-            @error_log('[Claudpress] Auto-deactivated crashing snippet #' . self::$running . ': ' . $error['message']);
+            @error_log('[Keelhob] Auto-deactivated crashing snippet #' . self::$running . ': ' . $error['message']);
         }
     }
 
@@ -512,19 +512,19 @@ final class Claudpress_Snippets
      */
     public static function verify_front_end(int $id): array
     {
-        if (!apply_filters('claudpress_verify_snippet_reachability', true, $id)) {
+        if (!apply_filters('keelhob_verify_snippet_reachability', true, $id)) {
             return ['checked' => false, 'ok' => true, 'note' => 'Reachability check disabled by filter.'];
         }
 
-        $probe = Claudpress_Health::probe_home();
-        $verdict = Claudpress_Health::verdict($probe, null, 'this snippet');
+        $probe = Keelhob_Health::probe_home();
+        $verdict = Keelhob_Health::verdict($probe, null, 'this snippet');
 
         // Only a failing first probe is worth a control request.
         if ($verdict['needs_control']) {
             global $wpdb;
             $wpdb->update(self::table(), ['active' => 0], ['id' => $id]);
-            $control = Claudpress_Health::probe_home();
-            $verdict = Claudpress_Health::verdict($probe, $control, 'this snippet');
+            $control = Keelhob_Health::probe_home();
+            $verdict = Keelhob_Health::verdict($probe, $control, 'this snippet');
 
             if ($verdict['ok']) {
                 // Not this snippet's doing. Put it back exactly as asked — but
@@ -537,7 +537,7 @@ final class Claudpress_Snippets
 
         if (!$verdict['ok']) {
             self::deactivate_with_error($id, (string) $verdict['reason']);
-            @error_log('[Claudpress] ' . $verdict['reason'] . ' (snippet #' . $id . ')');
+            @error_log('[Keelhob] ' . $verdict['reason'] . ' (snippet #' . $id . ')');
         }
 
         unset($verdict['needs_control']);
@@ -552,7 +552,7 @@ final class Claudpress_Snippets
 
         // Logged as well as announced: the notification is a moment, the log is
         // the answer to "when did this thing start being off?" three days later.
-        Claudpress_Snippet_Log::record(
+        Keelhob_Snippet_Log::record(
             (string) ($snip['uid'] ?? ''),
             (string) ($snip['name'] ?? ''),
             'fatal_deactivated',
@@ -562,13 +562,13 @@ final class Claudpress_Snippets
         // Something the agent wrote is now switched off. The site is up because
         // of it, but only the owner can decide whether the missing behaviour
         // matters — so this is announced, not just logged.
-        do_action('claudpress_snippet_auto_deactivated', $id, $message);
+        do_action('keelhob_snippet_auto_deactivated', $id, $message);
     }
 
     // ---- conditions -------------------------------------------------------
 
     /**
-     * The rules engine moved to Claudpress_Snippet_Conditions in 1.2.0, when it
+     * The rules engine moved to Keelhob_Snippet_Conditions in 1.2.0, when it
      * grew AND/OR, user roles, devices, URL paths and a builder UI. It stays
      * reachable from here because every execution path already calls it by this
      * name, and a rename would have touched six call sites to say the same thing.
@@ -579,7 +579,7 @@ final class Claudpress_Snippets
      */
     private static function conditions_pass(object $snip): bool
     {
-        return Claudpress_Snippet_Conditions::passes($snip->conditions_json ?? null);
+        return Keelhob_Snippet_Conditions::passes($snip->conditions_json ?? null);
     }
 
     // ---- CRUD -------------------------------------------------------------
@@ -651,7 +651,7 @@ final class Claudpress_Snippets
         // whole page. Refusing here — before anything is written — is the only
         // outcome an agent can act on: a warning next to success:true gets
         // ignored, which is exactly how a CSS snippet came to sit "active" on
-        // claudpress.com doing nothing.
+        // keelhob.com doing nothing.
         //
         // Only when the caller ASKED for the combination, though. A site that
         // already carries a dead css@frontend_only row from before this check
@@ -706,8 +706,8 @@ final class Claudpress_Snippets
         if ($existing && $code_changed) {
             self::record_revision(
                 $existing,
-                sprintf(__('Before edit (%s)', 'claudpress'), $row['source']),
-                Claudpress_Snippet_Log::actor()
+                sprintf(__('Before edit (%s)', 'keelhob'), $row['source']),
+                Keelhob_Snippet_Log::actor()
             );
         }
 
@@ -734,7 +734,7 @@ final class Claudpress_Snippets
 
         // Logged after the write, so a failed save leaves no record of a change
         // that never happened.
-        Claudpress_Snippet_Log::record(
+        Keelhob_Snippet_Log::record(
             (string) ($existing['uid'] ?? ($row['uid'] ?? '')),
             (string) $row['name'],
             $existing ? 'updated' : 'created',
@@ -891,7 +891,7 @@ final class Claudpress_Snippets
         }
         $wpdb->update(self::table(), $update, ['id' => $id]);
 
-        Claudpress_Snippet_Log::record(
+        Keelhob_Snippet_Log::record(
             (string) ($snip['uid'] ?? ''),
             (string) ($snip['name'] ?? ''),
             $active ? 'activated' : 'deactivated'
@@ -931,7 +931,7 @@ final class Claudpress_Snippets
              */
             $wpdb->delete(self::revisions_table(), ['snippet_id' => $id]);
 
-            Claudpress_Snippet_Log::record((string) ($snip['uid'] ?? ''), (string) ($snip['name'] ?? ''), 'deleted');
+            Keelhob_Snippet_Log::record((string) ($snip['uid'] ?? ''), (string) ($snip['name'] ?? ''), 'deleted');
         }
         return ['success' => (bool) $deleted, 'id' => $id];
     }

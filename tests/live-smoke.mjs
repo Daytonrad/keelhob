@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Live MCP smoke test — drives a real Claudpress site over its MCP endpoint
+ * Live MCP smoke test — drives a real Keelhob site over its MCP endpoint
  * exactly as an AI client would, and asserts the protocol and the read-only
  * tools behave.
  *
@@ -10,8 +10,8 @@
  * against a real install.
  *
  * Usage:
- *   CLAUDPRESS_URL=https://your-site.com CLAUDPRESS_TOKEN=cp_xxx node tests/live-smoke.mjs
- *   node tests/live-smoke.mjs --url https://your-site.com --token cp_xxx [--write]
+ *   KEELHOB_URL=https://your-site.com KEELHOB_TOKEN=kh_xxx node tests/live-smoke.mjs
+ *   node tests/live-smoke.mjs --url https://your-site.com --token kh_xxx [--write]
  *
  * By default it runs READ-ONLY checks and changes nothing. Pass --write to also
  * exercise a create/read/delete round-trip on a throwaway memory key.
@@ -26,17 +26,17 @@ const flag = (name) => {
 };
 const has = (name) => args.includes(`--${name}`);
 
-const BASE = (flag('url') || process.env.CLAUDPRESS_URL || '').replace(/\/+$/, '');
-const TOKEN = flag('token') || process.env.CLAUDPRESS_TOKEN || '';
+const BASE = (flag('url') || process.env.KEELHOB_URL || '').replace(/\/+$/, '');
+const TOKEN = flag('token') || process.env.KEELHOB_TOKEN || '';
 const ALLOW_WRITE = has('write');
 
 if (!BASE || !TOKEN) {
-  console.error('Missing site URL or token.\n  CLAUDPRESS_URL=https://site.com CLAUDPRESS_TOKEN=cp_xxx node tests/live-smoke.mjs');
+  console.error('Missing site URL or token.\n  KEELHOB_URL=https://site.com KEELHOB_TOKEN=kh_xxx node tests/live-smoke.mjs');
   process.exit(2);
 }
 
-const ENDPOINT = `${BASE}/wp-json/claudpress/v1/mcp`;
-const STATUS = `${BASE}/wp-json/claudpress/v1/status`;
+const ENDPOINT = `${BASE}/wp-json/keelhob/v1/mcp`;
+const STATUS = `${BASE}/wp-json/keelhob/v1/status`;
 
 let passed = 0;
 const failures = [];
@@ -91,7 +91,7 @@ async function callTool(name, args = {}) {
 
 // ---------------------------------------------------------------------------
 
-console.log(`Claudpress live smoke test → ${BASE}`);
+console.log(`Keelhob live smoke test → ${BASE}`);
 console.log(ALLOW_WRITE ? 'Mode: read + write round-trip' : 'Mode: read-only (pass --write for the full run)');
 
 group('Endpoint reachability');
@@ -100,7 +100,7 @@ const statusRes = await fetch(STATUS).catch((e) => ({ ok: false, error: e.messag
 ok(statusRes.ok === true, 'the public /status route responds');
 if (statusRes.ok) {
   const status = await statusRes.json();
-  ok(status.plugin === 'claudpress' || status.ok === true || !!status.version, 'status identifies the plugin');
+  ok(status.plugin === 'keelhob' || status.ok === true || !!status.version, 'status identifies the plugin');
   console.log(`      site reports version ${status.version ?? 'unknown'}`);
 }
 
@@ -109,7 +109,7 @@ group('Authentication');
 const noAuth = await rpc('initialize', {}, { token: '' });
 ok(noAuth.status === 401 || noAuth.status === 403, `an unauthenticated call is rejected (got ${noAuth.status})`);
 
-const badAuth = await rpc('initialize', {}, { token: 'cp_definitely_not_a_real_token' });
+const badAuth = await rpc('initialize', {}, { token: 'kh_definitely_not_a_real_token' });
 ok(badAuth.status === 401 || badAuth.status === 403, `a wrong token is rejected (got ${badAuth.status})`);
 
 group('MCP handshake');
@@ -117,7 +117,7 @@ group('MCP handshake');
 const init = await rpc('initialize', {
   protocolVersion: '2024-11-05',
   capabilities: {},
-  clientInfo: { name: 'claudpress-smoke-test', version: '1.0.0' },
+  clientInfo: { name: 'keelhob-smoke-test', version: '1.0.0' },
 });
 ok(init.status === 200, `initialize returns 200 (got ${init.status})`);
 ok(init.body?.jsonrpc === '2.0', 'the response is JSON-RPC 2.0');
@@ -152,10 +152,10 @@ group('Read-only tools against the live site');
 const info = await callTool('get_site_info');
 ok(info.result?.success === true, 'get_site_info succeeds');
 ok(typeof info.result?.wp_version === 'string', `WordPress ${info.result?.wp_version ?? '?'} / PHP ${info.result?.php_version ?? '?'}`);
-ok(typeof info.result?.claudpress?.version === 'string', `Claudpress ${info.result?.claudpress?.version ?? '?'} with ${info.result?.claudpress?.tool_count ?? '?'} tools`);
+ok(typeof info.result?.keelhob?.version === 'string', `Keelhob ${info.result?.keelhob?.version ?? '?'} with ${info.result?.keelhob?.tool_count ?? '?'} tools`);
 ok(
-  info.result?.claudpress?.tool_count === tools.length,
-  `the advertised tool count matches tools/list (${info.result?.claudpress?.tool_count} vs ${tools.length})`
+  info.result?.keelhob?.tool_count === tools.length,
+  `the advertised tool count matches tools/list (${info.result?.keelhob?.tool_count} vs ${tools.length})`
 );
 
 const dash = await callTool('get_dashboard');
@@ -186,7 +186,7 @@ group('Telegram webhook is closed to strangers');
 // token. That makes "does it refuse an unsigned POST?" the single most
 // important thing to verify against a live site: a hole here is a stranger
 // driving the whole install.
-const TELEGRAM = `${BASE}/wp-json/claudpress/v1/telegram`;
+const TELEGRAM = `${BASE}/wp-json/keelhob/v1/telegram`;
 const forged = JSON.stringify({
   update_id: 1,
   message: { chat: { id: 1 }, text: 'delete every post' },

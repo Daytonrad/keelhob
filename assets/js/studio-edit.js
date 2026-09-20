@@ -3,7 +3,7 @@
  *
  * WHY THIS IS A FILE AND NOT AN INLINE <script>.
  *
- * It used to be inline, printed by Claudpress_Studio_Edit::render() right after
+ * It used to be inline, printed by Keelhob_Studio_Edit::render() right after
  * the form. Everything enqueued from a screen render callback prints in the
  * FOOTER, so the inline block ran as script 9 of 85 and code-editor.min.js
  * loaded as script 74. `wp.codeEditor` did not exist yet, this guard swallowed
@@ -27,7 +27,7 @@
 
 	var cfg = window.cpStudioEdit || {};
 	var settings = window.cpStudioEditorSettings || null;
-	var textarea = document.getElementById('cp-code');
+	var textarea = document.getElementById('kh-code');
 	var editor = null;
 
 	if (!textarea) {
@@ -41,7 +41,7 @@
 	/* ================================================================== */
 
 	function warn(message) {
-		var box = document.getElementById('cp-editor-warning');
+		var box = document.getElementById('kh-editor-warning');
 		if (!box) {
 			return;
 		}
@@ -75,10 +75,10 @@
 	/* The editor chrome follows the type                                  */
 	/* ================================================================== */
 
-	var typeEl = document.getElementById('cp-type');
-	var barEl = document.getElementById('cp-editor-bar');
-	var nameEl = document.getElementById('cp-file-name');
-	var pillEl = document.getElementById('cp-lang-pill');
+	var typeEl = document.getElementById('kh-type');
+	var barEl = document.getElementById('kh-editor-bar');
+	var nameEl = document.getElementById('kh-file-name');
+	var pillEl = document.getElementById('kh-lang-pill');
 
 	/**
 	 * Keep the bar honest.
@@ -90,7 +90,7 @@
 	function syncChrome(type) {
 		if (barEl) {
 			barEl.className = barEl.className.replace(/\bcp-lang-\S+/g, '').trim();
-			barEl.className += ' cp-lang-' + type;
+			barEl.className += ' kh-lang-' + type;
 		}
 		if (nameEl) {
 			nameEl.textContent = 'snippet.' + ((cfg.ext && cfg.ext[type]) || 'txt');
@@ -117,10 +117,10 @@
 	/* ================================================================== */
 
 	(function conditions() {
-		var enable = document.getElementById('cp-cond-enabled');
-		var body = document.getElementById('cp-cond-body');
-		var list = document.getElementById('cp-cond-rules');
-		var add = document.getElementById('cp-cond-add');
+		var enable = document.getElementById('kh-cond-enabled');
+		var body = document.getElementById('kh-cond-body');
+		var list = document.getElementById('kh-cond-rules');
+		var add = document.getElementById('kh-cond-add');
 		var data = cfg.conditions || {};
 		var conf = data.config || {};
 
@@ -183,12 +183,12 @@
 				return el('input', {
 					type: 'text',
 					name: 'cond_value[]',
-					class: 'cp-cond-value regular-text',
+					class: 'kh-cond-value regular-text',
 					value: current == null ? '' : current,
 					placeholder: i18n.valuePlaceholder || ''
 				});
 			}
-			var sel = el('select', { name: 'cond_value[]', class: 'cp-cond-value' });
+			var sel = el('select', { name: 'cond_value[]', class: 'kh-cond-value' });
 			opts.forEach(function (pair) {
 				sel.appendChild(option(pair[0], pair[1], String(current) === String(pair[0])));
 			});
@@ -200,14 +200,14 @@
 			var types = Object.keys(conf.types);
 			var type = rule.type && conf.types[rule.type] ? rule.type : types[0];
 
-			var row = el('div', { class: 'cp-cond-rule' });
+			var row = el('div', { class: 'kh-cond-rule' });
 
-			var typeSel = el('select', { name: 'cond_type[]', class: 'cp-cond-type' });
+			var typeSel = el('select', { name: 'cond_type[]', class: 'kh-cond-type' });
 			types.forEach(function (slug) {
 				typeSel.appendChild(option(slug, conf.types[slug], slug === type));
 			});
 
-			var opSel = el('select', { name: 'cond_operator[]', class: 'cp-cond-op' });
+			var opSel = el('select', { name: 'cond_operator[]', class: 'kh-cond-op' });
 			operatorsFor(type).forEach(function (pair) {
 				opSel.appendChild(option(pair[0], pair[1], pair[0] === rule.operator));
 			});
@@ -221,7 +221,7 @@
 
 			var remove = el('button', {
 				type: 'button',
-				class: 'cp-cond-remove',
+				class: 'kh-cond-remove',
 				text: i18n.remove || 'Remove',
 				'aria-label': i18n.removeRule || 'Remove this rule'
 			});
@@ -229,7 +229,7 @@
 			typeSel.addEventListener('change', function () {
 				var next = this.value;
 
-				var newOps = el('select', { name: 'cond_operator[]', class: 'cp-cond-op' });
+				var newOps = el('select', { name: 'cond_operator[]', class: 'kh-cond-op' });
 				operatorsFor(next).forEach(function (pair) {
 					newOps.appendChild(option(pair[0], pair[1], false));
 				});
@@ -267,7 +267,7 @@
 	/* Ask AI what this does                                               */
 	/* ================================================================== */
 
-	var btn = document.getElementById('cp-ask-ai');
+	var btn = document.getElementById('kh-ask-ai');
 	if (!btn) {
 		return;
 	}
@@ -302,7 +302,7 @@
 		btn.textContent = i18n.asking;
 
 		var body = new FormData();
-		body.append('action', 'claudpress_studio_review');
+		body.append('action', 'keelhob_studio_review');
 		body.append('nonce', cfg.nonce);
 		body.append('code', code);
 		body.append('snippet_type', typeEl ? typeEl.value : 'php');
@@ -313,7 +313,7 @@
 				return r.json();
 			})
 			.then(function (json) {
-				document.getElementById('cp-ai-report').innerHTML =
+				document.getElementById('kh-ai-report').innerHTML =
 					json && json.data && json.data.html
 						? json.data.html
 						: '<div class="notice notice-warning inline"><p>' +
@@ -321,7 +321,7 @@
 							'</p></div>';
 			})
 			.catch(function () {
-				document.getElementById('cp-ai-report').innerHTML =
+				document.getElementById('kh-ai-report').innerHTML =
 					'<div class="notice notice-warning inline"><p>' + i18n.unreachableSafe + '</p></div>';
 			})
 			.finally(function () {

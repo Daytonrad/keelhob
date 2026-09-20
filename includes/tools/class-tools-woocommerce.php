@@ -9,9 +9,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Tools_WooCommerce
+final class Keelhob_Tools_WooCommerce
 {
-    public static function register(Claudpress_Tool_Registry $r): void
+    public static function register(Keelhob_Tool_Registry $r): void
     {
         if (!class_exists('WooCommerce')) {
             return;
@@ -406,7 +406,7 @@ final class Claudpress_Tools_WooCommerce
                 if (!$o) {
                     return ['success' => false, 'error' => 'Order not found.'];
                 }
-                $o->update_status(sanitize_key((string) ($args['status'] ?? '')), 'Via Claudpress. ');
+                $o->update_status(sanitize_key((string) ($args['status'] ?? '')), 'Via Keelhob. ');
                 return ['success' => true, 'id' => $o->get_id(), 'status' => $o->get_status()];
 
             case 'add_note':
@@ -425,7 +425,7 @@ final class Claudpress_Tools_WooCommerce
                 $refund = wc_create_refund([
                     'order_id' => $o->get_id(),
                     'amount'   => $args['amount'] ?? $o->get_total(),
-                    'reason'   => $args['note'] ?? 'Refunded via Claudpress',
+                    'reason'   => $args['note'] ?? 'Refunded via Keelhob',
                 ]);
                 return is_wp_error($refund) ? ['success' => false, 'error' => $refund->get_error_message()] : ['success' => true, 'refund_id' => $refund->get_id()];
 

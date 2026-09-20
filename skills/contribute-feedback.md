@@ -1,7 +1,7 @@
 ---
 name: contribute-feedback
 title: Write a friction note
-description: How to word a note for the Claudpress feedback report, and what must never go in one. Use when feedback_status says a report is due and you are about to show the draft, when the user asks you to add something to a report, or when you want to record that a tool or a playbook let you down in a way no error message captured.
+description: How to word a note for the Keelhob feedback report, and what must never go in one. Use when feedback_status says a report is due and you are about to show the draft, when the user asks you to add something to a report, or when you want to record that a tool or a playbook let you down in a way no error message captured.
 enable_agentic: true
 enable_prompt: false
 role: procedure
@@ -92,7 +92,7 @@ When `feedback_status` returns `due: true` it hands you a `show_user` block.
 1. Show that block **exactly as written**. Do not summarise it, shorten it, fold
    it behind "details", or describe it in your own words. The user is agreeing
    to text leaving their server; they can only agree to text they have read.
-2. Ask: *"Send this to the Claudpress project? Or is there anything you would
+2. Ask: *"Send this to the Keelhob project? Or is there anything you would
    add or change?"*
 3. If they add something, call `feedback_status` again with `add_note` set to
    what they said, show the **new** draft in full, and ask again.

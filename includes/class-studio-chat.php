@@ -43,7 +43,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Studio_Chat
+final class Keelhob_Studio_Chat
 {
     /**
      * Budget caps.
@@ -175,13 +175,13 @@ final class Claudpress_Studio_Chat
                     continue;
                 }
                 $lang = strtolower(trim((string) $hit[1][0]));
-                $type = self::LANGS[$lang] ?? Claudpress_Studio_AI::guess_type($code);
+                $type = self::LANGS[$lang] ?? Keelhob_Studio_AI::guess_type($code);
 
                 // Snippets are stored BARE. A block that arrives with its own
                 // opening tag would become "<?php <?php ..." at lint time and
                 // fail the parse gate, so it would save switched off with a
                 // syntax error the model did not actually make.
-                $code = Claudpress_Studio_AI::strip_php_tags($code, $type);
+                $code = Keelhob_Studio_AI::strip_php_tags($code, $type);
                 if (trim($code) === '') {
                     continue;
                 }
@@ -232,7 +232,7 @@ final class Claudpress_Studio_Chat
     public static function lint_blocks(array $blocks): array
     {
         foreach ($blocks as $i => $b) {
-            $blocks[$i]['error'] = Claudpress_Snippets::lint_php((string) $b['code'], (string) $b['type']);
+            $blocks[$i]['error'] = Keelhob_Snippets::lint_php((string) $b['code'], (string) $b['type']);
         }
         return $blocks;
     }
@@ -307,7 +307,7 @@ final class Claudpress_Studio_Chat
             . 'before_content, after_content, shortcode, page_template';
 
         $lines = [
-            'You are helping a WordPress site owner write a code snippet inside Claudpress.',
+            'You are helping a WordPress site owner write a code snippet inside Keelhob.',
             'You are talking in a chat window. Answer like a person: plain sentences, no JSON wrapper, no preamble about what you are about to do.',
             '',
             'HOW CODE MUST BE SENT.',
@@ -342,7 +342,7 @@ final class Claudpress_Studio_Chat
     /**
      * One round trip: the whole conversation in, one assistant turn out.
      *
-     * Deliberately NOT Claudpress_Agent_Runtime. That runs a tool-calling loop
+     * Deliberately NOT Keelhob_Agent_Runtime. That runs a tool-calling loop
      * against the live site. This hands the model no tools at all, so the
      * strongest statement available about this screen stays true: a chat about
      * code cannot become an action against the site.
@@ -352,17 +352,17 @@ final class Claudpress_Studio_Chat
      */
     public static function reply(array $turns)
     {
-        $target = Claudpress_Provider::configured();
+        $target = Keelhob_Provider::configured();
         $key    = trim((string) ($target['key'] ?? ''));
 
         if ($key === '') {
             return new WP_Error(
-                'claudpress_chat_no_key',
-                __('No AI provider is connected. Add a key under Claudpress > Automation.', 'claudpress')
+                'keelhob_chat_no_key',
+                __('No AI provider is connected. Add a key under Keelhob > Automation.', 'keelhob')
             );
         }
 
-        /** @var string $provider a Claudpress_Provider subclass name */
+        /** @var string $provider a Keelhob_Provider subclass name */
         $provider = $target['class'];
         $model    = (string) $target['model'];
 
@@ -382,7 +382,7 @@ final class Claudpress_Studio_Chat
             array_shift($messages);
         }
         if (empty($messages)) {
-            return new WP_Error('claudpress_chat_empty', __('There is nothing to send yet.', 'claudpress'));
+            return new WP_Error('keelhob_chat_empty', __('There is nothing to send yet.', 'keelhob'));
         }
 
         $response = wp_remote_post($provider::url((string) $target['endpoint'], $model), [
@@ -392,7 +392,7 @@ final class Claudpress_Studio_Chat
         ]);
 
         if (is_wp_error($response)) {
-            return new WP_Error('claudpress_chat_http', $response->get_error_message());
+            return new WP_Error('keelhob_chat_http', $response->get_error_message());
         }
 
         $code = (int) wp_remote_retrieve_response_code($response);
@@ -401,20 +401,20 @@ final class Claudpress_Studio_Chat
         if ($code < 200 || $code >= 300) {
             $message = is_array($data) ? $provider::error_message($data) : '';
             if ($code === 401 || $code === 403) {
-                $message = __('Your API key was rejected. Check it under Claudpress > Automation.', 'claudpress');
+                $message = __('Your API key was rejected. Check it under Keelhob > Automation.', 'keelhob');
             }
             /* translators: %d: HTTP status code. */
-            return new WP_Error('claudpress_chat_api', $message ?: sprintf(__('The AI provider returned HTTP %d.', 'claudpress'), $code));
+            return new WP_Error('keelhob_chat_api', $message ?: sprintf(__('The AI provider returned HTTP %d.', 'keelhob'), $code));
         }
         if (!is_array($data)) {
-            return new WP_Error('claudpress_chat_api', __('The AI provider returned something unreadable.', 'claudpress'));
+            return new WP_Error('keelhob_chat_api', __('The AI provider returned something unreadable.', 'keelhob'));
         }
 
         $parsed = $provider::parse($data);
         $text   = trim((string) ($parsed['text'] ?? ''));
 
         if ($text === '') {
-            return new WP_Error('claudpress_chat_empty_reply', __('The AI returned an empty answer.', 'claudpress'));
+            return new WP_Error('keelhob_chat_empty_reply', __('The AI returned an empty answer.', 'keelhob'));
         }
 
         return ['text' => $text];

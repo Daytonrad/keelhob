@@ -11,8 +11,8 @@
  *
  * The second half guards the opposite failure, which is the one that was live
  * in 1.2.0. uninstall.php named six tables in a hand-written list while the
- * plugin created ten, so `claudpress_snippet_revisions`, `claudpress_chat`,
- * `claudpress_agent_runs` and `claudpress_feedback` survived a delete the owner
+ * plugin created ten, so `keelhob_snippet_revisions`, `keelhob_chat`,
+ * `keelhob_agent_runs` and `keelhob_feedback` survived a delete the owner
  * had explicitly asked to be total - and the revisions table still held every
  * version of every snippet they believed they had destroyed. Nine options were
  * in the same position, plus every transient and every user meta key.
@@ -23,9 +23,9 @@
  * individually, and the guarantee is that nothing prefixed survives.
  */
 
-CP_Test::group('Uninstall - keeps everything by default');
+KH_Test::group('Uninstall - keeps everything by default');
 
-if (!class_exists('CP_Fake_Wpdb')) {
+if (!class_exists('KH_Fake_Wpdb')) {
     /**
      * Enough $wpdb to run uninstall.php, and nothing more.
      *
@@ -35,7 +35,7 @@ if (!class_exists('CP_Fake_Wpdb')) {
      * job here is to hand back the rows the sweep asked about and record what
      * it did with them.
      */
-    class CP_Fake_Wpdb
+    class KH_Fake_Wpdb
     {
         public $prefix = 'wp_';
         public $options = 'wp_options';
@@ -65,7 +65,7 @@ if (!class_exists('CP_Fake_Wpdb')) {
         /**
          * Substitute %s placeholders, then UNESCAPE the LIKE escaping, so the
          * crude substring matching in get_col() still sees a plain prefix.
-         * A real server would treat `claudpress\_` as a literal underscore;
+         * A real server would treat `keelhob\_` as a literal underscore;
          * here it only has to compare.
          */
         public function prepare($sql, ...$args)
@@ -117,7 +117,7 @@ if (!class_exists('CP_Fake_Wpdb')) {
  * uninstall.php returns early, so it can be required more than once only if the
  * include cache is bypassed. Reading and eval-ing keeps each run independent.
  *
- * CP_Fake_Wpdb is deliberately minimal, so it must not outlive this file. The
+ * KH_Fake_Wpdb is deliberately minimal, so it must not outlive this file. The
  * suite runs every test in one process, and files are required in alphabetical
  * order: leaving the fake in $GLOBALS['wpdb'] silently handed a crippled
  * database object to every test sorted after "uninstall". That is exactly what
@@ -126,26 +126,26 @@ if (!class_exists('CP_Fake_Wpdb')) {
  * back before each run returns, the same way test-snippet-log.php does it.
  */
 $run_uninstall = function ($settings, array $world = []) {
-    $opts = $settings === null ? [] : ['claudpress_settings' => $settings];
+    $opts = $settings === null ? [] : ['keelhob_settings' => $settings];
     foreach (($world['options'] ?? []) as $name) {
         $opts[$name] = 'something';
     }
-    cp_test_reset_options($opts);
-    $GLOBALS['cp_test_transients'] = [];
-    $GLOBALS['cp_test_cron']       = $world['cron'] ?? [];
+    kh_test_reset_options($opts);
+    $GLOBALS['kh_test_transients'] = [];
+    $GLOBALS['kh_test_cron']       = $world['cron'] ?? [];
 
     $real_wpdb            = $GLOBALS['wpdb'];
-    $fake                 = new CP_Fake_Wpdb();
+    $fake                 = new KH_Fake_Wpdb();
     $fake->tables         = $world['tables'] ?? [];
     $fake->option_names   = array_merge(
-        $settings === null ? [] : ['claudpress_settings'],
+        $settings === null ? [] : ['keelhob_settings'],
         $world['options'] ?? []
     );
     $fake->meta_keys      = $world['meta'] ?? [];
     $GLOBALS['wpdb']      = $fake;
 
     try {
-        $src = file_get_contents(CLAUDPRESS_DIR . 'uninstall.php');
+        $src = file_get_contents(KEELHOB_DIR . 'uninstall.php');
         $src = preg_replace('/^<\?php/', '', $src, 1);
         $src = str_replace('return;', 'return true;', $src);
         (static function () use ($src) { eval($src); })();
@@ -164,52 +164,52 @@ if (!defined('WP_UNINSTALL_PLUGIN')) { define('WP_UNINSTALL_PLUGIN', true); }
  * being asserted) and the wrong thing in the shipped file (it is a thing to
  * forget).
  */
-$CP_ALL_TABLES = [
-    'wp_claudpress_memory',
-    'wp_claudpress_skills',
-    'wp_claudpress_snippets',
-    'wp_claudpress_snippet_revisions',
-    'wp_claudpress_snippet_log',
-    'wp_claudpress_tasks',
-    'wp_claudpress_log',
-    'wp_claudpress_chat',
-    'wp_claudpress_agent_runs',
-    'wp_claudpress_feedback',
+$KH_ALL_TABLES = [
+    'wp_keelhob_memory',
+    'wp_keelhob_skills',
+    'wp_keelhob_snippets',
+    'wp_keelhob_snippet_revisions',
+    'wp_keelhob_snippet_log',
+    'wp_keelhob_tasks',
+    'wp_keelhob_log',
+    'wp_keelhob_chat',
+    'wp_keelhob_agent_runs',
+    'wp_keelhob_feedback',
 ];
 
-$CP_NEIGHBOURS = ['wp_posts', 'wp_options', 'wp_vibesnip_snippets'];
+$KH_NEIGHBOURS = ['wp_posts', 'wp_options', 'wp_vibesnip_snippets'];
 
-$db = $run_uninstall(['token_hash' => 'abc', 'agent_api_key' => 'sk-secret'], ['tables' => $CP_ALL_TABLES]);
-CP_Test::same(0, count($db->queries), 'a normal install drops no tables');
-CP_Test::ok(get_option('claudpress_settings') !== false, '...and keeps its settings, so reinstalling restores the site');
+$db = $run_uninstall(['token_hash' => 'abc', 'agent_api_key' => 'sk-secret'], ['tables' => $KH_ALL_TABLES]);
+KH_Test::same(0, count($db->queries), 'a normal install drops no tables');
+KH_Test::ok(get_option('keelhob_settings') !== false, '...and keeps its settings, so reinstalling restores the site');
 
-$db = $run_uninstall(['delete_data_on_uninstall' => false], ['tables' => $CP_ALL_TABLES]);
-CP_Test::same(0, count($db->queries), 'an explicit "false" also drops nothing');
+$db = $run_uninstall(['delete_data_on_uninstall' => false], ['tables' => $KH_ALL_TABLES]);
+KH_Test::same(0, count($db->queries), 'an explicit "false" also drops nothing');
 
-$db = $run_uninstall(null, ['tables' => $CP_ALL_TABLES]);
-CP_Test::same(0, count($db->queries), 'a missing or corrupt settings row is treated as "do not delete"');
+$db = $run_uninstall(null, ['tables' => $KH_ALL_TABLES]);
+KH_Test::same(0, count($db->queries), 'a missing or corrupt settings row is treated as "do not delete"');
 
-CP_Test::group('Uninstall - removes everything when asked');
+KH_Test::group('Uninstall - removes everything when asked');
 
 $db = $run_uninstall(
     ['delete_data_on_uninstall' => true],
     [
-        'tables'  => array_merge($CP_ALL_TABLES, $CP_NEIGHBOURS),
+        'tables'  => array_merge($KH_ALL_TABLES, $KH_NEIGHBOURS),
         'options' => [
-            'claudpress_db_version',
-            'claudpress_site_id',
-            'claudpress_redirects',
-            'claudpress_undo_stack',
-            'claudpress_skills_cache',
-            'claudpress_tg_pending',
-            'claudpress_feedback_retry_after',
-            '_transient_claudpress_update_check',
-            '_transient_timeout_claudpress_update_check',
+            'keelhob_db_version',
+            'keelhob_site_id',
+            'keelhob_redirects',
+            'keelhob_undo_stack',
+            'keelhob_skills_cache',
+            'keelhob_tg_pending',
+            'keelhob_feedback_retry_after',
+            '_transient_keelhob_update_check',
+            '_transient_timeout_keelhob_update_check',
         ],
-        'meta'    => ['claudpress_hide_abilities_notice'],
+        'meta'    => ['keelhob_hide_abilities_notice'],
         'cron'    => [
             1700000000 => [
-                'claudpress_run_tasks' => [['args' => []]],
+                'keelhob_run_tasks' => [['args' => []]],
                 'wp_version_check'     => [['args' => []]],
             ],
         ],
@@ -221,39 +221,39 @@ $all = implode("\n", $db->queries);
 // The four that used to survive are named individually, because they are the
 // regression. A green line here is the whole point of the change.
 foreach (['snippet_revisions', 'chat', 'agent_runs', 'feedback'] as $was_missed) {
-    CP_Test::contains(
-        'wp_claudpress_' . $was_missed,
+    KH_Test::contains(
+        'wp_keelhob_' . $was_missed,
         $all,
-        'wp_claudpress_' . $was_missed . ' is dropped (it survived the hand-written list)'
+        'wp_keelhob_' . $was_missed . ' is dropped (it survived the hand-written list)'
     );
 }
 
 // ...and then the guarantee, over the whole set.
-foreach ($CP_ALL_TABLES as $table) {
-    CP_Test::contains($table, $all, $table . ' is dropped');
+foreach ($KH_ALL_TABLES as $table) {
+    KH_Test::contains($table, $all, $table . ' is dropped');
 }
 
-CP_Test::same(
-    count($CP_ALL_TABLES),
+KH_Test::same(
+    count($KH_ALL_TABLES),
     substr_count($all, 'DROP TABLE'),
     'exactly the plugin tables are dropped - no more, no fewer'
 );
 
-foreach ($CP_NEIGHBOURS as $other) {
-    CP_Test::ok(strpos($all, '`' . $other . '`') === false, $other . ' is left alone');
+foreach ($KH_NEIGHBOURS as $other) {
+    KH_Test::ok(strpos($all, '`' . $other . '`') === false, $other . ' is left alone');
 }
 
-CP_Test::same(false, get_option('claudpress_db_version'), 'a listed option is deleted');
-CP_Test::same(false, get_option('claudpress_skills_cache'), 'an option nobody remembered to list is deleted too');
-CP_Test::same(false, get_option('_transient_claudpress_update_check'), 'transients go with them');
-CP_Test::same(false, get_option('claudpress_settings'), 'the settings row is deleted last');
+KH_Test::same(false, get_option('keelhob_db_version'), 'a listed option is deleted');
+KH_Test::same(false, get_option('keelhob_skills_cache'), 'an option nobody remembered to list is deleted too');
+KH_Test::same(false, get_option('_transient_keelhob_update_check'), 'transients go with them');
+KH_Test::same(false, get_option('keelhob_settings'), 'the settings row is deleted last');
 
-CP_Test::same(
+KH_Test::same(
     [],
-    $GLOBALS['cp_test_cron'][1700000000]['claudpress_run_tasks'] ?? [],
+    $GLOBALS['kh_test_cron'][1700000000]['keelhob_run_tasks'] ?? [],
     'the plugin unschedules its own cron jobs'
 );
-CP_Test::ok(
-    !empty($GLOBALS['cp_test_cron'][1700000000]['wp_version_check']),
+KH_Test::ok(
+    !empty($GLOBALS['kh_test_cron'][1700000000]['wp_version_check']),
     "...and does not touch anybody else's"
 );

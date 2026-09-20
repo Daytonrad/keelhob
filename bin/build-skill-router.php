@@ -50,7 +50,7 @@ sort($files);
 $skills = [];
 foreach ($files as $file) {
     $slug   = basename($file, '.md');
-    $parsed = Claudpress_Skills::parse_markdown((string) file_get_contents($file));
+    $parsed = Keelhob_Skills::parse_markdown((string) file_get_contents($file));
     if (empty($parsed['name'])) {
         fwrite(STDERR, "$slug has no readable front matter. Run bin/lint-skills.php.\n");
         exit(1);
@@ -123,7 +123,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Skill_Catalog
+final class Keelhob_Skill_Catalog
 {
     /**
      * @return array<string, array{title:string, description:string}>
@@ -166,12 +166,12 @@ $fmt = static function (array $list): string {
 };
 
 foreach ($skills as $slug => $s) {
-    $e = Claudpress_Skill_Standard::edges($s);
+    $e = Keelhob_Skill_Standard::edges($s);
     $rows[] = sprintf(
         '| `%s` | %s | %s | %s | %s | %s |',
         $slug,
-        Claudpress_Skill_Standard::role($s),
-        Claudpress_Skill_Standard::surface($s),
+        Keelhob_Skill_Standard::role($s),
+        Keelhob_Skill_Standard::surface($s),
         $fmt($e['requires']),
         $fmt($e['next_skills']),
         $fmt($e['verified_by'])
@@ -183,14 +183,14 @@ $tree = "\n" . implode("\n", $rows) . "\n";
 // ---- 3. the contributor documentation ---------------------------------------
 //
 // Generated for one reason: every number in it is read from
-// Claudpress_Skill_Standard, so the document can never tell a contributor a
+// Keelhob_Skill_Standard, so the document can never tell a contributor a
 // limit the linter does not actually enforce. A hand-written standard that has
 // drifted from the check is worse than no document, because someone follows it
 // and is failed by a rule they were never told about.
 
-$S = 'Claudpress_Skill_Standard';
+$S = 'Keelhob_Skill_Standard';
 
-$doc = "# The Claudpress skill standard\n\n"
+$doc = "# The Keelhob skill standard\n\n"
     . "**GENERATED FILE — do not edit by hand.** Run `php bin/build-skill-router.php`.\n"
     . "Every limit below is read from `includes/class-skill-standard.php`, so this page and\n"
     . "the check that enforces it cannot disagree.\n\n"
@@ -200,7 +200,7 @@ $doc = "# The Claudpress skill standard\n\n"
     . "of 100 and names what is wrong. It is also what a reviewer runs on your pull request.\n\n"
 
     . "## Front matter\n\n"
-    . "It is **not YAML.** `Claudpress_Skills::parse_markdown()` reads one key per line with\n"
+    . "It is **not YAML.** `Keelhob_Skills::parse_markdown()` reads one key per line with\n"
     . "no nesting, no lists and no wrapped values. A description that runs onto a second line\n"
     . "silently loses everything after the first, and the description is the only thing that\n"
     . "routes a task to your skill — so it fails in total silence.\n\n"

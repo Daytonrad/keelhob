@@ -1,9 +1,9 @@
 {
-    "name": "calflint/claudpress",
-    "description": "Development toolchain for the Claudpress WordPress plugin. The plugin itself has NO runtime dependencies — `require` below is deliberately empty and no vendor/ directory is ever shipped. Composer is used here only to install static-analysis tooling for developers and CI.",
+    "name": "calflint/keelhob",
+    "description": "Development toolchain for the Keelhob WordPress plugin. The plugin itself has NO runtime dependencies — `require` below is deliberately empty and no vendor/ directory is ever shipped. Composer is used here only to install static-analysis tooling for developers and CI.",
     "type": "project",
     "license": "GPL-2.0-or-later",
-    "homepage": "https://github.com/calflint/claudpress",
+    "homepage": "https://github.com/calflint/keelhob",
     "authors": [
         {
             "name": "Caleb Arthur-Flints",

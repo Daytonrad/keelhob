@@ -21,12 +21,12 @@
  * tools are stated as exact figures, so they get treated as exact.
  */
 
-CP_Test::group('Doc counts — the numbers in the docs match the code');
+KH_Test::group('Doc counts — the numbers in the docs match the code');
 
 // ---------------------------------------------------------------- the truth
 
-$real_skills = count(glob(CLAUDPRESS_DIR . 'skills/*.md') ?: []);
-CP_Test::ok($real_skills > 0, 'there are skill files to count (' . $real_skills . ')');
+$real_skills = count(glob(KEELHOB_DIR . 'skills/*.md') ?: []);
+KH_Test::ok($real_skills > 0, 'there are skill files to count (' . $real_skills . ')');
 
 // The WooCommerce groups refuse to register without WooCommerce, so the honest
 // total is the one a site with WooCommerce sees. Defined defensively: another
@@ -35,19 +35,19 @@ CP_Test::ok($real_skills > 0, 'there are skill files to count (' . $real_skills 
 if (!class_exists('WooCommerce')) {
     class WooCommerce {}
 }
-foreach (glob(CLAUDPRESS_DIR . 'includes/tools/class-tools-*.php') ?: [] as $file) {
+foreach (glob(KEELHOB_DIR . 'includes/tools/class-tools-*.php') ?: [] as $file) {
     require_once $file;
 }
-$registry = new Claudpress_Tool_Registry();
+$registry = new Keelhob_Tool_Registry();
 foreach ([
     'Core', 'Filesystem', 'Content', 'Site', 'WooCommerce', 'SEO', 'Memory',
     'Skills', 'Snippets', 'Elementor', 'Ops', 'Automation', 'Payments',
     'Deploy', 'Readiness',
 ] as $group) {
-    call_user_func(['Claudpress_Tools_' . $group, 'register'], $registry);
+    call_user_func(['Keelhob_Tools_' . $group, 'register'], $registry);
 }
 $real_tools = count($registry->list());
-CP_Test::ok($real_tools > 0, 'the tool registry populated (' . $real_tools . ')');
+KH_Test::ok($real_tools > 0, 'the tool registry populated (' . $real_tools . ')');
 
 // ------------------------------------------------------------- what we claim
 
@@ -60,8 +60,8 @@ $WORDS = [
     'twenty-seven' => 27, 'twenty-eight' => 28, 'twenty-nine' => 29, 'thirty' => 30,
 ];
 
-$readme  = (string) file_get_contents(CLAUDPRESS_DIR . 'README.md');
-$roadmap = (string) file_get_contents(CLAUDPRESS_DIR . 'ROADMAP.md');
+$readme  = (string) file_get_contents(KEELHOB_DIR . 'README.md');
+$roadmap = (string) file_get_contents(KEELHOB_DIR . 'ROADMAP.md');
 
 // README: "...description; twenty-four ship with the plugin..."
 $claimed_skills = null;
@@ -69,31 +69,31 @@ if (preg_match('/([a-z-]+|\d+) ship with the plugin/i', $readme, $m)) {
     $raw            = strtolower($m[1]);
     $claimed_skills = ctype_digit($raw) ? (int) $raw : ($WORDS[$raw] ?? null);
 }
-CP_Test::ok($claimed_skills !== null, 'README states how many skills ship');
-CP_Test::same($real_skills, $claimed_skills, 'and that number is the number of files in skills/');
+KH_Test::ok($claimed_skills !== null, 'README states how many skills ship');
+KH_Test::same($real_skills, $claimed_skills, 'and that number is the number of files in skills/');
 
 // ROADMAP: "Working today: 68 tools across content..."
 $claimed_tools = null;
 if (preg_match('/(\d+) tools across/i', $roadmap, $m)) {
     $claimed_tools = (int) $m[1];
 }
-CP_Test::ok($claimed_tools !== null, 'ROADMAP states how many tools work today');
-CP_Test::same($real_tools, $claimed_tools, 'and that number is the number the registry returns');
+KH_Test::ok($claimed_tools !== null, 'ROADMAP states how many tools work today');
+KH_Test::same($real_tools, $claimed_tools, 'and that number is the number the registry returns');
 
 // ROADMAP repeats the skills count in the same sentence.
 $claimed_roadmap_skills = null;
 if (preg_match('/(\d+) expert skills/i', $roadmap, $m)) {
     $claimed_roadmap_skills = (int) $m[1];
 }
-CP_Test::ok($claimed_roadmap_skills !== null, 'ROADMAP states how many skills ship');
-CP_Test::same($real_skills, $claimed_roadmap_skills, 'and it agrees with README and with the folder');
+KH_Test::ok($claimed_roadmap_skills !== null, 'ROADMAP states how many skills ship');
+KH_Test::same($real_skills, $claimed_roadmap_skills, 'and it agrees with README and with the folder');
 
 // ------------------------------------------------------- the release claim
 
 // "Shipped (1.1.0, 1.2.0)" said 1.2.0 was out while it was untagged. The words
 // are checked rather than the tag, because the tag lives on GitHub and this
 // suite runs with no network.
-CP_Test::ok(
+KH_Test::ok(
     strpos($roadmap, 'awaiting release') !== false || strpos($roadmap, '## Shipped (1.1.0, 1.2.0)') === false,
     'ROADMAP does not describe an unreleased version as simply "Shipped"'
 );

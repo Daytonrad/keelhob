@@ -10,7 +10,7 @@
 
 $root = dirname(__DIR__, 2);
 
-CP_Test::group('Integrity — every tool has a capability toggle');
+KH_Test::group('Integrity — every tool has a capability toggle');
 
 // Pull every $r->add('tool_name', … registration straight out of the source.
 $registered = [];
@@ -20,15 +20,15 @@ foreach (glob($root . '/includes/tools/*.php') as $file) {
         $registered[$name] = basename($file);
     }
 }
-CP_Test::ok(count($registered) > 40, 'found the tool registrations in source (' . count($registered) . ' tools)');
+KH_Test::ok(count($registered) > 40, 'found the tool registrations in source (' . count($registered) . ' tools)');
 
 $grouped = [];
-foreach (Claudpress_Capabilities::groups() as $key => $group) {
+foreach (Keelhob_Capabilities::groups() as $key => $group) {
     foreach ($group['tools'] as $tool) {
         $grouped[$tool] = $key;
     }
 }
-$always = Claudpress_Capabilities::always_on();
+$always = Keelhob_Capabilities::always_on();
 
 $ungoverned = [];
 foreach ($registered as $tool => $file) {
@@ -36,7 +36,7 @@ foreach ($registered as $tool => $file) {
         $ungoverned[] = $tool . ' (' . $file . ')';
     }
 }
-CP_Test::same([], $ungoverned, 'every registered tool is either in a capability group or explicitly always-on');
+KH_Test::same([], $ungoverned, 'every registered tool is either in a capability group or explicitly always-on');
 
 // A capability group naming a tool that does not exist is a bug: the plugin is
 // supposed to contain everything it advertises.
@@ -52,7 +52,7 @@ foreach ($grouped as $tool => $group) {
         $phantom[] = $tool . ' (group: ' . $group . ')';
     }
 }
-CP_Test::same([], $phantom, 'no capability group references a tool that does not ship');
+KH_Test::same([], $phantom, 'no capability group references a tool that does not ship');
 
 $phantom_always = [];
 foreach ($always as $tool) {
@@ -60,39 +60,39 @@ foreach ($always as $tool) {
         $phantom_always[] = $tool;
     }
 }
-CP_Test::same([], $phantom_always, 'no always-on entry references a tool that no longer exists');
+KH_Test::same([], $phantom_always, 'no always-on entry references a tool that no longer exists');
 
-CP_Test::group('Integrity — sensitive tools are marked sensitive');
+KH_Test::group('Integrity — sensitive tools are marked sensitive');
 
 // Anything that can spend money, run code, or touch the filesystem must live in
 // a group flagged sensitive, because that flag drives the UI warnings.
 $must_be_sensitive = ['execute_php', 'execute_sql', 'wc_payments', 'wc_order', 'manage_user', 'delete_file', 'write_file', 'deploy_push', 'run_agent'];
-$groups = Claudpress_Capabilities::groups();
+$groups = Keelhob_Capabilities::groups();
 foreach ($must_be_sensitive as $tool) {
     $group = $grouped[$tool] ?? null;
-    CP_Test::ok($group !== null && !empty($groups[$group]['sensitive']), $tool . ' sits in a group flagged sensitive');
+    KH_Test::ok($group !== null && !empty($groups[$group]['sensitive']), $tool . ' sits in a group flagged sensitive');
 }
 
-CP_Test::group('Integrity — every include resolves');
+KH_Test::group('Integrity — every include resolves');
 
-// claudpress.php used to carry a hand-maintained require_once list, and this
+// keelhob.php used to carry a hand-maintained require_once list, and this
 // group read that list back to prove no class file had been added to includes/
 // and then forgotten. The list is an autoloader now, so the same guarantee is
 // checked the other way round: start from the classes that actually ship, and
 // prove the autoloader can find every one of them.
 //
-// The explicit map is read out of claudpress.php rather than restated here, so
+// The explicit map is read out of keelhob.php rather than restated here, so
 // this test cannot drift into agreeing with a copy of itself.
-$bootstrap = (string) file_get_contents($root . '/claudpress.php');
+$bootstrap = (string) file_get_contents($root . '/keelhob.php');
 
-preg_match_all("/'(claudpress[a-z0-9_]*)'\s*=>\s*'(includes\/[^']+)'/", $bootstrap, $mm, PREG_SET_ORDER);
+preg_match_all("/'(keelhob[a-z0-9_]*)'\s*=>\s*'(includes\/[^']+)'/", $bootstrap, $mm, PREG_SET_ORDER);
 $map = [];
 foreach ($mm as $pair) {
     $map[$pair[1]] = $pair[2];
 }
-CP_Test::ok(
+KH_Test::ok(
     strpos($bootstrap, 'spl_autoload_register') !== false,
-    'claudpress.php registers an autoloader (' . count($map) . ' classes also mapped explicitly)'
+    'keelhob.php registers an autoloader (' . count($map) . ' classes also mapped explicitly)'
 );
 
 // The shipped resolution rule: lowercase, underscores to hyphens, includes/
@@ -102,10 +102,10 @@ $resolve = static function (string $class) use ($map, $root): ?string {
     if (isset($map[$lc])) {
         return $map[$lc];
     }
-    if ($lc === 'claudpress') {
-        $slug = 'claudpress';
-    } elseif (strncmp($lc, 'claudpress_', 11) === 0) {
-        $slug = str_replace('_', '-', substr($lc, 11));
+    if ($lc === 'keelhob') {
+        $slug = 'keelhob';
+    } elseif (strncmp($lc, 'keelhob_', strlen('keelhob_')) === 0) {
+        $slug = str_replace('_', '-', substr($lc, strlen('keelhob_')));
     } else {
         return null;
     }
@@ -143,7 +143,7 @@ foreach (array_merge(glob($root . '/includes/*.php'), glob($root . '/includes/to
         }
     }
 }
-CP_Test::ok(count($declared) > 25, 'found the classes the plugin ships (' . count($declared) . ' classes)');
+KH_Test::ok(count($declared) > 25, 'found the classes the plugin ships (' . count($declared) . ' classes)');
 
 $orphans = [];
 foreach ($declared as $class => $rel) {
@@ -151,21 +151,21 @@ foreach ($declared as $class => $rel) {
         $orphans[] = $class . ' (declared in ' . $rel . ', autoloader looks in ' . var_export($resolve($class), true) . ')';
     }
 }
-CP_Test::same([], $orphans, 'no class file sits in includes/ without being loaded');
+KH_Test::same([], $orphans, 'no class file sits in includes/ without being loaded');
 
-CP_Test::group('Integrity — version is consistent everywhere');
+KH_Test::group('Integrity — version is consistent everywhere');
 
 preg_match('/^\s*\*\s*Version:\s*(\S+)/m', $bootstrap, $header);
-preg_match("/define\('CLAUDPRESS_VERSION',\s*'([^']+)'\)/", $bootstrap, $constant);
+preg_match("/define\('KEELHOB_VERSION',\s*'([^']+)'\)/", $bootstrap, $constant);
 $readme = (string) file_get_contents($root . '/readme.txt');
 preg_match('/^Stable tag:\s*(\S+)/m', $readme, $stable);
 
-CP_Test::ok(!empty($header[1]), 'the plugin header declares a version');
-CP_Test::same($header[1] ?? 'a', $constant[1] ?? 'b', 'the plugin header and CLAUDPRESS_VERSION agree');
-CP_Test::same($header[1] ?? 'a', $stable[1] ?? 'b', 'readme.txt Stable tag matches the plugin version');
-CP_Test::contains('= ' . ($header[1] ?? '?'), $readme, 'readme.txt has a changelog entry for this version');
+KH_Test::ok(!empty($header[1]), 'the plugin header declares a version');
+KH_Test::same($header[1] ?? 'a', $constant[1] ?? 'b', 'the plugin header and KEELHOB_VERSION agree');
+KH_Test::same($header[1] ?? 'a', $stable[1] ?? 'b', 'readme.txt Stable tag matches the plugin version');
+KH_Test::contains('= ' . ($header[1] ?? '?'), $readme, 'readme.txt has a changelog entry for this version');
 
-CP_Test::group('Integrity — readme.txt has not drifted from README.md');
+KH_Test::group('Integrity — readme.txt has not drifted from README.md');
 
 // Three sections say the same thing in both files: what this plugin can do to a
 // site, what eval() is doing in the source, and what it cannot do yet. They are
@@ -199,34 +199,34 @@ try {
             break;
         }
     }
-    CP_Test::same(
+    KH_Test::same(
         null,
         $firstDiff,
         'readme.txt matches what bin/build-readme-txt.php generates from README.md'
     );
 } catch (RuntimeException $e) {
-    CP_Test::ok(false, 'the readme generator ran: ' . $e->getMessage());
+    KH_Test::ok(false, 'the readme generator ran: ' . $e->getMessage());
 }
 
-CP_Test::group('Integrity — no secrets leak through the migration bundle');
+KH_Test::group('Integrity — no secrets leak through the migration bundle');
 
 $migration = (string) file_get_contents($root . '/includes/class-migration.php');
-CP_Test::ok(strpos($migration, 'claudpress_settings') === false, 'the settings option (API keys, tokens) is never named in the export path');
+KH_Test::ok(strpos($migration, 'keelhob_settings') === false, 'the settings option (API keys, tokens) is never named in the export path');
 
 // The option whitelist is the only thing that decides what leaves the site.
 preg_match('/function option_whitelist\(\): array\s*\{(.*?)\}/s', $migration, $wl);
-CP_Test::ok(!empty($wl[1]), 'the option whitelist is present');
+KH_Test::ok(!empty($wl[1]), 'the option whitelist is present');
 foreach (['token', 'secret', 'password', 'api_key'] as $danger) {
-    CP_Test::ok(stripos((string) ($wl[1] ?? ''), $danger) === false, 'the option whitelist contains nothing matching "' . $danger . '"');
+    KH_Test::ok(stripos((string) ($wl[1] ?? ''), $danger) === false, 'the option whitelist contains nothing matching "' . $danger . '"');
 }
 
-CP_Test::group('Integrity — bundle types line up with the exporter');
+KH_Test::group('Integrity — bundle types line up with the exporter');
 
-foreach (Claudpress_Migration::TYPES as $type) {
-    CP_Test::contains("'" . $type . "'", $migration, 'exporter handles bundle type: ' . $type);
+foreach (Keelhob_Migration::TYPES as $type) {
+    KH_Test::contains("'" . $type . "'", $migration, 'exporter handles bundle type: ' . $type);
 }
 
-CP_Test::group('Integrity — PHP files are syntactically clean and guarded');
+KH_Test::group('Integrity — PHP files are syntactically clean and guarded');
 
 $unguarded = [];
 foreach (array_merge(glob($root . '/includes/*.php'), glob($root . '/includes/tools/*.php')) as $file) {
@@ -234,9 +234,9 @@ foreach (array_merge(glob($root . '/includes/*.php'), glob($root . '/includes/to
         $unguarded[] = basename($file);
     }
 }
-CP_Test::same([], $unguarded, 'every class file blocks direct web access with an ABSPATH guard');
+KH_Test::same([], $unguarded, 'every class file blocks direct web access with an ABSPATH guard');
 
-CP_Test::group('Integrity — always-on tools survive the tier split');
+KH_Test::group('Integrity — always-on tools survive the tier split');
 
 // always_on() is a promise: these tools work no matter what the owner has
 // restricted, so they can always ask "what is going on". Tiering must not be
@@ -249,18 +249,18 @@ CP_Test::group('Integrity — always-on tools survive the tier split');
 // have created a task or a run. Empty is the right answer, and a much better
 // one than a missing tool.
 $always_missing = [];
-foreach (Claudpress_Capabilities::always_on() as $tool) {
+foreach (Keelhob_Capabilities::always_on() as $tool) {
     if (!isset($registered[$tool])) {
         $always_missing[] = $tool;
     }
 }
-CP_Test::same([], $always_missing, 'every always-on tool still ships in the FREE plugin');
+KH_Test::same([], $always_missing, 'every always-on tool still ships in the FREE plugin');
 
-foreach (Claudpress_Capabilities::always_on() as $tool) {
-    CP_Test::ok(Claudpress_Capabilities::tool_allowed($tool), $tool . ' is allowed on a free install regardless of its group tier');
+foreach (Keelhob_Capabilities::always_on() as $tool) {
+    KH_Test::ok(Keelhob_Capabilities::tool_allowed($tool), $tool . ' is allowed on a free install regardless of its group tier');
 }
 
-CP_Test::group('Integrity — reflection in tests works on the PHP floor');
+KH_Test::group('Integrity — reflection in tests works on the PHP floor');
 
 // PHP 8.0 refuses to invoke a private method through reflection unless
 // setAccessible(true) was called first; 8.1 made the call unnecessary. So a test
@@ -286,4 +286,4 @@ foreach (glob(dirname(__DIR__) . '/unit/*.php') as $file) {
         }
     }
 }
-CP_Test::same([], $unguarded, 'every ReflectionMethod assigned in a test calls setAccessible(true) on the next line');
+KH_Test::same([], $unguarded, 'every ReflectionMethod assigned in a test calls setAccessible(true) on the next line');

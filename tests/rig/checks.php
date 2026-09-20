@@ -11,56 +11,56 @@
 
 global $wpdb;
 
-$GLOBALS['cp_rig_pass'] = 0;
-$GLOBALS['cp_rig_fail'] = 0;
+$GLOBALS['kh_rig_pass'] = 0;
+$GLOBALS['kh_rig_fail'] = 0;
 function check($label, $ok, $detail = '') {
-    $ok ? $GLOBALS['cp_rig_pass']++ : $GLOBALS['cp_rig_fail']++;
+    $ok ? $GLOBALS['kh_rig_pass']++ : $GLOBALS['kh_rig_fail']++;
     printf("%s  %s%s\n", $ok ? 'PASS' : 'FAIL', str_pad($label, 48), $detail);
 }
 
-Claudpress::instance()->update(['abilities_enabled' => true, 'log_calls' => true]);
+Keelhob::instance()->update(['abilities_enabled' => true, 'log_calls' => true]);
 
 // ---------------------------------------------------------------- S1 ------
-$r = Claudpress_Tools_Filesystem::write_file([
-    'path'    => 'wp-content/../../claudpress-pwn.txt',
+$r = Keelhob_Tools_Filesystem::write_file([
+    'path'    => 'wp-content/../../keelhob-pwn.txt',
     'content' => '<?php echo 1;',
 ]);
 check('S1 traversal refused', !$r['success'], $r['error'] ?? '');
-check('S1 no file outside the base', !file_exists(dirname(dirname(ABSPATH)) . '/claudpress-pwn.txt'));
+check('S1 no file outside the base', !file_exists(dirname(dirname(ABSPATH)) . '/keelhob-pwn.txt'));
 
-$ok = Claudpress_Tools_Filesystem::write_file([
-    'path'    => 'wp-content/uploads/cp-rig/deep/nested/ok.txt',
+$ok = Keelhob_Tools_Filesystem::write_file([
+    'path'    => 'wp-content/uploads/kh-rig/deep/nested/ok.txt',
     'content' => 'hello',
 ]);
 check('S1 legitimate nested write still works', !empty($ok['success']), $ok['error'] ?? '');
 
 // ---------------------------------------------------------------- S2 ------
 $key = 'sk-ant-api03-LIVE-RIG-KEY-9999';
-Claudpress::instance()->update(['agent_api_key' => $key]);
-$raw = get_option('claudpress_settings');
+Keelhob::instance()->update(['agent_api_key' => $key]);
+$raw = get_option('keelhob_settings');
 
 check('S2 key absent from the stored option', strpos(wp_json_encode($raw), 'sk-ant-api03-LIVE') === false);
 check('S2 stored value is ciphertext', strpos((string) $raw['agent_api_key'], 'cpenc:v1:') === 0, substr((string) $raw['agent_api_key'], 0, 24) . '...');
-check('S2 reads back as plaintext for callers', Claudpress::instance()->get('agent_api_key') === $key);
+check('S2 reads back as plaintext for callers', Keelhob::instance()->get('agent_api_key') === $key);
 
 $autoload = $wpdb->get_var($wpdb->prepare(
     "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s",
-    'claudpress_settings'
+    'keelhob_settings'
 ));
 check('S2 settings option does not autoload', in_array($autoload, ['no', 'off', '0'], true), 'autoload=' . var_export($autoload, true));
 
 // ---------------------------------------------------------------- S3 ------
-Claudpress::instance()->logger->record(
+Keelhob::instance()->logger->record(
     'wc_payments',
     ['gateway' => 'stripe', 'secret_key' => 'sk_live_LIVERIGSECRET123', 'title' => 'Card'],
     ['success' => true]
 );
-$logged = (string) $wpdb->get_var("SELECT args_json FROM {$wpdb->prefix}claudpress_log ORDER BY id DESC LIMIT 1");
+$logged = (string) $wpdb->get_var("SELECT args_json FROM {$wpdb->prefix}keelhob_log ORDER BY id DESC LIMIT 1");
 check('S3 gateway secret never reaches the log', strpos($logged, 'sk_live_LIVERIG') === false, $logged);
 check('S3 non-secret args survive', strpos($logged, 'Card') !== false);
 
 // ---------------------------------------------------------------- S5 ------
-$s = Claudpress::instance()->settings();
+$s = Keelhob::instance()->settings();
 check('S5 token stored as a hash', !empty($s['token_hash']) && strlen($s['token_hash']) === 64);
 check('S5 no plaintext token stored', ($s['token'] ?? '') === '');
 
@@ -75,9 +75,9 @@ check('S5 no plaintext token stored', ($s['token'] ?? '') === '');
 // The tool list below is exactly the set checks-pro.php guarded. They are the
 // ones that moved during the merge, which makes them the ones most likely to
 // have been dropped on the way.
-$all   = Claudpress::instance()->registry->names();
+$all   = Keelhob::instance()->registry->names();
 $usable = static function (string $tool) use ($all) {
-    return in_array($tool, $all, true) && Claudpress_Capabilities::tool_allowed($tool);
+    return in_array($tool, $all, true) && Keelhob_Capabilities::tool_allowed($tool);
 };
 $present = static function (string $tool) use ($all) {
     return in_array($tool, $all, true);
@@ -130,17 +130,17 @@ foreach ($build_tools as $tool) {
 }
 
 // The always-on promise: these work whatever else is restricted.
-foreach (Claudpress_Capabilities::always_on() as $tool) {
+foreach (Keelhob_Capabilities::always_on() as $tool) {
     check('  always-on: ' . $tool, $usable($tool));
 }
 
 // And the agent is told what is off, by name, with the switch that fixes it -
 // so it stops instead of retry-looping and calling the site broken.
-$info = Claudpress_Tools_Core::get_site_info([]);
-check('get_site_info reports no plan or tier', !isset($info['claudpress']['plan']));
-check('get_site_info lists what is switched off', count($info['claudpress']['unavailable_capabilities'] ?? []) > 0,
-    count($info['claudpress']['unavailable_capabilities']) . ' groups');
-$first = $info['claudpress']['unavailable_capabilities'][0] ?? [];
+$info = Keelhob_Tools_Core::get_site_info([]);
+check('get_site_info reports no plan or tier', !isset($info['keelhob']['plan']));
+check('get_site_info lists what is switched off', count($info['keelhob']['unavailable_capabilities'] ?? []) > 0,
+    count($info['keelhob']['unavailable_capabilities']) . ' groups');
+$first = $info['keelhob']['unavailable_capabilities'][0] ?? [];
 check('...each with why and how', !empty($first['why_unavailable']) && !empty($first['how_to_enable']));
 check('...and "how" names a setting, not a purchase', strpos((string) ($first['how_to_enable'] ?? ''), 'Settings') !== false);
 
@@ -154,12 +154,12 @@ check('...and "how" names a setting, not a purchase', strpos((string) ($first['h
 // errored snippets sitting on the development rig, which then failed an
 // unrelated check in tests/rig/ui/check-snippets.mjs that counts errored rows.
 // A test fixture that outlives its test becomes somebody else's bug.
-$snip = Claudpress_Snippets::save(['name' => 'Rig test snippet', 'code' => '<?php add_filter("the_content", fn($c) => $c);', 'snippet_type' => 'php']);
-$events = $wpdb->get_col("SELECT event FROM {$wpdb->prefix}claudpress_snippet_log ORDER BY id DESC LIMIT 3");
+$snip = Keelhob_Snippets::save(['name' => 'Rig test snippet', 'code' => '<?php add_filter("the_content", fn($c) => $c);', 'snippet_type' => 'php']);
+$events = $wpdb->get_col("SELECT event FROM {$wpdb->prefix}keelhob_snippet_log ORDER BY id DESC LIMIT 3");
 check('Snippet activity is recorded', in_array('created', $events, true), implode(',', $events));
 
 // --------------------------------------------------------- safety loop ----
-$bad = Claudpress_Snippets::save(['name' => 'Broken snippet', 'code' => '<?php function ( { syntax error', 'snippet_type' => 'php', 'active' => 1]);
+$bad = Keelhob_Snippets::save(['name' => 'Broken snippet', 'code' => '<?php function ( { syntax error', 'snippet_type' => 'php', 'active' => 1]);
 check('A snippet that does not parse cannot activate', empty($bad['active']) || !empty($bad['error']) || !empty($bad['lint']), wp_json_encode(array_intersect_key($bad, array_flip(['active', 'error', 'lint']))));
 
 // Teardown, in the same file that asserted on them. The log rows stay - the
@@ -167,14 +167,14 @@ check('A snippet that does not parse cannot activate', empty($bad['active']) || 
 // the evidence.
 $removed = 0;
 foreach ([$snip['id'] ?? 0, $bad['id'] ?? 0] as $id) {
-    if ((int) $id > 0 && Claudpress_Snippets::delete((int) $id)) {
+    if ((int) $id > 0 && Keelhob_Snippets::delete((int) $id)) {
         $removed++;
     }
 }
 check('...and the rig is left as it was found', $removed === 2, $removed . ' of 2 fixtures removed');
 
-printf("\n%d passed, %d failed\n", $GLOBALS['cp_rig_pass'], $GLOBALS['cp_rig_fail']);
-if ($GLOBALS['cp_rig_fail'] > 0) {
+printf("\n%d passed, %d failed\n", $GLOBALS['kh_rig_pass'], $GLOBALS['kh_rig_fail']);
+if ($GLOBALS['kh_rig_fail'] > 0) {
     exit(1);
 }
 

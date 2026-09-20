@@ -20,8 +20,8 @@ if (!defined('ABSPATH')) {
 
 global $wpdb;
 
-$t     = Claudpress_Snippets::table();
-$store = (array) get_option('cp_upgrade_ids', []);
+$t     = Keelhob_Snippets::table();
+$store = (array) get_option('kh_upgrade_ids', []);
 $ids   = (array) ($store['ids'] ?? []);
 
 $snap = ['snippets' => [], 'counts' => [], 'live_html' => ''];
@@ -44,12 +44,12 @@ foreach ($ids as $label => $id) {
     ];
 }
 
-$rev_table = Claudpress_Snippets::revisions_table();
+$rev_table = Keelhob_Snippets::revisions_table();
 $snap['counts'] = [
     'snippets'  => (int) $wpdb->get_var("SELECT COUNT(*) FROM {$t}"),
     'revisions' => (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$rev_table} WHERE snippet_id = %d", (int) ($ids['revisions'] ?? 0))),
-    'memory'    => (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . $wpdb->prefix . 'claudpress_memory'),
-    'skills'    => (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . $wpdb->prefix . 'claudpress_skills'),
+    'memory'    => (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . $wpdb->prefix . 'keelhob_memory'),
+    'skills'    => (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . $wpdb->prefix . 'keelhob_skills'),
 ];
 
 // The live snippet's marker, as a logged-out visitor actually sees it. This is
@@ -60,23 +60,23 @@ $snap['live_html'] = is_wp_error($res)
     : (strpos((string) wp_remote_retrieve_body($res), 'up-live-marker') !== false ? 'MARKER PRESENT' : 'MARKER ABSENT');
 
 $snap['settings'] = [
-    'agent_model'       => (string) Claudpress::instance()->get('agent_model', ''),
-    'abilities_enabled' => (bool) Claudpress::instance()->get('abilities_enabled', false),
+    'agent_model'       => (string) Keelhob::instance()->get('agent_model', ''),
+    'abilities_enabled' => (bool) Keelhob::instance()->get('abilities_enabled', false),
 ];
 
 // Which capability groups are on BEFORE. An upgrade that quietly widens this is
 // the finding that would matter most, and it is invisible without a baseline.
 $snap['caps_on'] = [];
-foreach (array_keys(Claudpress_Capabilities::groups()) as $g) {
-    if (Claudpress_Capabilities::is_group_enabled($g)) {
+foreach (array_keys(Keelhob_Capabilities::groups()) as $g) {
+    if (Keelhob_Capabilities::is_group_enabled($g)) {
         $snap['caps_on'][] = $g;
     }
 }
 sort($snap['caps_on']);
 
-$snap['db_version'] = (string) get_option('claudpress_db_version', '');
+$snap['db_version'] = (string) get_option('keelhob_db_version', '');
 
-update_option('cp_upgrade_before', $snap, false);
+update_option('kh_upgrade_before', $snap, false);
 
 printf(
     "      %d snippet(s), %d revision(s), %d memory row(s), %d skill(s); db_version %s\n",

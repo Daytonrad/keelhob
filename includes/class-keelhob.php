@@ -7,26 +7,26 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress
+final class Keelhob
 {
-    const OPTION_SETTINGS = 'claudpress_settings';
+    const OPTION_SETTINGS = 'keelhob_settings';
 
-    /** @var Claudpress|null */
+    /** @var Keelhob|null */
     private static $instance = null;
 
-    /** @var Claudpress_Tool_Registry */
+    /** @var Keelhob_Tool_Registry */
     public $registry;
 
-    /** @var Claudpress_Memory */
+    /** @var Keelhob_Memory */
     public $memory;
 
-    /** @var Claudpress_Skills */
+    /** @var Keelhob_Skills */
     public $skills;
 
-    /** @var Claudpress_Logger */
+    /** @var Keelhob_Logger */
     public $logger;
 
-    public static function instance(): Claudpress
+    public static function instance(): Keelhob
     {
         if (self::$instance === null) {
             self::$instance = new self();
@@ -66,7 +66,7 @@ final class Claudpress
         return [
             'abilities_enabled' => false,
             // Kept only to carry a pre-1.10.1 plaintext token through the
-            // upgrade; Claudpress_Auth swaps it for a hash on first use.
+            // upgrade; Keelhob_Auth swaps it for a hash on first use.
             'token'             => '',
             'token_hash'        => '',
             'token_expires_at'  => 0,
@@ -96,7 +96,7 @@ final class Claudpress
             // The feedback log. ON by default, which is only defensible because
             // nothing is recorded when it is off and nothing is ever sent
             // without a person reading the whole draft first. See
-            // Claudpress_Feedback and docs/plans/feedback-log.md.
+            // Keelhob_Feedback and docs/plans/feedback-log.md.
             'feedback_log'      => true,
             // Snippet engine kill-switch (active snippets run for real visitors).
             'run_snippets'      => true,
@@ -112,7 +112,7 @@ final class Claudpress
             'image_api_endpoint' => '', // blank = the provider's default endpoint
             'image_api_model'   => '',  // blank = the provider's default model
             // Autonomous agent runtime. Blank key = autonomy off.
-            // See Claudpress_Provider for the supported vendors.
+            // See Keelhob_Provider for the supported vendors.
             'agent_provider'     => 'anthropic',
             'agent_api_key'      => '',
             'agent_api_endpoint' => '', // blank = the provider's default endpoint
@@ -135,7 +135,7 @@ final class Claudpress
             'notify_telegram_chat'  => '',
             // Telegram chat front-end (inbound). Off until the owner connects a
             // bot — the same token above is reused, this only opens the return
-            // direction. See Claudpress_Telegram.
+            // direction. See Keelhob_Telegram.
             'telegram_bot_enabled'   => false,
             'telegram_secret'        => '',  // webhook shared secret, auto-generated
             'telegram_allowed_chats' => '',  // blank = fall back to notify_telegram_chat
@@ -163,7 +163,7 @@ final class Claudpress
             // Staging → production deploy target.
             'deploy_target_url'   => '',
             'deploy_target_token' => '',
-            // Per-capability toggles (empty = every capability enabled). See Claudpress_Capabilities.
+            // Per-capability toggles (empty = every capability enabled). See Keelhob_Capabilities.
             'capabilities' => [],
         ];
     }
@@ -179,9 +179,9 @@ final class Claudpress
         // Decrypt on the way out so every existing caller keeps working with
         // plain values and none of them has to know secrets are encrypted at
         // rest. Values written before 1.10.1 pass through untouched.
-        foreach (Claudpress_Secrets::fields() as $field) {
+        foreach (Keelhob_Secrets::fields() as $field) {
             if (isset($merged[$field]) && is_string($merged[$field]) && $merged[$field] !== '') {
-                $merged[$field] = Claudpress_Secrets::decrypt($merged[$field]);
+                $merged[$field] = Keelhob_Secrets::decrypt($merged[$field]);
             }
         }
         return $merged;
@@ -199,9 +199,9 @@ final class Claudpress
 
         // Encrypt on the way in. settings() decrypted them, so re-encrypting
         // the whole merged array keeps untouched fields correct too.
-        foreach (Claudpress_Secrets::fields() as $field) {
+        foreach (Keelhob_Secrets::fields() as $field) {
             if (isset($all[$field]) && is_string($all[$field]) && $all[$field] !== '') {
-                $all[$field] = Claudpress_Secrets::encrypt($all[$field]);
+                $all[$field] = Keelhob_Secrets::encrypt($all[$field]);
             }
         }
 
@@ -220,29 +220,29 @@ final class Claudpress
     {
         $this->maybe_upgrade();
 
-        $this->logger   = new Claudpress_Logger();
-        $this->memory   = new Claudpress_Memory();
-        $this->skills   = new Claudpress_Skills();
-        $this->registry = new Claudpress_Tool_Registry();
+        $this->logger   = new Keelhob_Logger();
+        $this->memory   = new Keelhob_Memory();
+        $this->skills   = new Keelhob_Skills();
+        $this->registry = new Keelhob_Tool_Registry();
 
         // Register every tool group. Each group decides internally whether it
         // is applicable (e.g. WooCommerce tools only register when WC is active).
-        Claudpress_Tools_Core::register($this->registry);
-        Claudpress_Tools_Filesystem::register($this->registry);
-        Claudpress_Tools_Content::register($this->registry);
-        Claudpress_Tools_Site::register($this->registry);
-        Claudpress_Tools_WooCommerce::register($this->registry);
-        Claudpress_Tools_SEO::register($this->registry);
-        Claudpress_Tools_Memory::register($this->registry);
-        Claudpress_Tools_Skills::register($this->registry);
-        Claudpress_Tools_Snippets::register($this->registry);
-        Claudpress_Tools_Elementor::register($this->registry);
-        Claudpress_Tools_Ops::register($this->registry);
-        Claudpress_Tools_Automation::register($this->registry);
-        Claudpress_Tools_Payments::register($this->registry);
-        Claudpress_Tools_Deploy::register($this->registry);
-        Claudpress_Tools_Readiness::register($this->registry);
-        Claudpress_Tools_Feedback::register($this->registry);
+        Keelhob_Tools_Core::register($this->registry);
+        Keelhob_Tools_Filesystem::register($this->registry);
+        Keelhob_Tools_Content::register($this->registry);
+        Keelhob_Tools_Site::register($this->registry);
+        Keelhob_Tools_WooCommerce::register($this->registry);
+        Keelhob_Tools_SEO::register($this->registry);
+        Keelhob_Tools_Memory::register($this->registry);
+        Keelhob_Tools_Skills::register($this->registry);
+        Keelhob_Tools_Snippets::register($this->registry);
+        Keelhob_Tools_Elementor::register($this->registry);
+        Keelhob_Tools_Ops::register($this->registry);
+        Keelhob_Tools_Automation::register($this->registry);
+        Keelhob_Tools_Payments::register($this->registry);
+        Keelhob_Tools_Deploy::register($this->registry);
+        Keelhob_Tools_Readiness::register($this->registry);
+        Keelhob_Tools_Feedback::register($this->registry);
 
         /**
          * The extension seam for tools that do not live in this plugin.
@@ -256,39 +256,39 @@ final class Claudpress
          * Add tools with $registry->add(); registration fails soft, so a bad
          * callback costs one tool rather than the request.
          *
-         * @param Claudpress_Tool_Registry $registry
+         * @param Keelhob_Tool_Registry $registry
          */
-        do_action('claudpress_register_tools', $this->registry);
+        do_action('keelhob_register_tools', $this->registry);
 
         // Code-snippets engine — active snippets run on every request.
-        Claudpress_Snippets::init();
+        Keelhob_Snippets::init();
 
         // Scheduled automations (WP-Cron tick).
-        Claudpress_Tasks::init();
+        Keelhob_Tasks::init();
 
         // Push notifications for things the owner should hear about unprompted.
-        Claudpress_Events::init();
+        Keelhob_Events::init();
 
         // Front-end SEO injection (schema, redirects, fallback meta, robots.txt).
-        Claudpress_Tools_SEO::hooks();
+        Keelhob_Tools_SEO::hooks();
 
         // REST / MCP endpoint.
-        (new Claudpress_Rest())->hooks();
+        (new Keelhob_Rest())->hooks();
 
         // Crash-recovery sandbox loader (runs AI-written persistent PHP safely).
-        Claudpress_Sandbox::init();
+        Keelhob_Sandbox::init();
 
         // A change to what an agent may do cancels every "hide that warning"
         // dismissal. OUTSIDE is_admin() on purpose: abilities get switched on
         // over WP-CLI, over the REST route and by agents through manage_option
         // at least as often as through the settings screen, and a safety
         // warning that only re-arms for one of those paths is not a safety
-        // warning. See Claudpress_Admin::rewarn_on_change().
-        add_action('update_option_' . self::OPTION_SETTINGS, ['Claudpress_Admin', 'rewarn_on_change'], 10, 2);
+        // warning. See Keelhob_Admin::rewarn_on_change().
+        add_action('update_option_' . self::OPTION_SETTINGS, ['Keelhob_Admin', 'rewarn_on_change'], 10, 2);
 
         // Admin UI.
         if (is_admin()) {
-            (new Claudpress_Admin())->hooks();
+            (new Keelhob_Admin())->hooks();
         }
     }
 
@@ -299,34 +299,40 @@ final class Claudpress
      */
     private function maybe_upgrade(): void
     {
-        $stored = get_option('claudpress_db_version', '');
-        if ($stored === CLAUDPRESS_VERSION) {
+        $stored = get_option('keelhob_db_version', '');
+        if ($stored === KEELHOB_VERSION) {
             return;
         }
-        Claudpress_Memory::install_table();
-        Claudpress_Skills::install_table();
-        Claudpress_Snippets::install_table();
-        Claudpress_Tasks::install_table();
-        Claudpress_Agent_Runs::install_table();
-        Claudpress_Telegram::install_table();
-        Claudpress_Logger::install_table();
-        Claudpress_Snippet_Log::install_table();
-        Claudpress_Feedback::install_table();
+        // FIRST, before any install_table(). Those run dbDelta against the new
+        // table names; let them go first on a site upgrading from the old
+        // product name and they create ten empty tables, after which the real
+        // data is orphaned and the site looks freshly installed. See the long
+        // note at the top of class-legacy-adopt.php.
+        Keelhob_Legacy_Adopt::run();
+        Keelhob_Memory::install_table();
+        Keelhob_Skills::install_table();
+        Keelhob_Snippets::install_table();
+        Keelhob_Tasks::install_table();
+        Keelhob_Agent_Runs::install_table();
+        Keelhob_Telegram::install_table();
+        Keelhob_Logger::install_table();
+        Keelhob_Snippet_Log::install_table();
+        Keelhob_Feedback::install_table();
         // After install_table() has added the columns: give pre-1.9 snippets a
         // uid and a created_at so the Snippets page and cross-site copy work.
-        Claudpress_Snippets::backfill();
+        Keelhob_Snippets::backfill();
         // Rows written before the source column existed have to be classified
-        // before anything can refresh them; see Claudpress_Skills::backfill_sources().
-        Claudpress_Skills::backfill_sources();
-        Claudpress_Skills::seed_bundled_skills();
+        // before anything can refresh them; see Keelhob_Skills::backfill_sources().
+        Keelhob_Skills::backfill_sources();
+        Keelhob_Skills::seed_bundled_skills();
         self::seed_default_memory();
         self::upgrade_from_paid_tier();
-        if (!file_exists(CLAUDPRESS_SANDBOX_DIR)) {
-            wp_mkdir_p(CLAUDPRESS_SANDBOX_DIR);
-            @file_put_contents(CLAUDPRESS_SANDBOX_DIR . '/index.php', "<?php // Silence is golden.\n");
-            @file_put_contents(CLAUDPRESS_SANDBOX_DIR . '/.htaccess', "Deny from all\n");
+        if (!file_exists(KEELHOB_SANDBOX_DIR)) {
+            wp_mkdir_p(KEELHOB_SANDBOX_DIR);
+            @file_put_contents(KEELHOB_SANDBOX_DIR . '/index.php', "<?php // Silence is golden.\n");
+            @file_put_contents(KEELHOB_SANDBOX_DIR . '/.htaccess', "Deny from all\n");
         }
-        update_option('claudpress_db_version', CLAUDPRESS_VERSION);
+        update_option('keelhob_db_version', KEELHOB_VERSION);
     }
 
     /**
@@ -372,20 +378,20 @@ final class Claudpress
         $is_pre_merge = array_key_exists('disclose_pro', $settings)
             || array_key_exists('hide_paid_notices', $settings)
             || array_key_exists('skills_token', $settings)
-            || get_option('claudpress_pro_licence', null) !== null;
+            || get_option('keelhob_pro_licence', null) !== null;
 
         if (!$is_pre_merge) {
             return;
         }
         // Run once. Having run, it must never fight the owner's later choices.
-        if (get_option('claudpress_paid_tier_reset', '') !== '') {
+        if (get_option('keelhob_paid_tier_reset', '') !== '') {
             return;
         }
 
         $caps = isset($settings['capabilities']) && is_array($settings['capabilities']) ? $settings['capabilities'] : [];
 
         $turned_off = [];
-        foreach (Claudpress_Capabilities::DISABLED_BY_DEFAULT as $group) {
+        foreach (Keelhob_Capabilities::DISABLED_BY_DEFAULT as $group) {
             if (!array_key_exists($group, $caps) || !empty($caps[$group])) {
                 $turned_off[] = $group;
             }
@@ -398,14 +404,30 @@ final class Claudpress
         unset($settings['disclose_pro'], $settings['hide_paid_notices'], $settings['skills_token']);
 
         update_option(self::OPTION_SETTINGS, $settings);
-        delete_option('claudpress_pro_licence');
-        delete_transient('claudpress_pro_licence_valid');
+        delete_option('keelhob_pro_licence');
+        delete_transient('keelhob_pro_licence_valid');
 
-        update_option('claudpress_paid_tier_reset', $turned_off ? implode(',', $turned_off) : 'none');
+        update_option('keelhob_paid_tier_reset', $turned_off ? implode(',', $turned_off) : 'none');
     }
 
     public static function on_activate(): void
     {
+        /*
+         * FIRST. Before the settings write, before any install_table().
+         *
+         * Found on the rig, not by any unit test. Activation creates the ten
+         * tables itself, so by the time maybe_upgrade() ran its adoption step
+         * the new tables already existed, the rename was declined, and the real
+         * rows were stranded under the old names while seed_bundled_skills()
+         * refilled the empty ones. The site looked fine and had lost its logs.
+         *
+         * The settings line below is worse: it mints a NEW connection token and
+         * writes it under the new option name. Adoption then correctly refuses
+         * to overwrite it, so the owner's provider keys, capability switches and
+         * working token are all left behind on an option nothing reads.
+         */
+        Keelhob_Legacy_Adopt::run();
+
         $existing = get_option(self::OPTION_SETTINGS, []);
         if (!is_array($existing)) {
             $existing = [];
@@ -419,29 +441,29 @@ final class Claudpress
         }
         update_option(self::OPTION_SETTINGS, array_merge(self::default_settings(), $existing));
 
-        if (!file_exists(CLAUDPRESS_SANDBOX_DIR)) {
-            wp_mkdir_p(CLAUDPRESS_SANDBOX_DIR);
+        if (!file_exists(KEELHOB_SANDBOX_DIR)) {
+            wp_mkdir_p(KEELHOB_SANDBOX_DIR);
             // Harden: no direct web access, no directory listing.
-            @file_put_contents(CLAUDPRESS_SANDBOX_DIR . '/index.php', "<?php // Silence is golden.\n");
-            @file_put_contents(CLAUDPRESS_SANDBOX_DIR . '/.htaccess', "Deny from all\n");
+            @file_put_contents(KEELHOB_SANDBOX_DIR . '/index.php', "<?php // Silence is golden.\n");
+            @file_put_contents(KEELHOB_SANDBOX_DIR . '/.htaccess', "Deny from all\n");
         }
 
-        Claudpress_Memory::install_table();
-        Claudpress_Skills::install_table();
-        Claudpress_Snippets::install_table();
-        Claudpress_Tasks::install_table();
-        Claudpress_Agent_Runs::install_table();
-        Claudpress_Telegram::install_table();
-        Claudpress_Logger::install_table();
-        Claudpress_Snippet_Log::install_table();
-        Claudpress_Feedback::install_table();
-        Claudpress_Snippets::backfill();
+        Keelhob_Memory::install_table();
+        Keelhob_Skills::install_table();
+        Keelhob_Snippets::install_table();
+        Keelhob_Tasks::install_table();
+        Keelhob_Agent_Runs::install_table();
+        Keelhob_Telegram::install_table();
+        Keelhob_Logger::install_table();
+        Keelhob_Snippet_Log::install_table();
+        Keelhob_Feedback::install_table();
+        Keelhob_Snippets::backfill();
         // Rows written before the source column existed have to be classified
-        // before anything can refresh them; see Claudpress_Skills::backfill_sources().
-        Claudpress_Skills::backfill_sources();
-        Claudpress_Skills::seed_bundled_skills();
+        // before anything can refresh them; see Keelhob_Skills::backfill_sources().
+        Keelhob_Skills::backfill_sources();
+        Keelhob_Skills::seed_bundled_skills();
         self::seed_default_memory();
-        update_option('claudpress_db_version', CLAUDPRESS_VERSION);
+        update_option('keelhob_db_version', KEELHOB_VERSION);
     }
 
     /**
@@ -451,20 +473,20 @@ final class Claudpress
      */
     public static function seed_default_memory(): void
     {
-        $memory = new Claudpress_Memory();
+        $memory = new Keelhob_Memory();
         $defaults = [
-            'claudpress.capabilities' => 'This site runs Claudpress: you can execute PHP/SQL, manage content, run the WooCommerce store, do SEO, edit files, write live code snippets (snippet_save), build Elementor pages (elementor_page), update plugins, email the owner (send_email), and add images (image_search / image_generate). Prefer dedicated tools; fall back to execute_php.',
+            'keelhob.capabilities' => 'This site runs Keelhob: you can execute PHP/SQL, manage content, run the WooCommerce store, do SEO, edit files, write live code snippets (snippet_save), build Elementor pages (elementor_page), update plugins, email the owner (send_email), and add images (image_search / image_generate). Prefer dedicated tools; fall back to execute_php.',
             'build.page_modes'        => 'Two ways to build pages: (1) pixel-perfect custom-coded page = snippet_save with location=page_template + target_id, writing full responsive HTML/CSS; editable only via the agent. (2) editable page = Gutenberg blocks (create_post) or Elementor (elementor_page). Ask the owner which they prefer if unclear.',
             'build.elementor'         => 'For Elementor building: run elementor_settings action=prepare_for_ai first (enables Container/flexbox, disables the Atomic editor). Build layouts with flexbox Containers (elType "container"), never deprecated sections/columns. Xpro Theme Builder (free) makes custom headers/footers without Elementor Pro.',
-            'content.images'          => 'Images: prefer image_search (Openverse, free, no key) to fetch a real licensed image and attach it; use image_generate only if an image API key is configured in Claudpress settings. Always set descriptive alt text.',
+            'content.images'          => 'Images: prefer image_search (Openverse, free, no key) to fetch a real licensed image and attach it; use image_generate only if an image API key is configured in Keelhob settings. Always set descriptive alt text.',
             'design.reference'        => 'For ANY visual/build work, follow the web-design-master skill (skill_get name=web-design-master): design tokens, mobile-first responsive, component patterns, WordPress "style with the theme not against it" rules, and the anti-slop quality audit. Prefer a CSS snippet or page_template over inline <style> (security plugins strip inline styles).',
             'safety.workflow'         => 'This should be a dev/staging site. Read before you write, confirm destructive/financial actions, verify after changing, and save durable decisions with memory_save. Snippets that fatal auto-deactivate.',
             'chat.telegram'           => 'The owner may be talking to you from Telegram (context "telegram") rather than an MCP client. That is a live chat on a phone: keep replies short and plain-text, ask at most one clarifying question, and remember they cannot see tool output — only what you write. Built-in commands (/status, /usage, /clear, /tasks, /undo) are answered by the plugin without you. A voice note arrives already transcribed; a photo arrives as an image you can see plus a media-library attachment ID you can use directly in a post or product. If a tool comes back policy_blocked, say which one — the owner gets an Approve button to allow it, so name it plainly instead of working around it. Content changes you make in a turn are undoable via /undo, but only content: settings, plugins, files and snippets are not, so be correspondingly careful with those.',
-            'autonomy.usage'          => 'The site can run itself: get_dashboard answers "what is going on / how is the store doing" on demand; task_save creates scheduled digest or autonomous tasks; run_agent executes a one-off instruction now. Autonomous runs need an agent API key (Claudpress > Automation) and obey policy guardrails — pass allow_risky on a task only when destructive/financial actions are intended.',
+            'autonomy.usage'          => 'The site can run itself: get_dashboard answers "what is going on / how is the store doing" on demand; task_save creates scheduled digest or autonomous tasks; run_agent executes a one-off instruction now. Autonomous runs need an agent API key (Keelhob > Automation) and obey policy guardrails — pass allow_risky on a task only when destructive/financial actions are intended.',
         ];
         foreach ($defaults as $key => $value) {
             if (!$memory->get($key)) {
-                $memory->save($key, $value, 'claudpress');
+                $memory->save($key, $value, 'keelhob');
             }
         }
     }
@@ -478,12 +500,12 @@ final class Claudpress
             update_option(self::OPTION_SETTINGS, $s);
         }
         // Stop the automation cron so nothing runs while deactivated.
-        Claudpress_Tasks::unschedule();
+        Keelhob_Tasks::unschedule();
     }
 
     public static function generate_token(): string
     {
-        return 'cp_' . bin2hex(random_bytes(24));
+        return 'kh_' . bin2hex(random_bytes(24));
     }
 
     /**
@@ -500,7 +522,7 @@ final class Claudpress
      * The cache-busting version for a bundled CSS or JS file.
      *
      * THE BUG THIS EXISTS TO PREVENT, which shipped once and was reported from
-     * a real browser: every asset was registered with CLAUDPRESS_VERSION. That
+     * a real browser: every asset was registered with KEELHOB_VERSION. That
      * only changes when the RELEASE number changes, so editing a script without
      * bumping the release leaves its URL byte-identical —
      * `studio-compose.js?ver=1.2.0` before and after. Browsers reuse what they
@@ -508,7 +530,7 @@ final class Claudpress
      *
      * AI Compose was rewritten from a wizard into a chat inside one version.
      * Anyone who had opened the old screen got the NEW markup with the OLD
-     * cached script, which looks for `#cp-compose-plan`, does not find it, and
+     * cached script, which looks for `#kh-compose-plan`, does not find it, and
      * returns without wiring anything. Send did nothing. Enter typed a newline.
      * No console error, nothing in the page source, and nothing any server-side
      * test can see — the files on disk were all correct.
@@ -522,10 +544,10 @@ final class Claudpress
      */
     public static function asset_version(string $relative): string
     {
-        $path = CLAUDPRESS_DIR . ltrim($relative, '/');
+        $path = KEELHOB_DIR . ltrim($relative, '/');
         $time = @filemtime($path);
 
-        return $time ? CLAUDPRESS_VERSION . '.' . $time : CLAUDPRESS_VERSION;
+        return $time ? KEELHOB_VERSION . '.' . $time : KEELHOB_VERSION;
     }
 
     public static function set_token(): string
@@ -548,7 +570,7 @@ final class Claudpress
         // Reaching here means somebody minted a token, which needs
         // manage_options. That is stronger proof of ownership than surviving a
         // fifteen-minute wait, so there is nothing left for the lock to defend.
-        Claudpress_Auth::unlock();
+        Keelhob_Auth::unlock();
 
         self::flash_token($plain);
         return $plain;
@@ -557,15 +579,15 @@ final class Claudpress
     /** Stash a freshly minted token for one render. */
     public static function flash_token(string $plain): void
     {
-        set_transient('claudpress_token_flash', $plain, 5 * MINUTE_IN_SECONDS);
+        set_transient('keelhob_token_flash', $plain, 5 * MINUTE_IN_SECONDS);
     }
 
     /** Read and immediately burn the flashed token. '' when there is none. */
     public static function take_flashed_token(): string
     {
-        $plain = (string) get_transient('claudpress_token_flash');
+        $plain = (string) get_transient('keelhob_token_flash');
         if ($plain !== '') {
-            delete_transient('claudpress_token_flash');
+            delete_transient('keelhob_token_flash');
         }
         return $plain;
     }

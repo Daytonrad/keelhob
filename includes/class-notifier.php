@@ -42,7 +42,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Notifier
+final class Keelhob_Notifier
 {
     const CHANNELS = ['email', 'telegram', 'webhook'];
 
@@ -54,15 +54,15 @@ final class Claudpress_Notifier
      * exactly the false confidence this exists to remove. It is three small
      * rows, it is not autoloaded, and it should outlive a cache flush.
      */
-    const OPTION_HEALTH = 'claudpress_channel_health';
+    const OPTION_HEALTH = 'keelhob_channel_health';
 
     /** Human labels, for the settings screen and for error messages. */
     public static function labels(): array
     {
         return [
-            'email'    => __('Email', 'claudpress'),
-            'telegram' => __('Telegram', 'claudpress'),
-            'webhook'  => __('Webhook / Slack', 'claudpress'),
+            'email'    => __('Email', 'keelhob'),
+            'telegram' => __('Telegram', 'keelhob'),
+            'webhook'  => __('Webhook / Slack', 'keelhob'),
         ];
     }
 
@@ -77,7 +77,7 @@ final class Claudpress_Notifier
      */
     public static function availability(): array
     {
-        $s = Claudpress::instance()->settings();
+        $s = Keelhob::instance()->settings();
 
         $email = trim((string) ($s['notify_email'] ?? ''));
         if ($email === '') {
@@ -90,21 +90,21 @@ final class Claudpress_Notifier
         $out = [
             'email' => [
                 'connected' => $email !== '',
-                'reason'    => $email !== '' ? '' : __('Add a notification email address first.', 'claudpress'),
+                'reason'    => $email !== '' ? '' : __('Add a notification email address first.', 'keelhob'),
             ],
             'telegram' => [
                 'connected' => $tg_token !== '' && $tg_chat !== '',
                 'reason'    => ($tg_token !== '' && $tg_chat !== '')
                     ? ''
                     : ($tg_token === ''
-                        ? __('Connect the Telegram bot first.', 'claudpress')
-                        : __('Telegram is connected but has no chat ID yet. Message the bot once.', 'claudpress')),
+                        ? __('Connect the Telegram bot first.', 'keelhob')
+                        : __('Telegram is connected but has no chat ID yet. Message the bot once.', 'keelhob')),
             ],
             'webhook' => [
                 'connected' => trim((string) ($s['notify_webhook_url'] ?? '')) !== '',
                 'reason'    => trim((string) ($s['notify_webhook_url'] ?? '')) !== ''
                     ? ''
-                    : __('Add a webhook or Slack URL first.', 'claudpress'),
+                    : __('Add a webhook or Slack URL first.', 'keelhob'),
             ],
         ];
 
@@ -139,9 +139,9 @@ final class Claudpress_Notifier
             if (!$ok) {
                 $out[$channel]['warning'] = sprintf(
                     /* translators: 1: time ago, e.g. "5 mins"; 2: the delivery error */
-                    __('The last message could not be delivered (%1$s ago): %2$s', 'claudpress'),
+                    __('The last message could not be delivered (%1$s ago): %2$s', 'keelhob'),
                     human_time_diff((int) ($last['at'] ?? time())),
-                    (string) ($last['error'] ?? __('no reason was given', 'claudpress'))
+                    (string) ($last['error'] ?? __('no reason was given', 'keelhob'))
                 );
             }
         }
@@ -234,7 +234,7 @@ final class Claudpress_Notifier
     /** The owner's stored preference, independent of whether it can deliver today. */
     public static function chosen_channels(): array
     {
-        $stored = Claudpress::instance()->get('notify_channels', null);
+        $stored = Keelhob::instance()->get('notify_channels', null);
 
         // Never configured: fall back to everything that is connected, which is
         // exactly how this behaved before the preference existed. Upgrading must
@@ -283,7 +283,7 @@ final class Claudpress_Notifier
         ?array $channels = null,
         ?string $email_to = null
     ): array {
-        $s       = Claudpress::instance()->settings();
+        $s       = Keelhob::instance()->settings();
         $results = [];
 
         $wanted    = $channels === null ? self::chosen_channels() : $channels;
@@ -320,7 +320,7 @@ final class Claudpress_Notifier
             self::record_outcome(
                 'email',
                 $sent,
-                $mail_error !== '' ? $mail_error : __('wp_mail() returned false and gave no reason.', 'claudpress')
+                $mail_error !== '' ? $mail_error : __('wp_mail() returned false and gave no reason.', 'keelhob')
             );
         }
 
@@ -393,8 +393,8 @@ final class Claudpress_Notifier
             $channel,
             false,
             $detail === ''
-                ? sprintf(/* translators: %d: HTTP status code */ __('HTTP %d', 'claudpress'), $code)
-                : sprintf(/* translators: 1: HTTP status code, 2: server message */ __('HTTP %1$d - %2$s', 'claudpress'), $code, $detail)
+                ? sprintf(/* translators: %d: HTTP status code */ __('HTTP %d', 'keelhob'), $code)
+                : sprintf(/* translators: 1: HTTP status code, 2: server message */ __('HTTP %1$d - %2$s', 'keelhob'), $code, $detail)
         );
     }
 }

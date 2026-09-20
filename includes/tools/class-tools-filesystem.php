@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Tools_Filesystem
+final class Keelhob_Tools_Filesystem
 {
     /**
      * Per-file cap on what gets backed up. Source files an agent legitimately
@@ -26,9 +26,9 @@ final class Claudpress_Tools_Filesystem
      */
     private const BACKUP_MAX_TOTAL_BYTES = 50 * 1024 * 1024;
 
-    public static function register(Claudpress_Tool_Registry $r): void
+    public static function register(Keelhob_Tool_Registry $r): void
     {
-        $r->add('read_file', 'Read a text file (confined to the Claudpress filesystem base, default the WordPress root). Returns file contents.', [
+        $r->add('read_file', 'Read a text file (confined to the Keelhob filesystem base, default the WordPress root). Returns file contents.', [
             'type' => 'object',
             'properties' => ['path' => ['type' => 'string', 'description' => 'Absolute path or path relative to the WordPress root.']],
             'required' => ['path'],
@@ -65,7 +65,7 @@ final class Claudpress_Tools_Filesystem
             'properties' => ['path' => ['type' => 'string', 'description' => 'Directory path. Defaults to the WordPress root.']],
         ], [self::class, 'list_directory'], ['readOnlyHint' => true]);
 
-        $r->add('write_sandbox_file', 'Write a PHP file into the Claudpress sandbox (wp-content/claudpress-sandbox). Sandbox files are auto-loaded on every request so custom hooks/functions persist. Content is syntax-checked before it touches disk (rejected on a parse error, nothing written); a file that still fatals at runtime for some other reason is auto-quarantined on the next request so the site stays up. Include the opening <?php tag.', [
+        $r->add('write_sandbox_file', 'Write a PHP file into the Keelhob sandbox (wp-content/keelhob-sandbox). Sandbox files are auto-loaded on every request so custom hooks/functions persist. Content is syntax-checked before it touches disk (rejected on a parse error, nothing written); a file that still fatals at runtime for some other reason is auto-quarantined on the next request so the site stays up. Include the opening <?php tag.', [
             'type' => 'object',
             'properties' => [
                 'filename' => ['type' => 'string', 'description' => 'File name, e.g. my-feature.php'],
@@ -122,7 +122,7 @@ final class Claudpress_Tools_Filesystem
      */
     private static function backups_dir(): string
     {
-        $dir = WP_CONTENT_DIR . '/uploads/claudpress-backups';
+        $dir = WP_CONTENT_DIR . '/uploads/keelhob-backups';
         if (!is_dir($dir)) {
             wp_mkdir_p($dir);
             @file_put_contents($dir . '/index.php', "<?php // Silence is golden.\n");
@@ -192,7 +192,7 @@ final class Claudpress_Tools_Filesystem
     }
 
     /**
-     * Wrap a completed write/delete with Claudpress_Health::guard(), and
+     * Wrap a completed write/delete with Keelhob_Health::guard(), and
      * follow its contract exactly (see guard()'s docblock):
      *
      *  - front_end_check === 'FAILED' with a revert given → the revert fixed
@@ -231,7 +231,7 @@ final class Claudpress_Tools_Filesystem
             };
         }
 
-        $result = Claudpress_Health::guard($result, $subject, $revert);
+        $result = Keelhob_Health::guard($result, $subject, $revert);
 
         if ($revert === null) {
             return $result;
@@ -286,7 +286,7 @@ final class Claudpress_Tools_Filesystem
      */
     private static function resolve(string $path): array
     {
-        $base = (string) Claudpress::instance()->get('fs_base', ABSPATH);
+        $base = (string) Keelhob::instance()->get('fs_base', ABSPATH);
         $base = rtrim(wp_normalize_path(realpath($base) ?: $base), '/') . '/';
 
         $path = wp_normalize_path($path);
@@ -465,10 +465,10 @@ final class Claudpress_Tools_Filesystem
         if ($syntax_error !== null) {
             return ['success' => false, 'error' => 'PHP syntax error, nothing written: ' . $syntax_error];
         }
-        if (!is_dir(CLAUDPRESS_SANDBOX_DIR)) {
-            wp_mkdir_p(CLAUDPRESS_SANDBOX_DIR);
+        if (!is_dir(KEELHOB_SANDBOX_DIR)) {
+            wp_mkdir_p(KEELHOB_SANDBOX_DIR);
         }
-        $path    = CLAUDPRESS_SANDBOX_DIR . '/' . $filename;
+        $path    = KEELHOB_SANDBOX_DIR . '/' . $filename;
         $existed = is_file($path);
         $backup  = $existed ? self::backup_before_write($path) : null;
 

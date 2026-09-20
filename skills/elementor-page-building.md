@@ -50,7 +50,7 @@ Read an existing page first with `elementor_page action=get` to learn the exact 
 ## Global design (brand kit)
 Apply site-wide colors/fonts once with `elementor_kit action=set` (merges into the active kit's `_elementor_page_settings`: `system_colors`, `custom_colors`, `system_typography`). Every Elementor page inherits it.
 
-- **GOTCHA: the kit's global link color beats a bare class selector.** The kit emits `.elementor a { color: … }`, which outranks a plain class like `.cp-btn` — a copper button can end up with teal underlined text inside it. Prefix such selectors with the parent: `.elementor a.cp-btn`, not `.cp-btn`.
+- **GOTCHA: the kit's global link color beats a bare class selector.** The kit emits `.elementor a { color: … }`, which outranks a plain class like `.kh-btn` — a copper button can end up with teal underlined text inside it. Prefix such selectors with the parent: `.elementor a.kh-btn`, not `.kh-btn`.
 
 ## Widget settings — read `get_controls()` first
 Wrong setting keys are written, saved, and reported successful, then do nothing — Elementor validates none of it. Before setting a widget's `settings`, read an existing instance of that widget with `action=get` (or check the widget's controls) rather than guessing names from the label in the editor UI. Real example from a live build: the `xpro-horizontal-menu` widget's controls are `nav_menu` and `menu_text_color` — the obvious guesses `menu` and `menu_color` are accepted and produce a menu with default dark-on-light colors on a near-black header, with nothing in the response to say so.

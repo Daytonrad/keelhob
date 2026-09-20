@@ -19,16 +19,16 @@
  * private (an internal safety check, not a tool).
  */
 
-require_once CLAUDPRESS_DIR . 'includes/tools/class-tools-filesystem.php';
+require_once KEELHOB_DIR . 'includes/tools/class-tools-filesystem.php';
 
-function cp_test_syntax_check(string $path, string $content): ?string
+function kh_test_syntax_check(string $path, string $content): ?string
 {
-    $method = new ReflectionMethod(Claudpress_Tools_Filesystem::class, 'php_syntax_error');
+    $method = new ReflectionMethod(Keelhob_Tools_Filesystem::class, 'php_syntax_error');
     @$method->setAccessible(true); // no-op (and deprecated) on PHP 8.1+, still required on the 8.0 floor
     return $method->invoke(null, $path, $content);
 }
 
-CP_Test::group('Filesystem safety — the exact incident is now caught');
+KH_Test::group('Filesystem safety — the exact incident is now caught');
 
 // The real shape of the broken write: even the opening tag got HTML-escaped.
 $broken = <<<'PHP'
@@ -36,37 +36,37 @@ $broken = <<<'PHP'
 if (!defined('ABSPATH')) {
     exit;
 }
-final class Claudpress_Tools_SEO {
+final class Keelhob_Tools_SEO {
     public static function hooks(): void {
         echo "\n&lt;script type=\"application/ld+json\"&gt;" . $x . "&lt;/script&gt;\n";
     }
 }
 PHP;
 
-CP_Test::same([T_INLINE_HTML], array_unique(array_column(token_get_all($broken, TOKEN_PARSE), 0)), 'sanity check: confirms the actual failure mode — a mangled opening tag makes PHP see the whole file as one single T_INLINE_HTML token, not a parse error, so a naive token_get_all()-only check would have let this exact incident through');
-CP_Test::ok(cp_test_syntax_check('includes/tools/class-tools-seo.php', $broken) !== null, 'the mangled opening tag is caught');
-CP_Test::contains('<?php', (string) cp_test_syntax_check('includes/tools/class-tools-seo.php', $broken), 'the error explains the file is missing a real opening tag');
+KH_Test::same([T_INLINE_HTML], array_unique(array_column(token_get_all($broken, TOKEN_PARSE), 0)), 'sanity check: confirms the actual failure mode — a mangled opening tag makes PHP see the whole file as one single T_INLINE_HTML token, not a parse error, so a naive token_get_all()-only check would have let this exact incident through');
+KH_Test::ok(kh_test_syntax_check('includes/tools/class-tools-seo.php', $broken) !== null, 'the mangled opening tag is caught');
+KH_Test::contains('<?php', (string) kh_test_syntax_check('includes/tools/class-tools-seo.php', $broken), 'the error explains the file is missing a real opening tag');
 
-CP_Test::group('Filesystem safety — real parse errors are rejected before disk');
+KH_Test::group('Filesystem safety — real parse errors are rejected before disk');
 
 $mismatched_brace = "<?php\nfunction foo() {\n    echo 'no closing brace';\n";
-CP_Test::ok(cp_test_syntax_check('includes/tools/class-tools-seo.php', $mismatched_brace) !== null, 'a file missing a closing brace is rejected');
+KH_Test::ok(kh_test_syntax_check('includes/tools/class-tools-seo.php', $mismatched_brace) !== null, 'a file missing a closing brace is rejected');
 
 $stray_token = "<?php\nfoo(;\n";
-CP_Test::ok(cp_test_syntax_check('includes/tools/class-tools-seo.php', $stray_token) !== null, 'a stray syntax token is rejected');
+KH_Test::ok(kh_test_syntax_check('includes/tools/class-tools-seo.php', $stray_token) !== null, 'a stray syntax token is rejected');
 
 $unterminated_string = "<?php\n\$x = 'unterminated;\n";
-CP_Test::ok(cp_test_syntax_check('includes/tools/class-tools-seo.php', $unterminated_string) !== null, 'an unterminated string literal is rejected');
+KH_Test::ok(kh_test_syntax_check('includes/tools/class-tools-seo.php', $unterminated_string) !== null, 'an unterminated string literal is rejected');
 
-CP_Test::group('Filesystem safety — the gate only applies to .php files');
+KH_Test::group('Filesystem safety — the gate only applies to .php files');
 
-CP_Test::ok(cp_test_syntax_check('assets/notes.txt', $mismatched_brace) === null, 'non-.php paths are never checked, even with broken-PHP-looking content');
-CP_Test::ok(cp_test_syntax_check('READY.PHP', $mismatched_brace) !== null, 'the .php check is case-insensitive');
+KH_Test::ok(kh_test_syntax_check('assets/notes.txt', $mismatched_brace) === null, 'non-.php paths are never checked, even with broken-PHP-looking content');
+KH_Test::ok(kh_test_syntax_check('READY.PHP', $mismatched_brace) !== null, 'the .php check is case-insensitive');
 
-CP_Test::group('Filesystem safety — valid PHP always passes');
+KH_Test::group('Filesystem safety — valid PHP always passes');
 
 $valid = "<?php\nfinal class Foo {\n    public static function bar(): void {}\n}\n";
-CP_Test::ok(cp_test_syntax_check('includes/tools/class-tools-seo.php', $valid) === null, 'syntactically valid PHP with a real opening tag is never rejected');
+KH_Test::ok(kh_test_syntax_check('includes/tools/class-tools-seo.php', $valid) === null, 'syntactically valid PHP with a real opening tag is never rejected');
 
 $valid_with_bom_and_blank_lines = "\xEF\xBB\xBF\n\n  <?php\necho 'ok';\n";
-CP_Test::ok(cp_test_syntax_check('includes/tools/class-tools-seo.php', $valid_with_bom_and_blank_lines) === null, 'a UTF-8 BOM or leading whitespace before a real <?php tag is tolerated');
+KH_Test::ok(kh_test_syntax_check('includes/tools/class-tools-seo.php', $valid_with_bom_and_blank_lines) === null, 'a UTF-8 BOM or leading whitespace before a real <?php tag is tolerated');

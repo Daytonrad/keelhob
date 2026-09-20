@@ -2,7 +2,7 @@
 /**
  * The three AI calls the Studio makes: review, plan, build.
  *
- * Deliberately NOT reusing Claudpress_Agent_Runtime. That runs a tool-calling
+ * Deliberately NOT reusing Keelhob_Agent_Runtime. That runs a tool-calling
  * loop with policy guardrails, budget caps and run accounting, which is the
  * right machinery for "go and do things to the site" and the wrong machinery
  * for "read this and tell me what you think". These three calls hand the model
@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Studio_AI
+final class Keelhob_Studio_AI
 {
     /**
      * Ask the model what a snippet does and whether it looks risky.
@@ -71,7 +71,7 @@ final class Claudpress_Studio_AI
             'verdict'      => 'caution',
             'what_it_does' => '',
             'risks'        => [],
-            'notes'        => __('The AI answered in plain words rather than the structured form this panel expects, so only its summary is shown. The syntax check below is unaffected — that is run by the site, not the AI.', 'claudpress'),
+            'notes'        => __('The AI answered in plain words rather than the structured form this panel expects, so only its summary is shown. The syntax check below is unaffected — that is run by the site, not the AI.', 'keelhob'),
         ];
     }
 
@@ -81,17 +81,17 @@ final class Claudpress_Studio_AI
      * @return string|WP_Error
      */
     private static function ask(string $system, string $user) {
-        $target = Claudpress_Provider::configured();
+        $target = Keelhob_Provider::configured();
         $key    = trim((string) ($target['key'] ?? ''));
 
         if ($key === '') {
             return new WP_Error(
-                'claudpress_studio_no_key',
-                __('No AI provider is connected. Add a key under Claudpress > Automation.', 'claudpress')
+                'keelhob_studio_no_key',
+                __('No AI provider is connected. Add a key under Keelhob > Automation.', 'keelhob')
             );
         }
 
-        /** @var string $provider a Claudpress_Provider subclass name */
+        /** @var string $provider a Keelhob_Provider subclass name */
         $provider = $target['class'];
         $model    = (string) $target['model'];
 
@@ -104,7 +104,7 @@ final class Claudpress_Studio_AI
         ]);
 
         if (is_wp_error($response)) {
-            return new WP_Error('claudpress_studio_http', $response->get_error_message());
+            return new WP_Error('keelhob_studio_http', $response->get_error_message());
         }
 
         $code = (int) wp_remote_retrieve_response_code($response);
@@ -113,20 +113,20 @@ final class Claudpress_Studio_AI
         if ($code < 200 || $code >= 300) {
             $message = is_array($data) ? $provider::error_message($data) : '';
             if ($code === 401 || $code === 403) {
-                $message = __('Your API key was rejected. Check it under Claudpress > Automation.', 'claudpress');
+                $message = __('Your API key was rejected. Check it under Keelhob > Automation.', 'keelhob');
             }
             /* translators: %d: HTTP status code. */
-            return new WP_Error('claudpress_studio_api', $message ?: sprintf(__('The AI provider returned HTTP %d.', 'claudpress'), $code));
+            return new WP_Error('keelhob_studio_api', $message ?: sprintf(__('The AI provider returned HTTP %d.', 'keelhob'), $code));
         }
 
         if (!is_array($data)) {
-            return new WP_Error('claudpress_studio_api', __('The AI provider returned something unreadable.', 'claudpress'));
+            return new WP_Error('keelhob_studio_api', __('The AI provider returned something unreadable.', 'keelhob'));
         }
 
         $parsed = $provider::parse($data);
         $text   = trim((string) ($parsed['text'] ?? ''));
 
-        return $text !== '' ? $text : new WP_Error('claudpress_studio_empty', __('The AI returned an empty answer.', 'claudpress'));
+        return $text !== '' ? $text : new WP_Error('keelhob_studio_empty', __('The AI returned an empty answer.', 'keelhob'));
     }
 
     /**
@@ -170,7 +170,7 @@ final class Claudpress_Studio_AI
      * mislabelled PHP snippet stored as CSS skips the parse gate entirely,
      * because CSS is not parsed. The code decides, not the label.
      *
-     * The hard case is BARE PHP. Claudpress stores snippets without an opening
+     * The hard case is BARE PHP. Keelhob stores snippets without an opening
      * tag, so "add_filter('x', function () { ... });" is the normal shape - and
      * a naive CSS check matches it happily, because it is a selector-ish thing
      * followed by braces. PHP is therefore tested for first, on what PHP
@@ -218,7 +218,7 @@ final class Claudpress_Studio_AI
     /**
      * Remove the opening <?php and any closing ?> from generated PHP.
      *
-     * Snippets are stored as BARE PHP - Claudpress_Snippets::lint_php() prepends
+     * Snippets are stored as BARE PHP - Keelhob_Snippets::lint_php() prepends
      * its own "<?php " before parsing, and run_php() hands the body straight to
      * eval(). A snippet that arrives with its own tag becomes "<?php <?php ..."
      * at lint time and fails the parse gate, so it would save switched off with

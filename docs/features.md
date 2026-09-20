@@ -1,7 +1,7 @@
 # Features, tool by tool
 
 The full tour. [README.md](../README.md) has the pitch, the install, the safety position and
-the honest list of what Claudpress cannot do yet — read that first, then this.
+the honest list of what Keelhob cannot do yet — read that first, then this.
 
 ## The tool surface
 
@@ -63,18 +63,18 @@ attaches them; `image_generate` uses an OpenAI-compatible or Google key if you a
 
 ## Default memory
 
-On install, Claudpress seeds cross-session memory with the vital operating context — capabilities,
+On install, Keelhob seeds cross-session memory with the vital operating context — capabilities,
 build modes, Elementor setup, image strategy, safety — so **any** connected agent (Claude, Codex,
 Gemini) starts informed. Agents are told to call `memory_list` first.
 
 ## Autonomy — the site runs itself
 
-Beyond the interactive MCP connection, Claudpress can operate unattended:
+Beyond the interactive MCP connection, Keelhob can operate unattended:
 
 - **`get_dashboard`** — an on-demand snapshot (sales today/7d/30d, open orders, out-of-stock,
   pending comments, available updates), so *"how's the store doing?"* has an answer without
   logging in.
-- **Autonomous agent runtime** — add an API key under **Claudpress → Automation** and `run_agent`
+- **Autonomous agent runtime** — add an API key under **Keelhob → Automation** and `run_agent`
   runs a plain-language instruction through a real on-site agentic loop over the internal tools
   (*"fulfil paid orders, restock flagged items, publish due drafts"*). Anthropic, OpenAI or Google,
   each with a real adapter for its request format and tool-calling schema; OpenAI-compatible
@@ -94,8 +94,8 @@ Nobody is watching a 3am cron run, so the loop defends itself:
   (bad key, malformed request) fail fast instead of burning the window.
 - **Budget caps** — per-run and per-day limits on spend, tokens and run count. A run that hits a
   cap stops cleanly between steps and reports what it finished, rather than dying mid-tool-call.
-  Set them in **Claudpress → Automation**; `0` means unlimited. Cost is estimated from token usage
-  at list prices (filter `claudpress_model_prices` to adjust) — your provider's invoice is the
+  Set them in **Keelhob → Automation**; `0` means unlimited. Cost is estimated from token usage
+  at list prices (filter `keelhob_model_prices` to adjust) — your provider's invoice is the
   authoritative number.
 - **Run history** — every autonomous run is recorded with its source, status, steps, tool calls,
   retries, tokens and estimated cost, shown on the Automation tab and queryable via `agent_runs`.
@@ -111,7 +111,7 @@ phone is the interface.
 Setup, about two minutes:
 
 1. Talk to [@BotFather](https://t.me/BotFather) → `/newbot` → copy the token.
-2. Paste it into **Claudpress → Automation → Notifications → Telegram bot token**.
+2. Paste it into **Keelhob → Automation → Notifications → Telegram bot token**.
 3. In the **Chat** card below it: tick *Accept messages from Telegram*, save, then hit **Connect
    bot to this site**.
 4. Message the bot. Don't know your chat ID? Message it anyway — it replies with your ID so you
@@ -194,7 +194,7 @@ self-signed staging site cannot receive messages.
 ## Let the site tell you first
 
 Everything else here is pull — you ask, the site answers. This is push. Switch it on in
-**Automation → Let the site tell you first** and Claudpress messages you, on whichever channels you
+**Automation → Let the site tell you first** and Keelhob messages you, on whichever channels you
 configured, when:
 
 - **a paid order lands** — with a value floor, so a busy shop does not ping you 400 times a day

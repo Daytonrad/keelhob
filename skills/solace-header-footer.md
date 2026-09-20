@@ -15,7 +15,7 @@ verified_by: pre-launch-audit
 
 Solace ships **two independent header/footer systems**. Whichever is active fully overrides the other — writing to the inactive one does nothing, silently.
 
-1. **Customizer / Header-Footer Grid (HFG)** — plain `theme_mod` values (JSON strings + PHP arrays), sitewide only, ships with base Solace. No Claudpress tool writes these directly; use `execute_php` (`set_theme_mod`/`get_theme_mod`) if this system is the one live.
+1. **Customizer / Header-Footer Grid (HFG)** — plain `theme_mod` values (JSON strings + PHP arrays), sitewide only, ships with base Solace. No Keelhob tool writes these directly; use `execute_php` (`set_theme_mod`/`get_theme_mod`) if this system is the one live.
 2. **Site Builder** (needs the free **Solace Extra** plugin) — built with Elementor, stored as `solace-sitebuilder` posts with per-page display conditions. Fully readable/writable with the normal `elementor_page` tool once you have the post ID.
 
 ## When to use

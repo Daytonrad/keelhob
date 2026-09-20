@@ -77,7 +77,7 @@ Work from the real site, not from the plan:
 - For WooCommerce: `wc_settings`, `wc_payments`, `wc_shipping`, `wc_tax` — is checkout
   actually configured, or configured in test mode?
 
-**Viewports and console need a real browser**, which Claudpress does not have. If the
+**Viewports and console need a real browser**, which Keelhob does not have. If the
 client you are running in has one (a browser tool, a devtools MCP), use it: load each
 page at 375, 768, 1280 and 1440, check for horizontal scroll, overlap and clipped text,
 and read the console. If it does not, say so in the report and mark those checks *Not

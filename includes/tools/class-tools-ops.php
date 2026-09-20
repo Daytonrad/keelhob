@@ -9,9 +9,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Tools_Ops
+final class Keelhob_Tools_Ops
 {
-    public static function register(Claudpress_Tool_Registry $r): void
+    public static function register(Keelhob_Tool_Registry $r): void
     {
         $r->add('image_search', 'Find a real, openly-licensed image for a post/product from Openverse (free, no API key, Creative Commons / public-domain). Returns candidate images; set attach_to to download the top match into the media library and (optionally) set it as the featured image. Use this whenever you need an image and no generation key is configured.', [
             'type' => 'object',
@@ -25,7 +25,7 @@ final class Claudpress_Tools_Ops
             'required' => ['query'],
         ], [self::class, 'image_search'], ['readOnlyHint' => false]);
 
-        $r->add('image_generate', 'Generate an image with AI from a text prompt, using the image API key configured in Claudpress settings (OpenAI-compatible by default). Optionally import it into the media library and set it as a post\'s featured image. If no key is configured, this returns guidance and you should use image_search instead.', [
+        $r->add('image_generate', 'Generate an image with AI from a text prompt, using the image API key configured in Keelhob settings (OpenAI-compatible by default). Optionally import it into the media library and set it as a post\'s featured image. If no key is configured, this returns guidance and you should use image_search instead.', [
             'type' => 'object',
             'properties' => [
                 'prompt'     => ['type' => 'string'],
@@ -79,7 +79,7 @@ final class Claudpress_Tools_Ops
             $args['aspect_ratio'] = $a['orientation'];
         }
         $url  = 'https://api.openverse.org/v1/images/?' . http_build_query($args);
-        $resp = wp_remote_get($url, ['timeout' => 20, 'headers' => ['User-Agent' => 'Claudpress/' . CLAUDPRESS_VERSION]]);
+        $resp = wp_remote_get($url, ['timeout' => 20, 'headers' => ['User-Agent' => 'Keelhob/' . KEELHOB_VERSION]]);
         if (is_wp_error($resp)) {
             return ['success' => false, 'error' => $resp->get_error_message()];
         }
@@ -108,14 +108,14 @@ final class Claudpress_Tools_Ops
 
     public static function image_generate(array $a): array
     {
-        $settings = Claudpress::instance()->settings();
+        $settings = Keelhob::instance()->settings();
         $key      = (string) ($settings['image_api_key'] ?? '');
         if ($key === '') {
-            return ['success' => false, 'error' => 'No image generation key configured. Add one in WP Admin > Claudpress > Automation, or use image_search (Openverse) for free stock images instead.'];
+            return ['success' => false, 'error' => 'No image generation key configured. Add one in WP Admin > Keelhob > Automation, or use image_search (Openverse) for free stock images instead.'];
         }
 
-        /** @var class-string<Claudpress_Image_Provider> $provider */
-        $provider = Claudpress_Image_Provider::current();
+        /** @var class-string<Keelhob_Image_Provider> $provider */
+        $provider = Keelhob_Image_Provider::current();
         $endpoint = trim((string) ($settings['image_api_endpoint'] ?? '')) ?: $provider::default_endpoint();
         $model    = trim((string) ($settings['image_api_model'] ?? '')) ?: $provider::default_model();
 

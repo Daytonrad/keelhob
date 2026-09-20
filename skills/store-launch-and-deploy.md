@@ -136,7 +136,7 @@ Build and validate on staging, then ship to the live site. Never edit production
 1. On **staging**, build/verify the work (pages, products, snippets, design).
 2. Export what you changed: `export_bundle types=["pages","products","snippets","skills","memory","options"]`. Secrets are never exported.
 3. Ship it, either:
-   - **One call** (preferred): the owner sets the production URL + token in Claudpress → Settings, then `deploy_push types=[...]`. It exports here and imports on production in one step. **Confirm with the owner before pushing to a live site.**
+   - **One call** (preferred): the owner sets the production URL + token in Keelhob → Settings, then `deploy_push types=[...]`. It exports here and imports on production in one step. **Confirm with the owner before pushing to a live site.**
    - **Manual**: take the bundle from `export_bundle` and run `import_bundle` on the production site (or hand it to the agent connected there).
 4. Imports are **idempotent** — matched by slug/SKU/name/key, so re-deploying updates instead of duplicating. Featured images are sideloaded.
 5. After deploy, spot-check production: load a migrated page/product and confirm it renders, then report what changed.

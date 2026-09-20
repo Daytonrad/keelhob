@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
  * user/model rather than user/assistant, and every part of a turn (text, calls,
  * results) is a `parts` entry.
  */
-final class Claudpress_Provider_Google extends Claudpress_Provider
+final class Keelhob_Provider_Google extends Keelhob_Provider
 {
     public static function id(): string { return 'google'; }
     public static function label(): string { return 'Google (Gemini)'; }

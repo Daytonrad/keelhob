@@ -8,12 +8,12 @@
  * agent can hear or see it.
  *
  * It knows nothing about who is allowed to talk to the bot or what any message
- * means. Those are Claudpress_Telegram's job and Claudpress_Telegram_Router's
+ * means. Those are Keelhob_Telegram's job and Keelhob_Telegram_Router's
  * respectively, and keeping the wire protocol out of both of them is what makes
  * this file readable on its own.
  *
  * The constants and settings it needs — the API base, the message ceiling, the
- * bot token — stay on Claudpress_Telegram, which is where the rest of the
+ * bot token — stay on Keelhob_Telegram, which is where the rest of the
  * plugin already reads them from.
  */
 
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Telegram_Api
+final class Keelhob_Telegram_Api
 {
     /** @var array<string, int> last progress-edit timestamp, keyed by message */
     private static $last_progress = [];
@@ -31,11 +31,11 @@ final class Claudpress_Telegram_Api
     /** @return array decoded response, or ['ok' => false, 'description' => …] */
     public static function api(string $method, array $params = []): array
     {
-        $token = Claudpress_Telegram::token();
+        $token = Keelhob_Telegram::token();
         if ($token === '') {
             return ['ok' => false, 'description' => 'No Telegram bot token configured.'];
         }
-        $resp = wp_remote_post(Claudpress_Telegram::API_BASE . $token . '/' . $method, [
+        $resp = wp_remote_post(Keelhob_Telegram::API_BASE . $token . '/' . $method, [
             'timeout' => 20,
             'body'    => $params,
         ]);
@@ -55,7 +55,7 @@ final class Claudpress_Telegram_Api
     public static function send(string $chat_id, string $text, array $markup = []): int
     {
         $first  = 0;
-        $chunks = Claudpress_Telegram::split_message($text);
+        $chunks = Keelhob_Telegram::split_message($text);
         $last   = count($chunks) - 1;
 
         foreach ($chunks as $i => $chunk) {
@@ -85,7 +85,7 @@ final class Claudpress_Telegram_Api
         $params = [
             'chat_id'                  => $chat_id,
             'message_id'               => $message_id,
-            'text'                     => mb_substr($text, 0, Claudpress_Telegram::MAX_MESSAGE),
+            'text'                     => mb_substr($text, 0, Keelhob_Telegram::MAX_MESSAGE),
             'disable_web_page_preview' => 'true',
         ];
         if ($markup) {
@@ -107,7 +107,7 @@ final class Claudpress_Telegram_Api
         }
         $key  = $chat_id . ':' . $message_id;
         $last = self::$last_progress[$key] ?? 0;
-        if (time() - $last < Claudpress_Telegram::PROGRESS_THROTTLE) {
+        if (time() - $last < Keelhob_Telegram::PROGRESS_THROTTLE) {
             return;
         }
         self::$last_progress[$key] = time();
@@ -138,8 +138,8 @@ final class Claudpress_Telegram_Api
     public static function set_webhook(): array
     {
         $res = self::api('setWebhook', [
-            'url'                  => Claudpress_Telegram::webhook_url(),
-            'secret_token'         => Claudpress_Telegram::secret(),
+            'url'                  => Keelhob_Telegram::webhook_url(),
+            'secret_token'         => Keelhob_Telegram::secret(),
             'allowed_updates'      => wp_json_encode(['message', 'callback_query']),
             'drop_pending_updates' => 'true',
         ]);
@@ -194,11 +194,11 @@ final class Claudpress_Telegram_Api
         if ($path === '') {
             return ['success' => false, 'error' => (string) ($info['description'] ?? 'Telegram would not hand over that file.')];
         }
-        if ((int) ($info['result']['file_size'] ?? 0) > Claudpress_Telegram::MAX_FILE_BYTES) {
+        if ((int) ($info['result']['file_size'] ?? 0) > Keelhob_Telegram::MAX_FILE_BYTES) {
             return ['success' => false, 'error' => 'That file is too large for me to fetch.'];
         }
 
-        $resp = wp_remote_get(Claudpress_Telegram::FILE_BASE . Claudpress_Telegram::token() . '/' . $path, ['timeout' => 60]);
+        $resp = wp_remote_get(Keelhob_Telegram::FILE_BASE . Keelhob_Telegram::token() . '/' . $path, ['timeout' => 60]);
         if (is_wp_error($resp)) {
             return ['success' => false, 'error' => $resp->get_error_message()];
         }
@@ -220,9 +220,9 @@ final class Claudpress_Telegram_Api
      */
     public static function transcribe(string $file_id, string $mime): array
     {
-        $key = Claudpress_Transcribe_Provider::key();
+        $key = Keelhob_Transcribe_Provider::key();
         if ($key === '') {
-            return ['success' => false, 'error' => 'Voice needs a transcription API key (Claudpress → Automation → Chat).'];
+            return ['success' => false, 'error' => 'Voice needs a transcription API key (Keelhob → Automation → Chat).'];
         }
 
         $file = self::fetch_file($file_id);
@@ -230,9 +230,9 @@ final class Claudpress_Telegram_Api
             return ['success' => false, 'error' => (string) $file['error']];
         }
 
-        $s = Claudpress::instance()->settings();
-        /** @var class-string<Claudpress_Transcribe_Provider> $p */
-        $p = Claudpress_Transcribe_Provider::current();
+        $s = Keelhob::instance()->settings();
+        /** @var class-string<Keelhob_Transcribe_Provider> $p */
+        $p = Keelhob_Transcribe_Provider::current();
 
         return $p::transcribe(
             $key,

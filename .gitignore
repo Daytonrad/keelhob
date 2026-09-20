@@ -1,5 +1,5 @@
 # Build artifacts (regenerated from source by bin/build-zip.sh)
-claudpress.zip
+keelhob.zip
 build/
 
 # Composer is DEV TOOLING ONLY here (PHPStan). The plugin itself has no runtime
@@ -37,7 +37,7 @@ Thumbs.db
 # Holds a live bearer token for the staging site. Never commit.
 .staging-token
 
-# Private working docs. They live in ../claudpress-vital/ and are deliberately
+# Private working docs. They live in ../keelhob-vital/ and are deliberately
 # outside this repository, because this repository is public.
 #
 # They are the business plan the project used to have: tier tables, price

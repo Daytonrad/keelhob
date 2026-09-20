@@ -12,14 +12,14 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Studio_Actions
+final class Keelhob_Studio_Actions
 {
     public function hooks(): void
     {
-        add_action('admin_post_claudpress_studio', [$this, 'handle']);
-        add_action('wp_ajax_claudpress_studio_review', [$this, 'ajax_review']);
-        add_action('wp_ajax_claudpress_studio_chat', [$this, 'ajax_chat']);
-        add_action('wp_ajax_claudpress_studio_render', [$this, 'ajax_render']);
+        add_action('admin_post_keelhob_studio', [$this, 'handle']);
+        add_action('wp_ajax_keelhob_studio_review', [$this, 'ajax_review']);
+        add_action('wp_ajax_keelhob_studio_chat', [$this, 'ajax_chat']);
+        add_action('wp_ajax_keelhob_studio_render', [$this, 'ajax_render']);
     }
 
     /**
@@ -33,17 +33,17 @@ final class Claudpress_Studio_Actions
     private static function guard(): void
     {
         if (!current_user_can('manage_options')) {
-            wp_die(esc_html__('You do not have permission to manage snippets.', 'claudpress'), '', ['response' => 403]);
+            wp_die(esc_html__('You do not have permission to manage snippets.', 'keelhob'), '', ['response' => 403]);
         }
-        check_admin_referer(Claudpress_Studio::NONCE);
+        check_admin_referer(Keelhob_Studio::NONCE);
     }
 
     private static function guard_ajax(): void
     {
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => __('You do not have permission to do that.', 'claudpress')], 403);
+            wp_send_json_error(['message' => __('You do not have permission to do that.', 'keelhob')], 403);
         }
-        check_ajax_referer(Claudpress_Studio::NONCE, 'nonce');
+        check_ajax_referer(Keelhob_Studio::NONCE, 'nonce');
     }
 
     public function handle(): void
@@ -62,22 +62,22 @@ final class Claudpress_Studio_Actions
                 break;
             case 'activate':
             case 'deactivate':
-                Claudpress_Snippets::toggle($id, $action === 'activate');
-                Claudpress_Studio::redirect('all', $action === 'activate' ? 'activated' : 'deactivated');
+                Keelhob_Snippets::toggle($id, $action === 'activate');
+                Keelhob_Studio::redirect('all', $action === 'activate' ? 'activated' : 'deactivated');
                 break;
             case 'duplicate':
                 $this->duplicate($id);
                 break;
             case 'delete':
-                Claudpress_Snippets::delete($id);
-                Claudpress_Studio::redirect('all', 'deleted');
+                Keelhob_Snippets::delete($id);
+                Keelhob_Studio::redirect('all', 'deleted');
                 break;
             case 'restore':
                 $this->restore($id, isset($_POST['revision_id']) ? (int) $_POST['revision_id'] : 0);
                 break;
                 break;
             default:
-                Claudpress_Studio::redirect('all', 'saved');
+                Keelhob_Studio::redirect('all', 'saved');
         }
     }
 
@@ -92,12 +92,12 @@ final class Claudpress_Studio_Actions
         // form corrects it and says so; only the tool layer refuses.
         $type     = sanitize_key(wp_unslash($_POST['snippet_type'] ?? 'php'));
         $location = sanitize_key(wp_unslash($_POST['location'] ?? 'everywhere'));
-        $moved    = $type !== 'php' && !in_array($location, Claudpress_Snippets::EMITTING_LOCATIONS, true);
+        $moved    = $type !== 'php' && !in_array($location, Keelhob_Snippets::EMITTING_LOCATIONS, true);
         if ($moved) {
-            $location = Claudpress_Snippets::default_location_for_type($type);
+            $location = Keelhob_Snippets::default_location_for_type($type);
         }
 
-        $result = Claudpress_Snippets::save([
+        $result = Keelhob_Snippets::save([
             'id'           => $id ?: null,
             'name'         => sanitize_text_field(wp_unslash($_POST['name'] ?? '')),
             'description'  => sanitize_textarea_field(wp_unslash($_POST['description'] ?? '')),
@@ -116,14 +116,14 @@ final class Claudpress_Studio_Actions
             /*
              * Always sent, even when empty, and that is deliberate.
              *
-             * Claudpress_Snippets::save() only writes conditions when the key is
+             * Keelhob_Snippets::save() only writes conditions when the key is
              * PRESENT, so that `snippet_save({id, tags})` from an agent cannot
              * silently wipe rules it never mentioned. This form is the opposite
              * case: it always shows the whole rule builder, so whatever it
              * submits IS the complete intent — including "I unticked everything
              * and there are no rules now", which must actually clear them.
              */
-            'conditions'   => Claudpress_Snippet_Conditions::from_form(wp_unslash($_POST)),
+            'conditions'   => Keelhob_Snippet_Conditions::from_form(wp_unslash($_POST)),
         ]);
 
         $id = (int) ($result['id'] ?? $id);
@@ -137,7 +137,7 @@ final class Claudpress_Studio_Actions
         // both relocated and broken has a bigger problem than its location.
         $message = $blocked ? 'lint' : ($moved ? 'moved' : ($activate ? 'activated' : 'saved'));
 
-        Claudpress_Studio::redirect(
+        Keelhob_Studio::redirect(
             ($blocked || $moved) ? 'edit' : 'all',
             $message,
             ($blocked || $moved) ? ['snippet' => $id] : []
@@ -148,43 +148,43 @@ final class Claudpress_Studio_Actions
     {
         $prompt = sanitize_textarea_field(wp_unslash($_POST['ai_prompt'] ?? ''));
         $type   = sanitize_key(wp_unslash($_POST['snippet_type'] ?? 'php'));
-        $result = Claudpress_Snippets::save([
-            'name'         => sanitize_text_field(wp_unslash($_POST['name'] ?? '')) ?: __('AI snippet', 'claudpress'),
+        $result = Keelhob_Snippets::save([
+            'name'         => sanitize_text_field(wp_unslash($_POST['name'] ?? '')) ?: __('AI snippet', 'keelhob'),
             'code'         => wp_unslash($_POST['code'] ?? ''),
             'snippet_type' => $type,
             // Compose asks for a type and never a location, so without this a
             // composed css snippet would land at the default "everywhere" and
             // be refused — throwing away code the model just wrote.
-            'location'     => Claudpress_Snippets::default_location_for_type($type),
+            'location'     => Keelhob_Snippets::default_location_for_type($type),
             'source'       => 'ai',
             'ai_prompt'    => $prompt,
-            'ai_model'     => (string) Claudpress::instance()->get('agent_model', ''),
+            'ai_model'     => (string) Keelhob::instance()->get('agent_model', ''),
             // Always off. The whole point of Compose saving inactive is that
             // nobody has read this code yet.
             'active'       => 0,
         ]);
 
-        Claudpress_Studio::redirect('edit', 'saved', ['snippet' => (int) ($result['id'] ?? 0)]);
+        Keelhob_Studio::redirect('edit', 'saved', ['snippet' => (int) ($result['id'] ?? 0)]);
     }
 
     private function duplicate(int $id): void
     {
-        $row = Claudpress_Snippets::get($id);
+        $row = Keelhob_Snippets::get($id);
         if (!$row) {
-            Claudpress_Studio::redirect('all', 'saved');
+            Keelhob_Studio::redirect('all', 'saved');
         }
         // A row saved before the location check existed may be a css snippet at
         // a location that cannot emit it. Copying it verbatim would be refused,
         // so the copy is put somewhere it can actually run.
         $copy_type     = (string) $row['snippet_type'];
         $copy_location = (string) $row['location'];
-        if ($copy_type !== 'php' && !in_array($copy_location, Claudpress_Snippets::EMITTING_LOCATIONS, true)) {
-            $copy_location = Claudpress_Snippets::default_location_for_type($copy_type);
+        if ($copy_type !== 'php' && !in_array($copy_location, Keelhob_Snippets::EMITTING_LOCATIONS, true)) {
+            $copy_location = Keelhob_Snippets::default_location_for_type($copy_type);
         }
 
-        $copy = Claudpress_Snippets::save([
+        $copy = Keelhob_Snippets::save([
             /* translators: %s: the original snippet's name. */
-            'name'         => sprintf(__('%s (copy)', 'claudpress'), (string) $row['name']),
+            'name'         => sprintf(__('%s (copy)', 'keelhob'), (string) $row['name']),
             'description'  => (string) $row['description'],
             'code'         => (string) $row['code'],
             'snippet_type' => $copy_type,
@@ -194,7 +194,7 @@ final class Claudpress_Studio_Actions
             'source'       => (string) ($row['source'] ?? 'manual'),
             'active'       => 0, // A copy never inherits "on".
         ]);
-        Claudpress_Studio::redirect('edit', 'saved', ['snippet' => (int) ($copy['id'] ?? 0)]);
+        Keelhob_Studio::redirect('edit', 'saved', ['snippet' => (int) ($copy['id'] ?? 0)]);
     }
 
     /**
@@ -207,28 +207,28 @@ final class Claudpress_Studio_Actions
      */
     private function restore(int $id, int $revision_id): void
     {
-        $current = Claudpress_Snippets::get($id);
+        $current = Keelhob_Snippets::get($id);
         if (!$current || $revision_id <= 0) {
-            Claudpress_Studio::redirect('all', 'saved');
+            Keelhob_Studio::redirect('all', 'saved');
         }
 
         $revision = null;
-        foreach (Claudpress_Snippets::revisions($id, 200) as $rev) {
+        foreach (Keelhob_Snippets::revisions($id, 200) as $rev) {
             if ((int) $rev['id'] === $revision_id) {
                 $revision = $rev;
                 break;
             }
         }
         if (!$revision) {
-            Claudpress_Studio::redirect('edit', 'saved', ['snippet' => $id]);
+            Keelhob_Studio::redirect('edit', 'saved', ['snippet' => $id]);
         }
 
-        Claudpress_Snippets::save([
+        Keelhob_Snippets::save([
             'id'     => $id,
             'code'   => (string) $revision['code'],
             'active' => 0,
         ]);
-        Claudpress_Studio::redirect('edit', 'saved', ['snippet' => $id]);
+        Keelhob_Studio::redirect('edit', 'saved', ['snippet' => $id]);
     }
 
     // ---- AJAX ------------------------------------------------------------
@@ -241,20 +241,20 @@ final class Claudpress_Studio_Actions
         $type = sanitize_key(wp_unslash($_POST['snippet_type'] ?? 'php'));
 
         if (trim($code) === '') {
-            wp_send_json_error(['message' => __('There is no code to look at.', 'claudpress')]);
+            wp_send_json_error(['message' => __('There is no code to look at.', 'keelhob')]);
         }
 
-        $review = Claudpress_Studio_AI::review($code, $type);
+        $review = Keelhob_Studio_AI::review($code, $type);
         if (is_wp_error($review)) {
             wp_send_json_error(['message' => $review->get_error_message()]);
         }
 
         // The parse result travels with the opinion, so the panel can show both.
         ob_start();
-        Claudpress_Studio_Edit::review_panel([
+        Keelhob_Studio_Edit::review_panel([
             'ai_review'    => wp_json_encode($review),
             'ai_review_at' => current_time('mysql'),
-            'last_error'   => Claudpress_Snippets::lint_php($code, $type),
+            'last_error'   => Keelhob_Snippets::lint_php($code, $type),
         ]);
         wp_send_json_success(['html' => (string) ob_get_clean()]);
     }
@@ -278,23 +278,23 @@ final class Claudpress_Studio_Actions
         $raw = wp_unslash($_POST['texts'] ?? '');
         $raw = is_string($raw) ? json_decode($raw, true) : null;
         if (!is_array($raw)) {
-            wp_send_json_error(['message' => __('That conversation could not be read.', 'claudpress')]);
+            wp_send_json_error(['message' => __('That conversation could not be read.', 'keelhob')]);
         }
 
         $out = [];
-        foreach (array_slice($raw, 0, Claudpress_Studio_Chat::MAX_TURNS) as $text) {
+        foreach (array_slice($raw, 0, Keelhob_Studio_Chat::MAX_TURNS) as $text) {
             if (!is_string($text) || trim($text) === '') {
                 $out[] = '';
                 continue;
             }
-            $text     = mb_substr($text, 0, Claudpress_Studio_Chat::MAX_TURN_CHARS);
-            $segments = Claudpress_Studio_Chat::segments($text);
+            $text     = mb_substr($text, 0, Keelhob_Studio_Chat::MAX_TURN_CHARS);
+            $segments = Keelhob_Studio_Chat::segments($text);
             foreach ($segments as $i => $seg) {
                 if (($seg['kind'] ?? '') === 'code') {
-                    $segments[$i]['error'] = Claudpress_Snippets::lint_php((string) $seg['code'], (string) $seg['type']);
+                    $segments[$i]['error'] = Keelhob_Snippets::lint_php((string) $seg['code'], (string) $seg['type']);
                 }
             }
-            $out[] = Claudpress_Studio_Compose::message_html($segments);
+            $out[] = Keelhob_Studio_Compose::message_html($segments);
         }
 
         wp_send_json_success(['html' => $out]);
@@ -310,7 +310,7 @@ final class Claudpress_Studio_Actions
      *
      * The transcript is untrusted input. It is never executed and never stored;
      * it is forwarded to the provider and rendered back escaped. The caps in
-     * Claudpress_Studio_Chat are what stop a tampered post turning one click
+     * Keelhob_Studio_Chat are what stop a tampered post turning one click
      * into an enormous bill.
      */
     public function ajax_chat(): void
@@ -320,29 +320,29 @@ final class Claudpress_Studio_Actions
         $raw = wp_unslash($_POST['turns'] ?? '');
         $raw = is_string($raw) ? json_decode($raw, true) : null;
         if (!is_array($raw)) {
-            wp_send_json_error(['message' => __('That conversation could not be read.', 'claudpress')]);
+            wp_send_json_error(['message' => __('That conversation could not be read.', 'keelhob')]);
         }
 
-        $turns = Claudpress_Studio_Chat::normalize($raw);
+        $turns = Keelhob_Studio_Chat::normalize($raw);
         if (empty($turns)) {
-            wp_send_json_error(['message' => __('Type something first.', 'claudpress')]);
+            wp_send_json_error(['message' => __('Type something first.', 'keelhob')]);
         }
 
-        $budget = Claudpress_Studio_Chat::trim_history($turns);
-        $reply  = Claudpress_Studio_Chat::reply($budget['turns']);
+        $budget = Keelhob_Studio_Chat::trim_history($turns);
+        $reply  = Keelhob_Studio_Chat::reply($budget['turns']);
 
         if (is_wp_error($reply)) {
             wp_send_json_error(['message' => $reply->get_error_message()]);
         }
 
         $text     = (string) $reply['text'];
-        $segments = Claudpress_Studio_Chat::segments($text);
+        $segments = Keelhob_Studio_Chat::segments($text);
 
         // Lint in place, so the badge on screen and the error sent back to the
         // model come from the same parse — the one the save path will run too.
         foreach ($segments as $i => $seg) {
             if (($seg['kind'] ?? '') === 'code') {
-                $segments[$i]['error'] = Claudpress_Snippets::lint_php((string) $seg['code'], (string) $seg['type']);
+                $segments[$i]['error'] = Keelhob_Snippets::lint_php((string) $seg['code'], (string) $seg['type']);
             }
         }
 
@@ -355,10 +355,10 @@ final class Claudpress_Studio_Actions
 
         wp_send_json_success([
             'text'      => $text,
-            'html'      => Claudpress_Studio_Compose::message_html($segments),
-            'has_error' => Claudpress_Studio_Chat::has_error($blocks),
-            'fix_turn'  => Claudpress_Studio_Chat::has_error($blocks)
-                ? Claudpress_Studio_Chat::error_turn($blocks)
+            'html'      => Keelhob_Studio_Compose::message_html($segments),
+            'has_error' => Keelhob_Studio_Chat::has_error($blocks),
+            'fix_turn'  => Keelhob_Studio_Chat::has_error($blocks)
+                ? Keelhob_Studio_Chat::error_turn($blocks)
                 : '',
             'dropped'   => (int) $budget['dropped'],
         ]);

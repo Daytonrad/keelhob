@@ -8,12 +8,12 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Memory
+final class Keelhob_Memory
 {
     public static function table(): string
     {
         global $wpdb;
-        return $wpdb->prefix . 'claudpress_memory';
+        return $wpdb->prefix . 'keelhob_memory';
     }
 
     public static function install_table(): void
@@ -88,8 +88,8 @@ final class Claudpress_Memory
      * One page of memory, for the Activity screen.
      *
      * Note what is deliberately absent from this class: a MAX_ROWS constant and
-     * a ring-buffer trim, of the kind Claudpress_Logger and
-     * Claudpress_Snippet_Log both have. Memory is not a log. It is the agent's
+     * a ring-buffer trim, of the kind Keelhob_Logger and
+     * Keelhob_Snippet_Log both have. Memory is not a log. It is the agent's
      * long-term knowledge of this site — the brand colour the owner gave it,
      * the conventions it was told to follow, the decisions it was asked to
      * remember. Capping the table would silently make the agent forget things a

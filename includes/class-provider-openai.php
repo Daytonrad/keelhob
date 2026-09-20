@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
  * (Azure OpenAI, OpenRouter, Groq, Together, local llama.cpp/Ollama) — point the
  * endpoint override at those and the wire format is identical.
  */
-final class Claudpress_Provider_OpenAI extends Claudpress_Provider
+final class Keelhob_Provider_OpenAI extends Keelhob_Provider
 {
     public static function id(): string { return 'openai'; }
     public static function label(): string { return 'OpenAI (GPT) & compatible'; }

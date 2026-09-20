@@ -17,10 +17,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Studio
+final class Keelhob_Studio
 {
-    const SLUG  = 'claudpress-studio';
-    const NONCE = 'claudpress_studio';
+    const SLUG  = 'keelhob-studio';
+    const NONCE = 'keelhob_studio';
 
     /** Tab slug => label. Order is the order they render in. */
     public static function tabs(): array
@@ -29,9 +29,9 @@ final class Claudpress_Studio
          * THREE TABS. There was very nearly a fourth.
          *
          * A Library tab shipped here for a long time, shown only when
-         * Claudpress_Studio_Library::has_items() said there was something to
+         * Keelhob_Studio_Library::has_items() said there was something to
          * show. It never said yes on any install, because has_items() asks
-         * Claudpress_Snippet_Library - a class that was never written. So the
+         * Keelhob_Snippet_Library - a class that was never written. So the
          * tab could not appear, and the 135-line screen behind it could not be
          * reached, and both shipped in every zip anyway.
          *
@@ -40,7 +40,7 @@ final class Claudpress_Studio
          * contain a screen that cannot be opened.
          *
          * What was deliberately KEPT: `source = 'library'` in
-         * Claudpress_Snippets::SOURCES and its badge below. That is stored
+         * Keelhob_Snippets::SOURCES and its badge below. That is stored
          * data, not UI. Sites that used the old private library still have rows
          * carrying it, and removing the badge would render their history wrong.
          *
@@ -58,9 +58,9 @@ final class Claudpress_Studio
         $editing = !empty($_GET['snippet']);
 
         return [
-            'all'     => __('All Snippets', 'claudpress'),
-            'edit'    => $editing ? __('Edit Snippet', 'claudpress') : __('Add Snippet', 'claudpress'),
-            'compose' => __('AI Compose', 'claudpress'),
+            'all'     => __('All Snippets', 'keelhob'),
+            'edit'    => $editing ? __('Edit Snippet', 'keelhob') : __('Add Snippet', 'keelhob'),
+            'compose' => __('AI Compose', 'keelhob'),
         ];
     }
 
@@ -94,9 +94,9 @@ final class Claudpress_Studio
     public function menu(): void
     {
         add_submenu_page(
-            'claudpress',
-            __('Snippets', 'claudpress'),
-            __('Snippets', 'claudpress'),
+            'keelhob',
+            __('Snippets', 'keelhob'),
+            __('Snippets', 'keelhob'),
             'manage_options',
             self::SLUG,
             [$this, 'render'],
@@ -119,31 +119,31 @@ final class Claudpress_Studio
     public static function enqueue_styles(): void
     {
         wp_enqueue_style(
-            'claudpress-studio',
-            CLAUDPRESS_URL . 'assets/css/studio.css',
+            'keelhob-studio',
+            KEELHOB_URL . 'assets/css/studio.css',
             [],
-            Claudpress::asset_version('assets/css/studio.css')
+            Keelhob::asset_version('assets/css/studio.css')
         );
     }
 
     public function render(): void
     {
         if (!current_user_can('manage_options')) {
-            wp_die(esc_html__('You do not have permission to manage snippets.', 'claudpress'));
+            wp_die(esc_html__('You do not have permission to manage snippets.', 'keelhob'));
         }
 
         $current = self::current_tab();
         ?>
         <div class="wrap">
-            <h1 class="wp-heading-inline"><?php echo Claudpress_Brand::heading_mark(); ?><?php esc_html_e('Snippets Studio', 'claudpress'); ?></h1>
+            <h1 class="wp-heading-inline"><?php echo Keelhob_Brand::heading_mark(); ?><?php esc_html_e('Snippets Studio', 'keelhob'); ?></h1>
             <?php if ($current !== 'edit') : ?>
-                <a href="<?php echo esc_url(self::url('edit')); ?>" class="page-title-action"><?php esc_html_e('Add Snippet', 'claudpress'); ?></a>
+                <a href="<?php echo esc_url(self::url('edit')); ?>" class="page-title-action"><?php esc_html_e('Add Snippet', 'keelhob'); ?></a>
             <?php endif; ?>
             <hr class="wp-header-end">
 
             <?php self::notices(); ?>
 
-            <nav class="nav-tab-wrapper wp-clearfix" aria-label="<?php esc_attr_e('Snippets Studio tabs', 'claudpress'); ?>">
+            <nav class="nav-tab-wrapper wp-clearfix" aria-label="<?php esc_attr_e('Snippets Studio tabs', 'keelhob'); ?>">
                 <?php foreach (self::tabs() as $slug => $label) : ?>
                     <a href="<?php echo esc_url(self::url($slug)); ?>"
                        class="nav-tab <?php echo $slug === $current ? 'nav-tab-active' : ''; ?>"><?php echo esc_html($label); ?></a>
@@ -153,13 +153,13 @@ final class Claudpress_Studio
             <?php
             switch ($current) {
                 case 'edit':
-                    Claudpress_Studio_Edit::render();
+                    Keelhob_Studio_Edit::render();
                     break;
                 case 'compose':
-                    Claudpress_Studio_Compose::render();
+                    Keelhob_Studio_Compose::render();
                     break;
                 default:
-                    Claudpress_Studio_List::render();
+                    Keelhob_Studio_List::render();
             }
             ?>
         </div>
@@ -176,14 +176,14 @@ final class Claudpress_Studio
     private static function notices(): void
     {
         $map = [
-            'saved'      => ['success', __('Snippet saved.', 'claudpress')],
-            'activated'  => ['success', __('Snippet saved and switched on.', 'claudpress')],
-            'deactivated' => ['info', __('Snippet switched off.', 'claudpress')],
-            'deleted'    => ['success', __('Snippet deleted.', 'claudpress')],
-            'lint'       => ['error', __('That code does not parse, so it was saved switched OFF. The error is shown on the snippet.', 'claudpress')],
-            'moved'      => ['warning', __('Saved, but moved to a location that can run it. CSS, JS and HTML are only output in the header, the footer, before or after content, or from a shortcode — at "everywhere", "admin only", "front end only" or "page template" nothing would have printed them.', 'claudpress')],
+            'saved'      => ['success', __('Snippet saved.', 'keelhob')],
+            'activated'  => ['success', __('Snippet saved and switched on.', 'keelhob')],
+            'deactivated' => ['info', __('Snippet switched off.', 'keelhob')],
+            'deleted'    => ['success', __('Snippet deleted.', 'keelhob')],
+            'lint'       => ['error', __('That code does not parse, so it was saved switched OFF. The error is shown on the snippet.', 'keelhob')],
+            'moved'      => ['warning', __('Saved, but moved to a location that can run it. CSS, JS and HTML are only output in the header, the footer, before or after content, or from a shortcode — at "everywhere", "admin only", "front end only" or "page template" nothing would have printed them.', 'keelhob')],
         ];
-        $key = isset($_GET['cp_msg']) ? sanitize_key(wp_unslash($_GET['cp_msg'])) : '';
+        $key = isset($_GET['kh_msg']) ? sanitize_key(wp_unslash($_GET['kh_msg'])) : '';
         if ($key === '' || !isset($map[$key])) {
             return;
         }
@@ -207,7 +207,7 @@ final class Claudpress_Studio
      */
     public static function redirect(string $tab, string $msg, array $extra = []): void
     {
-        wp_safe_redirect(self::url($tab, array_merge($extra, ['cp_msg' => $msg])));
+        wp_safe_redirect(self::url($tab, array_merge($extra, ['kh_msg' => $msg])));
         exit;
     }
 
@@ -222,14 +222,14 @@ final class Claudpress_Studio
     public static function source_badge(string $source): string
     {
         $labels = [
-            'ai'      => ['#8c5e00', '#fff3d6', __('AI-generated', 'claudpress')],
-            'library' => ['#1d4ed8', '#e6edff', __('Library', 'claudpress')],
+            'ai'      => ['#8c5e00', '#fff3d6', __('AI-generated', 'keelhob')],
+            'library' => ['#1d4ed8', '#e6edff', __('Library', 'keelhob')],
             // Snippets pulled from the old private library on our server.
             // Nothing writes this any more, but rows carrying it still
             // exist and deserve a truthful badge rather than being shown
             // as hand-written.
-            'cloud'   => ['#065f46', '#d9f5ec', __('Imported', 'claudpress')],
-            'manual'  => ['#4b5563', '#f0f0f1', __('Hand-written', 'claudpress')],
+            'cloud'   => ['#065f46', '#d9f5ec', __('Imported', 'keelhob')],
+            'manual'  => ['#4b5563', '#f0f0f1', __('Hand-written', 'keelhob')],
         ];
         [$fg, $bg, $label] = $labels[$source] ?? $labels['manual'];
 

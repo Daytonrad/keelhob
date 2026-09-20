@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Policy
+final class Keelhob_Policy
 {
     /** Tools considered high-risk when nobody is watching. Blocked in autonomous runs unless the task opts in. */
     public static function autonomous_denylist(): array
@@ -35,7 +35,7 @@ final class Claudpress_Policy
 
     private static function policy(): array
     {
-        $p = Claudpress::instance()->get('policy', []);
+        $p = Keelhob::instance()->get('policy', []);
         return array_merge(self::defaults(), is_array($p) ? $p : []);
     }
 

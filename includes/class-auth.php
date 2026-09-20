@@ -3,7 +3,7 @@
  * Authentication for the MCP endpoint.
  *
  * Two supported credentials, both requiring an administrator-capable identity:
- *   1. Bearer token  — `Authorization: Bearer cp_xxx` (generated in settings).
+ *   1. Bearer token  — `Authorization: Bearer kh_xxx` (generated in settings).
  *      Simplest for Claude Code. Runs as the site's first admin.
  *   2. Application Password — `Authorization: Basic base64(user:app_password)`.
  *      Standard WordPress credential; runs as that user.
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Auth
+final class Keelhob_Auth
 {
     /**
      * Authenticate the current REST request.
@@ -22,7 +22,7 @@ final class Claudpress_Auth
      */
     public static function authenticate()
     {
-        $settings = Claudpress::instance()->settings();
+        $settings = Keelhob::instance()->settings();
 
         // S4: throttle before doing any credential work. Without this the MCP
         // route is an unlimited password-guessing oracle that bypasses both the
@@ -34,9 +34,9 @@ final class Claudpress_Auth
             // screen distinguished "wait" from "still broken".
             $left = self::lock_seconds_left();
             return new WP_Error(
-                'claudpress_locked_out',
+                'keelhob_locked_out',
                 sprintf(
-                    'Too many failed attempts. Try again in %d minute(s). Generating a new token in Claudpress > Connect clears this immediately.',
+                    'Too many failed attempts. Try again in %d minute(s). Generating a new token in Keelhob > Connect clears this immediately.',
                     (int) max(1, ceil($left / 60))
                 ),
                 ['status' => 429, 'retry_after' => $left]
@@ -44,12 +44,12 @@ final class Claudpress_Auth
         }
 
         if (!empty($settings['require_https']) && !is_ssl() && !self::is_local()) {
-            return new WP_Error('claudpress_https_required', 'HTTPS is required to connect to Claudpress.', ['status' => 403]);
+            return new WP_Error('keelhob_https_required', 'HTTPS is required to connect to Keelhob.', ['status' => 403]);
         }
 
         $header = self::auth_header();
         if ($header === '') {
-            return new WP_Error('claudpress_no_auth', 'Missing Authorization header.', ['status' => 401]);
+            return new WP_Error('keelhob_no_auth', 'Missing Authorization header.', ['status' => 401]);
         }
 
         // Bearer token path.
@@ -57,14 +57,14 @@ final class Claudpress_Auth
             $presented = trim(substr($header, 7));
             if (!self::token_matches($presented, $settings)) {
                 self::record_failure();
-                return new WP_Error('claudpress_bad_token', 'Invalid bearer token.', ['status' => 401]);
+                return new WP_Error('keelhob_bad_token', 'Invalid bearer token.', ['status' => 401]);
             }
             if (self::token_expired($settings)) {
-                return new WP_Error('claudpress_token_expired', 'This token has expired. Generate a new one in Claudpress > Connect.', ['status' => 401]);
+                return new WP_Error('keelhob_token_expired', 'This token has expired. Generate a new one in Keelhob > Connect.', ['status' => 401]);
             }
             $admin_id = self::default_admin_id();
             if (!$admin_id) {
-                return new WP_Error('claudpress_no_admin', 'No administrator account found to run as.', ['status' => 500]);
+                return new WP_Error('keelhob_no_admin', 'No administrator account found to run as.', ['status' => 500]);
             }
             self::clear_failures();
             self::touch_token();
@@ -75,11 +75,11 @@ final class Claudpress_Auth
         // Basic / Application Password path.
         if (stripos($header, 'Basic ') === 0) {
             if (empty($settings['allow_app_passwords'])) {
-                return new WP_Error('claudpress_basic_disabled', 'Application Password auth is disabled.', ['status' => 401]);
+                return new WP_Error('keelhob_basic_disabled', 'Application Password auth is disabled.', ['status' => 401]);
             }
             $decoded = base64_decode(trim(substr($header, 6)), true);
             if ($decoded === false || strpos($decoded, ':') === false) {
-                return new WP_Error('claudpress_bad_basic', 'Malformed Basic credentials.', ['status' => 401]);
+                return new WP_Error('keelhob_bad_basic', 'Malformed Basic credentials.', ['status' => 401]);
             }
             [$username, $password] = explode(':', $decoded, 2);
 
@@ -92,18 +92,18 @@ final class Claudpress_Auth
             $user = wp_authenticate_application_password(null, $username, $password);
             if (is_wp_error($user) || !$user instanceof WP_User) {
                 self::record_failure();
-                return new WP_Error('claudpress_auth_failed', 'Authentication failed. Use an Application Password, not your account password.', ['status' => 401]);
+                return new WP_Error('keelhob_auth_failed', 'Authentication failed. Use an Application Password, not your account password.', ['status' => 401]);
             }
             if (!user_can($user, 'manage_options')) {
                 self::record_failure();
-                return new WP_Error('claudpress_not_admin', 'Account lacks manage_options capability.', ['status' => 403]);
+                return new WP_Error('keelhob_not_admin', 'Account lacks manage_options capability.', ['status' => 403]);
             }
             self::clear_failures();
             wp_set_current_user($user->ID);
             return true;
         }
 
-        return new WP_Error('claudpress_unsupported_auth', 'Unsupported Authorization scheme.', ['status' => 401]);
+        return new WP_Error('keelhob_unsupported_auth', 'Unsupported Authorization scheme.', ['status' => 401]);
     }
 
     private static function auth_header(): string
@@ -209,12 +209,12 @@ final class Claudpress_Auth
     /** The per-address counter key, for any address. unlock() needs this for addresses that are not the caller's. */
     private static function fail_key_for(string $fingerprint): string
     {
-        return 'claudpress_authfail_' . $fingerprint;
+        return 'keelhob_authfail_' . $fingerprint;
     }
 
     private static function fail_key_global(): string
     {
-        return 'claudpress_authfail_ips';
+        return 'keelhob_authfail_ips';
     }
 
     /** Hashed, never raw: this set is stored, and it does not need real addresses. */
@@ -333,7 +333,7 @@ final class Claudpress_Auth
     private static function client_ip(): string
     {
         $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
-        return (string) apply_filters('claudpress_client_ip', $ip);
+        return (string) apply_filters('keelhob_client_ip', $ip);
     }
 
     // ---------------------------------------------------------------- S5 ----
@@ -357,7 +357,7 @@ final class Claudpress_Auth
         }
         $legacy = (string) ($settings['token'] ?? '');
         if ($legacy !== '' && hash_equals($legacy, $presented)) {
-            Claudpress::instance()->update([
+            Keelhob::instance()->update([
                 'token'      => '',
                 'token_hash' => hash('sha256', $presented),
             ]);
@@ -381,10 +381,10 @@ final class Claudpress_Auth
      */
     private static function touch_token(): void
     {
-        $last = (int) (Claudpress::instance()->get('token_last_used', 0));
+        $last = (int) (Keelhob::instance()->get('token_last_used', 0));
         if (time() - $last < 60) {
             return;
         }
-        Claudpress::instance()->update(['token_last_used' => time()]);
+        Keelhob::instance()->update(['token_last_used' => time()]);
     }
 }

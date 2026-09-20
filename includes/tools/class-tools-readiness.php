@@ -14,7 +14,7 @@
  *     them. That is what makes them testable — tests/bootstrap.php stubs only
  *     a handful of simple WordPress functions and has no WP_Query, get_posts,
  *     or wp_remote_get, so anything that calls those cannot run in the suite.
- *     Same precedent as Claudpress_Skills::bundled_action().
+ *     Same precedent as Keelhob_Skills::bundled_action().
  *   - The gatherers (below "GATHERERS") are the boring WordPress-dependent
  *     part: fetch data, hand it to an analyzer, collect the findings. They
  *     are deliberately thin and hold no judgement of their own.
@@ -24,7 +24,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Tools_Readiness
+final class Keelhob_Tools_Readiness
 {
     // Threshold constants, each traceable to skills/build-standard.md.
     private const MAX_IMAGE_BYTES = 300 * 1024; // "No image over 300 KB"
@@ -37,7 +37,7 @@ final class Claudpress_Tools_Readiness
     private const MAX_PAGES  = 25;
     private const MAX_IMAGES = 60;
 
-    public static function register(Claudpress_Tool_Registry $r): void
+    public static function register(Keelhob_Tool_Registry $r): void
     {
         $r->add(
             'site_readiness',
@@ -363,7 +363,7 @@ final class Claudpress_Tools_Readiness
      *      1.9.1 (serve_llms_txt echoing a body under WordPress's own
      *      default-404 status).
      *   2. An empty body.
-     *   3. A 200 that is a WHOLE OTHER PAGE. Found on claudpress.com: a
+     *   3. A 200 that is a WHOLE OTHER PAGE. Found on keelhob.com: a
      *      coming-soon gate on template_redirect intercepted /sitemap.xml and
      *      served the holding page — status 200, content-type text/html, three
      *      kilobytes of HTML where an XML sitemap should be. Every check here
@@ -828,7 +828,7 @@ final class Claudpress_Tools_Readiness
         // Ask the SEO tool where the sitemap actually is. Hardcoding the core
         // /wp-sitemap.xml path reports a false "sitemap missing" on every site
         // running Yoast, Rank Math, AIOSEO or SEOPress, which serve their own.
-        $sitemap_url = Claudpress_Tools_SEO::sitemap_url();
+        $sitemap_url = Keelhob_Tools_SEO::sitemap_url();
         [$status, $body] = self::remote_status_and_body($sitemap_url);
         if ($status !== null) {
             $findings = array_merge($findings, self::analyze_url_status('sitemap', $sitemap_url, $status, $body));
@@ -845,7 +845,7 @@ final class Claudpress_Tools_Readiness
         }
 
         // ---- 404 handling ---------------------------------------------------
-        $probe_url = home_url('/claudpress-readiness-probe-' . substr(md5((string) time()), 0, 12) . '/');
+        $probe_url = home_url('/keelhob-readiness-probe-' . substr(md5((string) time()), 0, 12) . '/');
         $probe = self::remote_status_and_final_url($probe_url);
         if ($probe !== null) {
             [$probe_status, $final_url] = $probe;
@@ -855,11 +855,11 @@ final class Claudpress_Tools_Readiness
         }
 
         // ---- snippets ---------------------------------------------------------
-        if (class_exists('Claudpress_Snippets')) {
-            $snippets = Claudpress_Snippets::all();
+        if (class_exists('Keelhob_Snippets')) {
+            $snippets = Keelhob_Snippets::all();
             $findings = array_merge($findings, self::analyze_snippets(is_array($snippets) ? $snippets : []));
         } else {
-            $skipped[] = ['check' => 'snippet errors', 'reason' => 'Claudpress_Snippets is not available'];
+            $skipped[] = ['check' => 'snippet errors', 'reason' => 'Keelhob_Snippets is not available'];
         }
 
         // ---- legal pages ----------------------------------------------------
@@ -1119,7 +1119,7 @@ final class Claudpress_Tools_Readiness
      * one, published it, and was told again. A HIGH finding that cannot be
      * cleared by doing the thing it asks for is worse than no finding at all:
      * it is the one that teaches an owner to skim the list. Found on
-     * claudpress.com, which has no WooCommerce and now has /terms.
+     * keelhob.com, which has no WooCommerce and now has /terms.
      *
      * The setting is still preferred when it is set - it is an explicit
      * statement of intent, and on a store it is what the checkout links to - and
@@ -1150,7 +1150,7 @@ final class Claudpress_Tools_Readiness
      * The decision itself, with no WordPress in it.
      *
      * Takes its two lookups as arguments for the same reason
-     * Claudpress_Snippets::resolve_target() does: the interesting cases here
+     * Keelhob_Snippets::resolve_target() does: the interesting cases here
      * are "the setting is 0", "the setting points at a page that was deleted"
      * and "there is no setting but there is a page", and none of them should
      * need a database to pin down.

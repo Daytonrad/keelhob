@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
  * Anthropic Messages API. Tool calls arrive as `tool_use` content blocks and
  * results go back as `tool_result` blocks inside a single user message.
  */
-final class Claudpress_Provider_Anthropic extends Claudpress_Provider
+final class Keelhob_Provider_Anthropic extends Keelhob_Provider
 {
     public static function id(): string { return 'anthropic'; }
     public static function label(): string { return 'Anthropic (Claude)'; }

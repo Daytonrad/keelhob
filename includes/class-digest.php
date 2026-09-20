@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Digest
+final class Keelhob_Digest
 {
     /** @return array structured snapshot */
     public static function snapshot(): array

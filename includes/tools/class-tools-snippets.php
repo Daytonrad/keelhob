@@ -8,11 +8,11 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Tools_Snippets
+final class Keelhob_Tools_Snippets
 {
-    public static function register(Claudpress_Tool_Registry $r): void
+    public static function register(Keelhob_Tool_Registry $r): void
     {
-        $r->add('snippet_save', 'Create or update a code snippet that runs on the site — like WPCode/Code Snippets. Types: php (runs in WordPress; NO <?php tags; use add_action/add_filter/functions), css, js, html. Location controls where it runs: everywhere, admin_only, frontend_only, header (wp_head), footer (wp_footer), before_content, after_content, shortcode (use [claudpress_snippet id=N]), or page_template (serve raw PHP/HTML as a whole page for target_id — the pixel-perfect custom-coded page mode). ALWAYS fill name, tags, purpose and impact: the site owner reads them on the Claudpress > Snippets admin page and that is their only way to judge what you installed. Updates MERGE — send only the fields you are changing and everything else, including code, is preserved. PHP is parse-checked first; code that does not parse is still saved but forced inactive with the error attached. A PHP snippet that fatals at runtime is auto-deactivated so the site stays up. Set active=true to turn it on. WARNING — the auto-deactivate guard only catches FATAL ERRORS. A snippet that runs perfectly can still take the site down, and the two ways that happens are: (1) sending a 4xx/5xx status from the front end — hosts poll the home page for liveness and read a 503 there as "server dead", then stop routing to the site entirely, including wp-admin and this MCP endpoint, so you lose the ability to undo it; serve coming-soon and maintenance pages with status 200 plus a noindex meta tag instead. (2) gating the front end without letting wp-login.php, /wp-admin, /wp-json, wp-cron.php and xmlrpc.php through, which locks the owner out of their own site. After activating anything that changes what a logged-out visitor sees, fetch the home page with no cookies and confirm it returns 200 before reporting done. If a snippet does break the site, the owner recovers by adding define(\'CLAUDPRESS_SNIPPETS_OFF\', true); to wp-config.php, which disables every snippet without needing a working site or a database client.', [
+        $r->add('snippet_save', 'Create or update a code snippet that runs on the site — like WPCode/Code Snippets. Types: php (runs in WordPress; NO <?php tags; use add_action/add_filter/functions), css, js, html. Location controls where it runs: everywhere, admin_only, frontend_only, header (wp_head), footer (wp_footer), before_content, after_content, shortcode (use [keelhob_snippet id=N]), or page_template (serve raw PHP/HTML as a whole page for target_id — the pixel-perfect custom-coded page mode). ALWAYS fill name, tags, purpose and impact: the site owner reads them on the Keelhob > Snippets admin page and that is their only way to judge what you installed. Updates MERGE — send only the fields you are changing and everything else, including code, is preserved. PHP is parse-checked first; code that does not parse is still saved but forced inactive with the error attached. A PHP snippet that fatals at runtime is auto-deactivated so the site stays up. Set active=true to turn it on. WARNING — the auto-deactivate guard only catches FATAL ERRORS. A snippet that runs perfectly can still take the site down, and the two ways that happens are: (1) sending a 4xx/5xx status from the front end — hosts poll the home page for liveness and read a 503 there as "server dead", then stop routing to the site entirely, including wp-admin and this MCP endpoint, so you lose the ability to undo it; serve coming-soon and maintenance pages with status 200 plus a noindex meta tag instead. (2) gating the front end without letting wp-login.php, /wp-admin, /wp-json, wp-cron.php and xmlrpc.php through, which locks the owner out of their own site. After activating anything that changes what a logged-out visitor sees, fetch the home page with no cookies and confirm it returns 200 before reporting done. If a snippet does break the site, the owner recovers by adding define(\'KEELHOB_SNIPPETS_OFF\', true); to wp-config.php, which disables every snippet without needing a working site or a database client.', [
             'type' => 'object',
             'properties' => [
                 'id'           => ['type' => 'integer', 'description' => 'Omit to create; include to update.'],
@@ -84,7 +84,7 @@ final class Claudpress_Tools_Snippets
         if (($a['location'] ?? '') === 'page_template' && empty($a['target_id'])) {
             return ['success' => false, 'error' => 'page_template snippets require target_id (the page ID to serve).'];
         }
-        $res = Claudpress_Snippets::save($a);
+        $res = Keelhob_Snippets::save($a);
 
         // Append, never overwrite. save() puts the reachability verdict in
         // `note`, and that is the one message the agent must not miss: it is
@@ -114,10 +114,10 @@ final class Claudpress_Tools_Snippets
         foreach ($filters as $v) {
             $filtered = $filtered || $v !== '';
         }
-        $rows = $filtered ? Claudpress_Snippets::query($filters) : Claudpress_Snippets::all();
+        $rows = $filtered ? Keelhob_Snippets::query($filters) : Keelhob_Snippets::all();
         foreach ($rows as &$row) {
             unset($row['code']);
-            $row['tags'] = Claudpress_Snippets::tags_array($row['tags'] ?? '');
+            $row['tags'] = Keelhob_Snippets::tags_array($row['tags'] ?? '');
         }
         unset($row);
 
@@ -133,7 +133,7 @@ final class Claudpress_Tools_Snippets
 
         return [
             'success'  => true,
-            'site'     => Claudpress::site_label(),
+            'site'     => Keelhob::site_label(),
             'count'    => count($rows),
             'active'   => $active,
             'inactive' => count($rows) - $active,
@@ -144,17 +144,17 @@ final class Claudpress_Tools_Snippets
 
     public static function get(array $a): array
     {
-        $s = Claudpress_Snippets::get((int) ($a['id'] ?? 0));
+        $s = Keelhob_Snippets::get((int) ($a['id'] ?? 0));
         return $s ? ['success' => true, 'snippet' => $s] : ['success' => false, 'error' => 'Snippet not found.'];
     }
 
     public static function toggle(array $a): array
     {
-        return Claudpress_Snippets::toggle((int) ($a['id'] ?? 0), (bool) ($a['active'] ?? false));
+        return Keelhob_Snippets::toggle((int) ($a['id'] ?? 0), (bool) ($a['active'] ?? false));
     }
 
     public static function delete(array $a): array
     {
-        return Claudpress_Snippets::delete((int) ($a['id'] ?? 0));
+        return Keelhob_Snippets::delete((int) ($a['id'] ?? 0));
     }
 }

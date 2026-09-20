@@ -38,7 +38,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Studio_Edit
+final class Keelhob_Studio_Edit
 {
     /** File extension per snippet type, for the editor's filename chip. */
     private const EXT = ['php' => 'php', 'css' => 'css', 'js' => 'js', 'html' => 'html'];
@@ -46,7 +46,7 @@ final class Claudpress_Studio_Edit
     public static function render(): void
     {
         $id      = isset($_GET['snippet']) ? (int) $_GET['snippet'] : 0;
-        $snippet = $id ? Claudpress_Snippets::get($id) : null;
+        $snippet = $id ? Keelhob_Snippets::get($id) : null;
         $is_new  = !$snippet;
 
         $defaults = [
@@ -61,33 +61,33 @@ final class Claudpress_Studio_Edit
         // URL: code does not survive a query string, and putting it there would
         // also drop it into server logs and browser history.
         if ($is_new && !empty($_GET['from_compose'])) {
-            $draft = get_transient('claudpress_studio_draft_' . get_current_user_id());
+            $draft = get_transient('keelhob_studio_draft_' . get_current_user_id());
             if (is_array($draft)) {
                 $s = array_merge($s, $draft);
-                delete_transient('claudpress_studio_draft_' . get_current_user_id());
+                delete_transient('keelhob_studio_draft_' . get_current_user_id());
             }
         }
 
         $type = (string) $s['snippet_type'];
-        $cond = Claudpress_Snippet_Conditions::normalize($s['conditions_json']);
+        $cond = Keelhob_Snippet_Conditions::normalize($s['conditions_json']);
 
         self::enqueue($type, $cond);
         ?>
-        <h2 class="cp-edit-title">
-            <?php echo $is_new ? esc_html__('Add Snippet', 'claudpress') : esc_html__('Edit Snippet', 'claudpress'); ?>
+        <h2 class="kh-edit-title">
+            <?php echo $is_new ? esc_html__('Add Snippet', 'keelhob') : esc_html__('Edit Snippet', 'keelhob'); ?>
         </h2>
 
         <?php self::error_notice((string) $s['last_error']); ?>
 
-        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" id="cp-studio-form">
-            <?php wp_nonce_field(Claudpress_Studio::NONCE); ?>
-            <input type="hidden" name="action" value="claudpress_studio">
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" id="kh-studio-form">
+            <?php wp_nonce_field(Keelhob_Studio::NONCE); ?>
+            <input type="hidden" name="action" value="keelhob_studio">
             <input type="hidden" name="studio_action" value="save">
             <input type="hidden" name="snippet_id" value="<?php echo esc_attr((string) $id); ?>">
             <input type="hidden" name="source" value="<?php echo esc_attr((string) $s['source']); ?>">
 
-            <div class="cp-grid">
-                <div class="cp-main">
+            <div class="kh-grid">
+                <div class="kh-main">
                     <?php
                     /*
                      * `required`, so the browser stops the submit and points at
@@ -95,25 +95,25 @@ final class Claudpress_Studio_Edit
                      * is then genuinely hard to find again.
                      */
                     ?>
-                    <label class="screen-reader-text" for="cp-name"><?php esc_html_e('Snippet name', 'claudpress'); ?></label>
-                    <input name="name" id="cp-name" type="text" class="cp-title-input" required
+                    <label class="screen-reader-text" for="kh-name"><?php esc_html_e('Snippet name', 'keelhob'); ?></label>
+                    <input name="name" id="kh-name" type="text" class="kh-title-input" required
                            value="<?php echo esc_attr((string) $s['name']); ?>"
-                           placeholder="<?php esc_attr_e('Snippet name — required', 'claudpress'); ?>">
+                           placeholder="<?php esc_attr_e('Snippet name — required', 'keelhob'); ?>">
 
-                    <div class="cp-editor-shell">
-                        <div class="cp-editor-bar cp-lang-<?php echo esc_attr($type); ?>" id="cp-editor-bar">
-                            <span class="cp-lang-dot" aria-hidden="true"></span>
-                            <span class="cp-file-name" id="cp-file-name">snippet.<?php echo esc_html(self::EXT[$type] ?? 'txt'); ?></span>
-                            <span class="cp-lang-pill" id="cp-lang-pill"><?php echo esc_html(strtoupper($type)); ?></span>
-                            <button type="button" class="cp-ask-btn" id="cp-ask-ai">
-                                <?php esc_html_e('Ask AI what this does', 'claudpress'); ?>
+                    <div class="kh-editor-shell">
+                        <div class="kh-editor-bar kh-lang-<?php echo esc_attr($type); ?>" id="kh-editor-bar">
+                            <span class="kh-lang-dot" aria-hidden="true"></span>
+                            <span class="kh-file-name" id="kh-file-name">snippet.<?php echo esc_html(self::EXT[$type] ?? 'txt'); ?></span>
+                            <span class="kh-lang-pill" id="kh-lang-pill"><?php echo esc_html(strtoupper($type)); ?></span>
+                            <button type="button" class="kh-ask-btn" id="kh-ask-ai">
+                                <?php esc_html_e('Ask AI what this does', 'keelhob'); ?>
                             </button>
                         </div>
 
-                        <div id="cp-editor-warning" hidden></div>
+                        <div id="kh-editor-warning" hidden></div>
 
-                        <label class="screen-reader-text" for="cp-code"><?php esc_html_e('Code', 'claudpress'); ?></label>
-                        <textarea name="code" id="cp-code" rows="18" class="cp-code"
+                        <label class="screen-reader-text" for="kh-code"><?php esc_html_e('Code', 'keelhob'); ?></label>
+                        <textarea name="code" id="kh-code" rows="18" class="kh-code"
                                   spellcheck="false"><?php
                             /*
                              * esc_textarea and nothing else. Do NOT add
@@ -128,9 +128,9 @@ final class Claudpress_Studio_Edit
                         ?></textarea>
                     </div>
 
-                    <p class="cp-hint" id="cp-hint"></p>
+                    <p class="kh-hint" id="kh-hint"></p>
 
-                    <div id="cp-ai-report"><?php self::review_panel($s); ?></div>
+                    <div id="kh-ai-report"><?php self::review_panel($s); ?></div>
 
                     <?php
                     /*
@@ -147,14 +147,14 @@ final class Claudpress_Studio_Edit
                      */
                     ?>
                     <?php if ($id > 0) : ?>
-                        <p class="cp-ask-hint">
+                        <p class="kh-ask-hint">
                             <?php
                             printf(
                                 /* translators: %s: the phrase to say to the agent, already quoted. */
-                                esc_html__('You can also just ask your agent: %s', 'claudpress'),
+                                esc_html__('You can also just ask your agent: %s', 'keelhob'),
                                 '<code>' . esc_html(sprintf(
                                     /* translators: %d: snippet ID. */
-                                    __('tell me about snippet %d', 'claudpress'),
+                                    __('tell me about snippet %d', 'keelhob'),
                                     $id
                                 )) . '</code>'
                             );
@@ -162,14 +162,14 @@ final class Claudpress_Studio_Edit
                         </p>
                     <?php endif; ?>
 
-                    <label class="cp-field-label" for="cp-desc"><?php esc_html_e('Notes', 'claudpress'); ?></label>
-                    <textarea name="description" id="cp-desc" rows="2" class="widefat"
-                              placeholder="<?php esc_attr_e('What does this snippet do? Write it for whoever finds this in six months. (optional)', 'claudpress'); ?>"><?php echo esc_textarea((string) $s['description']); ?></textarea>
+                    <label class="kh-field-label" for="kh-desc"><?php esc_html_e('Notes', 'keelhob'); ?></label>
+                    <textarea name="description" id="kh-desc" rows="2" class="widefat"
+                              placeholder="<?php esc_attr_e('What does this snippet do? Write it for whoever finds this in six months. (optional)', 'keelhob'); ?>"><?php echo esc_textarea((string) $s['description']); ?></textarea>
 
                     <?php self::conditions_block($cond); ?>
                 </div>
 
-                <div class="cp-side">
+                <div class="kh-side">
                     <?php
                     self::panel_save($s);
                     self::panel_behaviour($s, $id);
@@ -189,10 +189,10 @@ final class Claudpress_Studio_Edit
         ?>
         <?php if (!$is_new) : ?>
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-                  id="cp-restore-form" class="cp-restore-form"
-                  onsubmit="return confirm('<?php echo esc_js(__('Restore this version? The current code is saved to history first, and the snippet is switched off until you review it.', 'claudpress')); ?>');">
-                <?php wp_nonce_field(Claudpress_Studio::NONCE); ?>
-                <input type="hidden" name="action" value="claudpress_studio">
+                  id="kh-restore-form" class="kh-restore-form"
+                  onsubmit="return confirm('<?php echo esc_js(__('Restore this version? The current code is saved to history first, and the snippet is switched off until you review it.', 'keelhob')); ?>');">
+                <?php wp_nonce_field(Keelhob_Studio::NONCE); ?>
+                <input type="hidden" name="action" value="keelhob_studio">
                 <input type="hidden" name="studio_action" value="restore">
                 <input type="hidden" name="snippet_id" value="<?php echo esc_attr((string) $id); ?>">
             </form>
@@ -220,33 +220,33 @@ final class Claudpress_Studio_Edit
         $active  = (int) $s['active'] === 1;
         $errored = trim((string) $s['last_error']) !== '';
         ?>
-        <div class="cp-panel">
-            <h3><?php esc_html_e('Save', 'claudpress'); ?></h3>
-            <p class="cp-status-line">
-                <?php esc_html_e('Status:', 'claudpress'); ?>
+        <div class="kh-panel">
+            <h3><?php esc_html_e('Save', 'keelhob'); ?></h3>
+            <p class="kh-status-line">
+                <?php esc_html_e('Status:', 'keelhob'); ?>
                 <?php if ($errored) : ?>
-                    <span class="cp-status cp-status-error"><?php esc_html_e('Errored', 'claudpress'); ?></span>
+                    <span class="kh-status kh-status-error"><?php esc_html_e('Errored', 'keelhob'); ?></span>
                 <?php elseif ($active) : ?>
-                    <span class="cp-status cp-status-on"><?php esc_html_e('Active', 'claudpress'); ?></span>
+                    <span class="kh-status kh-status-on"><?php esc_html_e('Active', 'keelhob'); ?></span>
                 <?php else : ?>
-                    <span class="cp-status cp-status-off"><?php esc_html_e('Inactive', 'claudpress'); ?></span>
+                    <span class="kh-status kh-status-off"><?php esc_html_e('Inactive', 'keelhob'); ?></span>
                 <?php endif; ?>
             </p>
 
-            <div class="cp-save-buttons">
+            <div class="kh-save-buttons">
                 <button type="submit" name="and_activate" value="<?php echo $active ? '1' : '0'; ?>"
-                        class="button button-primary"><?php esc_html_e('Save', 'claudpress'); ?></button>
+                        class="button button-primary"><?php esc_html_e('Save', 'keelhob'); ?></button>
                 <?php if (!$active) : ?>
                     <button type="submit" name="and_activate" value="1"
-                            class="button"><?php esc_html_e('Save & switch on', 'claudpress'); ?></button>
+                            class="button"><?php esc_html_e('Save & switch on', 'keelhob'); ?></button>
                 <?php endif; ?>
             </div>
 
-            <p class="cp-microcopy">
-                <?php esc_html_e('PHP is parsed before it can go active. If a live snippet ever crashes the site, Claudpress switches it off by itself.', 'claudpress'); ?>
+            <p class="kh-microcopy">
+                <?php esc_html_e('PHP is parsed before it can go active. If a live snippet ever crashes the site, Keelhob switches it off by itself.', 'keelhob'); ?>
             </p>
-            <p class="cp-microcopy">
-                <a href="<?php echo esc_url(Claudpress_Studio::url('all')); ?>"><?php esc_html_e('Back to all snippets', 'claudpress'); ?></a>
+            <p class="kh-microcopy">
+                <a href="<?php echo esc_url(Keelhob_Studio::url('all')); ?>"><?php esc_html_e('Back to all snippets', 'keelhob'); ?></a>
             </p>
         </div>
         <?php
@@ -260,37 +260,37 @@ final class Claudpress_Studio_Edit
     private static function panel_behaviour(array $s, int $id): void
     {
         ?>
-        <div class="cp-panel">
-            <h3><?php esc_html_e('Behaviour', 'claudpress'); ?></h3>
+        <div class="kh-panel">
+            <h3><?php esc_html_e('Behaviour', 'keelhob'); ?></h3>
 
-            <label class="cp-field-label" for="cp-type"><?php esc_html_e('Type', 'claudpress'); ?></label>
-            <select name="snippet_type" id="cp-type" class="widefat">
+            <label class="kh-field-label" for="kh-type"><?php esc_html_e('Type', 'keelhob'); ?></label>
+            <select name="snippet_type" id="kh-type" class="widefat">
                 <?php foreach (['php' => 'PHP', 'css' => 'CSS', 'js' => 'JavaScript', 'html' => 'HTML'] as $v => $l) : ?>
                     <option value="<?php echo esc_attr($v); ?>" <?php selected($s['snippet_type'], $v); ?>><?php echo esc_html($l); ?></option>
                 <?php endforeach; ?>
             </select>
 
-            <label class="cp-field-label" for="cp-location"><?php esc_html_e('Where it runs', 'claudpress'); ?></label>
-            <select name="location" id="cp-location" class="widefat">
+            <label class="kh-field-label" for="kh-location"><?php esc_html_e('Where it runs', 'keelhob'); ?></label>
+            <select name="location" id="kh-location" class="widefat">
                 <?php foreach (self::locations() as $v => $l) : ?>
                     <option value="<?php echo esc_attr($v); ?>" <?php selected($s['location'], $v); ?>><?php echo esc_html($l); ?></option>
                 <?php endforeach; ?>
             </select>
 
-            <label class="cp-field-label" for="cp-priority"><?php esc_html_e('Priority', 'claudpress'); ?></label>
-            <input name="priority" id="cp-priority" type="number" class="small-text"
+            <label class="kh-field-label" for="kh-priority"><?php esc_html_e('Priority', 'keelhob'); ?></label>
+            <input name="priority" id="kh-priority" type="number" class="small-text"
                    value="<?php echo esc_attr((string) $s['priority']); ?>">
-            <span class="cp-microcopy"><?php esc_html_e('Lower runs first.', 'claudpress'); ?></span>
+            <span class="kh-microcopy"><?php esc_html_e('Lower runs first.', 'keelhob'); ?></span>
 
-            <label class="cp-field-label" for="cp-tags"><?php esc_html_e('Tags', 'claudpress'); ?></label>
-            <input name="tags" id="cp-tags" type="text" class="widefat"
-                   value="<?php echo esc_attr(implode(', ', Claudpress_Snippets::tags_array($s['tags']))); ?>"
-                   placeholder="<?php esc_attr_e('checkout, seo', 'claudpress'); ?>">
+            <label class="kh-field-label" for="kh-tags"><?php esc_html_e('Tags', 'keelhob'); ?></label>
+            <input name="tags" id="kh-tags" type="text" class="widefat"
+                   value="<?php echo esc_attr(implode(', ', Keelhob_Snippets::tags_array($s['tags']))); ?>"
+                   placeholder="<?php esc_attr_e('checkout, seo', 'keelhob'); ?>">
 
             <?php if ((string) $s['location'] === 'shortcode' && $id) : ?>
-                <p class="cp-microcopy">
-                    <?php esc_html_e('Shortcode:', 'claudpress'); ?>
-                    <code>[claudpress_snippet id="<?php echo (int) $id; ?>"]</code>
+                <p class="kh-microcopy">
+                    <?php esc_html_e('Shortcode:', 'keelhob'); ?>
+                    <code>[keelhob_snippet id="<?php echo (int) $id; ?>"]</code>
                 </p>
             <?php endif; ?>
         </div>
@@ -310,34 +310,34 @@ final class Claudpress_Studio_Edit
         if ($id <= 0) {
             return;
         }
-        $revisions = Claudpress_Snippets::revisions($id, 10);
+        $revisions = Keelhob_Snippets::revisions($id, 10);
         if (!$revisions) {
             return;
         }
         ?>
-        <div class="cp-panel">
-            <h3><?php esc_html_e('Revisions', 'claudpress'); ?></h3>
-            <ul class="cp-revisions">
+        <div class="kh-panel">
+            <h3><?php esc_html_e('Revisions', 'keelhob'); ?></h3>
+            <ul class="kh-revisions">
                 <?php foreach ($revisions as $rev) : ?>
                     <li>
-                        <span class="cp-rev-note"><?php echo esc_html((string) $rev['note']); ?></span>
-                        <span class="cp-rev-meta">
+                        <span class="kh-rev-note"><?php echo esc_html((string) $rev['note']); ?></span>
+                        <span class="kh-rev-meta">
                             <?php
                             echo esc_html((string) $rev['created_at']);
                             echo ' · ';
                             echo esc_html($rev['author_type'] === 'agent'
-                                ? __('the agent', 'claudpress')
+                                ? __('the agent', 'keelhob')
                                 : self::user_name((int) $rev['user_id']));
                             ?>
                         </span>
-                        <button type="submit" form="cp-restore-form" name="revision_id"
+                        <button type="submit" form="kh-restore-form" name="revision_id"
                                 value="<?php echo esc_attr((string) $rev['id']); ?>"
-                                class="button button-small cp-rev-restore"><?php esc_html_e('Restore', 'claudpress'); ?></button>
+                                class="button button-small kh-rev-restore"><?php esc_html_e('Restore', 'keelhob'); ?></button>
                     </li>
                 <?php endforeach; ?>
             </ul>
-            <p class="cp-microcopy">
-                <?php esc_html_e('What this snippet looked like before each change. Recorded on every edit, by anyone — you or the agent.', 'claudpress'); ?>
+            <p class="kh-microcopy">
+                <?php esc_html_e('What this snippet looked like before each change. Recorded on every edit, by anyone — you or the agent.', 'keelhob'); ?>
             </p>
         </div>
         <?php
@@ -363,31 +363,31 @@ final class Claudpress_Studio_Edit
     private static function conditions_block(array $cond): void
     {
         ?>
-        <div class="cp-conditions" id="cp-conditions">
-            <label class="cp-cond-enable">
-                <input type="checkbox" name="conditions_enabled" id="cp-cond-enabled" value="1"
+        <div class="kh-conditions" id="kh-conditions">
+            <label class="kh-cond-enable">
+                <input type="checkbox" name="conditions_enabled" id="kh-cond-enabled" value="1"
                        <?php checked($cond['enabled']); ?>>
-                <span><?php esc_html_e('Smart conditional logic — only run when these rules match', 'claudpress'); ?></span>
+                <span><?php esc_html_e('Smart conditional logic — only run when these rules match', 'keelhob'); ?></span>
             </label>
 
-            <div class="cp-cond-body" id="cp-cond-body" <?php echo $cond['enabled'] ? '' : 'hidden'; ?>>
-                <p class="cp-cond-relation">
-                    <?php esc_html_e('Match', 'claudpress'); ?>
-                    <select name="conditions_relation" id="cp-cond-relation">
-                        <option value="AND" <?php selected($cond['relation'], 'AND'); ?>><?php esc_html_e('ALL', 'claudpress'); ?></option>
-                        <option value="OR" <?php selected($cond['relation'], 'OR'); ?>><?php esc_html_e('ANY', 'claudpress'); ?></option>
+            <div class="kh-cond-body" id="kh-cond-body" <?php echo $cond['enabled'] ? '' : 'hidden'; ?>>
+                <p class="kh-cond-relation">
+                    <?php esc_html_e('Match', 'keelhob'); ?>
+                    <select name="conditions_relation" id="kh-cond-relation">
+                        <option value="AND" <?php selected($cond['relation'], 'AND'); ?>><?php esc_html_e('ALL', 'keelhob'); ?></option>
+                        <option value="OR" <?php selected($cond['relation'], 'OR'); ?>><?php esc_html_e('ANY', 'keelhob'); ?></option>
                     </select>
-                    <?php esc_html_e('of the rules below:', 'claudpress'); ?>
+                    <?php esc_html_e('of the rules below:', 'keelhob'); ?>
                 </p>
 
-                <div id="cp-cond-rules" class="cp-cond-rules"></div>
+                <div id="kh-cond-rules" class="kh-cond-rules"></div>
 
-                <button type="button" class="button" id="cp-cond-add">
-                    + <?php esc_html_e('Add rule', 'claudpress'); ?>
+                <button type="button" class="button" id="kh-cond-add">
+                    + <?php esc_html_e('Add rule', 'keelhob'); ?>
                 </button>
 
-                <p class="cp-microcopy">
-                    <?php esc_html_e('A rule can only be judged once WordPress knows what page this is, so a PHP snippet with conditions runs slightly later in the request than one without.', 'claudpress'); ?>
+                <p class="kh-microcopy">
+                    <?php esc_html_e('A rule can only be judged once WordPress knows what page this is, so a PHP snippet with conditions runs slightly later in the request than one without.', 'keelhob'); ?>
                 </p>
             </div>
         </div>
@@ -456,13 +456,13 @@ final class Claudpress_Studio_Edit
             $deps[] = 'code-editor';
         }
 
-        Claudpress_Studio::enqueue_styles();
+        Keelhob_Studio::enqueue_styles();
 
         wp_enqueue_script(
-            'claudpress-studio-edit',
-            CLAUDPRESS_URL . 'assets/js/studio-edit.js',
+            'keelhob-studio-edit',
+            KEELHOB_URL . 'assets/js/studio-edit.js',
             $deps,
-            Claudpress::asset_version('assets/js/studio-edit.js'),
+            Keelhob::asset_version('assets/js/studio-edit.js'),
             true
         );
 
@@ -470,14 +470,14 @@ final class Claudpress_Studio_Edit
         // global exists and carries a mode, because its absence is exactly what
         // the old bug looked like from the outside.
         wp_add_inline_script(
-            'claudpress-studio-edit',
+            'keelhob-studio-edit',
             'window.cpStudioEditorSettings = ' . wp_json_encode($settings) . ';',
             'before'
         );
 
-        wp_localize_script('claudpress-studio-edit', 'cpStudioEdit', [
+        wp_localize_script('keelhob-studio-edit', 'cpStudioEdit', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
-            'nonce'   => wp_create_nonce(Claudpress_Studio::NONCE),
+            'nonce'   => wp_create_nonce(Keelhob_Studio::NONCE),
             'modes'   => [
                 // text/x-php, NOT application/x-httpd-php.
                 //
@@ -494,20 +494,20 @@ final class Claudpress_Studio_Edit
             'ext'     => self::EXT,
             // Everything the rule builder draws itself from, plus what is stored.
             'conditions' => [
-                'config' => Claudpress_Snippet_Conditions::ui_config(),
+                'config' => Keelhob_Snippet_Conditions::ui_config(),
                 'rules'  => $cond['rules'],
             ],
             'i18n'    => [
-                'askAi'               => __('Ask AI what this does', 'claudpress'),
-                'asking'              => __('Asking…', 'claudpress'),
-                'writeSomethingFirst' => __('Write or paste some code first.', 'claudpress'),
-                'unreachable'         => __('The AI could not be reached.', 'claudpress'),
-                'unreachableSafe'     => __('The AI could not be reached. Your code is untouched.', 'claudpress'),
-                'editorFailed'        => __('The code editor could not start, so this is a plain text box. Your code is safe and saving still works, but there are no line numbers and no syntax colouring. Reload the page to try again.', 'claudpress'),
-                'remove'              => __('Remove', 'claudpress'),
-                'removeRule'          => __('Remove this rule', 'claudpress'),
-                'valuePlaceholder'    => __('value', 'claudpress'),
-                'noRules'             => __('No rules yet. The snippet runs everywhere until you add one.', 'claudpress'),
+                'askAi'               => __('Ask AI what this does', 'keelhob'),
+                'asking'              => __('Asking…', 'keelhob'),
+                'writeSomethingFirst' => __('Write or paste some code first.', 'keelhob'),
+                'unreachable'         => __('The AI could not be reached.', 'keelhob'),
+                'unreachableSafe'     => __('The AI could not be reached. Your code is untouched.', 'keelhob'),
+                'editorFailed'        => __('The code editor could not start, so this is a plain text box. Your code is safe and saving still works, but there are no line numbers and no syntax colouring. Reload the page to try again.', 'keelhob'),
+                'remove'              => __('Remove', 'keelhob'),
+                'removeRule'          => __('Remove this rule', 'keelhob'),
+                'valuePlaceholder'    => __('value', 'keelhob'),
+                'noRules'             => __('No rules yet. The snippet runs everywhere until you add one.', 'keelhob'),
             ],
         ]);
     }
@@ -521,9 +521,9 @@ final class Claudpress_Studio_Edit
         }
         ?>
         <div class="notice notice-error">
-            <p><strong><?php esc_html_e('This snippet is switched off because of an error:', 'claudpress'); ?></strong></p>
+            <p><strong><?php esc_html_e('This snippet is switched off because of an error:', 'keelhob'); ?></strong></p>
             <p><code><?php echo esc_html($error); ?></code></p>
-            <p><?php esc_html_e('Fix the code and save again. It stays off until it parses.', 'claudpress'); ?></p>
+            <p><?php esc_html_e('Fix the code and save again. It stays off until it parses.', 'keelhob'); ?></p>
         </div>
         <?php
     }
@@ -550,52 +550,52 @@ final class Claudpress_Studio_Edit
             return;
         }
         $verdicts = [
-            'safe'    => ['cp-verdict-safe', __('safe', 'claudpress')],
-            'caution' => ['cp-verdict-caution', __('caution', 'claudpress')],
-            'unsafe'  => ['cp-verdict-unsafe', __('unsafe', 'claudpress')],
+            'safe'    => ['kh-verdict-safe', __('safe', 'keelhob')],
+            'caution' => ['kh-verdict-caution', __('caution', 'keelhob')],
+            'unsafe'  => ['kh-verdict-unsafe', __('unsafe', 'keelhob')],
         ];
         $v = (string) ($review['verdict'] ?? 'caution');
         [$class, $label] = $verdicts[$v] ?? $verdicts['caution'];
         ?>
-        <div class="cp-review">
-            <p class="cp-review-line">
-                <strong><?php esc_html_e('Syntax check', 'claudpress'); ?>:</strong>
+        <div class="kh-review">
+            <p class="kh-review-line">
+                <strong><?php esc_html_e('Syntax check', 'keelhob'); ?>:</strong>
                 <?php if (trim((string) ($s['last_error'] ?? '')) === '') : ?>
-                    <span class="cp-verdict-safe"><?php esc_html_e('passed', 'claudpress'); ?></span>
+                    <span class="kh-verdict-safe"><?php esc_html_e('passed', 'keelhob'); ?></span>
                 <?php else : ?>
-                    <span class="cp-verdict-unsafe"><?php esc_html_e('failed', 'claudpress'); ?></span>
+                    <span class="kh-verdict-unsafe"><?php esc_html_e('failed', 'keelhob'); ?></span>
                 <?php endif; ?>
-                <span class="cp-review-aside"><?php esc_html_e('a real parse. This is what decides whether the snippet may run.', 'claudpress'); ?></span>
+                <span class="kh-review-aside"><?php esc_html_e('a real parse. This is what decides whether the snippet may run.', 'keelhob'); ?></span>
             </p>
-            <p class="cp-review-line">
-                <strong><?php esc_html_e('AI assessment', 'claudpress'); ?>:</strong>
+            <p class="kh-review-line">
+                <strong><?php esc_html_e('AI assessment', 'keelhob'); ?>:</strong>
                 <span class="<?php echo esc_attr($class); ?>"><?php echo esc_html($label); ?></span>
-                <span class="cp-review-aside"><?php esc_html_e('an opinion. It does not gate anything.', 'claudpress'); ?></span>
+                <span class="kh-review-aside"><?php esc_html_e('an opinion. It does not gate anything.', 'keelhob'); ?></span>
             </p>
 
             <?php if (!empty($review['summary'])) : ?>
                 <p><?php echo esc_html((string) $review['summary']); ?></p>
             <?php endif; ?>
             <?php if (!empty($review['site_impact'])) : ?>
-                <p><strong><?php esc_html_e('Effect on the site', 'claudpress'); ?>:</strong> <?php echo esc_html((string) $review['site_impact']); ?></p>
+                <p><strong><?php esc_html_e('Effect on the site', 'keelhob'); ?>:</strong> <?php echo esc_html((string) $review['site_impact']); ?></p>
             <?php endif; ?>
             <?php if (!empty($review['risks']) && is_array($review['risks'])) : ?>
-                <p class="cp-review-risks-head"><strong><?php esc_html_e('Watch out for', 'claudpress'); ?>:</strong></p>
-                <ul class="cp-review-risks">
+                <p class="kh-review-risks-head"><strong><?php esc_html_e('Watch out for', 'keelhob'); ?>:</strong></p>
+                <ul class="kh-review-risks">
                     <?php foreach ($review['risks'] as $risk) : ?>
                         <li><?php echo esc_html((string) $risk); ?></li>
                     <?php endforeach; ?>
                 </ul>
             <?php endif; ?>
             <?php if (!empty($review['notes'])) : ?>
-                <p><strong><?php esc_html_e('After switching it on', 'claudpress'); ?>:</strong> <?php echo esc_html((string) $review['notes']); ?></p>
+                <p><strong><?php esc_html_e('After switching it on', 'keelhob'); ?>:</strong> <?php echo esc_html((string) $review['notes']); ?></p>
             <?php endif; ?>
 
             <?php if (!empty($s['ai_review_at'])) : ?>
-                <p class="cp-microcopy">
+                <p class="kh-microcopy">
                     <?php
                     /* translators: %s: how long ago, e.g. "3 hours". */
-                    echo esc_html(sprintf(__('Reviewed %s ago. If you have edited the code since, ask again.', 'claudpress'),
+                    echo esc_html(sprintf(__('Reviewed %s ago. If you have edited the code since, ask again.', 'keelhob'),
                         human_time_diff(strtotime((string) $s['ai_review_at']), current_time('timestamp'))));
                     ?>
                 </p>
@@ -607,25 +607,25 @@ final class Claudpress_Studio_Edit
     private static function user_name(int $user_id): string
     {
         if ($user_id <= 0) {
-            return __('unknown', 'claudpress');
+            return __('unknown', 'keelhob');
         }
         $user = get_userdata($user_id);
-        return $user ? $user->user_login : __('a deleted user', 'claudpress');
+        return $user ? $user->user_login : __('a deleted user', 'keelhob');
     }
 
     /** @return array<string, string> */
     private static function locations(): array
     {
         return [
-            'everywhere'     => __('Everywhere', 'claudpress'),
-            'frontend_only'  => __('Front end only', 'claudpress'),
-            'admin_only'     => __('Admin only', 'claudpress'),
-            'header'         => __('In the <head>', 'claudpress'),
-            'footer'         => __('Before </body>', 'claudpress'),
-            'before_content' => __('Before post content', 'claudpress'),
-            'after_content'  => __('After post content', 'claudpress'),
-            'shortcode'      => __('Only via shortcode', 'claudpress'),
-            'page_template'  => __('As a page template', 'claudpress'),
+            'everywhere'     => __('Everywhere', 'keelhob'),
+            'frontend_only'  => __('Front end only', 'keelhob'),
+            'admin_only'     => __('Admin only', 'keelhob'),
+            'header'         => __('In the <head>', 'keelhob'),
+            'footer'         => __('Before </body>', 'keelhob'),
+            'before_content' => __('Before post content', 'keelhob'),
+            'after_content'  => __('After post content', 'keelhob'),
+            'shortcode'      => __('Only via shortcode', 'keelhob'),
+            'page_template'  => __('As a page template', 'keelhob'),
         ];
     }
 

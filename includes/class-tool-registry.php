@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Tool_Registry
+final class Keelhob_Tool_Registry
 {
     /** @var array<string, array{description:string,schema:array,callback:callable,annotations:array}> */
     private $tools = [];
@@ -46,7 +46,7 @@ final class Claudpress_Tool_Registry
         // missing tool", which is recoverable, instead of "the whole site is
         // down and the only way to reach it is a broken plugin".
         if (!is_callable($callback)) {
-            error_log(sprintf('[Claudpress] Tool "%s" not registered: its callback is not callable.', $name));
+            error_log(sprintf('[Keelhob] Tool "%s" not registered: its callback is not callable.', $name));
             return;
         }
         if (empty($input_schema['type'])) {
@@ -98,7 +98,7 @@ final class Claudpress_Tool_Registry
             // That is the single most useful thing this project could know and
             // it is free to observe here, so it is not thrown away with the
             // exception.
-            Claudpress_Feedback::observe_unknown_tool($name);
+            Keelhob_Feedback::observe_unknown_tool($name);
             throw new Exception(sprintf('Unknown tool: %s', $name));
         }
 
@@ -123,8 +123,8 @@ final class Claudpress_Tool_Registry
         }
         $result['_meta'] = array_merge($result['_meta'] ?? [], ['execution_time_ms' => $elapsed]);
 
-        if (Claudpress::instance()->get('log_calls')) {
-            Claudpress::instance()->logger->record($name, $args, $result);
+        if (Keelhob::instance()->get('log_calls')) {
+            Keelhob::instance()->logger->record($name, $args, $result);
         }
 
         // Friction, captured from the same choke point and for the same reason
@@ -133,7 +133,7 @@ final class Claudpress_Tool_Registry
         // no conversation content, and cannot be skipped by an agent that does
         // not feel like cooperating. It records nothing at all when the owner
         // has the setting off.
-        Claudpress_Feedback::observe_call($name, $args, $result);
+        Keelhob_Feedback::observe_call($name, $args, $result);
 
         return $result;
     }
@@ -158,6 +158,6 @@ final class Claudpress_Tool_Registry
     public static function reset_skills_loaded(): void
     {
         self::$skills_loaded = [];
-        Claudpress_Feedback::reset_repeats();
+        Keelhob_Feedback::reset_repeats();
     }
 }

@@ -7,7 +7,7 @@
 # nobody could have reviewed that.
 #
 # It has already cost this project once: bundled skills are parsed by a
-# front-matter regex anchored on "\n" (Claudpress_Skills::parse_markdown, in
+# front-matter regex anchored on "\n" (Keelhob_Skills::parse_markdown, in
 # includes/class-skills.php), and a CRLF skill file simply did not match. There
 # is a str_replace() normalising newlines in front of that regex now. This file
 # is the fix one level up.

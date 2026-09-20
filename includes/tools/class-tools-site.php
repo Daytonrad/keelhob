@@ -7,9 +7,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Tools_Site
+final class Keelhob_Tools_Site
 {
-    public static function register(Claudpress_Tool_Registry $r): void
+    public static function register(Keelhob_Tool_Registry $r): void
     {
         $r->add('manage_option', 'Get or update a WordPress option (site settings like blogname, blogdescription, timezone_string, permalink structure, etc.). Actions: get, update, list_common.', [
             'type' => 'object',
@@ -148,7 +148,7 @@ final class Claudpress_Tools_Site
                     return ['success' => false, 'error' => $res->get_error_message()];
                 }
                 $result = ['success' => true, 'plugin' => $plugin, 'active' => true];
-                $result = Claudpress_Health::guard($result, 'activating this plugin', static function () use ($plugin) {
+                $result = Keelhob_Health::guard($result, 'activating this plugin', static function () use ($plugin) {
                     deactivate_plugins($plugin);
                 });
                 // guard() ran the revert (deactivate) at most once, as its own
@@ -163,7 +163,7 @@ final class Claudpress_Tools_Site
                     // The revert ran and did NOT help — this plugin was not
                     // the cause, so re-activate it or an innocent activation
                     // is left reverted while claiming success (same shape as
-                    // Claudpress_Snippets::verify_front_end() restoring active=1).
+                    // Keelhob_Snippets::verify_front_end() restoring active=1).
                     activate_plugin($plugin);
                 }
                 return $result;
@@ -210,7 +210,7 @@ final class Claudpress_Tools_Site
                 $previous = get_stylesheet();
                 switch_theme((string) ($args['theme'] ?? ''));
                 $result = ['success' => true, 'active_theme' => get_stylesheet()];
-                $result = Claudpress_Health::guard($result, 'activating this theme', static function () use ($previous) {
+                $result = Keelhob_Health::guard($result, 'activating this theme', static function () use ($previous) {
                     switch_theme($previous);
                 });
                 // Same decision as manage_plugin's activate branch — see the

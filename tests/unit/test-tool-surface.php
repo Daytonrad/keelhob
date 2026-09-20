@@ -14,27 +14,27 @@
  * the record that the change was intended.
  */
 
-CP_Test::group('Tool surface — nothing was lost in the merge');
+KH_Test::group('Tool surface — nothing was lost in the merge');
 
 $baseline = json_decode(file_get_contents(__DIR__ . '/../fixtures/tools-baseline.json'), true);
-CP_Test::ok(is_array($baseline) && count($baseline) === 68, 'the baseline fixture holds all 68 pre-merge tools');
+KH_Test::ok(is_array($baseline) && count($baseline) === 68, 'the baseline fixture holds all 68 pre-merge tools');
 
 // The WooCommerce groups refuse to register without WooCommerce, exactly as the
 // snapshot run had to account for.
 if (!class_exists('WooCommerce')) {
     class WooCommerce {}
 }
-foreach (glob(CLAUDPRESS_DIR . 'includes/tools/class-tools-*.php') as $file) {
+foreach (glob(KEELHOB_DIR . 'includes/tools/class-tools-*.php') as $file) {
     require_once $file;
 }
 
-$registry = new Claudpress_Tool_Registry();
+$registry = new Keelhob_Tool_Registry();
 foreach ([
     'Core', 'Filesystem', 'Content', 'Site', 'WooCommerce', 'SEO', 'Memory',
     'Skills', 'Snippets', 'Elementor', 'Ops', 'Automation', 'Payments',
     'Deploy', 'Readiness',
 ] as $group) {
-    call_user_func(['Claudpress_Tools_' . $group, 'register'], $registry);
+    call_user_func(['Keelhob_Tools_' . $group, 'register'], $registry);
 }
 
 $now = [];
@@ -64,9 +64,9 @@ unset($expected['pro_status']);
 // never the ones agents write on other people's sites.
 $expected['skill_lint'] = ['required' => [], 'properties' => ['markdown', 'name']];
 
-CP_Test::same([], array_values(array_diff(array_keys($expected), array_keys($now))), 'no tool was lost in the merge');
-CP_Test::same([], array_values(array_diff(array_keys($now), array_keys($expected))), 'no tool appeared unannounced');
-CP_Test::ok(!isset($now['pro_status']), 'pro_status is gone, which is the one intended removal');
+KH_Test::same([], array_values(array_diff(array_keys($expected), array_keys($now))), 'no tool was lost in the merge');
+KH_Test::same([], array_values(array_diff(array_keys($now), array_keys($expected))), 'no tool appeared unannounced');
+KH_Test::ok(!isset($now['pro_status']), 'pro_status is gone, which is the one intended removal');
 
 $changed = [];
 foreach ($expected as $name => $shape) {
@@ -74,9 +74,9 @@ foreach ($expected as $name => $shape) {
         $changed[] = $name;
     }
 }
-CP_Test::same([], $changed, 'no tool changed its input schema during the merge');
+KH_Test::same([], $changed, 'no tool changed its input schema during the merge');
 
-CP_Test::group('Every shipped tool survives Google\'s function-calling rules');
+KH_Test::group('Every shipped tool survives Google\'s function-calling rules');
 
 /*
  * THE BUG THIS PINS, reported from a live Telegram chat on Gemini:
@@ -94,7 +94,7 @@ CP_Test::group('Every shipped tool survives Google\'s function-calling rules');
  * Checked over the WHOLE tool surface, not just the tool that broke, because
  * the next one added will be written the same way.
  */
-// The SAME shape the agent hands a provider: Claudpress_Agent_Runtime maps
+// The SAME shape the agent hands a provider: Keelhob_Agent_Runtime maps
 // inputSchema onto 'schema'. Feeding the raw registry list would test a shape
 // that never reaches a vendor.
 $api_tools = [];
@@ -106,10 +106,10 @@ foreach ($registry->list() as $t) {
     $api_tools[] = ['name' => $t['name'], 'description' => (string) $t['description'], 'schema' => $schema];
 }
 
-$google = Claudpress_Provider_Google::body('gemini-3-pro', 'SYS', $api_tools, []);
+$google = Keelhob_Provider_Google::body('gemini-3-pro', 'SYS', $api_tools, []);
 $decls  = $google['tools'][0]['functionDeclarations'] ?? [];
 
-CP_Test::ok(count($decls) > 20, 'the declarations were built at all (' . count($decls) . ')');
+KH_Test::ok(count($decls) > 20, 'the declarations were built at all (' . count($decls) . ')');
 
 /*
  * EVERY rule, not just the one that broke.
@@ -168,8 +168,8 @@ foreach ($decls as $d) {
     $walk((array) ($d['parameters'] ?? []), (string) ($d['name'] ?? '?'));
     $checked++;
 }
-CP_Test::same(count($decls), $checked, 'every declaration was actually inspected');
-CP_Test::same([], $bad, 'no tool sends Google a schema it will reject');
+KH_Test::same(count($decls), $checked, 'every declaration was actually inspected');
+KH_Test::same([], $bad, 'no tool sends Google a schema it will reject');
 
 // The specific one, named, so a regression says what it is rather than just
 // dumping a list.
@@ -179,29 +179,29 @@ foreach ($decls as $d) {
         $redirect = $d;
     }
 }
-CP_Test::ok($redirect !== null, 'seo_redirect is offered to Google');
+KH_Test::ok($redirect !== null, 'seo_redirect is offered to Google');
 if ($redirect) {
     $type = $redirect['parameters']['properties']['type'] ?? [];
-    CP_Test::same('string', $type['type'] ?? '', 'its status-code parameter is sent as a string');
-    CP_Test::same(['301', '302'], array_values((array) ($type['enum'] ?? [])), 'with its choices as strings, so the model still sees them');
+    KH_Test::same('string', $type['type'] ?? '', 'its status-code parameter is sent as a string');
+    KH_Test::same(['301', '302'], array_values((array) ($type['enum'] ?? [])), 'with its choices as strings, so the model still sees them');
 }
 
 // The OTHER providers must be left alone: they accept the integer enum, and
 // quietly restating it as a string everywhere would be a change nobody asked
 // for.
-$anthropic = Claudpress_Provider_Anthropic::body('claude-sonnet-5', 'SYS', $api_tools, []);
+$anthropic = Keelhob_Provider_Anthropic::body('claude-sonnet-5', 'SYS', $api_tools, []);
 $a_redirect = null;
 foreach ((array) ($anthropic['tools'] ?? []) as $t) {
     if (($t['name'] ?? '') === 'seo_redirect') {
         $a_redirect = $t;
     }
 }
-CP_Test::ok($a_redirect !== null, 'seo_redirect reaches Anthropic too');
+KH_Test::ok($a_redirect !== null, 'seo_redirect reaches Anthropic too');
 if ($a_redirect) {
-    CP_Test::same('integer', $a_redirect['input_schema']['properties']['type']['type'] ?? '', 'and Anthropic still gets the honest integer');
+    KH_Test::same('integer', $a_redirect['input_schema']['properties']['type']['type'] ?? '', 'and Anthropic still gets the honest integer');
 }
 
-CP_Test::group('Every list tool states its own count');
+KH_Test::group('Every list tool states its own count');
 
 /*
  * The same defect as snippet_list's "28 of 44": a tool hands back a long array
@@ -219,7 +219,7 @@ $counting = [
 $missing = [];
 foreach ($counting as $tool => $rows_key) {
     $src = '';
-    foreach (glob(CLAUDPRESS_DIR . 'includes/tools/class-tools-*.php') as $f) {
+    foreach (glob(KEELHOB_DIR . 'includes/tools/class-tools-*.php') as $f) {
         $body = (string) file_get_contents($f);
         if (strpos($body, "'" . $tool . "'") !== false) {
             $src .= $body;
@@ -231,4 +231,4 @@ foreach ($counting as $tool => $rows_key) {
         $missing[] = $tool;
     }
 }
-CP_Test::same([], $missing, 'no list tool makes the model count its own rows');
+KH_Test::same([], $missing, 'no list tool makes the model count its own rows');

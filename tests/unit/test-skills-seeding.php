@@ -8,7 +8,7 @@
  * did. Neither failure announces itself, so the rules are pinned here.
  */
 
-CP_Test::group('Skills — deciding whether an update may replace a bundled skill');
+KH_Test::group('Skills — deciding whether an update may replace a bundled skill');
 
 $shipped = md5('NEW BODY');
 
@@ -17,65 +17,65 @@ $row = static function (string $body, string $hash): array {
     return ['body' => $body, 'bundled_hash' => $hash, 'enabled' => 1];
 };
 
-CP_Test::same(
+KH_Test::same(
     'install',
-    Claudpress_Skills::bundled_action(null, $shipped),
+    Keelhob_Skills::bundled_action(null, $shipped),
     'a skill the site has never seen is installed'
 );
 
-// Untouched = the stored body still hashes to what Claudpress last wrote.
-CP_Test::same(
+// Untouched = the stored body still hashes to what Keelhob last wrote.
+KH_Test::same(
     'update',
-    Claudpress_Skills::bundled_action($row('OLD BODY', md5('OLD BODY')), $shipped),
+    Keelhob_Skills::bundled_action($row('OLD BODY', md5('OLD BODY')), $shipped),
     'an untouched bundled skill is refreshed to the newer shipped text'
 );
-CP_Test::same(
+KH_Test::same(
     'current',
-    Claudpress_Skills::bundled_action($row('NEW BODY', $shipped), $shipped),
+    Keelhob_Skills::bundled_action($row('NEW BODY', $shipped), $shipped),
     'a skill already matching the shipped text is left alone'
 );
 
-// Edited = the stored body no longer matches the hash Claudpress recorded.
-CP_Test::same(
+// Edited = the stored body no longer matches the hash Keelhob recorded.
+KH_Test::same(
     'keep',
-    Claudpress_Skills::bundled_action($row('OWNER REWROTE THIS', md5('OLD BODY')), $shipped),
+    Keelhob_Skills::bundled_action($row('OWNER REWROTE THIS', md5('OLD BODY')), $shipped),
     'a skill the owner edited is never overwritten by an update'
 );
 
 // Pre-1.9 rows carry no hash at all, so an edit cannot be ruled out.
-CP_Test::same(
+KH_Test::same(
     'keep',
-    Claudpress_Skills::bundled_action($row('OLD BODY', ''), $shipped),
+    Keelhob_Skills::bundled_action($row('OLD BODY', ''), $shipped),
     'a skill with no recorded hash is kept rather than guessed at'
 );
 
 // force is the owner explicitly asking for the shipped version back.
-CP_Test::same(
+KH_Test::same(
     'update',
-    Claudpress_Skills::bundled_action($row('OWNER REWROTE THIS', md5('OLD BODY')), $shipped, true),
+    Keelhob_Skills::bundled_action($row('OWNER REWROTE THIS', md5('OLD BODY')), $shipped, true),
     'force replaces an edited skill'
 );
-CP_Test::same(
+KH_Test::same(
     'update',
-    Claudpress_Skills::bundled_action($row('OLD BODY', ''), $shipped, true),
+    Keelhob_Skills::bundled_action($row('OLD BODY', ''), $shipped, true),
     'force replaces an untracked skill'
 );
-CP_Test::same(
+KH_Test::same(
     'install',
-    Claudpress_Skills::bundled_action(null, $shipped, true),
+    Keelhob_Skills::bundled_action(null, $shipped, true),
     'force still installs a missing skill rather than skipping it'
 );
 
-CP_Test::group('Skills — every bundled skill file is loadable');
+KH_Test::group('Skills — every bundled skill file is loadable');
 
 // A skill with broken frontmatter seeds under the wrong name, or not at all, and
 // the failure only shows up as the agent quietly not having the playbook.
-$files = glob(CLAUDPRESS_DIR . 'skills/*.md');
-CP_Test::ok(count($files) > 8, 'the bundled skills are present (' . count($files) . ' files)');
+$files = glob(KEELHOB_DIR . 'skills/*.md');
+KH_Test::ok(count($files) > 8, 'the bundled skills are present (' . count($files) . ' files)');
 
 $bad = [];
 foreach ($files as $file) {
-    $parsed = Claudpress_Skills::parse_markdown((string) file_get_contents($file));
+    $parsed = Keelhob_Skills::parse_markdown((string) file_get_contents($file));
     $name   = trim((string) ($parsed['name'] ?? ''));
     $desc   = trim((string) ($parsed['description'] ?? ''));
     $body   = trim((string) ($parsed['body'] ?? ''));
@@ -89,7 +89,7 @@ foreach ($files as $file) {
         $bad[] = basename($file) . ' (description too short to trigger on)';
     }
 }
-CP_Test::same([], $bad, 'every bundled skill has a name, a usable description, and a body');
+KH_Test::same([], $bad, 'every bundled skill has a name, a usable description, and a body');
 
 /**
  * Every shipped skill file must actually survive parse_markdown().
@@ -100,32 +100,32 @@ CP_Test::same([], $bad, 'every bundled skill has a name, a usable description, a
  * out to close, so the shipped files get checked here rather than discovered
  * missing on somebody's install.
  */
-CP_Test::group('Skills — every shipped skill file parses and is complete');
+KH_Test::group('Skills — every shipped skill file parses and is complete');
 
 $skill_files = glob(dirname(__DIR__, 2) . '/skills/*.md');
-CP_Test::ok(count($skill_files) >= 15, 'the plugin ships a full skill pack');
+KH_Test::ok(count($skill_files) >= 15, 'the plugin ships a full skill pack');
 
 $seen_names = [];
 foreach ($skill_files as $file) {
     $slug   = basename($file, '.md');
-    $parsed = Claudpress_Skills::parse_markdown((string) file_get_contents($file));
+    $parsed = Keelhob_Skills::parse_markdown((string) file_get_contents($file));
 
-    CP_Test::ok(!empty($parsed['name']), $slug . ' declares a name in its frontmatter');
-    CP_Test::ok(!empty($parsed['description']), $slug . ' declares a description agents can route on');
-    CP_Test::ok(trim((string) ($parsed['body'] ?? '')) !== '', $slug . ' has a body left after the frontmatter is stripped');
-    CP_Test::same($slug, (string) ($parsed['name'] ?? ''), $slug . ' has a frontmatter name matching its filename');
+    KH_Test::ok(!empty($parsed['name']), $slug . ' declares a name in its frontmatter');
+    KH_Test::ok(!empty($parsed['description']), $slug . ' declares a description agents can route on');
+    KH_Test::ok(trim((string) ($parsed['body'] ?? '')) !== '', $slug . ' has a body left after the frontmatter is stripped');
+    KH_Test::same($slug, (string) ($parsed['name'] ?? ''), $slug . ' has a frontmatter name matching its filename');
 
     $seen_names[] = (string) ($parsed['name'] ?? '');
 }
 
-CP_Test::same(count($seen_names), count(array_unique($seen_names)), 'no two shipped skills claim the same name');
+KH_Test::same(count($seen_names), count(array_unique($seen_names)), 'no two shipped skills claim the same name');
 
 // The contract in the operating protocol names these two by name. If either
 // stops shipping, every agent is pointed at a skill that does not exist.
-CP_Test::ok(in_array('build-standard', $seen_names, true), 'build-standard ships, because the operating protocol tells every agent to load it');
-CP_Test::ok(in_array('security-standard', $seen_names, true), 'security-standard ships, because build-standard routes security work to it');
+KH_Test::ok(in_array('build-standard', $seen_names, true), 'build-standard ships, because the operating protocol tells every agent to load it');
+KH_Test::ok(in_array('security-standard', $seen_names, true), 'security-standard ships, because build-standard routes security work to it');
 
-CP_Test::group('Seeding — a front-matter-only change still reaches existing sites');
+KH_Test::group('Seeding — a front-matter-only change still reaches existing sites');
 
 // bundled_hash covers the BODY only, so a skill whose declaration changed but
 // whose prose did not used to be classed "current" and skipped entirely. That
@@ -153,19 +153,19 @@ $row  = [
 // Same everything: nothing to do, and the row must not be rewritten on every
 // page load just because the strings were assembled differently.
 $same = array_merge($row, ['next_skills' => 'other']);
-CP_Test::ok(!Claudpress_Skills::metadata_drifted($row, $same), 'an identical declaration is not drift');
-CP_Test::ok(
-    !Claudpress_Skills::metadata_drifted($row, array_merge($row, ['next_skills' => ' other ,  other '])),
+KH_Test::ok(!Keelhob_Skills::metadata_drifted($row, $same), 'an identical declaration is not drift');
+KH_Test::ok(
+    !Keelhob_Skills::metadata_drifted($row, array_merge($row, ['next_skills' => ' other ,  other '])),
     'nor is the same edge list written untidily — it is normalised before comparing'
 );
 
 // The real case, and the four others that share its shape.
-CP_Test::ok(Claudpress_Skills::metadata_drifted($row, array_merge($row, ['surface' => 'interactive'])), 'a changed surface IS drift — this is the bug that was found');
-CP_Test::ok(Claudpress_Skills::metadata_drifted($row, array_merge($row, ['role' => 'gate'])), 'a changed role is drift');
-CP_Test::ok(Claudpress_Skills::metadata_drifted($row, array_merge($row, ['description' => 'A better description.'])), 'a rewritten description is drift — it is the only thing that routes work to a skill');
-CP_Test::ok(Claudpress_Skills::metadata_drifted($row, array_merge($row, ['verified_by' => 'pre-launch-audit'])), 'a newly declared verifier is drift');
-CP_Test::ok(Claudpress_Skills::metadata_drifted($row, array_merge($row, ['title' => 'Alpha renamed'])), 'a renamed title is drift');
+KH_Test::ok(Keelhob_Skills::metadata_drifted($row, array_merge($row, ['surface' => 'interactive'])), 'a changed surface IS drift — this is the bug that was found');
+KH_Test::ok(Keelhob_Skills::metadata_drifted($row, array_merge($row, ['role' => 'gate'])), 'a changed role is drift');
+KH_Test::ok(Keelhob_Skills::metadata_drifted($row, array_merge($row, ['description' => 'A better description.'])), 'a rewritten description is drift — it is the only thing that routes work to a skill');
+KH_Test::ok(Keelhob_Skills::metadata_drifted($row, array_merge($row, ['verified_by' => 'pre-launch-audit'])), 'a newly declared verifier is drift');
+KH_Test::ok(Keelhob_Skills::metadata_drifted($row, array_merge($row, ['title' => 'Alpha renamed'])), 'a renamed title is drift');
 
 // The owner's switches are theirs. A skill they turned off stays off.
-CP_Test::ok(!Claudpress_Skills::metadata_drifted($row, array_merge($row, ['enabled' => 0])), 'the owner switching a skill off is NOT drift to be undone');
-CP_Test::ok(!Claudpress_Skills::metadata_drifted($row, array_merge($row, ['enable_agentic' => 0])), 'nor is switching it out of the agent catalog');
+KH_Test::ok(!Keelhob_Skills::metadata_drifted($row, array_merge($row, ['enabled' => 0])), 'the owner switching a skill off is NOT drift to be undone');
+KH_Test::ok(!Keelhob_Skills::metadata_drifted($row, array_merge($row, ['enable_agentic' => 0])), 'nor is switching it out of the agent catalog');

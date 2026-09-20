@@ -16,20 +16,20 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WP="${1:-${CP_RIG_WP:-}}"
+WP="${1:-${KH_RIG_WP:-}}"
 
 if [ -z "$WP" ]; then
   echo "Usage: bash tests/rig/sync-plugin.sh /path/to/rig/wordpress" >&2
   exit 2
 fi
 
-DEST="$WP/wp-content/plugins/claudpress"
+DEST="$WP/wp-content/plugins/keelhob"
 
 # Refuse to create the target. If it is not already a rig, the path is wrong,
 # and copying a plugin into a directory nobody asked for is how a real site
 # quietly acquires a development build.
-if [ ! -f "$DEST/claudpress.php" ]; then
-  echo "No Claudpress install at $DEST — build the rig first:" >&2
+if [ ! -f "$DEST/keelhob.php" ]; then
+  echo "No Keelhob install at $DEST — build the rig first:" >&2
   echo "  bash tests/rig/build-rig.sh \"$(dirname "$WP")\"" >&2
   exit 2
 fi
@@ -40,16 +40,16 @@ fi
 fail=0
 while IFS= read -r file; do
   php -l "$file" > /dev/null 2>&1 || { echo "Syntax error: $file" >&2; fail=1; }
-done < <(find "$ROOT/includes" "$ROOT/claudpress.php" "$ROOT/uninstall.php" -name '*.php')
+done < <(find "$ROOT/includes" "$ROOT/keelhob.php" "$ROOT/uninstall.php" -name '*.php')
 [ "$fail" = "0" ] || { echo "Nothing was copied." >&2; exit 1; }
 
 # Old files are removed first. Without this a class deleted from the working
 # tree keeps running in the rig, and the bug you are chasing is a file that no
 # longer exists.
 rm -rf "$DEST/includes" "$DEST/skills" "$DEST/assets"
-cp "$ROOT/claudpress.php" "$ROOT/uninstall.php" "$ROOT/readme.txt" "$DEST/"
+cp "$ROOT/keelhob.php" "$ROOT/uninstall.php" "$ROOT/readme.txt" "$DEST/"
 cp -r "$ROOT/includes" "$ROOT/skills" "$ROOT/assets" "$DEST/"
 
-VERSION="$(grep -oP "define\('CLAUDPRESS_VERSION',\s*'\K[^']+" "$ROOT/claudpress.php" || echo '?')"
-echo "Synced Claudpress $VERSION into $DEST"
+VERSION="$(grep -oP "define\('KEELHOB_VERSION',\s*'\K[^']+" "$ROOT/keelhob.php" || echo '?')"
+echo "Synced Keelhob $VERSION into $DEST"
 echo "Reload the admin — no reactivation needed."

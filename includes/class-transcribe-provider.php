@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
  * endpoint — an owner running Claude as their brain still needs an OpenAI or
  * Google key for voice, which the settings UI says out loud.
  */
-abstract class Claudpress_Transcribe_Provider
+abstract class Keelhob_Transcribe_Provider
 {
     abstract public static function id(): string;
     abstract public static function label(): string;
@@ -66,7 +66,7 @@ abstract class Claudpress_Transcribe_Provider
 
     /**
      * As on the image family: a name match, which is a guess, which is why
-     * Claudpress_Media_Check::models() adds to the curated list rather than
+     * Keelhob_Media_Check::models() adds to the curated list rather than
      * trusting this to replace it.
      *
      * @return array<int, string>
@@ -86,24 +86,24 @@ abstract class Claudpress_Transcribe_Provider
      */
     abstract public static function transcribe(string $key, string $model, string $endpoint, string $bytes, string $mime, string $filename): array;
 
-    /** @return array<string, class-string<Claudpress_Transcribe_Provider>> */
+    /** @return array<string, class-string<Keelhob_Transcribe_Provider>> */
     public static function providers(): array
     {
-        return (array) apply_filters('claudpress_transcribe_providers', [
-            'openai' => Claudpress_Transcribe_Provider_OpenAI::class,
-            'google' => Claudpress_Transcribe_Provider_Google::class,
+        return (array) apply_filters('keelhob_transcribe_providers', [
+            'openai' => Keelhob_Transcribe_Provider_OpenAI::class,
+            'google' => Keelhob_Transcribe_Provider_Google::class,
         ]);
     }
 
     public static function get(string $id): string
     {
         $all = self::providers();
-        return $all[$id] ?? Claudpress_Transcribe_Provider_OpenAI::class;
+        return $all[$id] ?? Keelhob_Transcribe_Provider_OpenAI::class;
     }
 
     public static function current(): string
     {
-        $s = Claudpress::instance()->settings();
+        $s = Keelhob::instance()->settings();
         return self::get((string) ($s['voice_provider'] ?? 'openai'));
     }
 
@@ -117,7 +117,7 @@ abstract class Claudpress_Transcribe_Provider
      */
     public static function key(): string
     {
-        $s   = Claudpress::instance()->settings();
+        $s   = Keelhob::instance()->settings();
         $own = trim((string) ($s['voice_api_key'] ?? ''));
         if ($own !== '') {
             return $own;
@@ -135,7 +135,7 @@ abstract class Claudpress_Transcribe_Provider
     /** Build a multipart/form-data body by hand — no curl file handles needed. */
     protected static function multipart(array $fields, string $file_field, string $filename, string $mime, string $bytes): array
     {
-        $boundary = '----claudpress' . bin2hex(random_bytes(8));
+        $boundary = '----keelhob' . bin2hex(random_bytes(8));
         $body     = '';
 
         foreach ($fields as $name => $value) {

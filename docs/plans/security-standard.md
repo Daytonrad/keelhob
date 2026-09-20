@@ -1,6 +1,6 @@
-# Claudpress Security Standard
+# Keelhob Security Standard
 
-**Status:** reference standard for agents building or maintaining WordPress sites via Claudpress.
+**Status:** reference standard for agents building or maintaining WordPress sites via Keelhob.
 **Scope:** defensive hardening and auditing of sites the owner controls. No exploit code, no payloads.
 **Audience:** a competent but literal agent, working for a beginner site owner.
 
@@ -52,7 +52,7 @@ Ranked by how often it actually causes compromises in the wild, not by how scary
 
 **What stops it:** only install from wordpress.org, the vendor directly, or a licensed marketplace. Reject nulled software outright — this is a hard rule, not a preference to ask about.
 
-### 1.5 Misconfiguration and over-exposure (this is the failure mode Claudpress caused)
+### 1.5 Misconfiguration and over-exposure (this is the failure mode Keelhob caused)
 
 **Mechanism.** No exploit needed. Public registration left open with a non-Subscriber default role; the plugin/theme file editor enabled; a static-key "preview"/debug endpoint left in the code; multiple overlapping REST-auth plugins each widening the auth surface; directory listing on; database dumps or `.git` left in the web root; debug output written to a publicly readable `debug.log`. Each turns a nuisance into a takeover.
 
@@ -202,7 +202,7 @@ These do not change how the owner uses the site. Each entry: **detect → fix �
 ### A15. Application passwords and REST auth surface audited
 - **Detect:** enumerate `wp_usermeta` key `_application_passwords` — list every app password, its name, and last-used date. Inventory every plugin providing REST/JWT/API-key authentication.
 - **Fix:** revoke app passwords that are unused, unrecognised, or belong to a departed integration. **Remove redundant REST-auth plugins — keep at most one.** Ensure app passwords are only issued to accounts with the minimum role needed.
-- **Blast radius:** **high** — revoking an app password breaks whatever integration uses it (mobile app, Claudpress itself, a sync service). Identify the owner of each credential before revoking; never revoke your own live connection.
+- **Blast radius:** **high** — revoking an app password breaks whatever integration uses it (mobile app, Keelhob itself, a sync service). Identify the owner of each credential before revoking; never revoke your own live connection.
 
 ### A16. No static-key / hardcoded-secret endpoints in custom code
 - **Detect:** grep custom snippets, mu-plugins and theme files for hardcoded tokens compared with `==`, `$_GET`-gated preview/debug/maintenance bypasses, `if ($_GET['key'] === '...')`, and any `add_action('init', ...)` that authenticates from a URL parameter.
@@ -220,7 +220,7 @@ These do not change how the owner uses the site. Each entry: **detect → fix �
 - **Blast radius:** listing is read-only. Deleting a file some plugin generated (rare, but some caching/gallery plugins write PHP into uploads) can break that plugin — inspect before deleting.
 
 ### A19. Custom code follows WordPress security APIs
-Applies to every snippet/template Claudpress itself writes:
+Applies to every snippet/template Keelhob itself writes:
 - Every state-changing request checks a nonce **and** `current_user_can()` — a nonce alone is CSRF protection, not authorisation.
 - All DB access via `$wpdb->prepare()`. No string-concatenated SQL.
 - Output escaped at the point of output: `esc_html()`, `esc_attr()`, `esc_url()`, `wp_kses_post()`.

@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-final class Claudpress_Skill_Catalog
+final class Keelhob_Skill_Catalog
 {
     /**
      * @return array<string, array{title:string, description:string}>
@@ -42,7 +42,7 @@ final class Claudpress_Skill_Catalog
             ],
             'contribute-feedback' => [
                 'title'       => 'Write a friction note',
-                'description' => 'How to word a note for the Claudpress feedback report, and what must never go in one.',
+                'description' => 'How to word a note for the Keelhob feedback report, and what must never go in one.',
             ],
             'elementor-page-building' => [
                 'title'       => 'Elementor page building',
@@ -102,7 +102,7 @@ final class Claudpress_Skill_Catalog
             ],
             'skill-creator' => [
                 'title'       => 'Skill creator',
-                'description' => 'Create, refine, or improve a Claudpress skill.',
+                'description' => 'Create, refine, or improve a Keelhob skill.',
             ],
             'solace-header-footer' => [
                 'title'       => 'Solace header & footer',
