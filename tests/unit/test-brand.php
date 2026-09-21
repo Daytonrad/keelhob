@@ -93,13 +93,32 @@ KH_Test::contains('mark-mono-40.png', $css, 'the mask points at the mark file');
 KH_Test::contains('currentColor', $css, 'the mark is filled with the menu text colour, not a fixed one');
 KH_Test::contains('-webkit-mask:', $css, 'the prefixed property is there too — Safari still needs it');
 KH_Test::contains('@supports', $css, 'the mask is behind @supports: without one, background-color alone paints a solid rectangle');
-// Computed from the file, not typed in. Typing the number here would just be
-// the same hardcoded ratio in a third place.
-$expect_h = (int) round(Keelhob_Brand::MENU_PX * $mono_h / $mono_w);
+/*
+ * THE SIDEBAR BOX IS THE WHOLE ROW, ON PURPOSE.
+ *
+ * Measured in a browser: WordPress ships `padding: 7px 0` on
+ * #adminmenu .wp-menu-image::before for its own dashicons. This rule did not
+ * reset it, so the painted box was 17px of content plus 14px of inherited
+ * padding, and a margin-top computed as if that padding did not exist put the
+ * mark 7.5px below the centre of the row.
+ *
+ * So the box is now ROW_PX tall and `center` does the centring. These three
+ * assertions are what stop the arithmetic version coming back.
+ */
 KH_Test::contains(
-    'width:' . Keelhob_Brand::MENU_PX . 'px;height:' . $expect_h . 'px',
+    'width:' . Keelhob_Brand::MENU_PX . 'px;height:' . Keelhob_Brand::ROW_PX . 'px',
     $css,
-    'the sidebar box keeps the mark proportions (' . Keelhob_Brand::MENU_PX . ' wide, ' . $expect_h . ' tall), so nothing is squashed'
+    'the sidebar box fills the whole ' . Keelhob_Brand::ROW_PX . 'px row, so the mask centres itself in it'
+);
+KH_Test::contains('padding:0', $css, 'and it resets the padding WordPress adds for dashicons — the bug that pushed the mark low');
+KH_Test::contains(
+    'center / ' . Keelhob_Brand::MENU_PX . 'px auto',
+    $css,
+    'the mask height is auto, so the mark takes its own proportions and cannot be squashed'
+);
+KH_Test::ok(
+    strpos($css, 'margin:0 auto') !== false,
+    'no vertical offset is calculated at all — an offset is the thing that was wrong'
 );
 KH_Test::ok(
     strpos($css, 'admin-color-') === false,

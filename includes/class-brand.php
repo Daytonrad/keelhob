@@ -59,6 +59,9 @@ final class Keelhob_Brand
     /** Mark width in the admin toolbar, in CSS pixels. Height follows. */
     const BAR_PX = 18;
 
+    /** WordPress's own sidebar row height. The mark is centred inside it. */
+    const ROW_PX = 34;
+
     /** Wide-mark height beside an <h1>, in CSS pixels. */
     const HEADING_PX = 28;
 
@@ -180,29 +183,47 @@ final class Keelhob_Brand
      */
     public static function styles(): void
     {
-        $mask = "url('" . esc_url_raw(self::url('mark-mono-40.png')) . "') no-repeat center / contain";
+        $url = "url('" . esc_url_raw(self::url('mark-mono-40.png')) . "')";
 
-        // Heights come from the mark's own proportions, so a re-export at a
-        // different shape cannot silently squash it on screen.
-        $menu_h = (int) round(self::MENU_PX * self::MARK_H / self::MARK_W);
-        $bar_h  = (int) round(self::BAR_PX * self::MARK_H / self::MARK_W);
+        /*
+         * THE BOX IS THE WHOLE ROW, AND THE MASK IS CENTRED IN IT.
+         *
+         * Measured in a real browser, not reasoned about: WordPress ships
+         * `padding: 7px 0` on #adminmenu .wp-menu-image::before, for its own
+         * dashicons. This rule never reset it, so the painted box was 17px of
+         * content plus 14px of inherited padding — 31px — and a margin-top
+         * calculated as if the padding were not there put the mark's centre
+         * 7.5px BELOW the centre of the 34px row. It read as a logo sitting
+         * low against its own label.
+         *
+         * Rather than subtract the padding and keep the arithmetic, the box is
+         * now the full row height and `center` does the centring. There is no
+         * offset to get wrong, and `MENU_PX auto` takes the height from the
+         * image's own proportions, so a re-exported mark cannot be squashed.
+         */
+        $menu_mask = $url . ' no-repeat center / ' . self::MENU_PX . 'px auto';
+        $bar_mask  = $url . ' no-repeat center / ' . self::BAR_PX . 'px auto';
 
-        // Vertically centred in WordPress's own 34px menu row.
-        $menu_top = (int) round((34 - $menu_h) / 2);
+        // The toolbar mark is an inline-block of its own, with no inherited
+        // padding, so its height is still derived from the mark's ratio.
+        $bar_h = (int) round(self::BAR_PX * self::MARK_H / self::MARK_W);
 
         $css = '@supports ((-webkit-mask-image:url("")) or (mask-image:url(""))){'
             . '#adminmenu #toplevel_page_keelhob .wp-menu-image::before{'
             . 'content:"";display:block;'
-            . 'width:' . self::MENU_PX . 'px;height:' . $menu_h . 'px;'
-            . 'margin:' . $menu_top . 'px auto 0;'
+            // padding:0 is the fix. WordPress sets 7px 0 here for dashicons.
+            . 'padding:0;'
+            . 'width:' . self::MENU_PX . 'px;height:' . self::ROW_PX . 'px;'
+            . 'margin:0 auto;'
             . 'background-color:currentColor;'
-            . '-webkit-mask:' . $mask . ';mask:' . $mask . ';}'
+            . '-webkit-mask:' . $menu_mask . ';mask:' . $menu_mask . ';}'
             . '#wp-admin-bar-keelhob .keelhob-bar-mark{'
             . 'display:inline-block;vertical-align:middle;'
+            . 'padding:0;'
             . 'width:' . self::BAR_PX . 'px;height:' . $bar_h . 'px;'
             . 'margin:0 6px 2px 0;'
             . 'background-color:currentColor;'
-            . '-webkit-mask:' . $mask . ';mask:' . $mask . ';}'
+            . '-webkit-mask:' . $bar_mask . ';mask:' . $bar_mask . ';}'
             . '}';
 
         // wp-admin is always present in the admin, so there is no stylesheet to
