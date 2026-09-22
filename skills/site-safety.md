@@ -84,6 +84,31 @@ server/SSH access outside Keelhob entirely.
   outside Keelhob — SSH/hosting file manager/`docker exec` to fix the file
   directly, then resume.
 
+## GOTCHA: two meta writers, opposite slashing
+`update_post_meta()` runs `wp_unslash()` on the value before it stores it.
+`$wpdb->update()` stores the bytes exactly as given. They are mirrors, so the
+same "safe" habit breaks one of them whichever way you pick.
+
+| Writer | What it does to your bytes | So you must |
+|---|---|---|
+| `update_post_meta()` | unslashes them | `wp_slash()` the value first |
+| `$wpdb->update()` | stores them exactly | pass raw — never `wp_slash()` |
+
+Get it wrong on a JSON or serialized value and it is silently corrupted:
+`update_post_meta()` eats the `\"` escapes inside a JSON string, `$wpdb` with
+`wp_slash()` doubles them. **Both return success and neither logs anything.**
+A real case cost 77 bytes out of `_elementor_data` and rendered the page blank.
+
+- For `_elementor_data`, any JSON blob and anything serialized, write with
+  `$wpdb->update()` and raw bytes.
+- Verify by reading the value back out and **decoding it** — `json_decode()`
+  returning `null`, or `unserialize()` returning `false`, is the only signal
+  you get. A success flag proves nothing here.
+- Serialized PHP carries byte lengths (`s:22:"https://example.com"`), so any
+  replacement of a different length breaks it. JSON has no length prefixes and
+  survives a plain replace — but it escapes slashes (`https:\/\/`), so a naive
+  search for a URL misses every one of them.
+
 ## Verify after
 - After a change, read one affected record back and confirm the new value. Report what actually changed, with IDs and links.
 - If a tool returns `success: false`, surface the exact error and adjust — don't retry the same call blindly.

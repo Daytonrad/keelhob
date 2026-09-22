@@ -89,6 +89,8 @@ or SKU on the destination.
 - Prefer snippets over editing theme files; they survive theme updates and auto-recover from fatals.
 - Deactivate (don't delete) while iterating so you keep the code. Save reusable snippets' purpose to memory.
 - The owner can edit or delete any snippet from the Snippets page, and those edits are not versioned. If code you wrote looks different from what you remember, read it with `snippet_get` before changing it — do not assume your version is still there.
+- **A snippet that renders a whole document gets nothing from `wp_head()`.** Coming-soon pages, maintenance pages and `page_template` snippets that print their own `<html>` never fire `wp_head` or `wp_footer`, so the favicon links, Open Graph tags, theme styles and any CSS-variable palette are simply absent. Do not hand-copy those values into the snippet: a holding page is the one page nobody looks at, so a stale copy there can be wrong for months. Read each value from its real source in PHP — the Elementor kit's `_elementor_page_settings`, `get_site_icon_url()`, the option — and print it.
+- **`snippet_save` without an `id` creates a new snippet.** Re-running a save you meant as an edit leaves two live copies fighting each other. Pass the `id` you got back, or find it with `snippet_list` first.
 
 ## Related skills
 
