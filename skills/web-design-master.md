@@ -88,6 +88,21 @@ Never scatter raw values. Define a token block and reference it. Put it in a `sn
 ```
 Rules: **one accent color** carried consistently (buttons, links, key highlights). Neutrals do the heavy lifting. Body text 16–18px, line-height 1.5–1.7, measure 60–75ch. Type contrast comes from **scale and weight**, not many colors.
 
+**One palette, one place.** If the site already has a token system — an
+Elementor kit, a theme.json, a design-system snippet — extend that one. Adding
+a second set beside it is how a site ends up needing four separate edits to
+change one colour, and how half a page silently keeps the old palette. If you
+must bridge your names onto an existing system, **map them, never copy the
+values**: `--brand-bg: var(--e-global-color-accent, #0E0B09)`.
+
+**Check the scope before you write the bridge.** A custom property can only read
+another one that is in scope on the same element or an ancestor. Elementor
+declares its globals on `body` (via `.elementor-kit-<id>`), not on `:root`, so a
+bridge written in `:root` resolves to the fallback and does nothing — for ever,
+and invisibly if the fallback happens to match. Declare the bridge on the same
+element the source uses, then prove it in a browser: override the source
+property, confirm yours followed, and remove the override.
+
 ## 3. Layout & responsive (mobile-first, always)
 - Build for **~375px first**, then enhance up. Breakpoints: mobile ≤640, tablet 641–1024, desktop ≥1025.
 - Use **CSS grid / flexbox with `gap`**; never fixed pixel widths on containers. Cards: `grid-template-columns:repeat(auto-fit,minmax(260px,1fr))` so they reflow naturally.
@@ -155,6 +170,22 @@ don't round.
 - **Body-text contrast — at least 4.5:1**, measured against the actual rendered
   background the text sits on, not the design-file background or the token's nominal
   value. A tinted section background changes the real contrast; check it there.
+
+  **How to measure it without inventing failures.** Three traps turn a clean page
+  into a red report, and each one costs a round of hunting:
+  - **Composite transparency.** Walk up from the element collecting every
+    background whose alpha is above 0 until you reach an opaque one, then blend
+    them down. A row tinted `rgba(128,128,128,.07)` over near-black **is**
+    near-black. Reading it as opaque grey failed twelve perfectly readable table
+    rows on a real audit.
+  - **Skip what nobody can see.** Honeypot fields and screen-reader text sit far
+    off-canvas (`left: -9999px`) with real width and height and a default `#333`.
+    Discard any element whose box lies entirely outside the document. One
+    honeypot will otherwise be "the worst contrast on the site" on every page
+    that carries a form, and it hides the real numbers underneath it.
+  - **Only judge elements that paint their own text.** An `<li>` wrapping a
+    coloured `<a>` reports the inherited default colour for text it does not
+    draw. Measure the element's own text nodes, not `textContent`.
 - **Image budget** — no image over **300 KB**; the LCP/hero image under **200 KB**;
   everything below the fold `loading="lazy"`; modern format (WebP/AVIF) where the host
   supports it. These are the numbers, not "optimize images."

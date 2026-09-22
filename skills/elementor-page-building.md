@@ -52,6 +52,18 @@ Apply site-wide colors/fonts once with `elementor_kit action=set` (merges into t
 
 - **GOTCHA: the kit's global link color beats a bare class selector.** The kit emits `.elementor a { color: … }`, which outranks a plain class like `.kh-btn` — a copper button can end up with teal underlined text inside it. Prefix such selectors with the parent: `.elementor a.kh-btn`, not `.kh-btn`.
 
+- **GOTCHA: `__globals__` beats the literal value, so raw `_elementor_data` lies.** A widget can hold `settings.title_color: "#8A8F93"` *and* `settings.__globals__.title_color: "globals/colors?id=cpmuted"`. The global wins; the hex is dead weight. Read the JSON and a fully tokenised site looks like it has no tokens at all — which sends you off editing hexes that change nothing.
+  - To learn a page's **real** colours, read the generated `uploads/elementor/css/post-<id>.css`, or read the computed style in a browser.
+  - To **change** a colour properly, set `__globals__[key]`, and update the literal to match so the fallback is not stale.
+  - To **count** how hard-coded a site really is, walk the tree and count only settings whose `__globals__[key]` is empty. On one real site that turned an apparent 600 stray hexes into 311 genuine ones.
+
+- **GOTCHA: Elementor's global colours are declared on `body`, not `:root`.** They are emitted on the `.elementor-kit-<id>` class, which WordPress puts on `<body>`. Any custom property of your own that reads one must be declared on `body` too. Written as `:root{--brand-bg:var(--e-global-color-accent,#0E0B09)}` the Elementor variable is out of scope, so it silently takes the fallback for ever — and **it looks perfect** as long as the fallback matches. Change the palette a year later and half the site does not move.
+  - **Prove the bridge, never assume it.** In the browser: `document.body.style.setProperty('--e-global-color-accent','#FF00FF')`, read your own property back, confirm it followed, then `removeProperty`. Nothing on the server is touched, so there is nothing to undo. One call turns a bug that hides for a year into one you catch in a second.
+
+- **GOTCHA: the kit holds colours of its own, and no page sweep will find them.** `_elementor_page_settings` on the active kit (`get_option('elementor_active_kit')`) carries `body_background_color`, `link_normal_color` and `link_hover_color` as plain values, outside every page's `_elementor_data`. Sweep all the pages clean and the background stubbornly stays the old colour. They accept `__globals__` entries like any widget. **Check the kit last, every time.**
+
+- **Writing `_elementor_data` by hand: use `$wpdb->update()`, never `update_post_meta()`.** `update_post_meta()` runs `wp_unslash()` internally and eats the JSON's own `\"` escapes — the write reports success and the page renders blank. See the meta-writer GOTCHA in `site-safety`. Prefer the `elementor_page` tool, which handles this; drop to raw SQL only for a bulk rewrite it cannot express.
+
 ## Widget settings — read `get_controls()` first
 Wrong setting keys are written, saved, and reported successful, then do nothing — Elementor validates none of it. Before setting a widget's `settings`, read an existing instance of that widget with `action=get` (or check the widget's controls) rather than guessing names from the label in the editor UI. Real example from a live build: the `xpro-horizontal-menu` widget's controls are `nav_menu` and `menu_text_color` — the obvious guesses `menu` and `menu_color` are accepted and produce a menu with default dark-on-light colors on a near-black header, with nothing in the response to say so.
 

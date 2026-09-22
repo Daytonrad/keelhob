@@ -115,7 +115,10 @@ eyeballed**: no image over **300 KB**, the LCP/hero image under **200 KB**, ever
 below the fold lazy-loaded, modern format (WebP/AVIF) where the host supports it. Pull the
 actual `Content-Length` on each image via `wp_remote_get`/`execute_php` — the real audit
 this checklist is built from found 122 MB of images and an 867 KB logo, both of which
-looked fine on screen.
+looked fine on screen. Measure contrast the way `web-design-master` §8 sets out:
+composite translucent backgrounds, skip off-canvas honeypots, and judge only elements
+that paint their own text. Skip any one of those and the report fills with failures
+that are not real, which costs the owner more trust than the finding was worth.
 
 **Motion and interaction** — hover, focus and active states, form feedback, loading and
 error and empty states, `prefers-reduced-motion`, and whether anything shifts layout as
