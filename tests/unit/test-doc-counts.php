@@ -115,6 +115,56 @@ foreach ([
     );
 }
 
+// ------------------------------------------------- DOCUMENTATION.md, the manual
+
+// DOCUMENTATION.md is the page a stranger reads INSTEAD of this repository, so
+// a number that rots there is worse than one that rots in ROADMAP.md: the reader
+// has nothing to check it against.
+$manual = (string) file_get_contents(KEELHOB_DIR . 'DOCUMENTATION.md');
+
+$manual_tools = null;
+if (preg_match('/\*\*(\d+) tools\*\*/i', $manual, $m)) {
+    $manual_tools = (int) $m[1];
+}
+KH_Test::ok($manual_tools !== null, 'DOCUMENTATION.md states how many tools there are');
+KH_Test::same($real_tools, $manual_tools, 'and it is the number the registry returns');
+
+$manual_skills = null;
+if (preg_match('/([a-z-]+|\d+) ship with the plugin/i', $manual, $m)) {
+    $raw           = strtolower($m[1]);
+    $manual_skills = ctype_digit($raw) ? (int) $raw : ($WORDS[$raw] ?? null);
+}
+KH_Test::ok($manual_skills !== null, 'DOCUMENTATION.md states how many skills ship');
+KH_Test::same($real_skills, $manual_skills, 'and it agrees with the skills/ folder');
+
+// Every capability group the plugin defines must appear in the manual's table,
+// and be marked with the default the code actually ships. A group added to the
+// code and forgotten here is a power the owner was never told about.
+$off = Keelhob_Capabilities::DISABLED_BY_DEFAULT;
+$missing = [];
+$wrong   = [];
+foreach (Keelhob_Capabilities::groups() as $key => $group) {
+    $label = $group['label'];
+    // Matched VERBATIM. The manual is supposed to print the label the owner
+    // reads on the Settings screen, so "close enough" is the wrong test: a
+    // shortened label in the manual is itself the bug.
+    $row = null;
+    if (preg_match('/^\|\s*' . preg_quote($label, '/') . '\s*\|\s*([^|]+)\|/mi', $manual, $m)) {
+        $row = trim($m[1]);
+    }
+    if ($row === null) {
+        $missing[] = $label;
+        continue;
+    }
+    $says_off    = stripos($row, 'off') !== false;
+    $actually_off = in_array($key, $off, true);
+    if ($says_off !== $actually_off) {
+        $wrong[] = $label . ' (manual says ' . ($says_off ? 'off' : 'on') . ')';
+    }
+}
+KH_Test::ok($missing === [], 'DOCUMENTATION.md lists every capability group' . ($missing ? ': missing ' . implode(', ', $missing) : ''));
+KH_Test::ok($wrong === [], 'and gives each one the default the code ships' . ($wrong ? ': ' . implode('; ', $wrong) : ''));
+
 // ----------------------------------------- browser and end-to-end check counts
 
 // These two CANNOT be verified from here: both suites need a running rig and a
