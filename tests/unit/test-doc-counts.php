@@ -115,6 +115,29 @@ foreach ([
     );
 }
 
+// ----------------------------------------- browser and end-to-end check counts
+
+// These two CANNOT be verified from here: both suites need a running rig and a
+// browser, and counting their call sites statically is wrong because the checks
+// run in loops. What CAN be kept honest without either is that the total
+// ROADMAP.md advertises equals the per-file figures in tests/rig/ui/README.md,
+// which is the table a maintainer updates when they add a check.
+//
+// ROADMAP.md once said "57 browser checks" against a real, measured 80. Nobody
+// noticed for months, because the only way to find out was to run them.
+$ui_readme = (string) file_get_contents(KEELHOB_DIR . 'tests/rig/ui/README.md');
+preg_match_all('/^\|\s*`check-[a-z]+\.mjs`\s*\|[^|]*\|\s*(\d+)\s*\|/m', $ui_readme, $rows);
+$per_file = array_map('intval', $rows[1]);
+
+KH_Test::ok(count($per_file) >= 2, 'tests/rig/ui/README.md lists a check count per file (' . implode(' + ', $per_file) . ')');
+
+$claimed_browser = null;
+if (preg_match('/(\d+) browser checks/i', $roadmap, $m)) {
+    $claimed_browser = (int) $m[1];
+}
+KH_Test::ok($claimed_browser !== null, 'ROADMAP states how many browser checks there are');
+KH_Test::same(array_sum($per_file), $claimed_browser, 'and it equals the per-file totals in tests/rig/ui/README.md');
+
 // ------------------------------------------------------- the release claim
 
 // "Shipped (1.1.0, 1.2.0)" said 1.2.0 was out while it was untagged. The words
