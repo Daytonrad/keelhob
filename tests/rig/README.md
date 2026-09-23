@@ -1,5 +1,32 @@
 # The live rig
 
+## Last full verification
+
+Every layer here was run end to end on **2026-09-23**, against a freshly built
+throwaway rig on **Keelhob 2.0.0 / WordPress 7.1 / PHP 8.5.9**, Windows.
+
+| Layer | Command | Result |
+|---|---|---|
+| Unit | `php tests/run.php` | **2,623 / 2,623** passed |
+| Browser — snippets | `node tests/rig/ui/check-snippets.mjs` | **54 / 54** passed |
+| Browser — compose | `node tests/rig/ui/check-compose.mjs` | **26 / 26** passed |
+| End-to-end MCP | `node tests/rig/e2e-mcp.mjs` | **30 / 30** passed |
+
+That run is what corrected ROADMAP.md, which had claimed 57 browser checks
+against a real 80. `tests/unit/test-doc-counts.php` now fails if ROADMAP's total
+stops matching the per-file table in `tests/rig/ui/README.md`, so the figure
+cannot drift again without the suite saying so.
+
+Those four numbers are a **dated measurement**, not a claim about today, which
+is why they are exact here while every other doc says "~2,600 assertions". Do
+not turn this table into an approximation, and do not edit it without re-running
+the four commands — replace it with the date and figures you actually got.
+
+**If you are re-verifying, read "Serving it" first.** Two environment traps below
+each produce a large number of failures that have nothing to do with the plugin,
+and both cost a full investigation the first time.
+
+
 `tests/run.php` runs against hand-written WordPress stubs. That is fast and it
 catches most things, but it cannot catch a fix that is correct in isolation and
 wrong in situ — a query that only fails against real `$wpdb`, an option that
@@ -139,6 +166,23 @@ The extra workers matter: WordPress makes loopback requests to itself, and a
 single-worker built-in server deadlocks waiting for a response it is not free to
 serve.
 
+**On Windows `PHP_CLI_SERVER_WORKERS` does nothing.** The server prints
+`forking is not supported on this platform` and serves one request at a time,
+so a browser run stalls on the login POST and every check times out. The fix is
+to start the SAME command two or three more times — the built-in server allows
+several instances to share a port, and that is what gives you concurrency:
+
+```bash
+# Windows: three instances, not one. Each is a separate process.
+for i in 1 2 3; do
+  powershell -Command "Start-Process C:\PHP\php.exe -ArgumentList '-S','localhost:8899','-t','<RIG>/wordpress' -WindowStyle Hidden"
+done
+```
+
+If you find several `php -S` on the same port, **they are not orphans.** Killing
+them down to one is how you turn a green suite red. (That was done once, and the
+run it broke reported 36 of 50 failures that were all the same timeout.)
+
 ## Pushing a code change into a rig you are keeping
 
 ```bash
@@ -228,6 +272,14 @@ php /c/wp-cli/wp-cli.phar --path=/c/wp-rig/wordpress eval '
 # 2. Run it.
 node tests/rig/e2e-mcp.mjs --config /tmp/mcp.json
 ```
+
+**`--rig` defaults to `C:/wp-rig/wordpress`, and getting it wrong is silent.**
+The capability-gate section drives WP-CLI directly. Point `--rig` at a rig that
+is not there and WP-CLI cannot be reached, so those checks collapse into a
+single `capability gate: could not drive WP-CLI, skipped` **PASS**. The suite
+then reports 28 of 28 green when the real total is 30, and nothing looks wrong.
+Always pass `--rig` explicitly, and treat a total under 30 as a misconfigured
+run rather than a smaller suite.
 
 **Do not switch extra capability groups on first.** Everything it calls is on by
 default. Turning them all on breaks three assertions in `checks.php`, which
