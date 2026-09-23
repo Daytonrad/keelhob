@@ -29,6 +29,14 @@ node tests/rig/ui/check-compose.mjs  --wp http://localhost:8899 --rig /c/wp-rig/
 
 Two files, because they cover two screens:
 
+Both files were last run green on **2026-09-23** (54 + 26 = 80) against a
+freshly built rig on Keelhob 2.0.0. `tests/unit/test-doc-counts.php` reads the
+per-file numbers in this table and fails if ROADMAP.md stops agreeing with them,
+so **update this table in the same commit that adds or removes a check.**
+
+On Windows you must serve the rig with several `php -S` instances, not one, or
+every check here times out at login — see "Serving it" in `tests/rig/README.md`.
+
 | File | Screen | Checks |
 |---|---|---|
 | `check-snippets.mjs` | the snippet list and the editor | 54 |
