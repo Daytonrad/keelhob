@@ -20,7 +20,7 @@ snippets, Elementor, memory and autonomy · 24 expert skills · a Snippets Studi
 with a real code editor, conditional logic and revision history · cross-session
 memory · a Telegram front-end with voice, photos and approve-by-button ·
 staging-to-production bundles · signed skill updates · ~2,600 unit assertions,
-57 browser checks, 30 end-to-end checks through the live MCP endpoint, and a
+80 browser checks, 30 end-to-end checks through the live MCP endpoint, and a
 rig running real WordPress.
 
 ---
