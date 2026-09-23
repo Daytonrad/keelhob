@@ -44,7 +44,7 @@ contribution to this project is a **skill**, and skills are plain markdown.
 ```bash
 git clone https://github.com/calflint/keelhob.git
 cd keelhob
-php tests/run.php          # the whole unit suite, ~2,500 assertions
+php tests/run.php          # the whole unit suite, ~2,600 assertions
 php tests/run.php snippets # only files matching "snippets"
 ```
 

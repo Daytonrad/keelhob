@@ -103,7 +103,7 @@ there is refused with the locations that do work. `header`, `footer`, `before_co
 
 * **No onboarding wizard.** Activation drops you on an admin page; connecting an agent is a
   copy-paste step you do yourself.
-* **No independent security audit.** ~2,500 unit assertions and a live rig against real WordPress,
+* **No independent security audit.** ~2,600 unit assertions and a live rig against real WordPress,
   and nobody outside this project has read the code. Commissioning that is the top line in
   FUNDING.md (https://github.com/calflint/keelhob/blob/main/FUNDING.md).
 * **Permissions are coarse.** Capability groups, on or off — no per-tool approval and no queue
@@ -526,7 +526,7 @@ so if you are on 1.1.0 or later you already have all of it.
 * Telegram chat front-end with conversation memory, voice notes, photos, one-tap approvals, /undo
   and per-chat roles; event alerts for paid orders, low stock, a crashed snippet and available
   updates; scheduled digests and autonomous tasks with retries, budget caps and a run history.
-* Requires WordPress 6.3+ and PHP 8.0+. Tests: ~2,500 assertions, plus a live rig against real
+* Requires WordPress 6.3+ and PHP 8.0+. Tests: ~2,600 assertions, plus a live rig against real
   WordPress and WooCommerce.
 
 The development history before this release is in the repository's git log and on the releases page:

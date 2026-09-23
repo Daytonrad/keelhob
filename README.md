@@ -31,7 +31,7 @@ tour: **[docs/features.md](docs/features.md)**.
 
 - **No onboarding wizard.** Activation drops you on an admin page; connecting an agent is a
   copy-paste step you do yourself.
-- **No independent security audit.** ~2,500 unit assertions and a live rig against real WordPress,
+- **No independent security audit.** ~2,600 unit assertions and a live rig against real WordPress,
   and nobody outside this project has read the code. Commissioning that is the top line in
   [FUNDING.md](FUNDING.md).
 - **Permissions are coarse.** Capability groups, on or off — no per-tool approval and no queue
@@ -190,7 +190,7 @@ skill that…"* — with no PHP. **Memory** is per-site key/value knowledge ever
 The plugin runs from source; there is nothing to build.
 
 ```bash
-php tests/run.php                 # unit suite, ~2,500 assertions, no composer, no WP install
+php tests/run.php                 # unit suite, ~2,600 assertions, no composer, no WP install
 bash bin/build-zip.sh             # → build/keelhob.zip
 
 composer install                  # dev tooling only — the plugin itself needs none of it

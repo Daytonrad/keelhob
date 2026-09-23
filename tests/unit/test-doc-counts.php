@@ -88,6 +88,33 @@ if (preg_match('/(\d+) expert skills/i', $roadmap, $m)) {
 KH_Test::ok($claimed_roadmap_skills !== null, 'ROADMAP states how many skills ship');
 KH_Test::same($real_skills, $claimed_roadmap_skills, 'and it agrees with README and with the folder');
 
+// --------------------------------------------- assertion counts stay approximate
+
+// The docstring above explains why the SIZE of the suite is not asserted: a test
+// cannot count itself honestly. What CAN be checked, without any self-reference,
+// is that the docs state it as an approximation rather than an exact figure.
+//
+// That distinction is the whole defence. ROADMAP.md once read "2,559 unit
+// assertions" while every other file said "~2,500"; the exact number was true
+// for about a week and then quietly became a lie, and nothing caught it because
+// nothing was looking. An approximation survives a few hundred new assertions.
+// An exact number is a promise to remember, and nobody remembers.
+foreach ([
+    'ROADMAP.md',
+    'README.md',
+    'CONTRIBUTING.md',
+    'docs/architecture.md',
+    'readme.txt',
+] as $doc) {
+    $text = (string) file_get_contents(KEELHOB_DIR . $doc);
+    // An exact four-digit count of assertions, i.e. one NOT preceded by "~".
+    $exact = (bool) preg_match('/(?<!~)\b\d{1,2},\d{3}\s+(?:unit\s+)?assertions/i', $text);
+    KH_Test::ok(
+        !$exact,
+        $doc . ' states its assertion count as an approximation (~2,600), never an exact figure'
+    );
+}
+
 // ------------------------------------------------------- the release claim
 
 // "Shipped (1.1.0, 1.2.0)" said 1.2.0 was out while it was untagged. The words
