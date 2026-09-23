@@ -89,7 +89,7 @@ anything unrecognised would silently break them.
 ## Tests
 
 ```bash
-php tests/run.php                 # the whole unit suite, ~2,500 assertions
+php tests/run.php                 # the whole unit suite, ~2,600 assertions
 php tests/run.php snippets        # only files matching "snippets"
 bash tests/rig/run-all.sh /path/to/wordpress   # against a real WP on SQLite
 ```
