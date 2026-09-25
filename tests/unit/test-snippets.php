@@ -257,7 +257,7 @@ $guard     = new KH_Save_Guard_WPDB();
 $GLOBALS['wpdb'] = $guard;
 
 // 1. css at frontend_only is refused, and nothing is written.
-$res = Keelhob_Snippets::save(['name' => 'Site CSS', 'code' => '.a{color:red}', 'snippet_type' => 'css', 'location' => 'frontend_only']);
+$res = Keelhob_Snippets::save(['purpose' => 'test fixture', 'impact' => 'none, this is a test', 'name' => 'Site CSS', 'code' => '.a{color:red}', 'snippet_type' => 'css', 'location' => 'frontend_only']);
 KH_Test::same(false, $res['success'], 'a css snippet at frontend_only is refused');
 KH_Test::contains('header', (string) ($res['error'] ?? ''), 'the error names a location that would work');
 KH_Test::contains('frontend_only', (string) ($res['error'] ?? ''), 'the error names the location it was given');
@@ -267,19 +267,19 @@ KH_Test::same(0, $guard->updates, 'nothing was updated in the snippets table eit
 
 // 2. css at header saves fine.
 $guard->inserts = 0;
-$res = Keelhob_Snippets::save(['name' => 'Site CSS', 'code' => '.a{color:red}', 'snippet_type' => 'css', 'location' => 'header']);
+$res = Keelhob_Snippets::save(['purpose' => 'test fixture', 'impact' => 'none, this is a test', 'name' => 'Site CSS', 'code' => '.a{color:red}', 'snippet_type' => 'css', 'location' => 'header']);
 KH_Test::same(true, $res['success'], 'a css snippet at header saves fine');
 KH_Test::same(1, $guard->inserts, 'and is actually written');
 
 // 3. js at everywhere is refused.
 $guard->inserts = 0;
-$res = Keelhob_Snippets::save(['name' => 'Tracker', 'code' => 'console.log(1)', 'snippet_type' => 'js', 'location' => 'everywhere']);
+$res = Keelhob_Snippets::save(['purpose' => 'test fixture', 'impact' => 'none, this is a test', 'name' => 'Tracker', 'code' => 'console.log(1)', 'snippet_type' => 'js', 'location' => 'everywhere']);
 KH_Test::same(false, $res['success'], 'a js snippet at everywhere is refused');
 KH_Test::same(0, $guard->inserts, 'nothing was inserted for it');
 
 // 4. php at frontend_only still saves — the common case must not regress.
 $guard->inserts = 0;
-$res = Keelhob_Snippets::save(['name' => 'Redirect', 'code' => 'add_action("init", function () {});', 'snippet_type' => 'php', 'location' => 'frontend_only']);
+$res = Keelhob_Snippets::save(['purpose' => 'test fixture', 'impact' => 'none, this is a test', 'name' => 'Redirect', 'code' => 'add_action("init", function () {});', 'snippet_type' => 'php', 'location' => 'frontend_only']);
 KH_Test::same(true, $res['success'], 'a php snippet at frontend_only still saves fine');
 KH_Test::same(1, $guard->inserts, 'and is actually written');
 
@@ -369,14 +369,14 @@ KH_Test::same(0, $guard->updates, 'and nothing was updated');
 // Creating is still one omitted key away. If this breaks, the fix above has
 // cost more than the bug did.
 $guard->inserts = 0;
-$res = Keelhob_Snippets::save(['name' => 'Brand new', 'code' => 'echo 1;', 'snippet_type' => 'php']);
+$res = Keelhob_Snippets::save(['purpose' => 'test fixture', 'impact' => 'none, this is a test', 'name' => 'Brand new', 'code' => 'echo 1;', 'snippet_type' => 'php']);
 KH_Test::same(true, $res['success'], 'omitting id still creates, which is the whole escape hatch');
 KH_Test::same(1, $guard->inserts, 'and it is really written');
 
 // id 0 is "no id", not "id number zero". A caller passing a default must not
 // be told a snippet is missing.
 $guard->inserts = 0;
-$res = Keelhob_Snippets::save(['id' => 0, 'name' => 'Zero', 'code' => 'echo 1;', 'snippet_type' => 'php']);
+$res = Keelhob_Snippets::save(['purpose' => 'test fixture', 'impact' => 'none, this is a test', 'id' => 0, 'name' => 'Zero', 'code' => 'echo 1;', 'snippet_type' => 'php']);
 KH_Test::same(true, $res['success'], 'id 0 means "unset" and still creates');
 KH_Test::same(1, $guard->inserts, 'and is written');
 
@@ -387,13 +387,13 @@ KH_Test::group('Snippets - uid keeps the create-if-missing fall-through');
 // must stop at the numeric id and go no further.
 $guard->existing = null;
 $guard->inserts  = 0;
-$res = Keelhob_Snippets::save(['uid' => 'cps_from_another01', 'name' => 'Copied', 'code' => 'echo 1;', 'snippet_type' => 'php']);
+$res = Keelhob_Snippets::save(['purpose' => 'test fixture', 'impact' => 'none, this is a test', 'uid' => 'cps_from_another01', 'name' => 'Copied', 'code' => 'echo 1;', 'snippet_type' => 'php']);
 KH_Test::same(true, $res['success'], 'an unknown uid creates rather than erroring');
 KH_Test::same(1, $guard->inserts, 'and is written, so copying a snippet between sites still works');
 
 $guard->existing = null;
 $guard->inserts  = 0;
-$res = Keelhob_Snippets::save(['origin_uid' => 'cps_origin0123456', 'name' => 'Copied', 'code' => 'echo 1;', 'snippet_type' => 'php']);
+$res = Keelhob_Snippets::save(['purpose' => 'test fixture', 'impact' => 'none, this is a test', 'origin_uid' => 'cps_origin0123456', 'name' => 'Copied', 'code' => 'echo 1;', 'snippet_type' => 'php']);
 KH_Test::same(true, $res['success'], 'so does an unknown origin_uid');
 KH_Test::same(1, $guard->inserts, 'and it is written too');
 
@@ -470,5 +470,74 @@ $db->rows = array_slice($db->rows, 0, 5);
 $out = Keelhob_Tools_Snippets::list(['active' => true]);
 KH_Test::same(5, $out['count'] ?? null, 'a filtered call counts the filtered rows');
 KH_Test::ok(!empty($out['filtered']), 'and says it was filtered, so the number is not read as a site total');
+
+$GLOBALS['wpdb'] = $real_wpdb;
+
+KH_Test::group('Snippets - a NEW snippet must explain itself');
+
+// "ALWAYS fill name, tags, purpose and impact" has been in the snippet_save
+// description since the beginning, while the schema required only `code`. So
+// it stayed advice, and on the maintainer's own site 3 of 10 snippets had
+// neither purpose nor impact - one of them named "admin greeting", with no
+// description at all. Nobody would dare switch that off, which makes the
+// off-switch worthless exactly when it is needed.
+$guard2 = new KH_Save_Guard_WPDB();
+$GLOBALS['wpdb'] = $guard2;
+
+$res = Keelhob_Snippets::save(['name' => 'Thing', 'code' => 'echo 1;', 'snippet_type' => 'php']);
+KH_Test::same(false, $res['success'], 'creating without purpose and impact is refused');
+KH_Test::same(['purpose', 'impact'], $res['missing'] ?? [], 'and it names exactly what is missing');
+KH_Test::same(0, $guard2->inserts, 'nothing was written');
+
+$res = Keelhob_Snippets::save(['code' => 'echo 1;', 'snippet_type' => 'php']);
+KH_Test::same(['name', 'purpose', 'impact'], $res['missing'] ?? [], 'a nameless snippet is refused too');
+
+// Whitespace is not an explanation.
+$res = Keelhob_Snippets::save(['name' => 'Thing', 'purpose' => '   ', 'impact' => "\n", 'code' => 'echo 1;', 'snippet_type' => 'php']);
+KH_Test::same(['purpose', 'impact'], $res['missing'] ?? [], 'blank strings do not satisfy it');
+
+$res = Keelhob_Snippets::save([
+    'name' => 'Thing', 'purpose' => 'because X', 'impact' => 'Y stops working',
+    'code' => 'echo 1;', 'snippet_type' => 'php',
+]);
+KH_Test::same(true, $res['success'] ?? null, 'with all three it creates');
+KH_Test::same(1, $guard2->inserts, 'and the row is written');
+
+// THE RULE THAT KEEPS THIS HUMANE. An update must never demand the paragraph
+// again - otherwise fixing one character of a typo costs an essay, and the
+// agent starts re-inventing purpose text it does not know, which is worse than
+// none. Only creation has to explain itself.
+$guard2->existing = [
+    'id' => 5, 'uid' => 'cps_abc0123456789a', 'name' => 'Existing', 'code' => 'echo 1;',
+    'snippet_type' => 'php', 'location' => 'everywhere', 'active' => 1, 'target_id' => 0,
+    'priority' => 10, 'description' => '', 'tags' => '', 'purpose' => 'set long ago',
+    'impact' => 'documented long ago', 'conditions' => '', 'source' => 'agent',
+    'origin_site' => '', 'origin_uid' => '', 'last_error' => null,
+];
+$res = Keelhob_Snippets::save(['id' => 5, 'code' => 'echo 2;']);
+KH_Test::same(true, $res['success'] ?? null, 'updating an existing snippet does NOT demand them again');
+
+KH_Test::group('Snippets - save() says what it replaced');
+
+// "Saved" is the same word whether you changed a line or pushed a stale file
+// over newer work. On keelhob.com a local source file that predated a palette
+// rebuild was pushed over the live snippet and silently reverted the whole
+// site's colours; the front-end check passed, because the site was up. The
+// only tell was the byte count, and it was not in the response.
+KH_Test::same(7, $res['replaced_bytes'] ?? null, 'the size of the code that was overwritten');
+KH_Test::same(7, $res['new_bytes'] ?? null, 'and the size of what replaced it');
+KH_Test::ok(array_key_exists('revision_id', $res), 'plus the revision that now holds the old code');
+
+// A save that does not touch the code is not an overwrite, and reporting one
+// would train the reader to ignore the field.
+$res = Keelhob_Snippets::save(['id' => 5, 'name' => 'Renamed only']);
+KH_Test::ok(!array_key_exists('replaced_bytes', $res), 'a rename reports no replacement');
+
+// A create replaces nothing, so it must not claim to.
+$guard2->existing = null;
+$res = Keelhob_Snippets::save([
+    'name' => 'Fresh', 'purpose' => 'p', 'impact' => 'i', 'code' => 'echo 1;', 'snippet_type' => 'php',
+]);
+KH_Test::ok(!array_key_exists('replaced_bytes', $res), 'and creating reports no replacement either');
 
 $GLOBALS['wpdb'] = $real_wpdb;

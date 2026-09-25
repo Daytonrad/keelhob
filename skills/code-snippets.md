@@ -7,7 +7,8 @@ enable_prompt: true
 role: procedure
 surface: any
 requires: site-safety
-next_skills: motion-and-interaction, security-standard
+next_skills: motion-and-interaction
+verified_by: security-standard
 ---
 
 # Code snippets
@@ -88,7 +89,8 @@ or SKU on the destination.
 - Never call `exit`/`die` in an `everywhere` PHP snippet — it halts the site.
 - Prefer snippets over editing theme files; they survive theme updates and auto-recover from fatals.
 - Deactivate (don't delete) while iterating so you keep the code. Save reusable snippets' purpose to memory.
-- The owner can edit or delete any snippet from the Snippets page, and those edits are not versioned. If code you wrote looks different from what you remember, read it with `snippet_get` before changing it — do not assume your version is still there.
+- **Every save that changes the code writes a revision first** — yours, another agent's, or the owner's from the Snippets page. This line used to say edits "are not versioned", which was wrong and expensive: an agent that overwrote a snippet believed the old code was gone and told the owner so, while it sat one query away. `snippet_revisions` lists the history, reads any single version, and restores one. A restore goes through the normal save path, so it is itself recorded and itself undoable.
+- **Read before you overwrite.** If code you wrote looks different from what you remember, or you did not author it in this session, call `snippet_get` first. `snippet_save` also tells you what you replaced: `replaced_bytes`, `new_bytes` and the `revision_id` it just created. **If `replaced_bytes` is larger than you expected, stop** — you are writing over work you have not read. That exact number is what caught a local file being pushed over a newer live snippet, four minutes after it silently reverted a whole site palette.
 - **A snippet that renders a whole document gets nothing from `wp_head()`.** Coming-soon pages, maintenance pages and `page_template` snippets that print their own `<html>` never fire `wp_head` or `wp_footer`, so the favicon links, Open Graph tags, theme styles and any CSS-variable palette are simply absent. Do not hand-copy those values into the snippet: a holding page is the one page nobody looks at, so a stale copy there can be wrong for months. Read each value from its real source in PHP — the Elementor kit's `_elementor_page_settings`, `get_site_icon_url()`, the option — and print it.
 - **`snippet_save` without an `id` creates a new snippet.** Re-running a save you meant as an edit leaves two live copies fighting each other. Pass the `id` you got back, or find it with `snippet_list` first.
 

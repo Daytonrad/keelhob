@@ -569,6 +569,383 @@ final class Keelhob_Tools_Readiness
         return $findings;
     }
 
+    // =========================================================================
+    // SECURITY BASELINE — the automatic half of the security-standard skill.
+    //
+    // These mirror A1-A20 in skills/security-standard.md. The skill has always
+    // described them correctly; nothing ran them. An agent had to think to load
+    // a 588-line reference and then finish it, and on the maintainer's own site
+    // it closed two thirds of A4 and stopped — leaving the admin username in
+    // /wp-sitemap-users-1.xml, which robots.txt then advertised to every
+    // crawler that read it. Detection belongs in the gate rule 9 already
+    // forces, not in a document somebody has to remember to finish.
+    //
+    // Pure functions on purpose: each takes already-fetched evidence, so the
+    // whole baseline is testable with no network and no WordPress.
+    // =========================================================================
+
+    /**
+     * A1 — the built-in plugin/theme file editor.
+     *
+     * It turns one stolen administrator password into arbitrary PHP execution
+     * with no file access needed. DISALLOW_FILE_MODS removes the editor too, so
+     * either constant satisfies this.
+     */
+    public static function analyze_file_editor(bool $disallow_file_edit, bool $disallow_file_mods): array
+    {
+        if ($disallow_file_edit || $disallow_file_mods) {
+            return [];
+        }
+        return [self::finding(
+            'file-editor-enabled',
+            'medium',
+            'security',
+            'The built-in plugin/theme file editor is enabled',
+            'Neither DISALLOW_FILE_EDIT nor DISALLOW_FILE_MODS is defined in wp-config.php',
+            'wp-config.php'
+        )];
+    }
+
+    /**
+     * A3 — guessable administrator logins.
+     *
+     * Half of a login is the login name. "admin" is the first guess every
+     * credential-stuffing run makes; the site's own domain is the second.
+     *
+     * @param array<int, array{login: string, roles: array<int, string>}> $users
+     */
+    public static function analyze_admin_usernames(array $users, string $site_host): array
+    {
+        $host_word = strtolower((string) preg_replace('/^www\./', '', $site_host));
+        $host_word = (string) strtok($host_word, '.');
+        $banned    = ['admin', 'administrator', 'webmaster', 'root', 'test', 'wordpress'];
+        if (strlen($host_word) > 2) {
+            $banned[] = $host_word;
+        }
+
+        $findings = [];
+        foreach ($users as $u) {
+            $login = strtolower(trim((string) ($u['login'] ?? '')));
+            if ($login === '' || !in_array('administrator', (array) ($u['roles'] ?? []), true)) {
+                continue;
+            }
+            if (in_array($login, $banned, true)) {
+                $findings[] = self::finding(
+                    'guessable-admin-username-' . self::slug($login),
+                    'high',
+                    'security',
+                    'An administrator uses a guessable username',
+                    'An administrator login is one of the names every brute-force list starts with',
+                    'Users > All Users'
+                );
+            }
+        }
+        return $findings;
+    }
+
+    /**
+     * A4 — user enumeration, all three doors.
+     *
+     * Closing one or two and stopping is the exact failure this check exists
+     * for, because each door leaks the same fact on its own. The sitemap is the
+     * one that gets missed, and it is the worst of the three: robots.txt links
+     * the sitemap index, the index links the users sitemap, and the users
+     * sitemap links /author/<login>/. Nobody has to guess anything.
+     *
+     * @param ?string $author_probe_final where /?author=1 ended up, or null if not probed
+     * @param ?int    $rest_users_status  status of an unauthenticated /wp-json/wp/v2/users
+     * @param string  $rest_users_body    that response body
+     * @param ?int    $users_sitemap_status status of /wp-sitemap-users-1.xml
+     */
+    public static function analyze_user_enumeration(
+        ?string $author_probe_final,
+        ?int $rest_users_status,
+        string $rest_users_body,
+        ?int $users_sitemap_status
+    ): array {
+        $findings = [];
+
+        if ($author_probe_final !== null && preg_match('#/author/[^/]+#i', $author_probe_final)) {
+            $findings[] = self::finding(
+                'user-enumeration-author-archive',
+                'high',
+                'security',
+                'A visitor can read an administrator login from /?author=1',
+                '/?author=1 lands on the author archive, and that URL contains the login name',
+                'Front end: /?author=1'
+            );
+        }
+
+        // 200 carrying a slug is the leak. An empty array, a 401 or a 404 are
+        // all fine, and a themed 404 page can be any length — so the body
+        // decides rather than the response size.
+        if ($rest_users_status === 200 && preg_match('/"slug"\s*:\s*"[^"]+"/', $rest_users_body)) {
+            $findings[] = self::finding(
+                'user-enumeration-rest-users',
+                'high',
+                'security',
+                'The REST users route lists accounts to anyone, with no login',
+                'GET /wp-json/wp/v2/users returned 200 with user slugs while unauthenticated',
+                'Front end: /wp-json/wp/v2/users'
+            );
+        }
+
+        if ($users_sitemap_status === 200) {
+            $findings[] = self::finding(
+                'user-enumeration-users-sitemap',
+                'high',
+                'security',
+                'The users sitemap publishes author URLs, and robots.txt advertises it',
+                'GET /wp-sitemap-users-1.xml returned 200. Its entries are /author/<login>/ URLs',
+                'Front end: /wp-sitemap-users-1.xml'
+            );
+        }
+
+        return $findings;
+    }
+
+    /**
+     * A5 — HTTPS actually enforced, not merely available.
+     *
+     * A site reachable on both schemes leaks every cookie it sets over the
+     * plain one, so "there is a certificate" is not the same as enforced.
+     */
+    public static function analyze_https(string $siteurl, string $home, ?int $http_probe_status, ?string $http_probe_final): array
+    {
+        $findings = [];
+
+        foreach (['siteurl' => $siteurl, 'home' => $home] as $name => $value) {
+            if ($value !== '' && !str_starts_with(strtolower($value), 'https://')) {
+                $findings[] = self::finding(
+                    'site-url-not-https-' . $name,
+                    'blocker',
+                    'security',
+                    'The site address is not HTTPS',
+                    'Option ' . $name . ' does not start with https://',
+                    'Settings > General'
+                );
+            }
+        }
+
+        // Only meaningful when the canonical address IS https: the question is
+        // then whether the http:// version redirects to it or just serves.
+        if (
+            str_starts_with(strtolower($home), 'https://')
+            && $http_probe_status === 200
+            && $http_probe_final !== null
+            && str_starts_with(strtolower($http_probe_final), 'http://')
+        ) {
+            $findings[] = self::finding(
+                'http-not-redirected',
+                'high',
+                'security',
+                'The site still answers over plain HTTP instead of redirecting',
+                'An http:// request returned 200 and stayed on http://',
+                'Server or host configuration'
+            );
+        }
+
+        return $findings;
+    }
+
+    /**
+     * A8 — the authentication keys and salts.
+     *
+     * Missing or placeholder salts mean every session cookie on the site can be
+     * forged. The cheapest blocker in this whole list to find and to fix.
+     *
+     * @param array<string, string> $salts constant name => value
+     */
+    public static function analyze_salts(array $salts): array
+    {
+        if (!$salts) {
+            return [];
+        }
+        $bad = [];
+        foreach ($salts as $name => $value) {
+            $value = (string) $value;
+            // WordPress ships wp-config-sample.php with this literal phrase.
+            if (strlen($value) < 32 || stripos($value, 'put your unique phrase here') !== false) {
+                $bad[] = $name;
+            }
+        }
+        // Every constant set to the same string is as broken as none of them
+        // being set, and it passes a naive per-value length check.
+        $all_identical = count($salts) > 1 && count(array_unique(array_values($salts))) === 1;
+
+        if (!$bad && !$all_identical) {
+            return [];
+        }
+        return [self::finding(
+            'weak-auth-salts',
+            'blocker',
+            'security',
+            'Authentication keys and salts are missing, placeholder, or reused',
+            $all_identical
+                ? 'All ' . count($salts) . ' key/salt constants share one value'
+                : count($bad) . ' of ' . count($salts) . ' key/salt constants are not unique random values',
+            'wp-config.php'
+        )];
+    }
+
+    /**
+     * A9 — debugging left switched on, and the log left readable.
+     *
+     * A readable debug.log is far the worse of the two: they routinely carry
+     * absolute file paths, database queries and occasionally credentials.
+     */
+    public static function analyze_debug_exposure(bool $wp_debug, bool $wp_debug_display, ?int $debug_log_status): array
+    {
+        $findings = [];
+
+        if ($wp_debug && $wp_debug_display) {
+            $findings[] = self::finding(
+                'debug-display-on',
+                'high',
+                'security',
+                'PHP errors are printed to visitors',
+                'WP_DEBUG and WP_DEBUG_DISPLAY are both true, so warnings and file paths render inside the page',
+                'wp-config.php'
+            );
+        } elseif ($wp_debug) {
+            $findings[] = self::finding(
+                'debug-mode-on',
+                'medium',
+                'security',
+                'WP_DEBUG is on',
+                'Debug mode is enabled on a site being checked for launch',
+                'wp-config.php'
+            );
+        }
+
+        if ($debug_log_status === 200) {
+            $findings[] = self::finding(
+                'debug-log-public',
+                'blocker',
+                'security',
+                'The debug log is downloadable by anyone',
+                'GET /wp-content/debug.log returned 200. These logs carry file paths, queries and sometimes credentials',
+                'Front end: /wp-content/debug.log'
+            );
+        }
+
+        return $findings;
+    }
+
+    /**
+     * A11 + A18 — directory listing, particularly under uploads.
+     *
+     * An index of the uploads folder hands over every draft, invoice and export
+     * anybody ever attached, including the ones never linked from a page.
+     *
+     * @param array<string, array{0: ?int, 1: string}> $probes path => [status, body]
+     */
+    public static function analyze_directory_listing(array $probes): array
+    {
+        $findings = [];
+        foreach ($probes as $path => $result) {
+            [$status, $body] = $result;
+            if ($status !== 200) {
+                continue;
+            }
+            // Apache, nginx and lighttpd autoindex pages all announce
+            // themselves in the title. Matching that, rather than "does it
+            // contain links", is what stops a themed index.php being reported.
+            if (preg_match('#<title>\s*Index of #i', $body) || stripos($body, '<h1>Index of ') !== false) {
+                $findings[] = self::finding(
+                    'directory-listing-' . self::slug($path),
+                    'medium',
+                    'security',
+                    'A directory listing is public',
+                    'GET ' . $path . ' returned a server-generated file index',
+                    'Front end: ' . $path
+                );
+            }
+        }
+        return $findings;
+    }
+
+    /**
+     * A13 — version disclosure.
+     *
+     * On its own this is not a hole, which is why it is low. It matters because
+     * it is how a mass scanner decides whether your site is worth an exploit
+     * attempt at all. readme.html carries the WordPress version in plain text.
+     */
+    public static function analyze_version_disclosure(?int $readme_status, ?int $license_status, string $home_html): array
+    {
+        $findings = [];
+
+        foreach (['readme.html' => $readme_status, 'license.txt' => $license_status] as $file => $status) {
+            if ($status === 200) {
+                $findings[] = self::finding(
+                    'version-file-public-' . self::slug($file),
+                    'low',
+                    'security',
+                    'A core file that names the WordPress version is public',
+                    'GET /' . $file . ' returned 200',
+                    'Front end: /' . $file
+                );
+            }
+        }
+
+        if (preg_match('#<meta[^>]+name=["\']generator["\'][^>]+content=["\']WordPress\s+[0-9.]+#i', $home_html)) {
+            $findings[] = self::finding(
+                'generator-meta-version',
+                'low',
+                'security',
+                'The WordPress version is printed in the page source',
+                'The home page carries a <meta name="generator"> tag naming the exact version',
+                'Front end: home page <head>'
+            );
+        }
+
+        return $findings;
+    }
+
+    /**
+     * A17 — XML-RPC, measured here but never decided here.
+     *
+     * xmlrpc.php allows many password attempts inside one request, and
+     * pingback-based reflection. It is also what the WordPress mobile apps and
+     * parts of Jetpack run on, so this is reported as the owner's call: an
+     * agent that switches it off uninvited can break a workflow it cannot see.
+     *
+     * Two pieces of evidence, because neither is enough alone:
+     *
+     *   The HTTP status says whether the FILE is reachable. A GET to a live
+     *   xmlrpc.php answers 405 ("POST only") — so 405 means alive, not blocked.
+     *   That reads backwards, and treating 4xx as "closed" is exactly how this
+     *   check silently passes on a site where XML-RPC is wide open. 403 and 404
+     *   are the closed cases.
+     *
+     *   The xmlrpc_enabled filter says whether the AUTHENTICATED methods are
+     *   on. Most hardening plugins and snippets turn it off there while the
+     *   file keeps answering, so status alone would report a false finding.
+     *
+     * Caveat worth keeping honest: the filter does not stop pingbacks, so
+     * "filter off" is a real improvement rather than a complete close.
+     */
+    public static function analyze_xmlrpc(?int $xmlrpc_status, bool $filter_enabled): array
+    {
+        if ($xmlrpc_status === null) {
+            return [];
+        }
+        $file_alive = in_array($xmlrpc_status, [200, 405], true);
+        if (!$file_alive || !$filter_enabled) {
+            return [];
+        }
+        return [self::finding(
+            'xmlrpc-open',
+            'observation',
+            'security',
+            'XML-RPC is reachable — the owner decides whether it should be',
+            'xmlrpc.php answered ' . $xmlrpc_status . ' and the xmlrpc_enabled filter is still true. It allows many login attempts per request, but the WordPress mobile apps and some Jetpack features need it',
+            'Front end: /xmlrpc.php',
+            true
+        )];
+    }
+
     /**
      * Build the response envelope. `pass` is true only when zero open
      * blocker/high findings remain — skipped/not_verified checks are never
@@ -608,7 +985,7 @@ final class Keelhob_Tools_Readiness
     }
 
     /** One finding in the pre-launch-audit-compatible shape. */
-    private static function finding(string $id, string $severity, string $category, string $title, string $evidence, string $location): array
+    private static function finding(string $id, string $severity, string $category, string $title, string $evidence, string $location, bool $owner_decision = false): array
     {
         return [
             'id'             => $id,
@@ -618,7 +995,11 @@ final class Keelhob_Tools_Readiness
             'evidence'       => $evidence,
             'location'       => $location,
             'status'         => 'open',
-            'owner_decision' => false,
+            // True means "measured, but the fix is the owner's call" — XML-RPC
+            // is the case this exists for: switching it off breaks the Jetpack
+            // and mobile apps that some sites genuinely use. A finding flagged
+            // this way is reported, never silently actioned.
+            'owner_decision' => $owner_decision,
         ];
     }
 
@@ -868,6 +1249,136 @@ final class Keelhob_Tools_Readiness
         $legal_result = self::analyze_legal_pages($legal_pages, $legal_wired, class_exists('WooCommerce'));
         $findings = array_merge($findings, $legal_result['findings']);
         $skipped  = array_merge($skipped, $legal_result['skipped']);
+
+        // ---- security baseline (security-standard A1-A20) --------------------
+        // Everything here is evidence-gathering only; the judgement lives in the
+        // analyze_* functions above so it can be tested without a network.
+        $home_html = '';
+        foreach ($page_targets as $t) {
+            if (rtrim((string) $t['location'], '/') === rtrim($home, '/')) {
+                $home_html = (string) $t['html'];
+                break;
+            }
+        }
+
+        // A1 — file editor
+        $findings = array_merge($findings, self::analyze_file_editor(
+            defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT,
+            // wp_is_file_mod_allowed() rather than reading DISALLOW_FILE_MODS:
+            // it also honours the file_mod_allowed filter, which is how managed
+            // hosts lock editing down without touching wp-config.
+            !wp_is_file_mod_allowed('capability_edit_themes')
+        ));
+
+        // A3 — guessable administrator logins
+        $admins = [];
+        foreach (get_users(['role' => 'administrator', 'number' => 50, 'fields' => ['user_login', 'ID']]) as $u) {
+            $admins[] = [
+                'login' => (string) ($u->user_login ?? ''),
+                'roles' => ['administrator'],
+            ];
+        }
+        $findings = array_merge($findings, self::analyze_admin_usernames(
+            $admins,
+            (string) wp_parse_url($home, PHP_URL_HOST)
+        ));
+
+        // A4 — user enumeration, all three doors
+        $author_final = null;
+        $author_probe = self::remote_status_and_final_url(add_query_arg('author', 1, $home));
+        if ($author_probe !== null) {
+            [$author_status, $author_url] = $author_probe;
+            // Only a 2xx counts. A 404 that happens to sit on an /author/ URL
+            // is the door being closed, not left open.
+            $author_final = ($author_status >= 200 && $author_status < 300) ? $author_url : null;
+        }
+        [$rest_status, $rest_body] = self::remote_status_and_body(rest_url('wp/v2/users'));
+        [$users_sitemap_status] = self::remote_status_and_body(home_url('/wp-sitemap-users-1.xml'));
+        $findings = array_merge($findings, self::analyze_user_enumeration(
+            $author_final,
+            $rest_status,
+            (string) $rest_body,
+            $users_sitemap_status
+        ));
+
+        // A5 — HTTPS enforced
+        $http_probe_status = null;
+        $http_probe_final  = null;
+        if ($is_https) {
+            $plain = self::remote_status_and_final_url((string) preg_replace('#^https://#i', 'http://', $home));
+            if ($plain !== null) {
+                [$http_probe_status, $http_probe_final] = $plain;
+            }
+        }
+        $findings = array_merge($findings, self::analyze_https(
+            (string) get_option('siteurl', ''),
+            (string) get_option('home', ''),
+            $http_probe_status,
+            $http_probe_final
+        ));
+
+        // A8 — keys and salts. Only constants that are actually defined are
+        // judged: an undefined one means this is not a standard wp-config and
+        // guessing would produce a false blocker.
+        $salts = [];
+        foreach (['AUTH_KEY', 'SECURE_AUTH_KEY', 'LOGGED_IN_KEY', 'NONCE_KEY', 'AUTH_SALT', 'SECURE_AUTH_SALT', 'LOGGED_IN_SALT', 'NONCE_SALT'] as $c) {
+            if (defined($c)) {
+                $salts[$c] = (string) constant($c);
+            }
+        }
+        if ($salts) {
+            $findings = array_merge($findings, self::analyze_salts($salts));
+        } else {
+            $skipped[] = ['check' => 'authentication keys and salts', 'reason' => 'No salt constants are defined in this runtime'];
+        }
+
+        // A9 — debug mode and a readable log
+        [$debug_log_status] = self::remote_status_and_body(content_url('/debug.log'));
+        $findings = array_merge($findings, self::analyze_debug_exposure(
+            defined('WP_DEBUG') && WP_DEBUG,
+            defined('WP_DEBUG_DISPLAY') && WP_DEBUG_DISPLAY,
+            $debug_log_status
+        ));
+
+        // A11 + A18 — directory listing
+        $listing_probes = [];
+        foreach ([wp_upload_dir()['baseurl'] ?? '', content_url('/plugins'), content_url('/uploads')] as $dir) {
+            if (!is_string($dir) || $dir === '') {
+                continue;
+            }
+            $path = (string) wp_parse_url($dir, PHP_URL_PATH);
+            if (isset($listing_probes[$path])) {
+                continue;
+            }
+            [$ls, $lb] = self::remote_status_and_body(trailingslashit($dir));
+            $listing_probes[$path] = [$ls, (string) $lb];
+        }
+        $findings = array_merge($findings, self::analyze_directory_listing($listing_probes));
+
+        // A13 — version disclosure
+        [$readme_status]  = self::remote_status_and_body(home_url('/readme.html'));
+        [$license_status] = self::remote_status_and_body(home_url('/license.txt'));
+        $findings = array_merge($findings, self::analyze_version_disclosure(
+            $readme_status,
+            $license_status,
+            $home_html
+        ));
+
+        // A17 — XML-RPC. GET returns 405 on a working endpoint, so the status
+        // alone answers "is it reachable" without sending a single credential.
+        [$xmlrpc_status] = self::remote_status_and_body(site_url('/xmlrpc.php'));
+        $findings = array_merge($findings, self::analyze_xmlrpc(
+            $xmlrpc_status,
+            (bool) apply_filters('xmlrpc_enabled', true)
+        ));
+
+        // The rest of the security standard cannot be measured from inside the
+        // site, and saying so is the point: a report that silently omits them
+        // reads as "all clear". Each names what the owner has to do instead.
+        $not_verified[] = ['check' => 'A7 — auth cookie flags (Secure, HttpOnly, SameSite)', 'reason' => 'Requires an authenticated session to observe the cookies', 'owner_should' => 'Log in, open devtools > Application > Cookies, and confirm the wordpress_logged_in_* cookie is Secure and HttpOnly.'];
+        $not_verified[] = ['check' => 'A12 — wp-config.php and file permissions', 'reason' => 'PHP cannot reliably read ownership or the real mode through a host abstraction layer', 'owner_should' => 'Confirm wp-config.php is 600 or 640 and is not writable by the web server user.'];
+        $not_verified[] = ['check' => 'A16/A19 — custom code follows the WordPress security APIs', 'reason' => 'Judgement, not detection: it needs the code read', 'owner_should' => 'Review custom snippets and theme code for unescaped output, unprepared SQL and missing capability or nonce checks. The security-standard skill has the checklist.'];
+        $not_verified[] = ['check' => 'A20 — off-site backups exist and restore', 'reason' => 'Nothing inside the site can prove a backup exists elsewhere, or that it restores', 'owner_should' => 'Confirm backups run, are stored off this server, and that you have restored one at least once.'];
 
         // ---- registration / roles -------------------------------------------
         $users_can_register = (int) get_option('users_can_register', 0);

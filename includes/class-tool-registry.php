@@ -112,6 +112,19 @@ final class Keelhob_Tool_Registry
         // why a page shipped badly and guessing.
         if ($name === 'skill_get' && !empty($args['name'])) {
             self::$skills_loaded[] = (string) $args['name'];
+
+            // And durably, because the static above does not survive the
+            // request. Over MCP every tool call is its own HTTP request, so
+            // $skills_loaded only ever holds the one skill loaded in the same
+            // request, and only Agent_Runs::finish() ever reads it - which
+            // runs for run_agent and scheduled tasks and nothing else.
+            //
+            // keelhob.com was built entirely over interactive MCP: 0 agent
+            // runs, 10 snippets, and no record anywhere of a single skill
+            // being loaded. Rule 13 asks the agent to name the skills it used,
+            // and for the way most work actually happens there was nothing to
+            // check that answer against.
+            Keelhob_Skills::record_load((string) $args['name']);
         }
 
         $started = microtime(true);

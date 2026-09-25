@@ -637,6 +637,38 @@ final class Keelhob_Snippets
             ];
         }
 
+        // A new snippet the owner cannot identify is a snippet they will never
+        // dare switch off. snippet_save has said "ALWAYS fill name, tags,
+        // purpose and impact" since the beginning and the schema required only
+        // `code`, so it stayed advice — measured on the maintainer's own site,
+        // 3 of 10 snippets had neither purpose nor impact, and one was called
+        // "admin greeting" with no description at all.
+        //
+        // Required on CREATE, never on update. An update that changes one line
+        // of code keeps whatever text is already stored, so this can never turn
+        // a working edit into an error, and fixing a typo never costs a
+        // paragraph. It is an error rather than a warning because a warning in
+        // a response is a thing an agent may read; a refusal is a thing it must.
+        if (!$existing) {
+            $missing = [];
+            foreach (['name', 'purpose', 'impact'] as $field) {
+                if (trim((string) ($a[$field] ?? '')) === '') {
+                    $missing[] = $field;
+                }
+            }
+            if ($missing) {
+                return [
+                    'success' => false,
+                    'error'   => 'A new snippet needs ' . implode(', ', $missing)
+                        . '. The owner reads these on the Keelhob > Snippets page and they are the only way '
+                        . 'to judge what was installed. name: short and concrete. purpose: why it exists. '
+                        . 'impact: what changes on the site, and what breaks if it is switched off. '
+                        . 'Updating an existing snippet does not need them again.',
+                    'missing' => $missing,
+                ];
+            }
+        }
+
         $type = array_key_exists('snippet_type', $a)
             ? (in_array($a['snippet_type'], $types, true) ? $a['snippet_type'] : 'php')
             : (string) ($existing['snippet_type'] ?? 'php');
@@ -703,8 +735,9 @@ final class Keelhob_Snippets
         // Saving a snippet without touching its code - renaming it, retagging it,
         // flipping a condition - must not fill the history with identical
         // entries, or the history stops being readable and nobody uses it.
+        $revision_id = 0;
         if ($existing && $code_changed) {
-            self::record_revision(
+            $revision_id = self::record_revision(
                 $existing,
                 sprintf(__('Before edit (%s)', 'keelhob'), $row['source']),
                 Keelhob_Snippet_Log::actor()
@@ -742,6 +775,20 @@ final class Keelhob_Snippets
         );
 
         $res = ['success' => true, 'id' => $id, 'active' => (bool) $row['active'], 'type' => $type, 'location' => $location];
+
+        // Say what was overwritten, in bytes, with the revision that now holds
+        // it. "Saved" is the same word whether you changed a line or replaced
+        // the file with a stale copy, and there is no way to tell those apart
+        // from the response — which is how a local source file that predated a
+        // palette rebuild got pushed over the live snippet and silently
+        // reverted a whole site's colours. The numbers are the tell: if
+        // replaced_bytes is bigger than you expected, you are writing over work
+        // you have not read. Three integers, and they cost nothing.
+        if ($existing && $code_changed) {
+            $res['replaced_bytes'] = strlen((string) $existing['code']);
+            $res['new_bytes']      = strlen((string) $row['code']);
+            $res['revision_id']    = $revision_id;
+        }
         if ($lint !== '') {
             $res['lint_error'] = $lint;
             $res['note']       = 'Saved but forced inactive: the PHP does not parse.';
@@ -975,11 +1022,11 @@ final class Keelhob_Snippets
      * the agent changed to their site is not a premium feature, and a history
      * that only some sites keep is not a history you can rely on.
      */
-    public static function record_revision(array $before, string $note, string $author_type = 'user'): void
+    public static function record_revision(array $before, string $note, string $author_type = 'user'): int
     {
         global $wpdb;
         if (!isset($wpdb) || empty($before['id'])) {
-            return;
+            return 0;
         }
         $wpdb->insert(self::revisions_table(), [
             'snippet_id'  => (int) $before['id'],
@@ -991,6 +1038,11 @@ final class Keelhob_Snippets
             'user_id'     => function_exists('get_current_user_id') ? (int) get_current_user_id() : 0,
             'created_at'  => current_time('mysql'),
         ]);
+
+        // Returned so snippet_save can name the revision it just created. An
+        // agent told "you replaced 13,978 bytes" needs somewhere to go next,
+        // and that is this id.
+        return (int) ($wpdb->insert_id ?? 0);
     }
 
     /** @return array<int, array<string, mixed>> newest first */

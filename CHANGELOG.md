@@ -41,6 +41,81 @@ public. When the two disagree, this file is correct.
 
 ### Added
 
+- **`site_readiness` now runs the security baseline.** The automatic half of
+  `skills/security-standard.md` — A1 file editor, A3 guessable admin logins, A4
+  user enumeration, A5 HTTPS enforcement, A8 keys and salts, A9 debug exposure,
+  A11/A18 directory listing, A13 version disclosure, A17 XML-RPC — is now
+  detected by the tool that operating-protocol rule 9 already forces an agent to
+  run before reporting work done. The parts that cannot be measured from inside
+  a site (cookie flags, file permissions, custom-code review, backups) are
+  listed in `not_verified` with what the owner has to do, rather than omitted.
+
+  The skill has described all twenty checks correctly since it was written. That
+  was never the problem. The gate checked three of them, so an agent had to
+  think to load a 588-line reference and then finish it — and on this project's
+  own site it closed two of the three user-enumeration routes and stopped,
+  leaving the admin login in `/wp-sitemap-users-1.xml`, which `robots.txt`
+  advertised to every crawler that read it. Knowing a thing and running it are
+  different, and only one of them is a guarantee.
+
+  Verified against two real sites, not only fixtures: the hardened one reports
+  one owner-decision observation and passes; an unhardened one fails with two
+  HIGH enumeration findings and three version-disclosure findings.
+
+- **`snippet_revisions` tool** — list, read and restore a snippet's history. The
+  revisions table has existed since 1.9 and the admin Studio has always shown
+  it, but nothing exposed it to an agent, and `skills/code-snippets.md` stated
+  in writing that snippet edits "are not versioned". So an agent that overwrote
+  a snippet believed the previous code was gone, and told the owner so, while it
+  sat one query away. A restore goes through the normal save path, so it is
+  linted, front-end checked, and recorded as a revision of its own.
+
+- **`snippet_save` reports what it replaced** — `replaced_bytes`, `new_bytes`
+  and the `revision_id` now holding the old code, whenever a save changes
+  existing code. "Saved" reads identically whether you changed one line or
+  pushed a stale file over newer work; during this project's own site build a
+  local source file that predated a palette rebuild was pushed over the live
+  snippet and silently reverted the whole site's colours. The front-end check
+  passed, because the site was up. The byte count was the only tell and it was
+  not in the response.
+
+- **`security.baseline` seeded memory.** `design.reference` has pointed agents
+  at the design skill since the beginning; security had no equivalent, and the
+  result was exactly what you would expect. Seeded on activation and on upgrade,
+  so existing sites get it too.
+
+- **Skill receipts survive an interactive session.** `Keelhob_Skills::record_load()`
+  keeps a bounded, durable record of which skills were loaded, reported by
+  `agent_runs` as `skill_loads`. Over MCP every tool call is its own request, so
+  the registry's per-request static only ever held one name, and only
+  `Agent_Runs::finish()` read it — which runs for `run_agent` and scheduled
+  tasks and nothing else. This project's own site was built entirely over
+  interactive MCP: zero agent runs, ten snippets, and no record anywhere that a
+  single skill had ever been loaded. Rule 13 asks an agent to name the skills it
+  used; now there is something to check that answer against.
+
+### Changed
+
+- **A new snippet cannot be saved without `name`, `purpose` and `impact`.**
+  `snippet_save` has said "ALWAYS fill name, tags, purpose and impact" since the
+  beginning while the schema required only `code`, so it stayed advice — and on
+  this project's own site 3 of 10 snippets had neither purpose nor impact, one
+  of them named "admin greeting" with no description at all. Nobody switches
+  that off, which makes the off-switch worthless exactly when it matters.
+  **Required on create only**: an update that changes one line of code keeps the
+  stored text, so fixing a typo never costs a paragraph and no agent is pushed
+  into inventing purpose text it does not know.
+
+- **`security-standard` is now a declared verifier** for `code-snippets`,
+  `website-building` and `store-launch-and-deploy`. Eighteen skills declared a
+  `verified_by` and not one of them named it, so the skill nothing had to finish
+  was the security one. Rule 13 now forces an agent to say whether it ran, or
+  why not.
+
+- **`skills/code-snippets.md` no longer claims snippet edits are unversioned.**
+  They always were. The line cost real recovery work.
+
+
 - **Existing installs are adopted automatically.** `includes/class-legacy-adopt.php`
   renames the ten tables in place, carries the settings option across (provider
   keys, hashed connection token, every capability switch), rewrites the

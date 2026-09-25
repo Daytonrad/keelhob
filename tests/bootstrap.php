@@ -511,6 +511,12 @@ register_shutdown_function(static function (): void {
 
 function admin_url($path = '') { return 'https://example.test/wp-admin/' . $path; }
 function rest_url($path = '') { return 'https://example.test/wp-json/' . $path; }
+// Needed by the security-baseline gatherer in site_readiness(). Without these
+// the whole tool fatals on an undefined function the moment scope=site runs.
+function site_url($path = '') { return 'https://example.test' . $path; }
+function content_url($path = '') { return 'https://example.test/wp-content' . $path; }
+function wp_upload_dir() { return ['baseurl' => 'https://example.test/wp-content/uploads']; }
+function wp_is_file_mod_allowed($context = '') { return !empty($GLOBALS['kh_test_file_mods_allowed']); }
 function wp_nonce_field($action = '') { echo '<input type="hidden" name="_wpnonce" value="test">'; }
 function wp_parse_url($url, $component = -1) { return parse_url($url, $component); }
 function wp_timezone_string() { return 'UTC'; }

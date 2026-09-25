@@ -71,6 +71,17 @@ final class Keelhob_Tools_Snippets
             'required' => ['id', 'active'],
         ], [self::class, 'toggle'], ['destructiveHint' => true]);
 
+        $r->add('snippet_revisions', 'Read or roll back the history of a snippet. Every save that CHANGES the code writes a revision of what was there before, by agent or human alike — so an overwrite is recoverable. Actions: list (revision ids, timestamps, who, and the length of each — not the code), get (the full code of one revision, by revision_id), restore (put a revision back, by revision_id). A restore goes through the normal save path, so it is linted, front-end checked, and itself recorded as a revision — you can always walk back out. Use this BEFORE re-writing a snippet you did not author in this session: read what is there rather than assuming your version is still live.', [
+            'type' => 'object',
+            'properties' => [
+                'id'          => ['type' => 'integer', 'description' => 'The snippet id.'],
+                'action'      => ['type' => 'string', 'enum' => ['list', 'get', 'restore'], 'default' => 'list'],
+                'revision_id' => ['type' => 'integer', 'description' => 'Required for get and restore. Comes from action=list.'],
+                'limit'       => ['type' => 'integer', 'description' => 'How many revisions to list. Default 20, max 200.'],
+            ],
+            'required' => ['id'],
+        ], [self::class, 'revisions'], ['destructiveHint' => true]);
+
         $r->add('snippet_delete', 'Delete a snippet permanently by ID.', [
             'type' => 'object',
             'properties' => ['id' => ['type' => 'integer']],
@@ -157,4 +168,103 @@ final class Keelhob_Tools_Snippets
     {
         return Keelhob_Snippets::delete((int) ($a['id'] ?? 0));
     }
+
+    /**
+     * List or restore a snippet's history.
+     *
+     * The history table has existed since 1.9 and the admin Studio has shown
+     * it since. No tool exposed it, and code-snippets.md told agents in writing
+     * that snippet edits "are not versioned" — so an agent that overwrote
+     * something believed the work was gone, and said so to the owner. It was
+     * not: the previous code was one query away the whole time.
+     *
+     * Restoring writes a revision of the CURRENT code first, through the normal
+     * save path, so a restore is itself undoable. There is no state you can
+     * reach here that you cannot walk back out of.
+     */
+    public static function revisions(array $a): array
+    {
+        $id     = (int) ($a['id'] ?? 0);
+        $action = strtolower(trim((string) ($a['action'] ?? 'list')));
+
+        $snippet = Keelhob_Snippets::get($id);
+        if (!$snippet) {
+            return ['success' => false, 'error' => 'Snippet not found.'];
+        }
+
+        $rows = Keelhob_Snippets::revisions($id, (int) ($a['limit'] ?? 20));
+
+        if ($action === 'list') {
+            $out = [];
+            foreach ($rows as $r) {
+                $code = (string) ($r['code'] ?? '');
+                $out[] = [
+                    'revision_id' => (int) ($r['id'] ?? 0),
+                    'created_at'  => (string) ($r['created_at'] ?? ''),
+                    'note'        => (string) ($r['note'] ?? ''),
+                    'author_type' => (string) ($r['author_type'] ?? 'user'),
+                    'name'        => (string) ($r['name'] ?? ''),
+                    // The length, not the code. A list of twenty revisions of a
+                    // 15KB snippet is 300KB of context for a question that is
+                    // usually "which one do I want" — ask for that one by id.
+                    'code_length' => strlen($code),
+                ];
+            }
+            return [
+                'success'      => true,
+                'snippet_id'   => $id,
+                'name'         => (string) ($snippet['name'] ?? ''),
+                'current_code_length' => strlen((string) ($snippet['code'] ?? '')),
+                'count'        => count($out),
+                'revisions'    => $out,
+                'note'         => $out
+                    ? 'Each row is what the code looked like BEFORE that edit. Call action=get with a revision_id to read one, or action=restore to put it back.'
+                    : 'No history yet. A revision is written on every save that changes the code.',
+            ];
+        }
+
+        $revision_id = (int) ($a['revision_id'] ?? 0);
+        $match = null;
+        foreach ($rows as $r) {
+            if ((int) ($r['id'] ?? 0) === $revision_id) {
+                $match = $r;
+                break;
+            }
+        }
+        if (!$match) {
+            return [
+                'success' => false,
+                'error'   => 'No revision ' . $revision_id . ' for snippet ' . $id . '. Call action=list first.',
+            ];
+        }
+
+        if ($action === 'get') {
+            return [
+                'success'     => true,
+                'snippet_id'  => $id,
+                'revision_id' => $revision_id,
+                'created_at'  => (string) ($match['created_at'] ?? ''),
+                'note'        => (string) ($match['note'] ?? ''),
+                'code'        => (string) ($match['code'] ?? ''),
+            ];
+        }
+
+        if ($action !== 'restore') {
+            return ['success' => false, 'error' => 'action must be list, get or restore.'];
+        }
+
+        // Through save(), not a direct UPDATE: that is what lints the code,
+        // runs the front-end check, and records the current code as its own
+        // revision on the way past.
+        $result = Keelhob_Snippets::save([
+            'id'   => $id,
+            'code' => (string) ($match['code'] ?? ''),
+        ]);
+        if (!empty($result['success'])) {
+            $result['restored_from'] = $revision_id;
+            $result['restored_note'] = 'The code that was live before this restore is now itself a revision, so this is undoable.';
+        }
+        return $result;
+    }
+
 }

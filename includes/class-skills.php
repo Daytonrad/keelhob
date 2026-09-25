@@ -32,6 +32,68 @@ final class Keelhob_Skills
         return $wpdb->prefix . 'keelhob_skills';
     }
 
+    /** Rolling record of which skills were loaded, for sessions that are not agent runs. */
+    public const LOADS_OPTION = 'keelhob_skill_loads';
+
+    /** How many loads to keep. Enough to cover a working session, small enough to stay one cheap option. */
+    public const LOADS_KEEP = 60;
+
+    /**
+     * Record that a skill was loaded, so it can be checked later.
+     *
+     * Rule 13 asks the agent to name the skills it used. An agent's own
+     * account of what it followed is the least reliable evidence there is - it
+     * can honestly believe it worked from a playbook it never opened. The tool
+     * registry already captured this, but only in a per-request static that
+     * only an unattended run ever read, so for interactive MCP - which is how
+     * most real work happens - nothing was recorded at all.
+     *
+     * An option rather than a table: skill_get is called a handful of times in
+     * a session, not thousands, so this is a rare write and does not deserve
+     * its own schema or a migration.
+     *
+     * Deliberately absent: anything about the conversation, the instruction,
+     * or what the agent then did. This is a list of skill names and times.
+     */
+    public static function record_load(string $name): void
+    {
+        $name = sanitize_key($name);
+        if ($name === '') {
+            return;
+        }
+        $loads = get_option(self::LOADS_OPTION, []);
+        if (!is_array($loads)) {
+            $loads = [];
+        }
+        $loads[] = [
+            'skill' => $name,
+            'at'    => current_time('mysql'),
+            // Which door it came through, so "0 agent runs but these skills
+            // loaded" is readable rather than contradictory.
+            'via'   => defined('REST_REQUEST') && REST_REQUEST ? 'mcp' : 'internal',
+        ];
+        if (count($loads) > self::LOADS_KEEP) {
+            $loads = array_slice($loads, -self::LOADS_KEEP);
+        }
+        // autoload off: this is read when someone asks, never on every page.
+        update_option(self::LOADS_OPTION, $loads, false);
+    }
+
+    /**
+     * The recent loads, newest first.
+     *
+     * @return array<int, array{skill: string, at: string, via: string}>
+     */
+    public static function recent_loads(int $limit = 30): array
+    {
+        $loads = get_option(self::LOADS_OPTION, []);
+        if (!is_array($loads) || !$loads) {
+            return [];
+        }
+        $loads = array_reverse($loads);
+        return array_slice($loads, 0, max(1, min(self::LOADS_KEEP, $limit)));
+    }
+
     public static function install_table(): void
     {
         global $wpdb;

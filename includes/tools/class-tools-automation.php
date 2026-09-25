@@ -25,7 +25,7 @@ final class Keelhob_Tools_Automation
 
 
 
-        $r->add('agent_runs', 'Review the history of autonomous runs: when each ran, what it was asked, how many steps and tool calls it took, how it ended (ok / capped / truncated / error), and its token usage and estimated USD cost. Also returns the trailing-24h spend against the configured budget caps. Use to answer "what has the site been doing on its own / what is autonomy costing me". Read-only.', [
+        $r->add('agent_runs', 'Review the history of autonomous runs: when each ran, what it was asked, how many steps and tool calls it took, how it ended (ok / capped / truncated / error), and its token usage and estimated USD cost. Also returns the trailing-24h spend against the configured budget caps, and which skills recent connected sessions actually loaded (recorded by the tool registry, not claimed by the agent). Use to answer "what has the site been doing on its own", "what is autonomy costing me", or "did it really follow the playbook it said it followed". Read-only.', [
             'type' => 'object',
             'properties' => [
                 'limit' => ['type' => 'integer', 'default' => 20, 'description' => 'How many recent runs to return (max 200).'],
@@ -125,11 +125,23 @@ final class Keelhob_Tools_Automation
             'skills_used' => Keelhob_Skill_Standard::slugs((string) ($r['skills_used'] ?? '')),
         ], Keelhob_Agent_Runs::recent((int) ($a['limit'] ?? 20)));
 
+        $loads = Keelhob_Skills::recent_loads(30);
+
         return [
             'success'   => true,
             'runs'      => $runs,
             'usage_24h' => Keelhob_Agent_Runs::usage_since(24),
             'caps'      => Keelhob_Agent_Runtime::caps(),
+            // Skills loaded OUTSIDE an unattended run - i.e. by whoever is
+            // connected right now. `runs` above covers run_agent and scheduled
+            // tasks only, and a site built entirely over interactive MCP shows
+            // zero runs however much work was done on it. Without this, rule 13
+            // ("name the skills you used") had nothing behind it for the way
+            // most work actually happens.
+            'skill_loads' => $loads,
+            'skill_loads_note' => $loads
+                ? 'Skills loaded by connected sessions, newest first. Compare against what the agent said it used.'
+                : 'No skill has been loaded on this site yet. If work has been done here, it was done without loading any playbook.',
         ];
     }
 

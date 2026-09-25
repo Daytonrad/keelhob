@@ -17,7 +17,13 @@
 KH_Test::group('Tool surface — nothing was lost in the merge');
 
 $baseline = json_decode(file_get_contents(__DIR__ . '/../fixtures/tools-baseline.json'), true);
-KH_Test::ok(is_array($baseline) && count($baseline) === 68, 'the baseline fixture holds all 68 pre-merge tools');
+// 69, not 68: snippet_revisions was added deliberately. The revisions table
+// has existed since 1.9 and the admin Studio has always shown it, but no tool
+// reached it — and code-snippets.md told agents in writing that snippet edits
+// "are not versioned". An agent that overwrote a snippet therefore believed
+// the previous code was gone and told the owner so, while it sat one query
+// away. This is that edit-the-fixture-and-say-why record.
+KH_Test::ok(is_array($baseline) && count($baseline) === 69, 'the baseline fixture holds all 69 tools');
 
 // The WooCommerce groups refuse to register without WooCommerce, exactly as the
 // snapshot run had to account for.

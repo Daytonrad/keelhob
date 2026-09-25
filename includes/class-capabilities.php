@@ -134,7 +134,7 @@ final class Keelhob_Capabilities
             'snippets' => [
                 'label' => 'Snippets', 'sensitive' => true,
                 'desc' => 'Create, edit, switch on and delete live code snippets (PHP, CSS, JS, HTML) that run on your site.',
-                'tools' => ['snippet_save', 'snippet_list', 'snippet_get', 'snippet_toggle', 'snippet_delete'],
+                'tools' => ['snippet_save', 'snippet_list', 'snippet_get', 'snippet_revisions', 'snippet_toggle', 'snippet_delete'],
             ],
             'code_exec' => [
                 'label' => 'Raw code execution', 'sensitive' => true,
