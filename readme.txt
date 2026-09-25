@@ -17,6 +17,8 @@ Keelhob turns your WordPress site into an MCP (Model Context Protocol) server. C
 
 This plugin is NOT in the WordPress.org plugin directory, and will not be: it executes arbitrary PHP, which the directory does not allow. It is installed from a zip and updates itself from this project's GitHub releases (https://github.com/calflint/keelhob/releases).
 
+The full manual — install, connect, every tool, every capability group and troubleshooting — is at https://keelhob.com/docs. You do not need GitHub to read it.
+
 Features:
 
 * MCP Streamable-HTTP endpoint at /wp-json/keelhob/v1/mcp
@@ -28,7 +30,7 @@ Features:
 * Filesystem tools confined to a configurable base, plus a crash-recovering sandbox
 * Live code snippets (PHP/CSS/JS/HTML) with syntax checking and a crash guard
 * Cross-session memory shared across agents
-* Skills engine with fifteen bundled expert playbooks
+* Skills engine with twenty-four bundled expert playbooks
 * Master safety switch, capability groups, and a full activity log
 * Bring your own key: Anthropic, OpenAI or Google for the agent brain and image generation
 * Telegram chat: message a bot and the on-site agent runs your site — no MCP client needed
@@ -183,7 +185,7 @@ When something goes wrong while the agent works - a tool errors, a permission
 blocks real work, or it tries the same thing three times - Keelhob notes it in
 a table in your own database. Nothing is sent by that. About once a week, and
 only if something actually went wrong, the agent shows you a short summary and
-asks whether to send it to https://api.keelhob.com/v1/feedback. You see the
+asks whether to send it to the feedback endpoint at api.keelhob.com. You see the
 whole thing before you answer, and you can change it or refuse.
 
 What is sent, in full: the same random site ID as the update check, the plugin

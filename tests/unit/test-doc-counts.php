@@ -197,3 +197,30 @@ KH_Test::ok(
     strpos($roadmap, 'awaiting release') !== false || strpos($roadmap, '## Shipped (1.1.0, 1.2.0)') === false,
     'ROADMAP does not describe an unreleased version as simply "Shipped"'
 );
+
+// ------------------------------------------------- readme.txt, the plugin page
+//
+// readme.txt is what a person reads in their own admin after installing, and
+// nothing pointed at it: it claimed "fifteen bundled expert playbooks" while
+// twenty-four shipped. Nine skills appeared over months and the sentence never
+// moved, because no test had ever read this file. It is the least-visited
+// document in the repo and the most-read one outside it.
+$readme_txt = (string) file_get_contents(KEELHOB_DIR . 'readme.txt');
+
+$txt_skills = null;
+if (preg_match('/Skills engine with ([a-z-]+|\d+) bundled/i', $readme_txt, $m)) {
+    $raw        = strtolower($m[1]);
+    $txt_skills = ctype_digit($raw) ? (int) $raw : ($WORDS[$raw] ?? null);
+}
+KH_Test::ok($txt_skills !== null, 'readme.txt states how many skills are bundled');
+KH_Test::same($real_skills, $txt_skills, 'and it agrees with the skills/ folder');
+
+// The manual is the document a stranger is sent to. If the front door does not
+// name it, it does not exist as far as that stranger is concerned — which is
+// exactly what happened: 460 lines written, linked from nowhere.
+foreach (['README.md', 'readme.txt'] as $door) {
+    KH_Test::ok(
+        strpos((string) file_get_contents(KEELHOB_DIR . $door), 'keelhob.com/docs') !== false,
+        $door . ' points a reader at the manual'
+    );
+}

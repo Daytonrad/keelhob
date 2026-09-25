@@ -8,6 +8,7 @@
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](LICENSE)
 [![Donate on Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20this%20project-c2185b.svg)](https://ko-fi.com/keelhob)
 [![Roadmap](https://img.shields.io/badge/Roadmap-what's%20next-333.svg)](ROADMAP.md)
+[![Documentation](https://img.shields.io/badge/Docs-read%20the%20manual-c87941.svg)](https://keelhob.com/docs)
 
 </div>
 
@@ -24,8 +25,16 @@ work actually is, with a database, a store, and code you actually own.
 Install one plugin, connect Claude Code (or Claude Desktop, Cursor, Codex, any MCP client), and say
 what you want. It asks a few questions, then builds: pages, products, checkout, SEO, snippets,
 media. Don't want to run a client at all? Add your own API key and the site runs itself — on a
-schedule, or from a Telegram chat with voice notes, screenshots and approve-by-button. Tool-by-tool
-tour: **[docs/features.md](docs/features.md)**.
+schedule, or from a Telegram chat with voice notes, screenshots and approve-by-button.
+
+**New here? Read [the manual](https://keelhob.com/docs).** It is the whole thing in one page —
+install, connect, every tool, every capability group, troubleshooting — written for someone who has
+never touched MCP, and you do not need GitHub to read it. The same document ships inside the zip as
+[DOCUMENTATION.md](DOCUMENTATION.md), and an agent can fetch it as plain markdown in one request at
+[keelhob.com/llms-full.txt](https://keelhob.com/llms-full.txt).
+
+Already know what this is, and want the tool-by-tool detail? That is
+**[docs/features.md](docs/features.md)** — the developer view.
 
 ## What it cannot do yet
 
@@ -209,8 +218,9 @@ job. Bug reports, skills, translations and pull requests are wanted and credited
 
 ## More
 
-[Roadmap](ROADMAP.md) · [Funding](FUNDING.md) · [Contributing](CONTRIBUTING.md) ·
-[Security](SECURITY.md) · [Privacy](PRIVACY.md) · [Code of conduct](CODE_OF_CONDUCT.md)
+[Manual](https://keelhob.com/docs) · [Roadmap](ROADMAP.md) · [Funding](FUNDING.md) ·
+[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Privacy](PRIVACY.md) ·
+[Code of conduct](CODE_OF_CONDUCT.md)
 
 **Renamed in 2.0.0.** This project was published under a different name until then, one that read
 as an AI vendor's trademark. Nothing it does changed. Why, and how to upgrade an existing site:
