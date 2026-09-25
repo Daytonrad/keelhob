@@ -12,6 +12,13 @@ need to be a developer to follow it.
 
 **Free, GPL, no paid tier.** Everything described here is in the one download.
 
+Two companion pages, for when this one is not the right level:
+
+- [How risky this is, honestly](/docs/risk) — the graded risk statement, in more
+  detail than the summary further down.
+- [Features, tool by tool](https://github.com/calflint/keelhob/blob/main/docs/features.md)
+  — the developer view: argument shapes, option names and file paths.
+
 ---
 
 ## What Keelhob actually is
@@ -75,7 +82,8 @@ If the site does not exist yet, go straight in.
 
 ## Install it
 
-1. Download `keelhob.zip` from the [latest release](https://github.com/calflint/keelhob/releases).
+1. Download `keelhob.zip` from the [download page](/download), or straight from
+   the [latest release](https://github.com/calflint/keelhob/releases).
 2. In WordPress: **Plugins → Add New → Upload Plugin**.
 3. Choose the zip, then **Install Now**, then **Activate**.
 4. A **Keelhob** item appears in the admin menu.
@@ -176,6 +184,9 @@ refunds and sales reports for running one.
 
 `wc_product` · `wc_coupon` · `wc_settings` · `wc_order` · `wc_report` ·
 `wc_payments` · `wc_shipping` · `wc_tax`
+
+`wc_shipping` can also fetch **live carrier rates**, so a customer sees the real
+posted price for their address instead of a flat fee you guessed.
 
 The money-touching parts — orders, payments, shipping and tax — are **switched
 off when you install**.
@@ -343,6 +354,43 @@ The plugin already switches off a snippet that causes a **fatal error**. The
 constant covers the other case: one that runs exactly as written and breaks the
 site anyway.
 
+### About `eval()`
+
+Keelhob runs AI-written PHP with `eval()`. That is not an accident and it is not
+hidden, so here is the plain version.
+
+**Where it is used.** Two places only: a PHP snippet you have saved, and the
+`execute_php` tool. Nowhere else.
+
+**Why not something safer.** There is no safer option that still does the job. A
+snippet plugin that cannot run PHP is a text editor. Every competitor in this
+category — WPCode, Code Snippets, all of them — does exactly the same thing.
+
+**What guards it.** The code is parse-checked before it is stored, so code that
+does not compile never runs. A snippet that throws a fatal error switches itself
+off. After a risky write the plugin loads your front page to confirm the site
+still works. And it only ever runs for a request that already authenticated as
+an administrator.
+
+**How to switch it off completely.** Turn off the capability group that allows
+raw code, and use the kill switch constant below. Keelhob still builds pages,
+products and SEO without it — you lose snippets and `execute_php`, nothing else.
+
+### My site broke — do this, in this order
+
+1. **Keelhob → Snippets.** Switch off the newest snippet. Most breakages are the
+   last thing that was added, and this is one click.
+2. **Keelhob → Activity.** It lists every change with a timestamp. Find the last
+   thing that ran before the site went wrong.
+3. **Cannot load `wp-admin` at all?** Use the kill switch constant above. It
+   needs no database and no working site.
+4. **Still broken?** The kill switch proves whether a snippet is to blame. If the
+   site is still down with every snippet off, the cause is somewhere else —
+   another plugin, the theme, or the host.
+
+Nothing in that list deletes anything. A switched-off snippet keeps its code and
+its revision history, so you can read it, fix it and switch it back on.
+
 ### It checks its own work
 
 After every risky write, Keelhob fetches your front page and confirms it still
@@ -393,6 +441,78 @@ You can edit anything the agent wrote. It is your code.
 
 ---
 
+## Run it from your phone, with no MCP client
+
+You do not have to run Claude Code, or any desktop app, to use Keelhob. Add your
+own API key in **Keelhob → Settings**, connect a Telegram bot, and you can just
+message your website.
+
+**What you can send.** Plain messages ("add a post about the new opening
+hours"). Voice notes — it transcribes them. Photos — it uploads them to the
+media library and can use them in a page.
+
+**What comes back.** The agent does the work and replies with what it did.
+Anything risky arrives as a question with **approve** and **reject** buttons, so
+a change does not happen because you were vague.
+
+**`/undo`** reverses the last thing it did, where reversing it is possible.
+
+**Alerts, unprompted.** The site can message you first: a paid order, stock
+running low, a snippet that crashed, an update waiting. You find out from your
+phone rather than from a customer.
+
+**Roles per chat.** A chat can be read-only, or allowed to publish, or allowed
+to do everything. So a team chat and your own chat do not have the same powers.
+
+**Setting it up** takes two things: an API key from Anthropic, OpenAI or Google,
+and a bot token from Telegram's own [@BotFather](https://t.me/BotFather). The
+Settings screen walks through both.
+
+This whole feature belongs to the **Comms** capability group and is **off when
+you install**.
+
+---
+
+## Moving a site from staging to live
+
+Build on a staging site, then move the finished thing across in one step.
+
+`export_bundle` packs up what the agent built — pages, Elementor layouts, the
+design kit, menus, snippets, SEO settings, products — into a single bundle.
+`import_bundle` unpacks it on the live site.
+
+**What it is for:** doing the risky building somewhere nobody can see it, and
+moving only the finished result.
+
+**What it is not:** a backup tool, and not a full site clone. It carries what
+Keelhob built. It does not carry your uploads folder, your users, or your
+orders. Keep taking real backups.
+
+This belongs to the **Deploy** capability group and is **off when you install**.
+
+---
+
+## Removing Keelhob
+
+Deactivate and delete it from **Plugins**, the same as any other plugin.
+
+**Everything it built stays.** Your posts, pages, Elementor layouts, products,
+media and SEO settings are ordinary WordPress data. They were never stored in
+some Keelhob format, and deleting the plugin does not touch them.
+
+**What is removed** is Keelhob's own data: its tables for snippets, memory,
+skills, scheduled tasks and the activity log, plus its settings and your access
+token.
+
+**Snippets stop working**, because snippets are run by the plugin. If a snippet
+is doing something you want to keep, copy its code into your theme's
+`functions.php` or another snippet plugin **before** you delete Keelhob.
+
+If you only want to stop the agent and keep everything, do not delete anything —
+switch off the master safety switch in **Keelhob → Settings**.
+
+---
+
 ## Requirements and compatibility
 
 | Item | Minimum |
@@ -404,6 +524,24 @@ You can edit anything the agent wrote. It is your code.
 
 **Works with:** WooCommerce · Elementor (free or Pro) · Xpro Addons · Yoast ·
 Rank Math · AIOSEO · SEOPress. All detected automatically, none required.
+
+**Multisite.** Keelhob is built and tested for a single site, and multisite is
+**not a supported configuration**. It is not on the roadmap either, so do not
+wait for it.
+
+If you run it on a network anyway: activate it **per site, not network-wide**.
+Its tables are created with the per-site prefix, so each site gets its own
+token, its own snippets and its own memory, and nothing crosses between sites.
+That part works. It is simply not something being tested, so problems there will
+not be found before you are.
+
+**Scheduled tasks need WP-Cron.** Anything that runs on a schedule — a weekly
+post, a nightly check, Telegram alerts — depends on WordPress's own scheduler.
+Some hosts switch it off with `DISABLE_WP_CRON`, and some very quiet sites
+simply never get a visitor to trigger it. Either way, tasks do not fail loudly:
+**they just never run.** If a scheduled task never seems to fire, check that
+first. The fix is a real server cron job hitting `wp-cron.php`, which your host
+can set up in a minute.
 
 ---
 
@@ -427,7 +565,30 @@ Use the kill switch above.
 
 **I am locked out of the connection.**
 Ten failed attempts in fifteen minutes locks an address. Regenerate the token on
-the Connect page; that clears it.
+the Connect page; that clears it. The usual cause is two copies of the same
+connection saved in your agent, both trying an old token.
+
+**It worked, then stopped halfway through a big job.**
+PHP gave up before the work finished. A long build — a whole store, a bulk
+import — can outrun your host's `max_execution_time`. Nothing is corrupted; the
+job stopped partway. Ask the agent to carry on, or ask your host to raise the
+limit. Smaller requests also avoid it.
+
+**A security plugin or firewall is blocking it.**
+Wordfence, a host-level firewall or ModSecurity can block `/wp-json/` or strip
+the `Authorization` header, and the symptom is a connection that fails with no
+useful message. Allow `/wp-json/keelhob/` and make sure `Authorization` headers
+are passed through. If your agent authenticates but every call comes back
+unauthorised, a stripped header is the most likely cause.
+
+**A scheduled task never runs.**
+See WP-Cron under Requirements above. This is the usual answer.
+
+**Updates never arrive.**
+Keelhob updates itself from GitHub releases, not from WordPress.org. If your
+host blocks outgoing HTTP requests, the check silently finds nothing. You can
+always install the newest zip by hand over the top of the old one — your
+settings, snippets and memory are kept.
 
 ---
 
@@ -456,5 +617,9 @@ site. Full detail is on the [privacy page](/privacy).
 ## Getting help
 
 - [Report a problem or ask a question](https://github.com/calflint/keelhob/issues)
+- [Download](/download) — the plugin zip and the install steps
+- [How risky this is, honestly](/docs/risk) — the full risk statement
 - [Roadmap](/roadmap) — what is being built next
-- [Contact](/contact)
+- [Why this exists](/story) — the reason someone built this for free
+- [Privacy](/privacy) · [Terms of use](/terms)
+- [Contact](/contact) — one person reads these

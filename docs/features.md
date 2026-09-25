@@ -1,7 +1,26 @@
 # Features, tool by tool
 
-The full tour. [README.md](../README.md) has the pitch, the install, the safety position and
-the honest list of what Keelhob cannot do yet — read that first, then this.
+**This is the developer view.** It names tools, options, endpoints and file paths, and it
+assumes you are comfortable with WordPress internals.
+
+If you are looking for *"what is this and how do I use it"*, you want the **user manual** at
+[keelhob.com/docs](https://keelhob.com/docs) — the same document that ships in the zip as
+[DOCUMENTATION.md](../DOCUMENTATION.md). It covers install, connecting an agent, every
+capability group and troubleshooting, in plain words.
+
+The two documents are split on purpose:
+
+| Question | Read |
+|---|---|
+| What is Keelhob, how do I install it, how do I use it safely? | [DOCUMENTATION.md](../DOCUMENTATION.md) — the manual |
+| Which tool does that, what does it accept, where does it store things? | this file |
+| Why does this code look like this? | [architecture.md](architecture.md) |
+
+When the two describe the same feature and disagree, the manual is the promise made to users
+and this file is the detail — fix whichever one is wrong, do not let them drift apart.
+
+[README.md](../README.md) has the pitch, the install, the safety position and the honest list
+of what Keelhob cannot do yet.
 
 ## The tool surface
 
