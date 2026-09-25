@@ -154,7 +154,7 @@ things, and it keeps a record of what it did.
 
 ## What it can do
 
-Keelhob gives the agent **68 tools**, grouped by job. You never call these
+Keelhob gives the agent **69 tools**, grouped by job. You never call these
 yourself; you ask for an outcome and the agent picks the tools.
 
 This section is the honest inventory. If a feature is not listed here, Keelhob
@@ -214,10 +214,14 @@ agent writes them, and the plugin checks them.
   site stays up.
 - Every snippet carries a plain-English purpose and impact that you read on the
   Snippets page. That is how you judge what was installed without reading code.
-- Full revision history, so you can restore any earlier version.
+  **A new snippet cannot be saved without them**, so there is no such thing as
+  a snippet on your site that nothing explains.
+- **Full revision history.** Every save that changes the code keeps what was
+  there before — whoever made the change. Nothing an agent overwrites is lost,
+  and restoring an old version is itself undoable.
 
-`snippet_save` · `snippet_list` · `snippet_get` · `snippet_toggle` ·
-`snippet_delete`
+`snippet_save` · `snippet_list` · `snippet_get` · `snippet_revisions` ·
+`snippet_toggle` · `snippet_delete`
 
 ### Files and raw code
 
@@ -276,7 +280,13 @@ Off by default.
 ### Checking the work
 
 `site_readiness` scores the site against a build standard and tells you what is
-not finished. `get_dashboard` gives a full status snapshot. `seo_analyze` grades
+not finished. That includes an **automatic security sweep** — the file editor,
+guessable admin usernames, all three user-enumeration routes, HTTPS, the
+authentication salts, debug exposure, public directory listings, version
+disclosure and XML-RPC — reported as findings the agent has to clear before it
+may call the site done. The parts no tool can judge, like whether your backups
+actually restore, are listed separately as yours to check rather than quietly
+omitted. `get_dashboard` gives a full status snapshot. `seo_analyze` grades
 a page. These are read-only — they report, they do not change anything.
 
 ---

@@ -8,7 +8,7 @@ role: procedure
 surface: any
 requires: web-design-master
 next_skills: motion-and-interaction, seo-optimization, elementor-page-building, solace-header-footer, code-snippets
-verified_by: pre-launch-audit
+verified_by: pre-launch-audit, security-standard
 ---
 
 # Website building

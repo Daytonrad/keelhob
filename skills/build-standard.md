@@ -167,7 +167,7 @@ Do not edit the table by hand — change the skill file and regenerate.
 |---|---|---|---|---|---|
 | `blog-publishing` | procedure | any | — | `seo-optimization`, `web-design-master` | `seo-optimization` |
 | `build-standard` | gate | any | — | `site-build-kickoff`, `site-clone`, `contribute-feedback`, `website-building`, `blog-publishing`, `seo-optimization`, `code-snippets`, `woocommerce-store-operations`, `launch-readiness-and-compliance`, `skill-creator`, `site-safety`, `security-standard`, `web-design-master`, `motion-and-interaction`, `seo-audit-and-fix`, `elementor-page-building`, `solace-header-footer`, `store-launch-and-deploy` | `pre-launch-audit` |
-| `code-snippets` | procedure | any | `site-safety` | `motion-and-interaction`, `security-standard` | — |
+| `code-snippets` | procedure | any | `site-safety` | `motion-and-interaction` | `security-standard` |
 | `contribute-feedback` | procedure | any | `site-safety` | `skill-creator` | `pre-launch-audit` |
 | `elementor-page-building` | procedure | any | `web-design-master` | `motion-and-interaction`, `seo-optimization` | `pre-launch-audit` |
 | `launch-readiness-and-compliance` | gate | any | — | `store-launch-and-deploy`, `security-standard` | `pre-launch-audit` |
@@ -185,9 +185,9 @@ Do not edit the table by hand — change the skill file and regenerate.
 | `site-safety` | gate | any | — | `security-standard`, `code-snippets` | `pre-launch-audit` |
 | `skill-creator` | procedure | any | — | `build-standard` | — |
 | `solace-header-footer` | procedure | any | `web-design-master` | `website-building`, `motion-and-interaction` | `pre-launch-audit` |
-| `store-launch-and-deploy` | procedure | any | — | `launch-readiness-and-compliance`, `woocommerce-store-operations` | `pre-launch-audit` |
+| `store-launch-and-deploy` | procedure | any | — | `launch-readiness-and-compliance`, `woocommerce-store-operations` | `pre-launch-audit`, `security-standard` |
 | `web-design-master` | reference | any | — | `motion-and-interaction`, `website-building` | `pre-launch-audit` |
-| `website-building` | procedure | any | `web-design-master` | `motion-and-interaction`, `seo-optimization`, `elementor-page-building`, `solace-header-footer`, `code-snippets` | `pre-launch-audit` |
+| `website-building` | procedure | any | `web-design-master` | `motion-and-interaction`, `seo-optimization`, `elementor-page-building`, `solace-header-footer`, `code-snippets` | `pre-launch-audit`, `security-standard` |
 | `woocommerce-store-operations` | procedure | any | — | `store-launch-and-deploy`, `seo-optimization` | `site-safety` |
 <!-- ROUTER:END -->
 

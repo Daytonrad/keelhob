@@ -7,7 +7,7 @@ enable_prompt: true
 role: procedure
 surface: any
 next_skills: launch-readiness-and-compliance, woocommerce-store-operations
-verified_by: pre-launch-audit
+verified_by: pre-launch-audit, security-standard
 ---
 
 # Store launch & deploy

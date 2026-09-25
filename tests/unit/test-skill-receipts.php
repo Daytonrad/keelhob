@@ -83,3 +83,49 @@ KH_Test::contains(
     'the run table carries a skills_used column, so the receipt survives the request that produced it'
 );
 $GLOBALS['kh_test_dbdelta'] = [];
+
+KH_Test::group('Skill receipts - durable, for sessions that are not agent runs');
+
+// The gap this closes: over MCP every tool call is its own HTTP request, so the
+// per-request static in the registry only ever held the one skill loaded in
+// that same request, and only Agent_Runs::finish() read it - which runs for
+// run_agent and scheduled tasks and nothing else. keelhob.com was built
+// entirely over interactive MCP: 0 agent runs, 10 snippets, and no record
+// anywhere that a single skill had ever been loaded.
+$GLOBALS['kh_test_options'][Keelhob_Skills::LOADS_OPTION] = null;
+delete_option(Keelhob_Skills::LOADS_OPTION);
+
+KH_Test::same([], Keelhob_Skills::recent_loads(), 'a site that has loaded nothing reports nothing');
+
+Keelhob_Skills::record_load('web-design-master');
+Keelhob_Skills::record_load('code-snippets');
+$loads = Keelhob_Skills::recent_loads();
+KH_Test::same(2, count($loads), 'two loads are recorded');
+KH_Test::same('code-snippets', $loads[0]['skill'] ?? null, 'newest first');
+KH_Test::same('web-design-master', $loads[1]['skill'] ?? null, 'then the earlier one');
+KH_Test::ok(!empty($loads[0]['at']), 'each carries when it happened');
+
+// The same skill loaded twice is two events, not one. "Loaded it, went away,
+// came back to it" is a different story from "loaded it once", and collapsing
+// them throws that away.
+Keelhob_Skills::record_load('code-snippets');
+KH_Test::same(3, count(Keelhob_Skills::recent_loads()), 'a repeat load is its own event');
+
+// Junk in must not become a row that reads like a real skill.
+Keelhob_Skills::record_load('');
+Keelhob_Skills::record_load('   ');
+KH_Test::same(3, count(Keelhob_Skills::recent_loads()), 'empty names are ignored');
+
+// Bounded, so one long session cannot grow an option without limit.
+for ($i = 0; $i < Keelhob_Skills::LOADS_KEEP + 20; $i++) {
+    Keelhob_Skills::record_load('filler-' . $i);
+}
+$all = Keelhob_Skills::recent_loads(Keelhob_Skills::LOADS_KEEP);
+KH_Test::same(Keelhob_Skills::LOADS_KEEP, count($all), 'the record is capped');
+KH_Test::same(
+    'filler-' . (Keelhob_Skills::LOADS_KEEP + 19),
+    $all[0]['skill'] ?? null,
+    'and it keeps the NEWEST, not the first ones it happened to see'
+);
+
+delete_option(Keelhob_Skills::LOADS_OPTION);
