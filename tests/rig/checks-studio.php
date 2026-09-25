@@ -22,7 +22,7 @@ set_current_screen('admin');
 check('the Studio class loaded', class_exists('Keelhob_Studio'));
 
 // Something to list.
-$made = Keelhob_Snippets::save([
+$made = Keelhob_Snippets::save(['purpose' => 'rig fixture', 'impact' => 'none, removed at the end of the run',
     'name'         => 'Studio rig snippet',
     'description'  => 'Created by the rig check.',
     'code'         => "<?php add_filter('the_content', fn(\$c) => \$c);",

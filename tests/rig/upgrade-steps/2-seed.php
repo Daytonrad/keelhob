@@ -33,7 +33,7 @@ wp_set_current_user(1);
 $made = [];
 
 // --- 1. the old flat condition shape ---------------------------------------
-$flat = Keelhob_Snippets::save([
+$flat = Keelhob_Snippets::save(['purpose' => 'rig fixture', 'impact' => 'none, removed at the end of the run',
     'name'         => 'UP flat conditions',
     'description'  => 'Written by the old version with the pre-1.2.0 condition shape.',
     'code'         => "add_filter('the_content', function (\$c) { return \$c . '<!-- up-flat -->'; });",
@@ -50,7 +50,7 @@ $flat = Keelhob_Snippets::save([
 $made['flat'] = (int) ($flat['id'] ?? 0);
 
 // --- 2. no conditions at all -----------------------------------------------
-$plain = Keelhob_Snippets::save([
+$plain = Keelhob_Snippets::save(['purpose' => 'rig fixture', 'impact' => 'none, removed at the end of the run',
     'name'         => 'UP no conditions',
     'code'         => '.up-plain { color: rebeccapurple; }',
     'snippet_type' => 'css',
@@ -60,7 +60,7 @@ $plain = Keelhob_Snippets::save([
 $made['plain'] = (int) ($plain['id'] ?? 0);
 
 // --- 3. something with a history -------------------------------------------
-$rev = Keelhob_Snippets::save([
+$rev = Keelhob_Snippets::save(['purpose' => 'rig fixture', 'impact' => 'none, removed at the end of the run',
     'name'         => 'UP with revisions',
     'code'         => "// version one\n",
     'snippet_type' => 'php',
@@ -74,7 +74,7 @@ foreach (['// version two', '// version three', '// version four'] as $body) {
 $made['revisions'] = $rev_id;
 
 // --- 4. deliberately switched off ------------------------------------------
-$off = Keelhob_Snippets::save([
+$off = Keelhob_Snippets::save(['purpose' => 'rig fixture', 'impact' => 'none, removed at the end of the run',
     'name'         => 'UP switched off on purpose',
     'code'         => "add_action('init', function () { /* up-off */ });",
     'snippet_type' => 'php',
@@ -86,7 +86,7 @@ $made['off'] = (int) ($off['id'] ?? 0);
 // --- 5. live, and asserted to still RUN afterwards --------------------------
 // A footer marker is used rather than the_content because it does not depend on
 // a post existing, so the check works on any rig.
-$live = Keelhob_Snippets::save([
+$live = Keelhob_Snippets::save(['purpose' => 'rig fixture', 'impact' => 'none, removed at the end of the run',
     'name'         => 'UP live marker',
     'code'         => '<!-- up-live-marker -->',
     'snippet_type' => 'html',

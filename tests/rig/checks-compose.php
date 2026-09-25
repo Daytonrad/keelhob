@@ -105,7 +105,7 @@ $built = ['code' => (string) $blocks[0]['code'], 'type' => (string) $blocks[0]['
 
 // ---- 4. Save. The only thing that writes. ---------------------------------
 // ---- 3. Save. The only thing that writes. ---------------------------------
-$saved = Keelhob_Snippets::save([
+$saved = Keelhob_Snippets::save(['purpose' => 'rig fixture', 'impact' => 'none, removed at the end of the run',
     'name'         => 'Rig composed snippet',
     'code'         => $built['code'],
     'snippet_type' => $built['type'],
@@ -134,7 +134,7 @@ if (!is_wp_error($review)) {
 check('reviewing did not change the snippet', (string) Keelhob_Snippets::get($id)['code'] === (string) $row['code']);
 
 // ---- 6. The gate still refuses broken code. -------------------------------
-$bad = Keelhob_Snippets::save([
+$bad = Keelhob_Snippets::save(['purpose' => 'rig fixture', 'impact' => 'none, removed at the end of the run',
     'name'         => 'Rig broken snippet',
     'code'         => '<?php function ( { this does not parse',
     'snippet_type' => 'php',
