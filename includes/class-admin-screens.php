@@ -36,22 +36,18 @@ final class Keelhob_Admin_Screens
         // "copy that snippet to the other shop" resolve to the right server.
         $server_name = 'keelhob-' . sanitize_title(Keelhob::site_label() ?: ($host ?: 'site'));
 
-        $claude_code_cmd = sprintf(
-            "claude mcp add %s --transport http %s --header \"Authorization: Bearer %s\"",
-            $server_name,
-            esc_html($endpoint),
-            esc_html($token)
-        );
-
-        $json_config = wp_json_encode([
-            'mcpServers' => [
-                $server_name => [
-                    'type'    => 'http',
-                    'url'     => $endpoint,
-                    'headers' => ['Authorization' => 'Bearer ' . $token],
-                ],
-            ],
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        // One block per app, because they genuinely differ. The old screen
+        // printed a single {type,url,headers} JSON labelled "Claude Desktop /
+        // Cursor / Codex", and Claude Desktop cannot read that at all — it has
+        // no HTTP transport. Someone followed this screen and lost an evening.
+        //
+        // esc_html() is NOT applied here any more. It used to be, inside the
+        // sprintf, and then esc_textarea() ran over the result as well: an
+        // ampersand in a URL came out as &amp;amp;. Escaping belongs at the
+        // point of output, once.
+        $is_http     = !str_starts_with(strtolower((string) $endpoint), 'https://');
+        $client_list = Keelhob_Connect::clients();
+        $local_notes = Keelhob_Connect::local_site_notes($is_http, (string) $host);
 
         $enabled = Keelhob::instance()->abilities_enabled();
         ?>
@@ -197,7 +193,7 @@ final class Keelhob_Admin_Screens
                                     <?php esc_html_e('Do not include this site in the public count', 'keelhob'); ?>
                                 </label><br>
                                 <span style="color:#666;font-size:12px;margin-left:24px;">
-                                    <?php esc_html_e('When Keelhob checks for a new version, it sends a random ID made on this site, the plugin version, your WordPress and PHP versions, your site language, whether this is a multisite, whether WooCommerce is active, which page builder is set, whether AI abilities are on, the names of the capability groups you have enabled, and how many unattended runs happened in the last day. Every one of those is true of a thousand other sites. Nothing else — no site address, no email, no content, no keys, not what your automation costs you, and the address it talks to does not keep your IP. That is the only measure of how many people use this and what they use, and it decides what gets built next. Tick this and Keelhob checks GitHub directly instead: you still get every update, this site just is not counted.', 'keelhob'); ?>
+                                    <?php esc_html_e('The update check sends a random ID, version numbers, your language, and which features are on. Every one of those is true of a thousand other sites. It never sends your address, email, content, keys or costs, and your IP is not kept. It is the only count of who uses this, and it decides what gets built next. Tick this to check GitHub directly instead: same updates, not counted.', 'keelhob'); ?>
                                 </span>
                             </p>
 
@@ -282,9 +278,107 @@ final class Keelhob_Admin_Screens
                     </div>
 
                     <div class="card" style="max-width:none;padding:16px 20px;margin-top:16px;">
-                        <h2 style="margin-top:0;"><?php esc_html_e('2 · Connect Claude Code', 'keelhob'); ?></h2>
-                        <p><?php esc_html_e('Run this in your terminal (Claude Code will then list the Keelhob tools):', 'keelhob'); ?></p>
-                        <textarea readonly rows="3" style="width:100%;font-family:monospace;font-size:12px;" onclick="this.select()"><?php echo esc_textarea($claude_code_cmd); ?></textarea>
+                        <h2 style="margin-top:0;"><?php esc_html_e('2 · Connect your AI app', 'keelhob'); ?></h2>
+                        <p style="margin-top:0;"><?php esc_html_e('Pick your app. Each one needs something different.', 'keelhob'); ?></p>
+
+                        <?php if ($local_notes) : ?>
+                            <div style="border-left:4px solid #dba617;background:#fcf9e8;padding:10px 14px;margin:0 0 14px;">
+                                <strong><?php esc_html_e('This site is on your own computer.', 'keelhob'); ?></strong>
+                                <ul style="margin:6px 0 0 18px;list-style:disc;">
+                                    <?php foreach ($local_notes as $note) : ?>
+                                        <li><?php echo esc_html($note); ?></li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                        <?php endif; ?>
+
+                        <div class="kh-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+                            <?php foreach ($client_list as $key => $client) : ?>
+                                <button type="button" class="button kh-tab" data-kh-tab="<?php echo esc_attr($key); ?>">
+                                    <?php echo esc_html($client['label']); ?>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <?php
+                        /*
+                         * Every panel is rendered, and all of them are visible until
+                         * the script below hides the ones you did not pick.
+                         *
+                         * Two reasons it is built this way round.
+                         *
+                         * The token is flashed ONCE — Keelhob::take_flashed_token()
+                         * hands it over and it is gone. A picker that reloaded the
+                         * page to switch apps would wipe it and show the placeholder
+                         * instead, which is a worse bug than the one being fixed here.
+                         * So switching apps never talks to the server.
+                         *
+                         * And if the script does not run at all, the reader sees all
+                         * four panels rather than an empty box. Clearly labelled, so
+                         * that degrades to "a bit long" rather than "broken".
+                         */
+                        foreach ($client_list as $key => $client) :
+                            $requirement = Keelhob_Connect::requirement($key, $is_http);
+                            $snippet     = Keelhob_Connect::config($key, $server_name, $endpoint, $token, $is_http);
+                            ?>
+                            <div class="kh-panel" data-kh-panel="<?php echo esc_attr($key); ?>">
+                                <h3 style="margin:0 0 6px;"><?php echo esc_html($client['label']); ?></h3>
+
+                                <?php if ($requirement !== '') : ?>
+                                    <p style="margin:0 0 10px;color:#555;"><?php echo esc_html($requirement); ?></p>
+                                <?php endif; ?>
+
+                                <?php if ($key === 'claude-code') : ?>
+                                    <p style="margin:0 0 6px;"><strong><?php esc_html_e('Run this in a terminal:', 'keelhob'); ?></strong></p>
+                                <?php else : ?>
+                                    <p style="margin:0 0 6px;"><strong><?php esc_html_e('Paste this into:', 'keelhob'); ?></strong></p>
+                                    <ul style="margin:0 0 8px 18px;list-style:disc;color:#555;">
+                                        <?php foreach ($client['file'] as $path) : ?>
+                                            <li><code style="font-size:12px;"><?php echo esc_html($path); ?></code></li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                <?php endif; ?>
+
+                                <textarea readonly rows="<?php echo $key === 'claude-code' ? 3 : 12; ?>"
+                                    style="width:100%;font-family:monospace;font-size:12px;"
+                                    onclick="this.select()"><?php echo esc_textarea($snippet); ?></textarea>
+
+                                <?php if ($key === 'claude-desktop') : ?>
+                                    <p style="color:#555;margin:8px 0 0;"><?php esc_html_e('Then fully quit Claude Desktop and reopen it. Closing the window is not enough.', 'keelhob'); ?></p>
+                                    <p style="color:#555;margin:4px 0 0;"><?php esc_html_e('On a Microsoft Store install the second path exists and is ignored. Try the first.', 'keelhob'); ?></p>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+
+                        <p style="margin:14px 0 0;color:#555;"><?php esc_html_e('Using something else? Any MCP app can connect with the endpoint and token below.', 'keelhob'); ?></p>
+
+                        <script>
+                        (function () {
+                            var tabs   = document.querySelectorAll('.kh-tab');
+                            var panels = document.querySelectorAll('.kh-panel');
+                            if (!tabs.length) { return; }
+                            function show(key) {
+                                panels.forEach(function (p) {
+                                    p.style.display = p.dataset.khPanel === key ? '' : 'none';
+                                });
+                                tabs.forEach(function (t) {
+                                    var on = t.dataset.khTab === key;
+                                    t.classList.toggle('button-primary', on);
+                                });
+                                // Remembered per browser, so switching screens does
+                                // not send you back to an app you do not use. It is
+                                // a convenience, never state the page depends on.
+                                try { localStorage.setItem('keelhobConnectClient', key); } catch (e) {}
+                            }
+                            var saved = null;
+                            try { saved = localStorage.getItem('keelhobConnectClient'); } catch (e) {}
+                            var valid = Array.prototype.some.call(tabs, function (t) { return t.dataset.khTab === saved; });
+                            show(valid ? saved : tabs[0].dataset.khTab);
+                            tabs.forEach(function (t) {
+                                t.addEventListener('click', function () { show(t.dataset.khTab); });
+                            });
+                        })();
+                        </script>
 
                         <p style="margin-top:16px;"><strong><?php esc_html_e('Endpoint URL', 'keelhob'); ?></strong></p>
                         <input readonly value="<?php echo esc_attr($endpoint); ?>" class="regular-text" style="width:100%;max-width:520px;font-family:monospace;" onclick="this.select()">
@@ -337,7 +431,7 @@ final class Keelhob_Admin_Screens
                         <?php endif; ?>
 
                         <p style="color:#666;margin:8px 0 4px;">
-                            <?php esc_html_e('After regenerating, update EVERY client that connects to this site, and delete any duplicate entry pointing here. A client left on the old token fails on every start, and ten failures in fifteen minutes locks this site — including for the client you just fixed.', 'keelhob'); ?>
+                            <?php esc_html_e('Update EVERY app that connects here, and delete any duplicate entry. An app left on the old token fails on every start, and ten failures in fifteen minutes locks the site — including for the one you just fixed.', 'keelhob'); ?>
                         </p>
 
                         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:8px;" onsubmit="return confirm('<?php echo esc_js(__('Regenerating the token will disconnect existing clients. Continue?', 'keelhob')); ?>');">
@@ -347,11 +441,7 @@ final class Keelhob_Admin_Screens
                             <button class="button"><?php esc_html_e('Regenerate token', 'keelhob'); ?></button>
                         </form>
 
-                        <details style="margin-top:16px;">
-                            <summary style="cursor:pointer;"><?php esc_html_e('JSON config for Claude Desktop / Cursor / Codex / other clients', 'keelhob'); ?></summary>
-                            <textarea readonly rows="10" style="width:100%;font-family:monospace;font-size:12px;margin-top:8px;" onclick="this.select()"><?php echo esc_textarea($json_config); ?></textarea>
-                            <p style="color:#666;"><?php esc_html_e('Application Password alternative: use Authorization: Basic base64(username:app_password) against the same endpoint. Generate an Application Password under Users → Profile.', 'keelhob'); ?></p>
-                        </details>
+                        <p style="color:#666;margin-top:16px;"><?php esc_html_e('Application Password instead of a token: send Authorization: Basic base64(username:app_password) to the same endpoint. Make one under Users → Profile.', 'keelhob'); ?></p>
                     </div>
                 </div>
 
@@ -388,7 +478,7 @@ final class Keelhob_Admin_Screens
 
             <div class="card" style="max-width:none;padding:16px 20px;margin-top:24px;">
                 <h2 style="margin-top:0;"><?php esc_html_e('Capabilities — what the agent may touch', 'keelhob'); ?></h2>
-                <p style="max-width:820px;"><?php esc_html_e('Turn any area off to make it off-limits. Disabled tools are hidden from the agent, refused if called, and named as off-limits in every session — for both interactive and autonomous use. Sensitive areas (money, shipping, code, files, users, deploy) are marked ●.', 'keelhob'); ?></p>
+                <p style="max-width:820px;"><?php esc_html_e('Turn an area off and it is off-limits: hidden from the agent, refused if called, named as blocked in every session. Sensitive areas (money, shipping, code, files, users, deploy) are marked ●.', 'keelhob'); ?></p>
                 <p style="color:#b45309;"><strong><?php esc_html_e('Note:', 'keelhob'); ?></strong> <?php esc_html_e('to truly wall off a sensitive area, also disable Code execution — otherwise the agent could reach it via raw PHP/SQL.', 'keelhob'); ?></p>
                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                     <?php wp_nonce_field('keelhob_save'); ?>

@@ -94,17 +94,63 @@ That is the whole installation. No configuration file, no account, no key.
 
 ## Connect your agent
 
-Open **Keelhob → Connect**. The page prints a command with your real address and
-your real token already filled in. It looks like this:
+Open **Keelhob → Connect**. Pick your app. Copy what it shows you.
+
+Each app wants a different thing, so pick the right one. The screen fills in
+your real address and token for you.
+
+| Your app | What you do | Needs Node.js? |
+|---|---|---|
+| **Claude Code** | Run one command in a terminal | No |
+| **Claude Desktop** | Paste JSON into a config file | **Yes** |
+| **Cursor** | Paste JSON into `~/.cursor/mcp.json` | No |
+| **VS Code** | Paste JSON into `.vscode/mcp.json` | No |
+
+### Claude Code
+
+One command, then restart the app:
 
 ```bash
-claude mcp add keelhob-yoursite --transport http https://yoursite.com/wp-json/keelhob/v1/mcp --header "Authorization: Bearer kh_xxxxxxxx"
+claude mcp add keelhob-yoursite --transport http https://yoursite.com/wp-json/keelhob/v1/mcp --header "Authorization: Bearer kh_xxxxxxxx" -s user
 ```
 
-Copy it, run it in your terminal, and start a new session with your agent.
+The terminal and the Claude Code desktop app share one settings file, so this
+covers both. **Keep `-s user`** — without it the site is saved only for the
+folder you were standing in, and disappears everywhere else with no error.
 
-For **Claude Desktop, Cursor or Codex**, the same page gives you a JSON block to
-paste into their config instead.
+### Claude Desktop
+
+**This one is different.** Claude Desktop cannot open a web address by itself.
+A small bridge does it, and that bridge needs **Node.js** installed first.
+
+The Connect screen gives you the JSON. Paste it into:
+
+- **Windows, Microsoft Store:** `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\claude_desktop_config.json`
+- **Windows, normal install:** `%APPDATA%\Claude\claude_desktop_config.json`
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+On a Microsoft Store install the obvious path exists **and is ignored**. Try the
+Store path first.
+
+Then **fully quit** Claude Desktop and reopen it. Closing the window is not enough.
+
+### Cursor and VS Code
+
+Both take JSON from the Connect screen. They use different key names, so copy
+the block for the one you use. Cursor reads `~/.cursor/mcp.json` for every
+project, or `.cursor/mcp.json` for one. VS Code reads `.vscode/mcp.json` in
+your project.
+
+### A site on your own computer
+
+Local tools like LocalWP work fine. Two things to know:
+
+- **Leave SSL switched off.** A local certificate is self-signed and the
+  connection is rejected before it starts. Stay on `http://`.
+- **Telegram, email alerts and scheduled tasks will not work.** They need a
+  public address.
+
+The Connect screen detects a local site and says this on the page.
 
 ### Check that it worked
 
