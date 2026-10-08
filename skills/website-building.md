@@ -13,6 +13,23 @@ verified_by: pre-launch-audit, security-standard
 
 # Website building
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [Mode 1 — Pixel-perfect custom-coded page (highest fidelity)](#mode-1-pixel-perfect-custom-coded-page-highest-fidelity)
+- [Mode 2 — Editable page (Gutenberg or Elementor)](#mode-2-editable-page-gutenberg-or-elementor)
+- [Mode 3 — Cinematic scroll-scrub hero (the "$10k site" mode)](#mode-3-cinematic-scroll-scrub-hero-the-10k-site-mode)
+- [Site chrome (theme, nav, footer)](#site-chrome-theme-nav-footer)
+- [Images (critical — do not skip)](#images-critical-do-not-skip)
+- [Before handing any page over](#before-handing-any-page-over)
+- [Finish](#finish)
+- [Guardrails](#guardrails)
+- [Routing examples](#routing-examples)
+- [Related skills](#related-skills)
+<!-- CONTENTS:END -->
+
 Turn a brief, screenshot, or design into a live WordPress page. First decide the **build mode** with the user (or from the `build.page_modes` memory):
 
 ## When to use

@@ -11,6 +11,23 @@ next_skills: site-safety, pre-launch-audit
 
 # Security standard
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [1. The threat model — what actually compromises WordPress sites](#1-the-threat-model-what-actually-compromises-wordpress-sites)
+- [2. AUTOMATIC checks (A1–A20) — do these without asking](#2-automatic-checks-a1a20-do-these-without-asking)
+- [3. NEEDS-OWNER-DECISION — the intake questionnaire (Q1–Q7)](#3-needs-owner-decision-the-intake-questionnaire-q1q7)
+- [4. Things NOT to enforce by default](#4-things-not-to-enforce-by-default)
+- [5. Compromise detection — run before building on a site you did not build](#5-compromise-detection-run-before-building-on-a-site-you-did-not-build)
+- [WooCommerce addendum](#woocommerce-addendum)
+- [Reporting](#reporting)
+- [Routing examples](#routing-examples)
+- [Finish check](#finish-check)
+- [Related skills](#related-skills)
+<!-- CONTENTS:END -->
+
 You have full control of a real WordPress site. Most sites do not get hacked by a clever
 exploit — they get hacked by an old plugin, a reused password, or a setting nobody thought
 to close. This skill is a worklist for closing those, in the order that actually matters.
@@ -582,6 +599,24 @@ checks them against every other skill's description.
 - fires: check whether this site has been hacked
 - fires: is my checkout safe from card skimming
 - skips: make the hero animate on scroll
+
+## Finish check
+
+Copy this into your reply and tick each box as you do it.
+
+- [ ] §5 detection run FIRST if this is a site I did not build
+- [ ] All twenty automatic checks A1–A20 attempted, with the result of each recorded
+- [ ] Every A-check that cannot be measured from here named as unverified, not skipped silently
+- [ ] The seven owner decisions Q1–Q7 put to the owner, not decided for them
+- [ ] Nothing in §4 enforced by default
+
+A4 is the one that gets half-finished: **it has three doors** — `/?author=N`,
+the REST users route, and `/wp-sitemap-users-1.xml`. Closing two of them leaks
+the login exactly as before. Tick A4 only when all three are shut and you have
+re-fetched each one to prove it.
+
+If a check fails to run, go back and run it. **After two attempts, record it as
+unverified** and move on rather than retrying indefinitely.
 
 ## Related skills
 

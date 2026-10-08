@@ -12,6 +12,24 @@ next_skills: pre-launch-audit, site-clone-rebuild
 
 # Score the copy against the original
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [Rule zero — never score from memory](#rule-zero-never-score-from-memory)
+- [Step 1 — Put them side by side](#step-1-put-them-side-by-side)
+- [Step 2 — Score each section](#step-2-score-each-section)
+- [Step 3 — Rank the gaps](#step-3-rank-the-gaps)
+- [Step 4 — Fix the worst, measure again](#step-4-fix-the-worst-measure-again)
+- [Step 5 — Report](#step-5-report)
+- [What the numbers actually mean](#what-the-numbers-actually-mean)
+- [Step 6 — Then the real audit](#step-6-then-the-real-audit)
+- [Routing examples](#routing-examples)
+- [Finish check](#finish-check)
+- [Related skills](#related-skills)
+<!-- CONTENTS:END -->
+
 "It looks about right" is not a result. An agent that built a page is the worst
 possible judge of it, because it is comparing against what it *meant* to build.
 
@@ -183,6 +201,20 @@ reproduce every one of those.
 - skips: measure the target before we start
 - skips: build the next section
 - skips: install their colour palette
+
+## Finish check
+
+Copy this into your reply and tick each box as you do it.
+
+- [ ] Both versions open side by side, at the same width — never scored from memory
+- [ ] Every section scored, including the ones that look fine
+- [ ] Gaps ranked, worst first
+- [ ] Worst gap fixed, then measured again rather than assumed fixed
+- [ ] Final score taken from a fresh look, not carried over from before the fix
+
+If a fix does not move the score, go back to Step 2 and re-score that section —
+the gap may not be where you thought. **After two attempts on the same section,
+stop and report it** with what you tried, rather than cycling.
 
 ## Related skills
 

@@ -12,6 +12,25 @@ verified_by: pre-launch-audit
 
 # Build standard
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [What this is](#what-this-is)
+- [The Definition of Done](#the-definition-of-done)
+- [The skill router](#the-skill-router)
+- [The skill tree](#the-skill-tree)
+- [Page-level vs site-level gates](#page-level-vs-site-level-gates)
+- [The fix loop](#the-fix-loop)
+- [The completion report](#the-completion-report)
+- [The beginner promise](#the-beginner-promise)
+- [Existing sites (adoption)](#existing-sites-adoption)
+- [Routing examples](#routing-examples)
+- [Finish check](#finish-check)
+- [Related skills](#related-skills)
+<!-- CONTENTS:END -->
+
 ## When to use
 
 Before any build work at all: a new site, a new page, an edit to a page a visitor will see, a store setup, a launch. It carries the Definition of Done and the router table that says which skill owns which part of the job.
@@ -313,6 +332,23 @@ checks them against every other skill's description.
 - fires: what is the definition of done here
 - fires: can i report this build as complete
 - skips: write a blog post about padel courts
+
+## Finish check
+
+Copy this into your reply and tick each box as you do it. Do not tick ahead.
+
+- [ ] Every item in the Definition of Done above is met
+- [ ] `site_readiness` run, and every Blocker and High resolved
+- [ ] `pre-launch-audit` run — the judgement layer `site_readiness` cannot provide
+- [ ] Every skill I loaded that declares a verifier has had that verifier run
+- [ ] The completion report names what I changed, what I skipped, and what failed
+
+If any box cannot be ticked, go back to the step that produces it and finish it.
+**After two attempts at the same box, stop and report** what is blocking it
+rather than trying again — a third attempt rarely differs from the second, and
+the owner is paying for each one.
+
+Never lower a finding's severity to make a box tick.
 
 ## Related skills
 

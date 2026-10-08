@@ -13,6 +13,20 @@ verified_by: pre-launch-audit
 
 # Write a friction note
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [Routing examples](#routing-examples)
+- [The shape of a note](#the-shape-of-a-note)
+- [What never goes in a note](#what-never-goes-in-a-note)
+- [Showing the draft](#showing-the-draft)
+- [If the send comes back throttled](#if-the-send-comes-back-throttled)
+- [If they are unsure](#if-they-are-unsure)
+- [Related skills](#related-skills)
+<!-- CONTENTS:END -->
+
 Most of the feedback log fills itself in. The plugin already sees every tool
 that errored, every capability that blocked real work, and every time you called
 the same tool with near-identical arguments three times in a row. None of that

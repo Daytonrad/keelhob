@@ -12,6 +12,27 @@ verified_by: pre-launch-audit
 
 # Site safety
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [Never report done without the audit](#never-report-done-without-the-audit)
+- [Before changing anything](#before-changing-anything)
+- [Prefer reversible paths](#prefer-reversible-paths)
+- [Snapshot before fixing](#snapshot-before-fixing)
+- [GOTCHA: full-file rewrites of live .php files](#gotcha-full-file-rewrites-of-live-php-files)
+- [GOTCHA: never split one interdependent change across two live writes](#gotcha-never-split-one-interdependent-change-across-two-live-writes)
+- [GOTCHA: two meta writers, opposite slashing](#gotcha-two-meta-writers-opposite-slashing)
+- [Verify after](#verify-after)
+- [Scope](#scope)
+- [Adopting an existing site](#adopting-an-existing-site)
+- [Remember](#remember)
+- [Routing examples](#routing-examples)
+- [Finish check](#finish-check)
+- [Related skills](#related-skills)
+<!-- CONTENTS:END -->
+
 You have full control of a real WordPress site. Move fast, but never leave it broken.
 
 ## When to use
@@ -143,6 +164,20 @@ checks them against every other skill's description.
 - fires: make sure this change is reversible
 - fires: verify the change did not break the front end
 - skips: write a blog post about padel courts
+
+## Finish check
+
+Copy this into your reply and tick each box as you do it.
+
+- [ ] Read the current value before overwriting anything I did not create
+- [ ] Took the reversible path where one existed
+- [ ] Snapshot taken before the fix
+- [ ] Loaded the front end as a logged-out visitor afterwards and got a 200
+- [ ] Read the `front_end_check` field in the response rather than assuming it passed
+
+If the front end does not return 200, undo your change first and investigate
+second. **After two attempts to fix forward, roll back and report** — a site
+that is down while you keep trying costs the owner more than an unfinished task.
 
 ## Related skills
 

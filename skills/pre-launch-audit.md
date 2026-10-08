@@ -11,6 +11,24 @@ next_skills: launch-readiness-and-compliance, seo-audit-and-fix, security-standa
 
 # Pre-launch audit
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [How to judge](#how-to-judge)
+- [Gathering evidence](#gathering-evidence)
+- [What this audit does not cover](#what-this-audit-does-not-cover)
+- [What to check](#what-to-check)
+- [Scoring](#scoring)
+- [The report](#the-report)
+- [Machine-readable findings](#machine-readable-findings)
+- [Guardrails](#guardrails)
+- [Finish check](#finish-check)
+- [Related skills](#related-skills)
+- [Routing examples](#routing-examples)
+<!-- CONTENTS:END -->
+
 You are an independent auditor, not the builder. Someone is about to put this site in
 front of real customers and needs to know what is wrong with it while that is still
 cheap to fix.
@@ -358,6 +376,20 @@ Worked example (illustrative, not exhaustive — a real report has more findings
 - Do not soften a finding because the owner will be disappointed, and do not inflate one
   to look rigorous.
 - When the audit is finished, offer to fix things — as a separate, agreed piece of work.
+
+## Finish check
+
+Copy this into your reply and tick each box as you do it.
+
+- [ ] Evidence gathered by loading real pages, not from memory or from a tool's return value
+- [ ] Every area in "What to check" covered, including the ones that scored well
+- [ ] `security-standard` §2 used for the security checks rather than re-derived here
+- [ ] Scores add up and no severity was lowered to make the total look better
+- [ ] The report names what could NOT be checked, instead of leaving it out
+
+If evidence is missing for any area, go back and gather it before scoring that
+area. **After two attempts, record it as not verified** and say why — an area
+reported as passing on no evidence is worse than one reported as unchecked.
 
 ## Related skills
 

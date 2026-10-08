@@ -12,6 +12,30 @@ next_skills: site-clone-rebuild, site-clone-design-system
 
 # Measure a page before rebuilding it
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [Where the artifacts go](#where-the-artifacts-go)
+- [Part 1 — What is this thing built with?](#part-1-what-is-this-thing-built-with)
+- [Part 2 — Design tokens, measured not guessed](#part-2-design-tokens-measured-not-guessed)
+- [Part 3 — Screenshots at three widths](#part-3-screenshots-at-three-widths)
+- [Part 4 — The sweeps. This is the part everyone skips.](#part-4-the-sweeps-this-is-the-part-everyone-skips)
+- [Part 5 — Topology and section specs](#part-5-topology-and-section-specs)
+- [Structure](#structure)
+- [Computed styles](#computed-styles)
+- [States](#states)
+- [Motion](#motion)
+- [Assets](#assets)
+- [Text](#text)
+- [Responsive](#responsive)
+- [Part 6 — Asset inventory](#part-6-asset-inventory)
+- [Before you hand off](#before-you-hand-off)
+- [Routing examples](#routing-examples)
+- [Related skills](#related-skills)
+<!-- CONTENTS:END -->
+
 A website is not a screenshot. It moves. If you extract only static CSS, the copy
 looks correct in a picture and feels dead the moment somebody scrolls it — and
 that is the failure everybody notices and nobody can name.

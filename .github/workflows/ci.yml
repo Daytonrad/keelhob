@@ -98,6 +98,9 @@ jobs:
       - name: Check the generated files are current
         run: php bin/build-skill-router.php --check
 
+      - name: Contents lists are generated, not hand-kept
+        run: php bin/build-skill-contents.php --check
+
   analyse:
     name: Static analysis
     runs-on: ubuntu-latest

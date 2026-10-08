@@ -12,6 +12,25 @@ verified_by: pre-launch-audit
 
 # SEO + GEO optimization
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [Verify in the rendered HTML, not from a tool's return value](#verify-in-the-rendered-html-not-from-a-tools-return-value)
+- [Before writing anything](#before-writing-anything)
+- [Workflow for a single URL](#workflow-for-a-single-url)
+- [Structured data](#structured-data)
+- [Titles that win clicks (and citations)](#titles-that-win-clicks-and-citations)
+- [GEO infrastructure (site-wide, do this once per site)](#geo-infrastructure-site-wide-do-this-once-per-site)
+- [Technical](#technical)
+- [Speed is an SEO check, not a separate concern](#speed-is-an-seo-check-not-a-separate-concern)
+- [Guardrails](#guardrails)
+- [Routing examples](#routing-examples)
+- [Finish check](#finish-check)
+- [Related skills](#related-skills)
+<!-- CONTENTS:END -->
+
 **This skill is one page at a time.** For a whole site — crawling every page,
 scoring speed, finding duplicates, connecting Search Console or a paid data
 source, and producing a before-and-after report — load **`seo-audit-and-fix`**
@@ -138,6 +157,20 @@ checks them against every other skill's description.
 - fires: set the meta title and description for this page
 - fires: add json-ld schema to the product pages
 - skips: audit the seo of my whole website
+
+## Finish check
+
+Copy this into your reply and tick each box as you do it.
+
+- [ ] Read the rendered HTML of the live URL — not the tool's return value
+- [ ] Title and meta description present, within length, and not duplicated elsewhere
+- [ ] Structured data validates and describes what is actually on the page
+- [ ] Internal links resolve — no link added that 404s
+- [ ] Re-fetched the page after writing and confirmed the change is really there
+
+If the rendered HTML does not show your change, go back to the write step: the
+tool reporting success is not evidence. **After two attempts, stop and report**
+that the value is not reaching the page, and say which plugin owns that field.
 
 ## Related skills
 
