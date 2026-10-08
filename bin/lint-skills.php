@@ -74,7 +74,7 @@ $known = array_keys($skills);
 $findings = array_fill_keys($known, []);
 
 foreach ($skills as $slug => $skill) {
-    $findings[$slug] = Keelhob_Skill_Standard::check($skill, $known);
+    $findings[$slug] = Keelhob_Skill_Standard::check($skill, $known, $skills);
 }
 
 // Graph rules run over every skill regardless of the filter — a cycle or a

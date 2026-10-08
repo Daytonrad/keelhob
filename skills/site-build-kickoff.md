@@ -13,6 +13,24 @@ verified_by: launch-readiness-and-compliance
 
 # Site build kickoff
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [Step 0 — load the standard, then check memory](#step-0-load-the-standard-then-check-memory)
+- [Step 1 — stack menu (ask this first, one question)](#step-1-stack-menu-ask-this-first-one-question)
+- [Step 2 — intake batch (ask together, one batch, not one-by-one interrogation)](#step-2-intake-batch-ask-together-one-batch-not-one-by-one-interrogation)
+- [Step 3 — save the brief](#step-3-save-the-brief)
+- [Step 4 — build order](#step-4-build-order)
+- [Step 4.5 — the closing loop (mandatory, not optional)](#step-45-the-closing-loop-mandatory-not-optional)
+- [Step 5 — revision loop (how to hand it over)](#step-5-revision-loop-how-to-hand-it-over)
+- [Delegating to sub-agents](#delegating-to-sub-agents)
+- [Guardrails](#guardrails)
+- [Routing examples](#routing-examples)
+- [Related skills](#related-skills)
+<!-- CONTENTS:END -->
+
 A simple "build me a website" is enough. Never demand a long brief — ask a short menu + a short batch of questions, then build. Keep every reply caveman-brief: short sentences, no filler, plain words. Save state as you go so a fresh session can resume.
 
 ## When to use

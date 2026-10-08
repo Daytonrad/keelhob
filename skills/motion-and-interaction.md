@@ -12,6 +12,24 @@ verified_by: pre-launch-audit
 
 # Motion and interaction
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [Read this first](#read-this-first)
+- [1. The craft — what actually reads as expensive](#1-the-craft-what-actually-reads-as-expensive)
+- [2. CSS-native motion — start here](#2-css-native-motion-start-here)
+- [3. GSAP — when the job genuinely needs it](#3-gsap-when-the-job-genuinely-needs-it)
+- [4. Framer Motion — say plainly when it does not apply](#4-framer-motion-say-plainly-when-it-does-not-apply)
+- [5. Smooth scroll — the honest trade](#5-smooth-scroll-the-honest-trade)
+- [6. Reduced motion is a design state, not a switch](#6-reduced-motion-is-a-design-state-not-a-switch)
+- [7. The performance budget](#7-the-performance-budget)
+- [8. Going deeper](#8-going-deeper)
+- [Related skills](#related-skills)
+- [Routing examples](#routing-examples)
+<!-- CONTENTS:END -->
+
 ## When to use
 
 A page feels flat, static or generated, or the task names animation, scroll behaviour, hover, transitions or micro-interaction. Read it during a build, not bolted on at the end.

@@ -66,6 +66,15 @@ nothing points at, and two skills competing for the same request.
 4. **Skills are flat.** Everything lives in the one body — no bundled scripts or file attachments. If a skill wants attachments, it is doing too much; split it.
 5. **Say where it sits.** A skill that names nothing to do next leaves the agent with nowhere to go when it finishes, and a skill nothing points at is only ever reached if the user's wording happens to match. Both are silent failures — nothing errors, the work is just worse. Declare `next_skills` and, where something genuinely checks the work, `verified_by`. Then add the new skill to a related skill's `next_skills` so it can be reached at all.
 6. **Say when NOT to use it.** Half of routing is staying out of jobs that are not yours. One line naming the skill that should have taken it is enough.
+7. **Give a Contents list to anything long.** Past about 120 lines a reader cannot see what is further down before deciding it has read enough. Do not type one — run `php bin/build-skill-contents.php`, which builds it from the skill's own headings. A hand-typed list is correct on the day it is typed and wrong the next time somebody adds a section. The list does not count toward the size cap.
+8. **A skill that CHECKS work needs a checklist.** That means a `role: gate`, or a skill another skill names in its `verified_by`. Three parts, and all three are needed:
+   - **boxes** the agent copies into its reply and ticks: `- [ ] ...`
+   - **a failure branch** — "if X fails, go back to step N". Without it a tick is the only outcome, and ticking is not finishing.
+   - **a bound** — "after two attempts, stop and report". An unbounded retry spends the owner's money and nothing in the plugin can cap it.
+
+   This is the rule that keeps getting earned. Real examples from this project: two of three user-enumeration routes closed and the third left open; `site_readiness` run and `pre-launch-audit` never run; a manual written and linked from nowhere. Each was a last step nobody checked.
+9. **Do NOT put a checklist in a creative or reference skill.** Anthropic's guidance is that the newer models get *worse* when over-instructed. A checklist in a design or writing skill buys nothing and costs quality. The linter only asks for one where work is actually checked, and that is deliberate.
+10. **Match freedom to risk, inside one skill.** The same skill can be loose in one step and exact in another. Writing the launch email: say what good looks like and get out of the way. Taking the backup before a migration: spell out the exact sequence and say not to deviate. Say which kind each step is, in words — there is no frontmatter key for it.
 
 ## Process
 
@@ -73,7 +82,8 @@ nothing points at, and two skills competing for the same request.
 2. Draft the frontmatter description first — get the trigger right.
 3. Write the body: goal, then the steps/conventions, then any guardrails.
 4. Call `skill_save` with the full `markdown`.
-5. Tell the user it is saved site-wide and will fire automatically when a matching task comes up.
+5. Call `skill_lint` on it and fix what it reports. It runs the same rules the project's own skills are held to, so a clean result means the skill is shaped like the ones that ship.
+6. Tell the user it is saved site-wide and will fire automatically when a matching task comes up.
 
 ## Related skills
 

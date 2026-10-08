@@ -185,12 +185,30 @@ final class Keelhob_Studio_AI
         }
 
         // Bare PHP: look for things only PHP has.
+        //
+        // Three of these patterns spent their whole life unable to match.
+        // The \b word boundaries had been stored as literal 0x08 BACKSPACE
+        // bytes, so the pattern read as "<backspace>add_(action..." and no
+        // input could ever satisfy it. It is invisible in grep, in awk and
+        // in most editors, which is why it survived.
+        //
+        // It was not harmless. guess_type() is what decides whether code an
+        // agent wrote is php, js or css, and the type decides where it may
+        // run. A bare add_action() snippet with no variable and no arrow
+        // fell past every working marker and could be stored as something
+        // other than PHP - which means saved to a location that never
+        // executes PHP, and silently doing nothing at all.
         $php_markers = [
-            '/add_(action|filter|shortcode|menu_page)\s*\(/i',
-            '/(function|foreach|endif|elseif|require_once|namespace)/',
+            '/\badd_(action|filter|shortcode|menu_page)\s*\(/i',
+            // NOT "function": JavaScript has it too, and an IIFE
+            // ( function () { ... } )() would be read as PHP and stored as PHP.
+            // While these patterns were broken that could not happen, so
+            // repairing them surfaced a bug the breakage had been hiding.
+            // Only keywords PHP alone has belong in this list.
+            '/\b(foreach|endforeach|endif|elseif|require_once|include_once|namespace)\b/',
             '/\$[a-zA-Z_]\w*\s*(=|->|\[)/',
             '/->\s*[a-zA-Z_]\w*\s*\(/',
-            '/[A-Za-z_]\w*::\w+/',
+            '/\b[A-Za-z_]\w*::\w+/',
         ];
         foreach ($php_markers as $pattern) {
             if (preg_match($pattern, $trimmed)) {

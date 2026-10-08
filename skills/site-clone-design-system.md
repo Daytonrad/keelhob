@@ -12,6 +12,21 @@ next_skills: web-design-master, elementor-page-building, motion-and-interaction
 
 # Borrow a site's taste, not its pages
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [What you are installing, and what you are not](#what-you-are-installing-and-what-you-are-not)
+- [Step 1 — Turn measurements into a system](#step-1-turn-measurements-into-a-system)
+- [Step 2 — Install them where WordPress will actually use them](#step-2-install-them-where-wordpress-will-actually-use-them)
+- [Step 3 — Motion feel](#step-3-motion-feel)
+- [Step 4 — Prove it landed](#step-4-prove-it-landed)
+- [What to report](#what-to-report)
+- [Routing examples](#routing-examples)
+- [Related skills](#related-skills)
+<!-- CONTENTS:END -->
+
 Somebody pointed at a site and said "like that". Most of the time what they are
 responding to is not the layout at all — it is the restraint. One accent colour
 instead of five. Type that steps in a real ratio. Space that repeats. Corners

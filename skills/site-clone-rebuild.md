@@ -13,6 +13,23 @@ verified_by: site-clone-verify
 
 # Turn a captured spec into WordPress
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [Rule zero — never paste their markup](#rule-zero-never-paste-their-markup)
+- [Step 1 — Tokens first, always](#step-1-tokens-first-always)
+- [Step 2 — Assets into the media library](#step-2-assets-into-the-media-library)
+- [Step 3 — Build the section](#step-3-build-the-section)
+- [Step 4 — Motion, honestly translated](#step-4-motion-honestly-translated)
+- [Step 5 — Check the front end after every section](#step-5-check-the-front-end-after-every-section)
+- [Step 6 — The things a copy should fix, not inherit](#step-6-the-things-a-copy-should-fix-not-inherit)
+- [Step 7 — Hand to the verifier](#step-7-hand-to-the-verifier)
+- [Routing examples](#routing-examples)
+- [Related skills](#related-skills)
+<!-- CONTENTS:END -->
+
 The measuring is done. Now build it here — properly, as WordPress, not as a
 foreign page smuggled inside a WordPress URL.
 

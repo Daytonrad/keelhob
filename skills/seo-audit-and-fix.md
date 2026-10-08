@@ -12,6 +12,28 @@ verified_by: pre-launch-audit
 
 # SEO audit and fix
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [Read this first](#read-this-first)
+- [1. Before you run anything — the cost gate](#1-before-you-run-anything-the-cost-gate)
+- [2. What is connected? Ask, then guide](#2-what-is-connected-ask-then-guide)
+- [3. The free path — this must always work](#3-the-free-path-this-must-always-work)
+- [4. Layer 1 — on-page](#4-layer-1-on-page)
+- [5. Layer 2 — technical and Core Web Vitals](#5-layer-2-technical-and-core-web-vitals)
+- [6. Layer 3 — AI overviews and answer engines](#6-layer-3-ai-overviews-and-answer-engines)
+- [7. Layer 4 — duplicate and doorway pages](#7-layer-4-duplicate-and-doorway-pages)
+- [8. Layer 5 — local and Google Business Profile](#8-layer-5-local-and-google-business-profile)
+- [9. The before-and-after report page](#9-the-before-and-after-report-page)
+- [10. One pass is never enough](#10-one-pass-is-never-enough)
+- [11. Auditing a site you do not own](#11-auditing-a-site-you-do-not-own)
+- [12. Evidence discipline](#12-evidence-discipline)
+- [Related skills](#related-skills)
+- [Routing examples](#routing-examples)
+<!-- CONTENTS:END -->
+
 ## When to use
 
 A whole site's search performance is the subject: rankings dropped, traffic fell, Core Web Vitals are poor, or the owner wants an audit across every page. Expensive, so the cost gate comes first.

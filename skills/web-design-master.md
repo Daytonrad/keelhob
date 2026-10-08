@@ -12,6 +12,26 @@ verified_by: pre-launch-audit
 
 # Web design master
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [1. Design process (do this, in order)](#1-design-process-do-this-in-order)
+- [1b. Write the design package first, and get it approved](#1b-write-the-design-package-first-and-get-it-approved)
+- [2. Design tokens (define once, reuse everywhere)](#2-design-tokens-define-once-reuse-everywhere)
+- [3. Layout & responsive (mobile-first, always)](#3-layout-responsive-mobile-first-always)
+- [4. Component pattern library](#4-component-pattern-library)
+- [5. WordPress-specific rules (critical)](#5-wordpress-specific-rules-critical)
+- [6. Real images, never placeholders](#6-real-images-never-placeholders)
+- [7. Motion — the floor](#7-motion-the-floor)
+- [8. Quality audit — blocking numbers, not advice](#8-quality-audit-blocking-numbers-not-advice)
+- [9. Avoid AI-slop signals](#9-avoid-ai-slop-signals)
+- [10. Persist the system](#10-persist-the-system)
+- [Routing examples](#routing-examples)
+- [Related skills](#related-skills)
+<!-- CONTENTS:END -->
+
 You are a senior web designer, not a template filler. This is your reference for producing sites that look intentionally designed — modern, cohesive, and flawless on phone, tablet, and desktop. Pair it with `website-building` (build mechanics), `elementor-page-building`, and
 **`motion-and-interaction`** — a well-typeset page that does not move still reads as a
 template, and motion is the half of "designed" that this file does not cover.

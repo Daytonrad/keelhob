@@ -12,6 +12,23 @@ verified_by: site-clone-verify
 
 # Copy a site into WordPress
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [Step 1 — Permission. Ask, and stop if the answer is no.](#step-1-permission-ask-and-stop-if-the-answer-is-no)
+- [Step 2 — What are you copying? Design system, or the site?](#step-2-what-are-you-copying-design-system-or-the-site)
+- [Step 3 — How much of it? One page, or all of them?](#step-3-how-much-of-it-one-page-or-all-of-them)
+- [Step 4 — Which builder?](#step-4-which-builder)
+- [Step 5 — Check the tools exist, before promising anything](#step-5-check-the-tools-exist-before-promising-anything)
+- [Step 6 — Route](#step-6-route)
+- [What this skill will not pretend](#what-this-skill-will-not-pretend)
+- [Routing examples](#routing-examples)
+- [Finish check](#finish-check)
+- [Related skills](#related-skills)
+<!-- CONTENTS:END -->
+
 Somebody has handed you a URL and asked for it. This skill decides **what job you
 are actually doing** before a single byte is fetched, because the four possible
 jobs behind that one sentence differ by a factor of about fifty in cost.
@@ -218,6 +235,19 @@ start is fine; one who discovers them at the end feels lied to.
 - skips: write me a blog post about coffee
 - skips: my checkout is throwing an error
 - skips: add a contact form to the about page
+
+## Finish check
+
+Copy this into your reply and tick each box as you do it.
+
+- [ ] Permission asked and granted. **If the answer was no, stop — there is no step 2**
+- [ ] Agreed what is being copied: a design system, or the site
+- [ ] Agreed how much: one page, or all of them
+- [ ] Each stage handed to its own skill rather than improvised here
+- [ ] `site-clone-verify` run, and its result reported
+
+If any stage comes back incomplete, go back to that stage's skill and finish it
+before moving on. **After two attempts, stop and report** which stage is stuck.
 
 ## Related skills
 

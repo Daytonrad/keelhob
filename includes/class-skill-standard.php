@@ -188,6 +188,12 @@ final class Keelhob_Skill_Standard
      */
     const CLASH_THRESHOLD = 0.30;
 
+    /** A body longer than this needs a "## Contents" list to be navigable. */
+    const CONTENTS_FROM = 120;
+
+    /** Most lines a Contents list may contribute before it stops being free. */
+    const CONTENTS_FREE_LINES = 20;
+
     /** Headings every skill carries. The order is the order they must appear in. */
     const SECTIONS = ['When to use', 'When NOT to use', 'Routing examples', 'Related skills'];
 
@@ -473,7 +479,21 @@ final class Keelhob_Skill_Standard
      * @param string[] $known Every skill name that exists, for dangling-edge detection.
      * @return array<int, array{level:string, code:string, skill:string, message:string}>
      */
-    public static function check(array $skill, array $known = []): array
+    /**
+     * @param array<int, string>                $known every skill NAME, for dangling-edge checks
+     * @param array<int, array<string, mixed>>  $all   every skill in full. Only the repo linter
+     *                                                 has this. Passing it switches on the HOUSE
+     *                                                 STYLE rules — contents lists, checklists —
+     *                                                 which apply to the skills Keelhob ships and
+     *                                                 must NOT be aimed at a skill somebody wrote
+     *                                                 for their own site. skill_save() leaves it
+     *                                                 empty on purpose: a user saving a forty-line
+     *                                                 note about their brand voice should not be
+     *                                                 told it is missing a checklist. Their skill
+     *                                                 is still checked for real faults - a
+     *                                                 dangling link, a cycle, a clashing trigger.
+     */
+    public static function check(array $skill, array $known = [], array $all = []): array
     {
         $name = (string) ($skill['name'] ?? '');
         $body = str_replace(["\r\n", "\r"], "\n", (string) ($skill['body'] ?? ''));
@@ -561,7 +581,7 @@ final class Keelhob_Skill_Standard
             $f[] = self::finding('error', 'section-empty', $name, 'The "When NOT to use" heading is there but says nothing. One line is enough; a blank one is worse than none.');
         }
 
-        $lines = substr_count(trim($body), "\n") + 1;
+        $lines = self::body_lines($body);
         $max   = $role === 'reference' ? self::LINES_MAX_REFERENCE : self::LINES_MAX;
         if ($lines < self::LINES_MIN) {
             $f[] = self::finding('warn', 'too-short', $name, sprintf(
@@ -593,6 +613,71 @@ final class Keelhob_Skill_Standard
                 if (in_array($name, $targets, true)) {
                     $f[] = self::finding('error', 'self-edge', $name, sprintf('%s names itself.', $kind));
                 }
+            }
+        }
+
+        // ---- Contents list ------------------------------------------------
+        //
+        // A long body arrives in one piece, so this is not Anthropic's
+        // file-splitting rule — we have no nested files to preview. It is
+        // navigation: a model skimming a 400-line playbook needs to know a
+        // "Rollback" section exists near the bottom before it decides it has
+        // read enough.
+        //
+        // The list itself does NOT count toward the line cap. It is signposting,
+        // not content, and a rule that charged for signposting would push people
+        // to delete it. The exemption is deliberately narrow — see body_lines().
+        if ($all && $lines > self::CONTENTS_FROM && !self::has_section($body, 'Contents')) {
+            $f[] = self::finding('warn', 'contents-missing', $name, sprintf(
+                'The body is %d lines with no "## Contents". Past about %d a reader cannot see what is further down before deciding it has read enough.',
+                $lines,
+                self::CONTENTS_FROM
+            ));
+        }
+
+        // ---- Checklists, only where work gets CHECKED -----------------------
+        //
+        // Not every skill. Anthropic's own guidance says the newer models are
+        // hurt by over-prescription, so demanding a checklist from
+        // web-design-master would obey one rule by breaking two others.
+        //
+        // The test is derived from fields that already exist, never a hand-kept
+        // list, because a hand-kept list of "important skills" rots the way
+        // every other hand-kept counter in this repo has:
+        //
+        //   role: gate            this skill IS a checkpoint
+        //   named as a verifier   some other skill is not done until this runs
+        //
+        // Both mean the same thing: this is where work gets checked, and a
+        // check that can be skipped silently is the failure mode this whole
+        // project keeps hitting — two of three enumeration routes closed,
+        // site_readiness run but pre-launch-audit never run.
+        if ($all && self::needs_checklist($name, $role, $all)) {
+            if (!preg_match('/^\s*[-*]\s*\[ \]/m', $body)) {
+                $f[] = self::finding('error', 'checklist-missing', $name, sprintf(
+                    '%s is where work gets checked, so it needs a copy-and-tick checklist ("- [ ] ..."). A check an agent can skip without noticing is the failure this rule exists for.',
+                    $name
+                ));
+            // Deliberately loose about wording. The rule is that a failure
+            // branch EXISTS, not that it is phrased one exact way: a regex
+            // that accepts a single sentence shape makes authors write
+            // awkward English to satisfy a linter, and the next author
+            // copies the magic phrase without meaning it. What it still
+            // insists on is an explicit move BACKWARDS - forward-only
+            // prose cannot satisfy this.
+            } elseif (!self::has_failure_branch($body)) {
+                // A checklist with no failure branch teaches ticking, not fixing.
+                $f[] = self::finding('error', 'checklist-no-failure-branch', $name, sprintf(
+                    '%s has a checklist but never says what to do when an item fails. Add "If X fails, go back to step N" — otherwise a ticked box is the only outcome.',
+                    $name
+                ));
+            } elseif (!preg_match('/after (?:two|three|2|3) attempts|stop and report|do not loop/i', $body)) {
+                // And a failure branch with no bound is a billing loop: the
+                // owner pays per token and nothing here can cap it.
+                $f[] = self::finding('warn', 'checklist-unbounded-retry', $name, sprintf(
+                    '%s sends the agent back a step but never says when to give up. Add "after two attempts, stop and report" — an unbounded retry spends the owner money with no ceiling.',
+                    $name
+                ));
             }
         }
 
@@ -943,5 +1028,93 @@ final class Keelhob_Skill_Standard
     private static function finding(string $level, string $code, string $skill, string $message): array
     {
         return ['level' => $level, 'code' => $code, 'skill' => $skill, 'message' => $message];
+    }
+
+    /**
+     * Lines of actual body, with the Contents list not counted.
+     *
+     * A Contents list is signposting, not content. Charging for it against the
+     * size cap would push an author to delete the one thing that makes a long
+     * skill navigable, which is the opposite of the point.
+     *
+     * The exemption is deliberately narrow, because "free lines" is an
+     * invitation: only the run between "## Contents" and the next heading, and
+     * only up to CONTENTS_FREE_LINES of it. Park a paragraph of real content
+     * under that heading and everything past the twentieth line is counted
+     * exactly as if it were anywhere else.
+     */
+    public static function body_lines(string $body): int
+    {
+        $body  = str_replace(["\r\n", "\r"], "\n", $body);
+        $total = substr_count(trim($body), "\n") + 1;
+
+        if (!preg_match('/^##\s*Contents\s*$/mi', $body, $m, PREG_OFFSET_CAPTURE)) {
+            return $total;
+        }
+        $start = (int) $m[0][1];
+        $rest  = substr($body, $start + strlen($m[0][0]));
+        $end   = preg_match('/^#{1,6}\s/m', $rest, $n, PREG_OFFSET_CAPTURE)
+            ? (int) $n[0][1]
+            : strlen($rest);
+
+        $free = substr_count(substr($rest, 0, $end), "\n");
+
+        return max(1, $total - min($free, self::CONTENTS_FREE_LINES));
+    }
+
+    /**
+     * Is this a skill where work gets CHECKED?
+     *
+     * Two ways to qualify, both read from data the skill already carries:
+     *
+     *   role: gate          the skill IS a checkpoint
+     *   named as a verifier another skill declares it is not done until this ran
+     *
+     * Never a hand-kept list of "the important ones". Every hand-kept list in
+     * this repo has rotted — the skill count in readme.txt sat at "fifteen"
+     * while twenty-four shipped, because a person had to remember.
+     *
+     * @param array<int, array<string, mixed>> $all every skill IN FULL. A list of names is not
+     *            enough: the verifier test reads verified_by off each row, and an earlier cut of
+     *            this took the linter's array of names, read ['verified_by'] off a string, got
+     *            null without an error, and silently let security-standard through.
+     */
+    public static function needs_checklist(string $name, string $role, array $all = []): bool
+    {
+        if ($role === 'gate') {
+            return true;
+        }
+        foreach ($all as $other) {
+            if (!is_array($other)) {
+                continue;
+            }
+            if (in_array($name, self::slugs((string) ($other['verified_by'] ?? '')), true)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Does the body tell the agent what to do when a check FAILS?
+     *
+     * Deliberately loose about wording: the rule is that a failure branch
+     * exists, not that it is phrased one exact way. A pattern that accepts a
+     * single sentence shape makes authors write awkward English to satisfy a
+     * linter, and the next author copies the magic phrase without meaning it.
+     * What it still insists on is an explicit move BACKWARDS, because
+     * forward-only prose cannot satisfy it.
+     *
+     * This lives in its own function for a boring reason that cost an hour.
+     * The pattern was written inline through a shell heredoc, and the \b word
+     * boundaries were turned into literal 0x08 BACKSPACE bytes on the way in.
+     * The line then rendered identically in grep, awk and the editor, matched
+     * nothing, and the rule reported every skill as missing a failure branch
+     * while the text was plainly there. A named function with its own test is
+     * how that stops being possible to miss.
+     */
+    public static function has_failure_branch(string $body): bool
+    {
+        return (bool) preg_match('/go back|return to[^.]{0,24}step|start again|roll back/i', $body);
     }
 }

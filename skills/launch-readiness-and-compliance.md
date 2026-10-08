@@ -12,6 +12,23 @@ verified_by: pre-launch-audit
 
 # Launch readiness and compliance
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [Read this first](#read-this-first)
+- [0. Ask first](#0-ask-first)
+- [1. The twenty — what makes a site read as cheap](#1-the-twenty-what-makes-a-site-read-as-cheap)
+- [2. Cookies, consent and GDPR — the part most sites fail](#2-cookies-consent-and-gdpr-the-part-most-sites-fail)
+- [3. Beyond cookies](#3-beyond-cookies)
+- [4. How to report it](#4-how-to-report-it)
+- [5. Memory](#5-memory)
+- [Finish check](#finish-check)
+- [Related skills](#related-skills)
+- [Routing examples](#routing-examples)
+<!-- CONTENTS:END -->
+
 ## When to use
 
 Anything to do with cookie consent, GDPR or ePrivacy, a privacy policy, accessibility duties, or the legal obligations a shop owes a buyer. Also the last gate before a site is shown to the public.
@@ -192,6 +209,21 @@ A checklist nobody can resume is a checklist that gets run from scratch, badly,
 every time.
 
 ---
+
+## Finish check
+
+Copy this into your reply and tick each box as you do it.
+
+- [ ] Asked the owner the questions in "0. Ask first" and have real answers
+- [ ] Walked all twenty points in section 1 against the actual rendered site
+- [ ] Cookie and consent position settled, and it matches what the site really sets
+- [ ] Everything in section 3 checked, not assumed
+- [ ] Anything only the owner can decide is listed as theirs, not quietly accepted
+
+If a point fails, go back to that point and fix it before moving on — do not carry on down the
+list. **After two attempts, stop and report it as unresolved.**
+
+A point you could not verify is not a pass. Say so.
 
 ## Related skills
 

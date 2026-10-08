@@ -12,6 +12,18 @@ verified_by: pre-launch-audit, security-standard
 
 # Store launch & deploy
 
+<!-- CONTENTS:START -->
+## Contents
+
+- [When to use](#when-to-use)
+- [When NOT to use](#when-not-to-use)
+- [Launch gates — not done until these pass](#launch-gates-not-done-until-these-pass)
+- [Part A — make checkout work (payments · shipping · tax)](#part-a-make-checkout-work-payments-shipping-tax)
+- [Part B — staging → production deploy](#part-b-staging-production-deploy)
+- [Routing examples](#routing-examples)
+- [Related skills](#related-skills)
+<!-- CONTENTS:END -->
+
 ## When to use
 
 Getting a WooCommerce store from empty to able to take a real order — payments, shipping, tax — or moving changes from staging to production.
