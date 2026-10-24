@@ -997,3 +997,28 @@ class KH_Test_Admin_Bar
         return $this->nodes[$id] ?? null;
     }
 }
+
+/*
+ * Stubs added for the admin design system (assets/css/admin.css).
+ *
+ * Guarded with function_exists because two lanes work on this branch at once
+ * and a bare redeclaration of the same stub from the other side would be a
+ * fatal error rather than a merge conflict anybody notices.
+ */
+if (!function_exists('get_user_option')) {
+    /** The admin colour scheme. '' unless a test sets it, which means light. */
+    function get_user_option($option, $user = 0)
+    {
+        return $GLOBALS['kh_test_user_options'][$option] ?? '';
+    }
+}
+if (!function_exists('wp_enqueue_style')) {
+    function wp_enqueue_style($handle, $src = '', $deps = [], $ver = false, $media = 'all')
+    {
+        $GLOBALS['kh_test_styles'][(string) $handle] = ['src' => $src, 'ver' => $ver];
+        return true;
+    }
+}
+if (!function_exists('is_rtl')) {
+    function is_rtl() { return !empty($GLOBALS['kh_test_rtl']); }
+}

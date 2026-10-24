@@ -1,0 +1,457 @@
+/*
+ * Keelhob admin design system — the token layer and the panel shell.
+ *
+ * WHY THERE IS A SECOND STYLESHEET, AND WHY IT DOES NOT FIGHT studio.css.
+ *
+ * studio.css deliberately borrows WordPress core's own admin greys, on the
+ * stated grounds that "a snippets screen that invents its own look reads as a
+ * different product bolted on". That was the right call while the Studio was
+ * the only screen with a stylesheet. It stops being the right call once every
+ * Keelhob screen has one: at that point core-native IS the bolted-on look,
+ * because it is the only screen that does not match the rest of the plugin.
+ *
+ * So Keelhob now has its own warm palette — the real hexes from keelhob.com —
+ * with a dark variant keyed to the WordPress ADMIN COLOUR SCHEME rather than
+ * the operating system. The problem a dark variant solves here is the seam
+ * against the sidebar the owner is actually looking at, and that sidebar
+ * follows the scheme, not the OS. See Keelhob_Admin::DARK_SCHEMES.
+ *
+ * TWO SCOPING RULES, AND BOTH EXIST BECAUSE OF A COLLISION ALREADY IN THE REPO.
+ *
+ *   1. Everything is scoped under one root class, `.kh-ui`. WordPress core
+ *      styles are then never fought, only ignored, and a screen that has not
+ *      been migrated yet simply does not carry the class.
+ *
+ *   2. Every NEW component is prefixed `kh-u-`. Over forty bare `kh-*` class
+ *      names already exist from the Studio (kh-chat-*, kh-cond-*, kh-code-*),
+ *      and three of them — `kh-tabs`, `kh-tab` and `kh-panel` — are taken and
+ *      mean something else. `.kh-panel` in particular was styled in studio.css
+ *      and USED on the Connect screen, where studio.css is not enqueued, so it
+ *      rendered unstyled on a live screen for as long as both existed. That is
+ *      the exact drift this file is here to stop, so it must not reuse the
+ *      names that caused it. The Connect screen's blocks are now
+ *      `.kh-u-client`, which cannot collide with anything.
+ *
+ * EVERY CONTRAST RATIO BELOW WAS MEASURED, NOT GUESSED. Three of the marketing
+ * site's own colours fail AA as admin text — #8a8f93 at 3.27:1, copper #c87941
+ * and teal #2e9aa3 both at 3.35:1 on white — so copper and teal are NEVER words
+ * on a light background. They are borders, dots, rings, fills and badge
+ * backgrounds. When copper has to be a word it is --kh-accent-ink. If you add a
+ * colour here, measure it against the surface it sits on and write the ratio in
+ * a comment beside it. AA is 4.5:1 for text at any size, 3:1 for a component
+ * boundary.
+ */
+
+/* ========================================================================== */
+/* Tokens — light                                                             */
+/* ========================================================================== */
+
+.kh-ui {
+	--kh-ink: #121517;        /* 15.87:1 on --kh-bg  */
+	--kh-ink-2: #2a2e31;      /* 13.69:1 on white, 11.86:1 on --kh-bg */
+	--kh-muted: #6b5f57;      /*  6.18:1 on white,  5.35:1 on --kh-bg */
+	--kh-line: #e3ddd6;
+	--kh-soft: #f6f1ea;
+	--kh-bg: #f2eee9;
+	--kh-card: #ffffff;
+
+	/* Copper. Borders, dots, rings, fills, badge backgrounds — never text. */
+	--kh-accent: #c87941;     /*  3.35:1 on white — FAILS as text, by design */
+	--kh-accent-ink: #a85c2a; /*  4.97:1 on white — copper when it is a WORD */
+	/* Teal, same split. */
+	--kh-accent-2: #2e9aa3;   /*  3.35:1 on white — FAILS as text, by design */
+	--kh-accent-2-ink: #217a82; /* 5.03:1 on white — teal when it is a WORD */
+
+	--kh-good: #16a34a;
+	--kh-mid: #d97706;
+	--kh-bad: #dc2626;
+	--kh-good-soft: #ecfdf3;  /* --kh-ink-2 on it: 12.98:1 */
+	--kh-mid-soft: #fff7e6;   /* --kh-ink-2 on it: 12.84:1 */
+	--kh-bad-soft: #fef2f2;   /* --kh-ink-2 on it: 12.52:1 */
+
+	--kh-radius: 16px;
+	--kh-shadow: 0 1px 2px rgba(18, 21, 23, .05), 0 6px 24px rgba(18, 21, 23, .05);
+}
+
+/* ========================================================================== */
+/* Tokens — dark                                                              */
+/* ========================================================================== */
+
+/*
+ * Added by Keelhob_Admin::root_class() when the owner's admin colour scheme is
+ * one of the dark ones. NOT a prefers-color-scheme block: the OS has nothing to
+ * do with the colour of the sidebar this panel sits beside.
+ *
+ * The light side needs the accent/accent-ink split because copper and teal fail
+ * as text on paper. The dark side does not: every token here clears AA on
+ * --kh-card, so accent and accent-ink are the same value and a component can
+ * use either without having to know which mode it is in.
+ */
+.kh-ui.is-dark {
+	--kh-ink: #f2eee9;        /* 15.87:1 on --kh-card */
+	--kh-ink-2: #d7d1c9;      /* 12.09:1 on --kh-card */
+	--kh-muted: #b9b4ad;      /*  8.90:1 on --kh-card */
+	--kh-line: #2a2e31;
+	--kh-soft: #1a1d1f;
+	--kh-bg: #0e0b09;
+	--kh-card: #121517;
+
+	--kh-accent: #d08a55;     /*  6.50:1 on --kh-card — passes as text here */
+	--kh-accent-ink: #d08a55;
+	--kh-accent-2: #4bb8c1;
+	--kh-accent-2-ink: #4bb8c1;
+
+	--kh-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 24px rgba(0, 0, 0, .35);
+}
+
+/* ========================================================================== */
+/* The panel shell                                                            */
+/* ========================================================================== */
+
+/*
+ * The negative margin pulls the panel out of WordPress's content box so it
+ * reads as an application surface rather than a settings form. It is a hack and
+ * it is treated as one: the value matches core's current #wpbody-content
+ * padding, it is mirrored for RTL below, and it is dropped entirely at the width
+ * where WordPress restacks the admin.
+ *
+ * `.wrap` is a single class and so is `.kh-ui`, so this wins only because this
+ * stylesheet is enqueued after wp-admin's. That is why the margin is restated
+ * rather than left to inherit.
+ */
+.kh-ui {
+	margin: 0 0 0 -20px;
+	padding: 0 32px 64px;
+	background: var(--kh-bg);
+	min-height: calc(100vh - 32px);
+	color: var(--kh-ink);
+	font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+}
+
+/* RTL mirror. Without this the panel pulls away from the sidebar instead of
+ * under it, and leaves a 20px gap down the right of every screen. */
+body.rtl .kh-ui {
+	margin: 0 -20px 0 0;
+}
+
+/*
+ * 783px is WordPress's own admin breakpoint, not a round number chosen here.
+ * Below it the sidebar collapses to icons and then off-canvas, #wpbody-content
+ * loses the 20px padding this margin was cancelling, and the toolbar grows from
+ * 32px to 46px. All three assumptions change at once, so all three are undone
+ * at once.
+ */
+@media screen and (max-width: 782px) {
+	.kh-ui,
+	body.rtl .kh-ui {
+		margin: 0;
+		padding: 0 16px 48px;
+		min-height: calc(100vh - 46px);
+	}
+}
+
+/* ========================================================================== */
+/* kh-u-head — the header line                                                */
+/* ========================================================================== */
+
+/*
+ * One line that answers "where am I and is it on?": mark, plugin name, the site
+ * name underneath, and two pills on the right. It is in ADDITION to the "AI
+ * abilities are ON" notice and the toolbar chip, never instead of them — those
+ * two are a deliberate pair of safety guards and the pills only ever appear on
+ * Keelhob's own screens, which is precisely where a second administrator who has
+ * never seen this panel is least likely to be looking.
+ */
+.kh-u-head {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	flex-wrap: wrap;
+	padding: 24px 0 18px;
+	border-bottom: 1px solid var(--kh-line);
+	margin: 0 0 20px;
+}
+
+.kh-u-head-id {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.kh-u-mark {
+	display: block;
+	width: auto;
+	flex: none;
+}
+
+.kh-u-head-text {
+	min-width: 0;
+}
+
+/* An <h1>, so core's own h1 sizing has to be overridden explicitly. */
+.kh-u-name {
+	margin: 0;
+	padding: 0;
+	font-size: 20px;
+	font-weight: 600;
+	line-height: 1.2;
+	color: var(--kh-ink);
+}
+
+.kh-u-name-version {
+	font-size: 12px;
+	font-weight: 400;
+	color: var(--kh-muted);
+	margin-left: 6px;
+}
+
+.kh-u-site {
+	display: block;
+	font-size: 13px;
+	color: var(--kh-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.kh-u-pills {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+/* ========================================================================== */
+/* kh-u-pill — a status pill                                                  */
+/* ========================================================================== */
+
+/*
+ * The words carry the meaning and the colour only decorates it. The pill's text
+ * is always --kh-ink-2; the state is in the dot and the border, which are
+ * component boundaries and need 3:1, not 4.5:1. A pill whose only signal was its
+ * colour would say nothing to a screen reader and nothing to a colour-blind
+ * reader, and this pill reports whether an AI agent can change the site.
+ */
+.kh-u-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	padding: 5px 12px;
+	border: 1px solid var(--kh-line);
+	border-radius: 999px;
+	background: var(--kh-card);
+	color: var(--kh-ink-2);
+	font-size: 12px;
+	font-weight: 500;
+	white-space: nowrap;
+}
+
+.kh-u-pill.is-on {
+	border-color: var(--kh-accent);
+	background: var(--kh-soft);
+}
+
+.kh-u-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--kh-muted);
+	flex: none;
+}
+
+.kh-u-dot.is-good {
+	background: var(--kh-good);
+}
+
+.kh-u-dot.is-idle {
+	background: var(--kh-muted);
+}
+
+.kh-u-dot.is-off {
+	background: transparent;
+	box-shadow: inset 0 0 0 2px var(--kh-muted);
+}
+
+/* ========================================================================== */
+/* kh-u-nav — the tab strip                                                   */
+/* ========================================================================== */
+
+/*
+ * EVERY TAB IS A REAL LINK to the page slug it names. Not a <button>, not a JS
+ * show/hide. There are 13 references to page=keelhob in this repo alone, 19 more
+ * in DOCUMENTATION.md and docs/ — and DOCUMENTATION.md is mirrored to the live
+ * site's /docs — plus Telegram and notifier links and whatever the owner has
+ * bookmarked. Real links keep every one of those working, keep the Back button
+ * working inside the panel, and work with JavaScript off.
+ *
+ * The active tab is marked with aria-current="page" and styled from that
+ * attribute rather than from a class, so the thing a screen reader announces and
+ * the thing the eye sees cannot drift apart: there is only one source.
+ */
+.kh-u-nav {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+	margin: 0 0 24px;
+	padding: 0;
+	list-style: none;
+}
+
+.kh-u-nav li {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.kh-u-nav-link {
+	display: inline-block;
+	padding: 7px 15px;
+	border: 1px solid var(--kh-line);
+	border-radius: 999px;
+	background: var(--kh-card);
+	color: var(--kh-ink-2);
+	font-size: 13px;
+	font-weight: 500;
+	text-decoration: none;
+	line-height: 1.4;
+}
+
+.kh-u-nav-link:hover,
+.kh-u-nav-link:focus {
+	border-color: var(--kh-accent);
+	color: var(--kh-ink);
+	background: var(--kh-soft);
+}
+
+/* Core removes the focus ring on admin links in some schemes; put one back,
+ * because this strip is the primary keyboard path between five screens. */
+.kh-u-nav-link:focus-visible {
+	outline: 2px solid var(--kh-accent);
+	outline-offset: 2px;
+	box-shadow: none;
+}
+
+/* --kh-bg on --kh-ink is 15.87:1 — the same pair as body text, inverted. */
+.kh-u-nav-link[aria-current="page"] {
+	background: var(--kh-ink);
+	border-color: var(--kh-ink);
+	color: var(--kh-bg);
+}
+
+/* ========================================================================== */
+/* kh-u-card — the generic surface                                            */
+/* ========================================================================== */
+
+.kh-u-card {
+	background: var(--kh-card);
+	border: 1px solid var(--kh-line);
+	border-radius: var(--kh-radius);
+	box-shadow: var(--kh-shadow);
+	padding: 20px 24px;
+}
+
+/* ========================================================================== */
+/* kh-u-prose — a reading column                                              */
+/* ========================================================================== */
+
+/*
+ * The Guide is a document, and the shell is full-bleed. Without a measure the
+ * paragraphs run the whole width of a 1440px screen, which is roughly 190
+ * characters a line — unreadable. 1000px is the width the Guide's own `.wrap`
+ * carried before the shell replaced it, so this keeps that measure rather than
+ * inventing a new one.
+ */
+.kh-u-prose {
+	max-width: 1000px;
+}
+
+/* ========================================================================== */
+/* kh-u-client — the Connect screen's app picker                              */
+/* ========================================================================== */
+
+/*
+ * This replaces `.kh-tabs` / `.kh-tab` / `.kh-panel` on the Connect screen, and
+ * the rename IS the bug fix: `.kh-panel` was only ever styled in studio.css,
+ * which is enqueued on the Studio and Compose screens and nowhere else, so these
+ * blocks rendered with no styling at all on the one screen that used them.
+ *
+ * WHY THIS ONE STAYS A BUTTON WHEN EVERY TAB ABOVE IS A LINK. The bearer token
+ * is flashed exactly once — Keelhob::take_flashed_token() hands it over and it is
+ * gone — so a picker that reloaded the page to switch apps would wipe the token
+ * and show the placeholder instead. That is a worse bug than an unstyled div.
+ * Switching apps here therefore never talks to the server.
+ *
+ * It degrades correctly without JavaScript because every panel is rendered
+ * visible and the script hides the ones you did not pick. No script means all
+ * four, each under its own heading: long, not broken. Nothing on this picker
+ * gates a permission, so no safety control depends on the script either.
+ */
+.kh-u-clients {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+	margin: 0 0 14px;
+}
+
+.kh-u-client-btn {
+	padding: 6px 14px;
+	border: 1px solid var(--kh-line);
+	border-radius: 999px;
+	background: var(--kh-card);
+	color: var(--kh-ink-2);
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	line-height: 1.4;
+}
+
+.kh-u-client-btn:hover {
+	border-color: var(--kh-accent);
+	background: var(--kh-soft);
+}
+
+.kh-u-client-btn[aria-selected="true"] {
+	background: var(--kh-ink);
+	border-color: var(--kh-ink);
+	color: var(--kh-bg);
+}
+
+.kh-u-client {
+	border: 1px solid var(--kh-line);
+	border-radius: 12px;
+	background: var(--kh-card);
+	padding: 14px 16px 16px;
+	margin: 0 0 12px;
+}
+
+.kh-u-client h3 {
+	margin: 0 0 6px;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--kh-ink);
+}
+
+/* ========================================================================== */
+/* Screen-reader-only text                                                    */
+/* ========================================================================== */
+
+/*
+ * Core ships .screen-reader-text and it is used where possible. This is the same
+ * thing scoped to the panel, for the few places a visible ring, dot or badge
+ * needs words that the layout has no room for. A ring without words is not an
+ * acceptable signal here.
+ */
+.kh-ui .kh-u-sr {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	border: 0;
+	white-space: nowrap;
+}

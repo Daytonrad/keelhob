@@ -51,8 +51,15 @@ final class Keelhob_Admin_Screens
 
         $enabled = Keelhob::instance()->abilities_enabled();
         ?>
-        <div class="wrap">
-            <h1><?php echo Keelhob_Brand::heading_mark(); ?>Keelhob <span style="font-size:13px;color:#888;">v<?php echo esc_html(KEELHOB_VERSION); ?></span></h1><?php Keelhob_Donate::button(); ?>
+        <?php
+        // The shell — root class, header line, tab strip — is drawn by
+        // Keelhob_Admin so that five screens across four files cannot drift into
+        // five different headers. It prints the <h1> too, which is why one no
+        // longer appears here: core moves admin notices into the first .wrap
+        // after the first heading, and two <h1>s would give it the wrong one.
+        Keelhob_Admin::shell_open('keelhob');
+        ?>
+            <?php Keelhob_Donate::button(); ?>
             <p style="max-width:760px;"><?php esc_html_e('Give an AI agent full, programmatic control of this WordPress & WooCommerce site over MCP — content, store, SEO, files, PHP — with cross-session memory and a skills engine. Self-contained, no external dependencies.', 'keelhob'); ?></p>
 
             <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:#217296;background:radial-gradient(45% 200% at 100% 50%,#d37355 0%,rgba(211,115,85,.9) 25%,rgba(211,115,85,0) 62%),linear-gradient(104deg,#1b6183 0%,#217296 55%,#2a83aa 100%);color:#fff;padding:14px 20px;border-radius:10px;margin:6px 0 18px;max-width:980px;box-shadow:0 6px 20px rgba(33,114,150,.22);">
@@ -292,9 +299,37 @@ final class Keelhob_Admin_Screens
                             </div>
                         <?php endif; ?>
 
-                        <div class="kh-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+                        <?php
+                        /*
+                         * THIS IS NOT THE PAGE TAB STRIP, and the two must not be
+                         * confused — the page tabs are real <a href> links drawn by
+                         * Keelhob_Admin::tab_strip(). This picks which AI app's
+                         * config block to show, and it stays a button for one
+                         * reason, stated in full in the comment below: the bearer
+                         * token is flashed exactly once, so a reload destroys it.
+                         *
+                         * What HAS changed is the thing that was actually wrong.
+                         * The old markup used the class names `kh-tabs`, `kh-tab`
+                         * and `kh-panel` with inline styles. `.kh-panel` is styled
+                         * in studio.css, which is enqueued on the Studio and Compose
+                         * screens and nowhere else — so these blocks rendered
+                         * completely unstyled on the one screen that used them,
+                         * while looking styled to anyone reading the CSS. The names
+                         * now carry the kh-u- prefix, which cannot collide with the
+                         * forty-odd bare kh-* names the Studio already owns, and
+                         * assets/css/admin.css styles them on this screen.
+                         *
+                         * role="tablist" is deliberately NOT used. A real tablist
+                         * owes the reader arrow-key navigation, roving tabindex and
+                         * aria-controls, and a half-implemented one is worse than
+                         * plain buttons: it announces an interaction model the page
+                         * does not honour. aria-selected on a button is enough to
+                         * say which block is showing.
+                         */
+                        ?>
+                        <div class="kh-u-clients">
                             <?php foreach ($client_list as $key => $client) : ?>
-                                <button type="button" class="button kh-tab" data-kh-tab="<?php echo esc_attr($key); ?>">
+                                <button type="button" class="kh-u-client-btn" data-kh-client="<?php echo esc_attr($key); ?>" aria-selected="false">
                                     <?php echo esc_html($client['label']); ?>
                                 </button>
                             <?php endforeach; ?>
@@ -321,7 +356,7 @@ final class Keelhob_Admin_Screens
                             $requirement = Keelhob_Connect::requirement($key, $is_http);
                             $snippet     = Keelhob_Connect::config($key, $server_name, $endpoint, $token, $is_http);
                             ?>
-                            <div class="kh-panel" data-kh-panel="<?php echo esc_attr($key); ?>">
+                            <div class="kh-u-client" data-kh-client-panel="<?php echo esc_attr($key); ?>">
                                 <h3 style="margin:0 0 6px;"><?php echo esc_html($client['label']); ?></h3>
 
                                 <?php if ($requirement !== '') : ?>
@@ -354,16 +389,19 @@ final class Keelhob_Admin_Screens
 
                         <script>
                         (function () {
-                            var tabs   = document.querySelectorAll('.kh-tab');
-                            var panels = document.querySelectorAll('.kh-panel');
-                            if (!tabs.length) { return; }
+                            var btns   = document.querySelectorAll('.kh-u-client-btn');
+                            var panels = document.querySelectorAll('[data-kh-client-panel]');
+                            if (!btns.length) { return; }
                             function show(key) {
                                 panels.forEach(function (p) {
-                                    p.style.display = p.dataset.khPanel === key ? '' : 'none';
+                                    p.style.display = p.dataset.khClientPanel === key ? '' : 'none';
                                 });
-                                tabs.forEach(function (t) {
-                                    var on = t.dataset.khTab === key;
-                                    t.classList.toggle('button-primary', on);
+                                btns.forEach(function (b) {
+                                    // The attribute, not a class. admin.css styles
+                                    // [aria-selected="true"], so what a screen
+                                    // reader is told and what the eye sees come
+                                    // from one source and cannot drift apart.
+                                    b.setAttribute('aria-selected', b.dataset.khClient === key ? 'true' : 'false');
                                 });
                                 // Remembered per browser, so switching screens does
                                 // not send you back to an app you do not use. It is
@@ -372,10 +410,10 @@ final class Keelhob_Admin_Screens
                             }
                             var saved = null;
                             try { saved = localStorage.getItem('keelhobConnectClient'); } catch (e) {}
-                            var valid = Array.prototype.some.call(tabs, function (t) { return t.dataset.khTab === saved; });
-                            show(valid ? saved : tabs[0].dataset.khTab);
-                            tabs.forEach(function (t) {
-                                t.addEventListener('click', function () { show(t.dataset.khTab); });
+                            var valid = Array.prototype.some.call(btns, function (b) { return b.dataset.khClient === saved; });
+                            show(valid ? saved : btns[0].dataset.khClient);
+                            btns.forEach(function (b) {
+                                b.addEventListener('click', function () { show(b.dataset.khClient); });
                             });
                         })();
                         </script>
@@ -511,7 +549,7 @@ final class Keelhob_Admin_Screens
                     <p style="margin-top:14px;"><button class="button button-primary"><?php esc_html_e('Save capabilities', 'keelhob'); ?></button></p>
                 </form>
             </div>
-        </div>
+        <?php Keelhob_Admin::shell_close(); ?>
         <?php
     }
 
@@ -531,8 +569,9 @@ final class Keelhob_Admin_Screens
         // Style value only, not a whole attribute — so it can be escaped at output.
         $h = 'margin:28px 0 10px;';
         ?>
-        <div class="wrap" style="max-width:1000px;">
-            <h1><?php echo Keelhob_Brand::heading_mark(); ?><?php esc_html_e('Keelhob — Master Guide', 'keelhob'); ?></h1>
+        <?php Keelhob_Admin::shell_open('keelhob-guide'); ?>
+            <div class="kh-u-prose">
+            <h2><?php esc_html_e('Master Guide', 'keelhob'); ?></h2>
             <p style="font-size:15px;max-width:800px;"><?php esc_html_e('Everything this plugin lets your AI do, in plain English. Read this once and you\'ll know what to turn on, what to leave off, and how to get the best out of it — no coding required.', 'keelhob'); ?></p>
 
             <div class="notice notice-warning" style="max-width:800px;"><p><strong><?php esc_html_e('Golden rule:', 'keelhob'); ?></strong> <?php esc_html_e('use this on a development or staging site with backups. When AI abilities are ON, a connected agent can change anything. Don\'t point it at a live store you can\'t afford to have edited without review.', 'keelhob'); ?></p></div>
@@ -770,7 +809,8 @@ final class Keelhob_Admin_Screens
             </p>
 
             <p style="margin-top:24px;"><a href="<?php echo esc_url(admin_url('admin.php?page=keelhob')); ?>" class="button button-primary"><?php esc_html_e('← Back to Connect', 'keelhob'); ?></a></p>
-        </div>
+            </div>
+        <?php Keelhob_Admin::shell_close(); ?>
         <?php
     }
 
@@ -841,8 +881,8 @@ final class Keelhob_Admin_Screens
             echo '</div></div>';
         };
         ?>
-        <div class="wrap">
-            <h1><?php echo Keelhob_Brand::heading_mark(); ?><?php esc_html_e('Keelhob · Activity', 'keelhob'); ?></h1>
+        <?php Keelhob_Admin::shell_open('keelhob-activity'); ?>
+            <h2><?php esc_html_e('Activity', 'keelhob'); ?></h2>
 
             <?php
             // The feedback log, shown in full and first.
@@ -960,7 +1000,7 @@ final class Keelhob_Admin_Screens
                 <?php if (empty($log_rows)) : ?><tr><td colspan="5"><em><?php esc_html_e('No activity logged yet.', 'keelhob'); ?></em></td></tr><?php endif; ?>
             </tbody></table>
             <?php $pager('log_page', $log_total, $log_page); ?>
-        </div>
+        <?php Keelhob_Admin::shell_close(); ?>
         <?php
     }
 }

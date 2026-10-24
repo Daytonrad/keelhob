@@ -147,6 +147,39 @@ final class Keelhob_Brand
         );
     }
 
+    /** Mark width in the redesigned panel header, in CSS pixels. Height follows. */
+    const PANEL_PX = 34;
+
+    /**
+     * The wide mark for the redesigned panel header.
+     *
+     * The same image as heading_mark(), with two differences, and both are the
+     * reason this is a second method rather than an argument on the first.
+     *
+     * It carries NO inline style. heading_mark() has to, because it sits inside
+     * a core <h1> on a screen with no stylesheet of its own; this one sits inside
+     * .kh-u-head, where assets/css/admin.css owns the layout, and an inline
+     * `vertical-align` and `margin-right` would fight the flexbox doing the
+     * alignment. The width and height attributes stay — they are not styling,
+     * they reserve the box before the image loads and stop the header jumping.
+     *
+     * The ratio is still taken from MARK_W / MARK_H rather than written down, so
+     * a re-exported mark cannot render squashed here either.
+     *
+     * The alt is empty for the same reason as heading_mark(): the <h1> beside it
+     * already says "Keelhob", and a screen reader announcing the word twice is
+     * worse than a decorative image announcing nothing.
+     */
+    public static function panel_mark(): string
+    {
+        return sprintf(
+            '<img src="%s" alt="" width="%d" height="%d" class="kh-u-mark" />',
+            esc_url(self::url('logo.png')),
+            (int) round(self::PANEL_PX * self::MARK_W / self::MARK_H),
+            self::PANEL_PX
+        );
+    }
+
     /**
      * The square mark, sized for the admin bar.
      *

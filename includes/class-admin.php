@@ -27,11 +27,46 @@ final class Keelhob_Admin
     /** Bump when what the owner is agreeing to materially changes. */
     const CONSENT_VERSION = 1;
 
+    /**
+     * The admin colour schemes the panel goes dark for.
+     *
+     * VERIFIED AGAINST CORE, not guessed. WordPress 7.1.2 registers NINE
+     * schemes in register_admin_color_schemes() (wp-includes/general-template.php):
+     * modern, fresh, light, blue, midnight, sunrise, ectoplasm, ocean, coffee.
+     * The first colour of each is the menu background, and measuring the
+     * relative luminance of all nine says EIGHT of them are dark — only `light`
+     * (#e5e5e5, luminance .78) is not. Every other one sits between .013 and
+     * .050, which is why class-brand.php draws the menu mark in currentColor
+     * rather than shipping a white PNG.
+     *
+     * So "dark menu background" is the wrong test for this list, because it
+     * selects almost everything. Two schemes are excluded deliberately:
+     *
+     *   modern — the DEFAULT. A site that has never opened Users → Profile is
+     *            on it, which means it expresses no preference at all.
+     *   fresh  — the previous default, on every site installed before 6.9, for
+     *            the same reason.
+     *
+     * A site that chose nothing therefore gets the light panel: the warm paper
+     * palette is the primary design, every one of its contrast ratios was
+     * measured against it, and flipping every install in the world to a dark
+     * admin panel is not a decision a restyle gets to make quietly. The six
+     * below are schemes somebody went and picked, and all six are dark.
+     *
+     * `light` is absent for the obvious reason. The original guess for this
+     * constant was [midnight, ectoplasm, coffee, modern]; that is recorded in
+     * BUILD-NOTES.md along with why it changed.
+     */
+    const DARK_SCHEMES = ['midnight', 'ectoplasm', 'coffee', 'ocean', 'blue', 'sunrise'];
+
     public function hooks(): void
     {
         add_action('admin_menu', [$this, 'menu']);
         // Decoration only, and admin-only: the front end never loads it.
         Keelhob_Brand::hooks();
+        // The design-system stylesheet. Keelhob's own screens only — see
+        // enqueue_ui() for what "only" is measured against.
+        add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_ui']);
         add_action('admin_post_keelhob_save', [$this, 'handle_save']);
         add_action('admin_bar_menu', [$this, 'admin_bar'], 100);
         // Runs LAST, after anything that could remove the node. See chip_watchdog().
@@ -337,6 +372,250 @@ final class Keelhob_Admin
                 . 'Keelhob: ' . ($on ? __('🟢 ON', 'keelhob') : __('⚪ OFF', 'keelhob')),
             'href'  => admin_url('admin.php?page=keelhob'),
         ]);
+    }
+
+    // --- The panel shell ----------------------------------------------------
+    //
+    // Everything from here to the next divider draws the chrome that is common
+    // to every Keelhob screen: the stylesheet, the header line and the tab
+    // strip. It lives on this class rather than on a screen class because five
+    // screens across four files render it, and the one thing a design system
+    // cannot survive is five copies of its own header.
+    //
+    // All of it is public and static so the satellite screens can call it
+    // without constructing anything.
+
+    /**
+     * Is this one of Keelhob's own admin screens?
+     *
+     * The same test Keelhob_Admin::notice() has always used — substring match on
+     * the screen id — kept identical on purpose, so the stylesheet appears on
+     * exactly the set of screens the abilities banner already appears on and
+     * there is no third opinion about what "a Keelhob screen" means.
+     *
+     * Both the hook suffix and the screen id are checked because neither alone
+     * is reliable at every point in the request: `admin_enqueue_scripts` fires
+     * before some screens finish registering, and get_current_screen() returns
+     * null outright on a few. Either one matching is enough.
+     *
+     * The front end is not considered at all: this is only ever reached from
+     * `admin_enqueue_scripts`, which does not fire there.
+     */
+    public static function is_keelhob_screen(string $hook_suffix = ''): bool
+    {
+        if ($hook_suffix !== '' && strpos($hook_suffix, 'keelhob') !== false) {
+            return true;
+        }
+        $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+
+        return $screen && isset($screen->id) && strpos((string) $screen->id, 'keelhob') !== false;
+    }
+
+    /**
+     * Enqueue assets/css/admin.css, on Keelhob screens and nowhere else.
+     *
+     * Versioned with Keelhob::asset_version(), which appends the file's mtime to
+     * the plugin version — the same thing Keelhob_Studio::enqueue_styles() does.
+     * Without it a site behind a CDN serves the old stylesheet against the new
+     * markup for as long as the edge cache lasts, and on this project that is
+     * four hours.
+     *
+     * Registered on this class rather than on Keelhob_Brand because the brand
+     * class is decoration that must never gate a screen, and because its
+     * styles() helper writes an inline style against core's `wp-admin` handle
+     * rather than enqueueing a file of its own.
+     */
+    public static function enqueue_ui($hook_suffix = ''): void
+    {
+        if (!self::is_keelhob_screen((string) $hook_suffix)) {
+            return;
+        }
+        wp_enqueue_style(
+            'keelhob-admin',
+            KEELHOB_URL . 'assets/css/admin.css',
+            [],
+            Keelhob::asset_version('assets/css/admin.css')
+        );
+    }
+
+    /**
+     * True when the owner's admin colour scheme is one of DARK_SCHEMES.
+     *
+     * get_user_option() falls back to the site default when the user has never
+     * chosen, and to '' when there is no user at all (WP-CLI, cron), both of
+     * which land on light. Light is the safe default: it is the palette whose
+     * contrast ratios were measured first.
+     */
+    public static function is_dark_scheme(): bool
+    {
+        $scheme = (string) get_user_option('admin_color');
+
+        return in_array($scheme, self::DARK_SCHEMES, true);
+    }
+
+    /**
+     * The class list for the panel root.
+     *
+     * Includes `wrap` because WordPress's own admin notices are moved into the
+     * first `.wrap` on the page by core JavaScript; a panel that drops the class
+     * loses every notice, including the "AI abilities are ON" one, which is not
+     * a trade this redesign is allowed to make.
+     */
+    public static function root_class(): string
+    {
+        return 'wrap kh-ui' . (self::is_dark_scheme() ? ' is-dark' : '');
+    }
+
+    /**
+     * The five screens in the tab strip, slug => label.
+     *
+     * Deliberately the five page slugs that already exist. Nothing is renamed
+     * and nothing is merged: `page=keelhob` and the four `keelhob-*` slugs are
+     * referenced 21 times in this repo and 19 more in DOCUMENTATION.md, which is
+     * mirrored to the live site's /docs, and Telegram and notifier links point
+     * at them too.
+     *
+     * Snippets is here as the sixth, by its own constant rather than by a typed
+     * string. It was nearly left out — it is the screen another lane is
+     * migrating in parallel — but leaving it out would make the one screen a
+     * person can use with no AI connected and no abilities switched on the only
+     * one with no way back to the rest of the panel, and the browser check at
+     * tests/rig/ui/check-admin.mjs requires all six slugs to be reachable
+     * from the strip. The link works whether or not that migration has landed:
+     * it is a real page slug today.
+     */
+    public static function tabs(): array
+    {
+        return [
+            'keelhob'            => __('Connect', 'keelhob'),
+            Keelhob_Studio::SLUG => __('Snippets', 'keelhob'),
+            'keelhob-skills'     => __('Skills', 'keelhob'),
+            'keelhob-automation' => __('Automation', 'keelhob'),
+            'keelhob-guide'      => __('Guide', 'keelhob'),
+            'keelhob-activity'   => __('Activity', 'keelhob'),
+        ];
+    }
+
+    /**
+     * The header line: mark · Keelhob · site name · state pill · connection pill.
+     *
+     * THESE PILLS ARE IN ADDITION TO THE BANNER AND THE CHIP, NEVER INSTEAD.
+     * Read notice() and chip_watchdog() above before touching any of the three.
+     * The banner is dismissible only because the toolbar chip cannot be, and the
+     * chip is re-armed by a watchdog at PHP_INT_MAX if something removes it.
+     * These pills are not part of that guard and cannot stand in for it: they
+     * appear on Keelhob's own screens only, which is the one place a second
+     * administrator who has never seen this plugin is least likely to be.
+     *
+     * The <h1> is here rather than in each screen so core's "notices move into
+     * the first .wrap after the first heading" behaviour has something to find.
+     */
+    public static function header_bar(): void
+    {
+        $on      = Keelhob::instance()->abilities_enabled();
+        $label   = Keelhob::site_label();
+        /*
+         * "Has anything ever connected?", not "is something connected now".
+         *
+         * There is no live connection to report: MCP is request/response over
+         * HTTP, so the honest question this pill can answer is whether the token
+         * has ever been used. Claiming a live link from a timestamp would be the
+         * kind of reassuring-but-wrong signal the capability screens exist to
+         * avoid. The words say which one it is; the dot only decorates them.
+         */
+        $last_used = (int) Keelhob::instance()->get('token_last_used', 0);
+        ?>
+        <div class="kh-u-head">
+            <div class="kh-u-head-id">
+                <?php echo Keelhob_Brand::panel_mark(); ?>
+                <div class="kh-u-head-text">
+                    <h1 class="kh-u-name">
+                        <?php esc_html_e('Keelhob', 'keelhob'); ?>
+                        <span class="kh-u-name-version">v<?php echo esc_html(KEELHOB_VERSION); ?></span>
+                    </h1>
+                    <span class="kh-u-site"><?php echo esc_html($label); ?></span>
+                </div>
+            </div>
+            <div class="kh-u-pills">
+                <span class="kh-u-pill<?php echo $on ? ' is-on' : ''; ?>">
+                    <span class="kh-u-dot <?php echo $on ? 'is-good' : 'is-off'; ?>" aria-hidden="true"></span>
+                    <?php echo $on
+                        ? esc_html__('AI abilities on', 'keelhob')
+                        : esc_html__('AI abilities off', 'keelhob'); ?>
+                </span>
+                <span class="kh-u-pill">
+                    <span class="kh-u-dot <?php echo $last_used > 0 ? 'is-good' : 'is-idle'; ?>" aria-hidden="true"></span>
+                    <?php
+                    if ($last_used > 0) {
+                        echo esc_html(sprintf(
+                            /* translators: %s: human-readable time difference, e.g. "3 hours". */
+                            __('AI app connected · %s ago', 'keelhob'),
+                            human_time_diff($last_used, time())
+                        ));
+                    } else {
+                        esc_html_e('No AI app has connected yet', 'keelhob');
+                    }
+                    ?>
+                </span>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * The tab strip. Real links, and that is the whole point.
+     *
+     * Every tab is an <a href> to a page slug that already resolves on its own.
+     * No JavaScript, no show/hide, no `display:none` panels. It therefore keeps
+     * working with JS off or blocked, every tab is bookmarkable, and the browser
+     * Back button works inside the panel.
+     *
+     * The strip at class-admin-screens.php:295 was the counter-example — a row
+     * of <button> elements with inline styles and a script that hid the panels
+     * you did not pick. It has been reworked rather than copied; see the comment
+     * on the Connect screen's app picker for the one reason a button survives
+     * there (the bearer token is flashed exactly once and a reload destroys it).
+     *
+     * aria-current="page" is the ONLY marker of the active tab: the CSS styles
+     * that attribute rather than a class, so what a screen reader announces and
+     * what the eye sees come from one source and cannot drift.
+     *
+     * @param string $current The page slug of the screen being rendered.
+     */
+    public static function tab_strip(string $current): void
+    {
+        echo '<ul class="kh-u-nav">';
+        foreach (self::tabs() as $slug => $label) {
+            printf(
+                '<li><a class="kh-u-nav-link" href="%s"%s>%s</a></li>',
+                esc_url(admin_url('admin.php?page=' . $slug)),
+                $slug === $current ? ' aria-current="page"' : '',
+                esc_html($label)
+            );
+        }
+        echo '</ul>';
+    }
+
+    /**
+     * Open the panel: root div, header line, tab strip.
+     *
+     * Paired with shell_close(). Two calls rather than one wrapper taking a
+     * callback, because every screen here renders by dropping out of PHP into
+     * literal HTML and a callback would mean buffering all of it.
+     *
+     * @param string $current The page slug of the screen being rendered.
+     */
+    public static function shell_open(string $current): void
+    {
+        printf('<div class="%s">', esc_attr(self::root_class()));
+        self::header_bar();
+        self::tab_strip($current);
+    }
+
+    /** Close the panel opened by shell_open(). */
+    public static function shell_close(): void
+    {
+        echo '</div>';
     }
 
     // --- Screen and endpoint callbacks --------------------------------------
