@@ -60,6 +60,10 @@ final class Keelhob_Skill_Catalog
                 'title'       => 'Pre-launch audit',
                 'description' => 'Audit a WordPress or WooCommerce site before it goes live and produce a scored report — design, responsiveness, performance, functionality, accessibility, security, SEO and conversion.',
             ],
+            'scroll-craft' => [
+                'title'       => 'Scroll-craft pages',
+                'description' => 'Install the scrollcraft runtime on a WordPress page so the scroll wheel drives the visuals — planes that travel at different rates, a stage that pins while the reader reads, a clip that scrubs frame by frame.',
+            ],
             'security-standard' => [
                 'title'       => 'Security standard',
                 'description' => 'Harden and audit a WordPress/WooCommerce site\'s security — 20 automatic checks, a 7-question owner-decision intake, WooCommerce/card-skimming specifics, and a compromise-detection sweep to run before building on a site you did not build.',

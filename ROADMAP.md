@@ -16,7 +16,7 @@ your agent, say what you want, and get a real database, a real store and real
 code on hosting you control.
 
 Working today: 69 tools across content, WooCommerce, SEO, files, PHP execution,
-snippets, Elementor, memory and autonomy · 24 expert skills · a Snippets Studio
+snippets, Elementor, memory and autonomy · 25 expert skills · a Snippets Studio
 with a real code editor, conditional logic and revision history · cross-session
 memory · a Telegram front-end with voice, photos and approve-by-button ·
 staging-to-production bundles · signed skill updates · ~2,600 unit assertions,

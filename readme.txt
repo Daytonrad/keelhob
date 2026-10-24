@@ -30,7 +30,7 @@ Features:
 * Filesystem tools confined to a configurable base, plus a crash-recovering sandbox
 * Live code snippets (PHP/CSS/JS/HTML) with syntax checking and a crash guard
 * Cross-session memory shared across agents
-* Skills engine with twenty-four bundled expert playbooks
+* Skills engine with twenty-five bundled expert playbooks
 * Master safety switch, capability groups, and a full activity log
 * Bring your own key: Anthropic, OpenAI or Google for the agent brain and image generation
 * Telegram chat: message a bot and the on-site agent runs your site — no MCP client needed
