@@ -4,6 +4,14 @@ Decisions taken during a build when the owner could not be asked. Each one is
 the safer option, recorded here so it can be reopened deliberately rather than
 discovered.
 
+**This file holds the decisions a future maintainer of THIS REPO needs** — the
+licence call below is the clearest example. It is not the whole record of the
+2026-10-24 build: the per-step decision log, the risk review and the measured
+contrast tables live outside the repo, with the planning documents, because
+they are about how the work was run rather than about the plugin. Neither file
+is a copy of the other; if they ever disagree, this one is authoritative about
+the code and the other is authoritative about the process.
+
 ## Track 5 — the scroll-craft sub-skill (2026-10-24)
 
 1. **The engine is not vendored into this repo.** Upstream
