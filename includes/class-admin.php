@@ -618,6 +618,219 @@ final class Keelhob_Admin
         echo '</div>';
     }
 
+    // --- The capability band: a VIEW over the stored groups, never a control -
+    //
+    // THIS READS. IT MUST NEVER WRITE, AND THE REASON IS NOT TIDINESS.
+    //
+    // The original design had three cards the owner could CLICK to pick a mode.
+    // Three separate things made that dangerous on this plugin specifically, and
+    // all three are still true:
+    //
+    //   (a) Keelhob's real default is already more permissive than any sane
+    //       "Build" preset. Only the eight groups in
+    //       Keelhob_Capabilities::DISABLED_BY_DEFAULT ship off, so `snippets`,
+    //       `files` and `code_exec` are ON today. A preset that set "building"
+    //       would switch off live snippets the site is currently running and the
+    //       file access a skill depends on. That is an outage, not a safeguard.
+    //
+    //   (b) A "Full access" preset would grant payments, orders, users, customer
+    //       email and production deploys in a single click. WP-Connect can offer
+    //       that card safely because WP-Connect has no money tools. Keelhob has.
+    //
+    //   (c) Writing a preset destroys the "the owner never said either way"
+    //       state. Keelhob_Capabilities::default_enabled() is consulted ONLY
+    //       when a group is absent from the stored array. A preset writes an
+    //       explicit true/false for all of them, which pins every group forever:
+    //       if a later version decides a group is risky and adds it to
+    //       DISABLED_BY_DEFAULT, the stored `true` wins and the new default
+    //       never reaches that site. Nothing in the codebase would catch it.
+    //
+    // So these methods take no arguments, add no option, and return strings and
+    // arrays. The only control over capabilities anywhere in this plugin remains
+    // the `cap[...]` checkbox form that posts to admin-post.php.
+
+    /** No capability group is on at all. */
+    const BAND_READING = 'reading';
+    /** Something is on, but none of the eight gated groups. */
+    const BAND_BUILDING = 'building';
+    /** At least one of Keelhob_Capabilities::DISABLED_BY_DEFAULT is on. */
+    const BAND_FULL = 'full';
+
+    /**
+     * What is currently switched on, counted once.
+     *
+     * One pass over Keelhob_Capabilities::groups() so the band, the cards and
+     * the stat tiles cannot disagree with each other about the same stored
+     * array — which is exactly how a reassuring-but-wrong safety summary gets
+     * built.
+     *
+     * @return array{
+     *   on:string[], off:string[], sensitive_on:string[], gated_on:string[],
+     *   total:int, band:string
+     * }
+     */
+    public static function capability_state(): array
+    {
+        $on = $off = $sensitive_on = $gated_on = [];
+
+        foreach (Keelhob_Capabilities::groups() as $key => $group) {
+            if (!Keelhob_Capabilities::is_group_enabled($key)) {
+                $off[] = $key;
+                continue;
+            }
+            $on[] = $key;
+            if (!empty($group['sensitive'])) {
+                $sensitive_on[] = $key;
+            }
+            // Intersected against the real group list rather than read straight
+            // off the constant: is_group_enabled() returns the default for a
+            // name it does not know, so a key that existed only in the constant
+            // would report itself as on and show "Full access" on a site where
+            // nothing is.
+            if (in_array($key, Keelhob_Capabilities::DISABLED_BY_DEFAULT, true)) {
+                $gated_on[] = $key;
+            }
+        }
+
+        /*
+         * THE BAND, AND THE ONE DEFINITION THAT NEEDED PICKING.
+         *
+         * "Full access" and "Building" are given: the first is any of the eight
+         * gated groups being on, the second is everything else that has
+         * something on.
+         *
+         * "Reading only" is specified as "no writing group is on", and every one
+         * of the groups grants at least one tool that writes — there is no
+         * read-only group in the list, because the always-on read set
+         * (Keelhob_Capabilities::always_on(): site info, dashboard, and the
+         * memory/skill/task listings) is deliberately not a group at all and is
+         * never gated. So "no writing group on" and "no group on" describe the
+         * same set, and the stricter reading is the one implemented: every
+         * single group off. A site in that state can still be asked "what is
+         * going on", which is what Reading only means.
+         */
+        $band = self::BAND_BUILDING;
+        if ($gated_on !== []) {
+            $band = self::BAND_FULL;
+        } elseif ($on === []) {
+            $band = self::BAND_READING;
+        }
+
+        return [
+            'on'           => $on,
+            'off'          => $off,
+            'sensitive_on' => $sensitive_on,
+            'gated_on'     => $gated_on,
+            'total'        => count($on) + count($off),
+            'band'         => $band,
+        ];
+    }
+
+    /** Which of the three bands this site is in right now. */
+    public static function capability_band(): string
+    {
+        return self::capability_state()['band'];
+    }
+
+    /**
+     * The three bands, in order, as the cards read them out.
+     *
+     * `change` is what would have to be true for a site to be in that band. It
+     * is phrased as a fact about the switches, never as an instruction and never
+     * as a link that would do it — see the comment at the top of this section.
+     *
+     * @return array<string, array{label:string, blurb:string, change:string}>
+     */
+    public static function bands(): array
+    {
+        return [
+            self::BAND_READING => [
+                'label'  => __('Reading only', 'keelhob'),
+                'blurb'  => __('Every area is switched off. The agent can still be asked what is on this site, and can change nothing at all.', 'keelhob'),
+                'change' => __('Every area below would have to be off.', 'keelhob'),
+            ],
+            self::BAND_BUILDING => [
+                'label'  => __('Building', 'keelhob'),
+                'blurb'  => __('The agent can build and change this site — content, design, SEO, media and code — but not the areas that are off by default.', 'keelhob'),
+                'change' => __('At least one area on, and none of the eight that ship switched off.', 'keelhob'),
+            ],
+            self::BAND_FULL => [
+                'label'  => __('Full access', 'keelhob'),
+                'blurb'  => __('At least one of the eight areas that ship switched off is on: orders, payments, shipping, tax, users, updates, customer email or deploys.', 'keelhob'),
+                'change' => __('One of those eight areas being on puts the site here.', 'keelhob'),
+            ],
+        ];
+    }
+
+    /**
+     * Things that genuinely want the owner, as facts rather than advice.
+     *
+     * Every entry is derived from state already on the screen somewhere else —
+     * nothing here runs a request, hits a vendor or writes anything. An empty
+     * array is the normal, good answer, and the screen says so in words.
+     *
+     * `level` is 'bad' or 'mid', and it only ever picks the border and the dot.
+     * The words carry the meaning: --kh-bad on --kh-bad-soft measures 4.41:1 and
+     * fails AA, so the status colours are never the text. See admin.css.
+     *
+     * @return array<int, array{level:string, text:string}>
+     */
+    public static function needs_attention(): array
+    {
+        $out  = [];
+        $kh   = Keelhob::instance();
+        $caps = self::capability_state();
+
+        if (Keelhob_Auth::is_locked_out()) {
+            $out[] = [
+                'level' => 'bad',
+                'text'  => __('This site is refusing AI connections after too many failed attempts. Regenerate the token below to clear it.', 'keelhob'),
+            ];
+        }
+
+        if ($kh->abilities_enabled() && $caps['gated_on'] !== []) {
+            $out[] = [
+                'level' => 'mid',
+                'text'  => sprintf(
+                    /* translators: %d: how many of the eight normally-off areas are switched on. */
+                    _n(
+                        '%d area that ships switched off is on. Check below that you meant it.',
+                        '%d areas that ship switched off are on. Check below that you meant them.',
+                        count($caps['gated_on']),
+                        'keelhob'
+                    ),
+                    count($caps['gated_on'])
+                ),
+            ];
+        }
+
+        /*
+         * An alert that cannot be delivered is worse than no alert, because the
+         * silence reads as "nothing happened". Keelhob_Notifier separates what
+         * the owner CHOSE from what currently works, and this reports the gap.
+         */
+        if ($kh->abilities_enabled() && Keelhob_Notifier::effective_channels() === []) {
+            $out[] = [
+                'level' => 'mid',
+                'text'  => __('No notification channel is selected, so a digest or an alert about this site would not reach you anywhere.', 'keelhob'),
+            ];
+        } elseif ($kh->abilities_enabled() && Keelhob_Notifier::healthy_channels() === []) {
+            $out[] = [
+                'level' => 'bad',
+                'text'  => __('Every selected notification channel failed on its last try, so an alert about this site would not reach you.', 'keelhob'),
+            ];
+        }
+
+        if ($kh->abilities_enabled() && empty($kh->settings()['log_calls'])) {
+            $out[] = [
+                'level' => 'mid',
+                'text'  => __('Tool-call logging is off, so the Activity screen cannot show you what the agent did.', 'keelhob'),
+            ];
+        }
+
+        return $out;
+    }
+
     // --- Screen and endpoint callbacks --------------------------------------
     //
     // Each one is the callable registered above, and each one does nothing but

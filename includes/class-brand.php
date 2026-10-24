@@ -199,6 +199,59 @@ final class Keelhob_Brand
     }
 
     /**
+     * A dashicon for each capability group's card tile.
+     *
+     * WHY DASHICONS AND NOT TWENTY-ONE DRAWN ICONS. The capability cards want an
+     * icon tile each, and there are twenty-one groups. Dashicons is a font
+     * WordPress already loads on every admin screen — it is a dependency of
+     * core's own `wp-admin` stylesheet — so this costs no new asset, no extra
+     * request, no sprite to keep in step with the group list, and it inherits
+     * `color` like any other text. Drawing twenty-one SVGs that are each used
+     * once is a bigger maintenance surface than the cards are worth.
+     *
+     * Every icon is decoration: the card already names the group in words and
+     * the tile is aria-hidden. If the font is missing the tile renders as an
+     * empty rounded square and nothing is lost but the picture.
+     *
+     * Only long-established dashicon names are used, so an older WordPress does
+     * not render an empty box for a recently added glyph.
+     *
+     * The map is keyed by Keelhob_Capabilities::groups() keys. A group with no
+     * entry gets the generic cog rather than nothing — and a test asserts the
+     * map covers every group, so a new capability shows up as a failing test
+     * rather than as a cog nobody notices.
+     */
+    const GROUP_ICONS = [
+        'content'      => 'dashicons-admin-page',
+        'store'        => 'dashicons-cart',
+        'store_orders' => 'dashicons-list-view',
+        'payments'     => 'dashicons-money-alt',
+        'shipping'     => 'dashicons-airplane',
+        'tax'          => 'dashicons-media-spreadsheet',
+        'seo'          => 'dashicons-search',
+        'seo_optimize' => 'dashicons-chart-line',
+        'design'       => 'dashicons-admin-appearance',
+        'snippets'     => 'dashicons-editor-code',
+        'code_exec'    => 'dashicons-media-code',
+        'files'        => 'dashicons-portfolio',
+        'users'        => 'dashicons-admin-users',
+        'site_admin'   => 'dashicons-admin-plugins',
+        'updates'      => 'dashicons-update',
+        'images'       => 'dashicons-format-image',
+        'comms'        => 'dashicons-email-alt',
+        'automation'   => 'dashicons-clock',
+        'memory'       => 'dashicons-database',
+        'skills'       => 'dashicons-welcome-learn-more',
+        'deploy'       => 'dashicons-upload',
+    ];
+
+    /** The dashicon class for one capability group, or the generic cog. */
+    public static function group_icon(string $group): string
+    {
+        return self::GROUP_ICONS[$group] ?? 'dashicons-admin-generic';
+    }
+
+    /**
      * Draws the sidebar icon and the toolbar mark, as masks.
      *
      * The mask takes the shape from the PNG's alpha channel and throws its

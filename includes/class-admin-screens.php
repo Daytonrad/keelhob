@@ -60,43 +60,63 @@ final class Keelhob_Admin_Screens
         Keelhob_Admin::shell_open('keelhob');
         ?>
             <?php Keelhob_Donate::button(); ?>
-            <p style="max-width:760px;"><?php esc_html_e('Give an AI agent full, programmatic control of this WordPress & WooCommerce site over MCP — content, store, SEO, files, PHP — with cross-session memory and a skills engine. Self-contained, no external dependencies.', 'keelhob'); ?></p>
+            <p class="kh-u-measure"><?php esc_html_e('Give an AI agent full, programmatic control of this WordPress & WooCommerce site over MCP — content, store, SEO, files, PHP — with cross-session memory and a skills engine. Self-contained, no external dependencies.', 'keelhob'); ?></p>
 
-            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:#217296;background:radial-gradient(45% 200% at 100% 50%,#d37355 0%,rgba(211,115,85,.9) 25%,rgba(211,115,85,0) 62%),linear-gradient(104deg,#1b6183 0%,#217296 55%,#2a83aa 100%);color:#fff;padding:14px 20px;border-radius:10px;margin:6px 0 18px;max-width:980px;box-shadow:0 6px 20px rgba(33,114,150,.22);">
-                <span style="font-size:22px;">📖</span>
-                <div style="flex:1;min-width:240px;">
-                    <strong style="font-size:15px;"><?php esc_html_e('New to Keelhob? Start with the Guide.', 'keelhob'); ?></strong><br>
-                    <span style="opacity:.9;font-size:13px;"><?php esc_html_e('A plain-English walkthrough of every feature, what the AI can do, which switches to leave off, and how to prompt it.', 'keelhob'); ?></span>
-                </div>
-                <a href="<?php echo esc_url(admin_url('admin.php?page=keelhob-guide')); ?>" class="button button-primary" style="background:#fff;color:#a2503a;border-color:#fff;font-weight:600;"><?php esc_html_e('Open the master guide →', 'keelhob'); ?></a>
+            <?php
+            /*
+             * The Guide pointer. It used to be a hand-rolled blue/copper
+             * gradient with eight inline styles and a white-on-copper button;
+             * the copper was #d37355 as a BACKGROUND, which is fine, but the
+             * button inverted it into #a2503a text on white at 4.59:1 and the
+             * sub-line was `opacity:.9` on a gradient, which cannot be measured
+             * at all. It is a callout now: one token fill, one coloured border,
+             * ink words. The link is unchanged.
+             */
+            ?>
+            <div class="kh-u-note is-info kh-u-measure">
+                <p><strong><?php esc_html_e('New to Keelhob? Start with the Guide.', 'keelhob'); ?></strong></p>
+                <p><?php esc_html_e('A plain-English walkthrough of every feature, what the AI can do, which switches to leave off, and how to prompt it.', 'keelhob'); ?></p>
+                <p><a href="<?php echo esc_url(admin_url('admin.php?page=keelhob-guide')); ?>" class="button"><?php esc_html_e('Open the master guide', 'keelhob'); ?></a></p>
             </div>
 
             <?php if (isset($_GET['saved'])) : ?>
                 <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Saved.', 'keelhob'); ?></p></div>
             <?php endif; ?>
 
-            <div style="display:flex;gap:24px;flex-wrap:wrap;">
-                <div style="flex:1;min-width:420px;">
-                    <div class="card" style="max-width:none;padding:16px 20px;">
-                        <h2 style="margin-top:0;"><?php esc_html_e('1 · Turn on AI abilities', 'keelhob'); ?></h2>
+            <?php $this->overview($s, $enabled); ?>
+
+            <div class="kh-u-cols">
+                <div class="kh-u-col kh-u-stack">
+                    <div class="kh-u-card">
+                        <h2><?php esc_html_e('1 · Turn on AI abilities', 'keelhob'); ?></h2>
                         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                             <?php wp_nonce_field('keelhob_save'); ?>
                             <input type="hidden" name="action" value="keelhob_save">
                             <input type="hidden" name="keelhob_action" value="settings">
-                            <div style="border:1px solid #dcdcde;border-left:4px solid #d63638;background:#fff;padding:14px 16px;margin-bottom:14px;">
-                                <p style="margin-top:0;font-size:14px;"><strong><?php esc_html_e('Before you switch this on', 'keelhob'); ?></strong></p>
+                            <?php
+                            /*
+                             * NOT SHORTENED, NOT COLLAPSED INTO A DETAILS PANEL.
+                             * PLAN §2.7 names three things that may never be cut
+                             * and this is the first of them: it is the record
+                             * that the owner was warned before an AI agent was
+                             * given write access to a live site. The restyle
+                             * moves it onto the tokens and nothing else.
+                             */
+                            ?>
+                            <div class="kh-u-note is-bad">
+                                <p><strong><?php esc_html_e('Before you switch this on', 'keelhob'); ?></strong></p>
                                 <p><?php esc_html_e('Keelhob lets an AI agent make real changes to this live site. It can write code, edit pages and products, change settings, install plugins, and touch your store. It can be wrong, and wrong changes can break pages, checkout, or the admin area.', 'keelhob'); ?></p>
                                 <p><?php esc_html_e('Your instructions, the content and code involved, and a short description of this site (WordPress and PHP versions, theme, active well-known plugins) are sent to the AI provider you choose, under that provider terms.', 'keelhob'); ?></p>
                                 <p><?php esc_html_e('You pay that provider directly for what you use. Keelhob cannot see or cap that spend — only your provider can. Set a spend limit on your provider account before you switch this on.', 'keelhob'); ?></p>
                                 <p><?php esc_html_e('There are real safeguards. Code is saved switched off, PHP is syntax-checked before it can go live, a snippet that crashes the site is switched back off automatically, recent changes can be undone, and every action is written to the Activity log. These are safeguards, not a guarantee.', 'keelhob'); ?></p>
-                                <p style="margin-bottom:0;"><?php esc_html_e('You stay responsible for reviewing what the agent does, for keeping the capability switches set to what you actually want, and for having a backup.', 'keelhob'); ?></p>
+                                <p><?php esc_html_e('You stay responsible for reviewing what the agent does, for keeping the capability switches set to what you actually want, and for having a backup.', 'keelhob'); ?></p>
                             </div>
                             <p>
-                                <label style="font-size:15px;">
+                                <label class="kh-u-check">
                                     <input type="checkbox" name="abilities_enabled" value="1" <?php checked($enabled); ?>>
                                     <strong><?php esc_html_e('Turn on AI abilities', 'keelhob'); ?></strong>
                                 </label><br>
-                                <span style="color:#555;margin-left:24px;"><?php esc_html_e('I have read the points above and accept that AI-driven changes run on my site at my own risk.', 'keelhob'); ?></span>
+                                <span class="kh-u-under"><?php esc_html_e('I have read the points above and accept that AI-driven changes run on my site at my own risk.', 'keelhob'); ?></span>
                             </p>
                             <?php
                             // Show who accepted and when. If this is ever
@@ -106,7 +126,7 @@ final class Keelhob_Admin_Screens
                             if ($enabled && $consent_at > 0) :
                                 $who = get_userdata((int) ($s['consent_by'] ?? 0));
                                 ?>
-                                <p style="color:#666;font-size:12px;">
+                                <p class="kh-u-sub">
                                     <?php
                                     echo esc_html(sprintf(
                                         /* translators: 1: user login, 2: date and time. */
@@ -123,7 +143,7 @@ final class Keelhob_Admin_Screens
                             <p><label><input type="checkbox" name="log_calls" value="1" <?php checked(!empty($s['log_calls'])); ?>> <?php esc_html_e('Log tool calls (Activity tab)', 'keelhob'); ?></label></p>
                             </p>
                             <hr>
-                            <p style="margin-bottom:6px;"><strong><?php esc_html_e('Notifications', 'keelhob'); ?></strong></p>
+                            <p><strong><?php esc_html_e('Notifications', 'keelhob'); ?></strong></p>
                             <?php
                             // Preference and connectivity are two different
                             // things. A disabled checkbox posts nothing, so the
@@ -138,8 +158,8 @@ final class Keelhob_Admin_Screens
                                 $state     = $availability[$channel]['state'] ?? 'untested';
                                 $wanted    = in_array($channel, $chosen, true);
                                 ?>
-                                <p style="margin:4px 0;">
-                                    <label style="<?php echo $connected ? '' : 'color:#888;'; ?>">
+                                <p>
+                                    <label class="<?php echo $connected ? '' : 'kh-u-dim'; ?>">
                                         <?php
                                         // Tick only what will actually be used. The preference
                                         // itself survives in settings either way - see
@@ -154,16 +174,16 @@ final class Keelhob_Admin_Screens
                                         <?php echo esc_html($label); ?>
                                     </label>
                                     <?php if (!$connected) : ?>
-                                        <span style="color:#a00;font-size:12px;">— <?php echo esc_html($availability[$channel]['reason']); ?></span>
+                                        <span class="kh-u-warn">— <?php echo esc_html($availability[$channel]['reason']); ?></span>
                                         <?php if ($wanted) : ?>
-                                            <span style="color:#666;font-size:12px;">
+                                            <span class="kh-u-sub">
                                                 <?php esc_html_e('(your choice is remembered and comes back when this is connected)', 'keelhob'); ?>
                                             </span>
                                         <?php endif; ?>
                                     <?php elseif ($state === 'failing') : ?>
-                                        <span style="color:#a00;font-size:12px;">— <?php echo esc_html($availability[$channel]['warning']); ?></span>
+                                        <span class="kh-u-warn">— <?php echo esc_html($availability[$channel]['warning']); ?></span>
                                     <?php elseif ($state === 'working') : ?>
-                                        <span style="color:#1a7f37;font-size:12px;">
+                                        <span class="kh-u-okay">
                                             <?php
                                             printf(
                                                 /* translators: %s: time ago, e.g. "5 mins" */
@@ -173,7 +193,7 @@ final class Keelhob_Admin_Screens
                                             ?>
                                         </span>
                                     <?php else : ?>
-                                        <span style="color:#666;font-size:12px;">
+                                        <span class="kh-u-sub">
                                             <?php esc_html_e('— set up, but nothing has been sent through it yet', 'keelhob'); ?>
                                         </span>
                                     <?php endif; ?>
@@ -183,23 +203,23 @@ final class Keelhob_Admin_Screens
 
                             if (empty(Keelhob_Notifier::effective_channels())) :
                                 ?>
-                                <p style="color:#a00;font-size:12px;margin-top:2px;">
+                                <p class="kh-u-warn">
                                     <?php esc_html_e('Nothing is selected, so digests and alerts will not be sent anywhere.', 'keelhob'); ?>
                                 </p>
                             <?php elseif (empty(Keelhob_Notifier::healthy_channels())) : ?>
-                                <p style="color:#a00;font-size:12px;margin-top:2px;">
+                                <p class="kh-u-warn">
                                     <?php esc_html_e('Every selected channel failed on its last try, so an alert about this site would not reach you. Send a test below to check whether it is fixed.', 'keelhob'); ?>
                                 </p>
                             <?php endif; ?>
 
                             <hr>
-                            <p style="margin-bottom:6px;"><strong><?php esc_html_e('Updates and the public count', 'keelhob'); ?></strong></p>
+                            <p><strong><?php esc_html_e('Updates and the public count', 'keelhob'); ?></strong></p>
                             <p>
                                 <label>
                                     <input type="checkbox" name="skip_checkin" value="1" <?php checked(!empty($s['skip_checkin'])); ?>>
                                     <?php esc_html_e('Do not include this site in the public count', 'keelhob'); ?>
                                 </label><br>
-                                <span style="color:#666;font-size:12px;margin-left:24px;">
+                                <span class="kh-u-under">
                                     <?php esc_html_e('The update check sends a random ID, version numbers, your language, and which features are on. Every one of those is true of a thousand other sites. It never sends your address, email, content, keys or costs, and your IP is not kept. It is the only count of who uses this, and it decides what gets built next. Tick this to check GitHub directly instead: same updates, not counted.', 'keelhob'); ?>
                                 </span>
                             </p>
@@ -213,29 +233,29 @@ final class Keelhob_Admin_Screens
                             // anything at all leave the server other than the
                             // update check. See Keelhob_Feedback.
                             ?>
-                            <p style="margin-bottom:4px;"><label><input type="checkbox" name="feedback_log" value="1" <?php checked(!empty($s['feedback_log'])); ?>> <strong><?php esc_html_e('Help improve Keelhob', 'keelhob'); ?></strong></label></p>
-                            <p class="description" style="margin:0 0 6px 24px;max-width:640px;">
+                            <p><label><input type="checkbox" name="feedback_log" value="1" <?php checked(!empty($s['feedback_log'])); ?>> <strong><?php esc_html_e('Help improve Keelhob', 'keelhob'); ?></strong></label></p>
+                            <p class="description kh-u-under">
                                 <?php esc_html_e('When something goes wrong, note it locally. About once a week the agent will offer to send a short, anonymous summary — you see exactly what it says and approve it first. No site address, no page content, no keys. Switch this off and nothing is recorded at all.', 'keelhob'); ?>
                                 <a href="<?php echo esc_url(admin_url('admin.php?page=keelhob-activity')); ?>"><?php esc_html_e('See what has been noted', 'keelhob'); ?></a>
                             <hr>
-                            <p style="margin-bottom:6px;"><strong><?php esc_html_e('Uninstall', 'keelhob'); ?></strong></p>
+                            <p><strong><?php esc_html_e('Uninstall', 'keelhob'); ?></strong></p>
                             <p>
                                 <label>
                                     <input type="checkbox" name="delete_data_on_uninstall" value="1" <?php checked(!empty($s['delete_data_on_uninstall'])); ?>>
                                     <?php esc_html_e('Delete all Keelhob data when the plugin is deleted', 'keelhob'); ?>
                                 </label><br>
-                                <span style="color:#666;font-size:12px;margin-left:24px;">
+                                <span class="kh-u-under">
                                     <?php esc_html_e('Off by default: deleting the plugin leaves your snippets, memory, skills and history in the database, so reinstalling restores them. There is no undo once this is on.', 'keelhob'); ?>
                                 </span>
                             </p>
                             <p>
                                 <label><?php esc_html_e('Filesystem base directory (tools are confined at/below this path):', 'keelhob'); ?><br>
-                                <input type="text" name="fs_base" value="<?php echo esc_attr($s['fs_base']); ?>" class="regular-text" style="width:100%;max-width:520px;"></label>
+                                <input type="text" name="fs_base" value="<?php echo esc_attr($s['fs_base']); ?>" class="regular-text kh-u-mono"></label>
                             </p>
                             <p>
                                 <label><?php esc_html_e('Site label (what your agent calls this site):', 'keelhob'); ?><br>
-                                <input type="text" name="site_label" value="<?php echo esc_attr((string) ($s['site_label'] ?? '')); ?>" placeholder="<?php echo esc_attr(Keelhob::site_label()); ?>" class="regular-text" style="width:100%;max-width:520px;"></label>
-                                <br><span style="color:#787c82;"><?php esc_html_e('Leave blank to use the site name. Matters when one agent is connected to several sites — this is the handle you say out loud, as in "copy that snippet to the other shop".', 'keelhob'); ?></span>
+                                <input type="text" name="site_label" value="<?php echo esc_attr((string) ($s['site_label'] ?? '')); ?>" placeholder="<?php echo esc_attr(Keelhob::site_label()); ?>" class="regular-text kh-u-mono"></label>
+                                <br><span class="kh-u-sub"><?php esc_html_e('Leave blank to use the site name. Matters when one agent is connected to several sites — this is the handle you say out loud, as in "copy that snippet to the other shop".', 'keelhob'); ?></span>
                             </p>
                             <hr>
                             <p><label><input type="checkbox" name="run_snippets" value="1" <?php checked(!empty($s['run_snippets'])); ?>> <strong><?php esc_html_e('Run code snippets', 'keelhob'); ?></strong> <?php esc_html_e('(active PHP/CSS/JS/HTML snippets execute on the site; uncheck to kill all at once)', 'keelhob'); ?></label></p>
@@ -260,7 +280,7 @@ final class Keelhob_Admin_Screens
                             <?php
                             $img_id = (string) ($s['image_provider'] ?? 'openai');
                             ?>
-                            <p style="color:#666;margin-top:22px;"><strong><?php esc_html_e('AI image generation', 'keelhob'); ?></strong> — <?php esc_html_e('optional. Leave the key blank to use free Openverse stock images via image_search instead.', 'keelhob'); ?></p>
+                            <p class="kh-u-sub"><strong><?php esc_html_e('AI image generation', 'keelhob'); ?></strong> — <?php esc_html_e('optional. Leave the key blank to use free Openverse stock images via image_search instead.', 'keelhob'); ?></p>
                             <?php Keelhob_Admin_Providers::render_media_provider([
                                 'kind'           => 'image',
                                 'providers'      => Keelhob_Image_Provider::providers(),
@@ -277,21 +297,21 @@ final class Keelhob_Admin_Screens
                                 'endpoint_value' => (string) ($s['image_api_endpoint'] ?? ''),
                             ]); ?>
 
-                            <p style="color:#666;margin-top:16px;"><strong><?php esc_html_e('Staging → production deploy', 'keelhob'); ?></strong> <?php esc_html_e('(optional — target for deploy_push: your live site\'s Keelhob endpoint)', 'keelhob'); ?></p>
-                            <p><label><?php esc_html_e('Production site URL:', 'keelhob'); ?> <input type="text" name="deploy_target_url" value="<?php echo esc_attr($s['deploy_target_url'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" placeholder="https://your-live-site.com"></label></p>
-                            <p><label><?php esc_html_e('Production bearer token:', 'keelhob'); ?> <input type="password" name="deploy_target_token" value="<?php echo esc_attr(Keelhob_Secrets::mask((string) ($s['deploy_target_token'] ?? ''))); ?>" class="regular-text" style="width:100%;max-width:520px;" autocomplete="off" placeholder="<?php esc_attr_e('kh_... (the live site\'s Keelhob token)', 'keelhob'); ?>"></label></p>
+                            <p class="kh-u-sub"><strong><?php esc_html_e('Staging → production deploy', 'keelhob'); ?></strong> <?php esc_html_e('(optional — target for deploy_push: your live site\'s Keelhob endpoint)', 'keelhob'); ?></p>
+                            <p><label><?php esc_html_e('Production site URL:', 'keelhob'); ?> <input type="text" name="deploy_target_url" value="<?php echo esc_attr($s['deploy_target_url'] ?? ''); ?>" class="regular-text kh-u-mono" placeholder="https://your-live-site.com"></label></p>
+                            <p><label><?php esc_html_e('Production bearer token:', 'keelhob'); ?> <input type="password" name="deploy_target_token" value="<?php echo esc_attr(Keelhob_Secrets::mask((string) ($s['deploy_target_token'] ?? ''))); ?>" class="regular-text kh-u-mono" autocomplete="off" placeholder="<?php esc_attr_e('kh_... (the live site\'s Keelhob token)', 'keelhob'); ?>"></label></p>
                             <p><button class="button button-primary"><?php esc_html_e('Save settings', 'keelhob'); ?></button></p>
                         </form>
                     </div>
 
-                    <div class="card" style="max-width:none;padding:16px 20px;margin-top:16px;">
-                        <h2 style="margin-top:0;"><?php esc_html_e('2 · Connect your AI app', 'keelhob'); ?></h2>
-                        <p style="margin-top:0;"><?php esc_html_e('Pick your app. Each one needs something different.', 'keelhob'); ?></p>
+                    <div class="kh-u-card">
+                        <h2><?php esc_html_e('2 · Connect your AI app', 'keelhob'); ?></h2>
+                        <p><?php esc_html_e('Pick your app. Each one needs something different.', 'keelhob'); ?></p>
 
                         <?php if ($local_notes) : ?>
-                            <div style="border-left:4px solid #dba617;background:#fcf9e8;padding:10px 14px;margin:0 0 14px;">
+                            <div class="kh-u-note is-mid">
                                 <strong><?php esc_html_e('This site is on your own computer.', 'keelhob'); ?></strong>
-                                <ul style="margin:6px 0 0 18px;list-style:disc;">
+                                <ul class="kh-u-bullets">
                                     <?php foreach ($local_notes as $note) : ?>
                                         <li><?php echo esc_html($note); ?></li>
                                     <?php endforeach; ?>
@@ -357,35 +377,35 @@ final class Keelhob_Admin_Screens
                             $snippet     = Keelhob_Connect::config($key, $server_name, $endpoint, $token, $is_http);
                             ?>
                             <div class="kh-u-client" data-kh-client-panel="<?php echo esc_attr($key); ?>">
-                                <h3 style="margin:0 0 6px;"><?php echo esc_html($client['label']); ?></h3>
+                                <h3><?php echo esc_html($client['label']); ?></h3>
 
                                 <?php if ($requirement !== '') : ?>
-                                    <p style="margin:0 0 10px;color:#555;"><?php echo esc_html($requirement); ?></p>
+                                    <p class="kh-u-sub"><?php echo esc_html($requirement); ?></p>
                                 <?php endif; ?>
 
                                 <?php if ($key === 'claude-code') : ?>
-                                    <p style="margin:0 0 6px;"><strong><?php esc_html_e('Run this in a terminal:', 'keelhob'); ?></strong></p>
+                                    <p><strong><?php esc_html_e('Run this in a terminal:', 'keelhob'); ?></strong></p>
                                 <?php else : ?>
-                                    <p style="margin:0 0 6px;"><strong><?php esc_html_e('Paste this into:', 'keelhob'); ?></strong></p>
-                                    <ul style="margin:0 0 8px 18px;list-style:disc;color:#555;">
+                                    <p><strong><?php esc_html_e('Paste this into:', 'keelhob'); ?></strong></p>
+                                    <ul class="kh-u-bullets">
                                         <?php foreach ($client['file'] as $path) : ?>
-                                            <li><code style="font-size:12px;"><?php echo esc_html($path); ?></code></li>
+                                            <li><code><?php echo esc_html($path); ?></code></li>
                                         <?php endforeach; ?>
                                     </ul>
                                 <?php endif; ?>
 
                                 <textarea readonly rows="<?php echo $key === 'claude-code' ? 3 : 12; ?>"
-                                    style="width:100%;font-family:monospace;font-size:12px;"
+                                    class="kh-u-mono is-wide"
                                     onclick="this.select()"><?php echo esc_textarea($snippet); ?></textarea>
 
                                 <?php if ($key === 'claude-desktop') : ?>
-                                    <p style="color:#555;margin:8px 0 0;"><?php esc_html_e('Then fully quit Claude Desktop and reopen it. Closing the window is not enough.', 'keelhob'); ?></p>
-                                    <p style="color:#555;margin:4px 0 0;"><?php esc_html_e('On a Microsoft Store install the second path exists and is ignored. Try the first.', 'keelhob'); ?></p>
+                                    <p class="kh-u-sub"><?php esc_html_e('Then fully quit Claude Desktop and reopen it. Closing the window is not enough.', 'keelhob'); ?></p>
+                                    <p class="kh-u-sub"><?php esc_html_e('On a Microsoft Store install the second path exists and is ignored. Try the first.', 'keelhob'); ?></p>
                                 <?php endif; ?>
                             </div>
                         <?php endforeach; ?>
 
-                        <p style="margin:14px 0 0;color:#555;"><?php esc_html_e('Using something else? Any MCP app can connect with the endpoint and token below.', 'keelhob'); ?></p>
+                        <p class="kh-u-sub"><?php esc_html_e('Using something else? Any MCP app can connect with the endpoint and token below.', 'keelhob'); ?></p>
 
                         <script>
                         (function () {
@@ -418,19 +438,19 @@ final class Keelhob_Admin_Screens
                         })();
                         </script>
 
-                        <p style="margin-top:16px;"><strong><?php esc_html_e('Endpoint URL', 'keelhob'); ?></strong></p>
-                        <input readonly value="<?php echo esc_attr($endpoint); ?>" class="regular-text" style="width:100%;max-width:520px;font-family:monospace;" onclick="this.select()">
+                        <p><strong><?php esc_html_e('Endpoint URL', 'keelhob'); ?></strong></p>
+                        <input readonly value="<?php echo esc_attr($endpoint); ?>" class="regular-text kh-u-mono" onclick="this.select()">
 
-                        <p style="margin-top:16px;"><strong><?php esc_html_e('Bearer token', 'keelhob'); ?></strong> <?php esc_html_e('(keep secret — it grants full site access)', 'keelhob'); ?></p>
+                        <p><strong><?php esc_html_e('Bearer token', 'keelhob'); ?></strong> <?php esc_html_e('(keep secret — it grants full site access)', 'keelhob'); ?></p>
                         <?php if ($have_token) : ?>
-                            <div style="padding:10px 12px;border-left:4px solid #d63638;background:#fcf0f1;margin-bottom:8px;">
+                            <div class="kh-u-note is-bad">
                                 <strong><?php esc_html_e('Copy this now, it is not shown again.', 'keelhob'); ?></strong><br>
-                                <span style="color:#555;"><?php esc_html_e('Keelhob stores only a hash of this token, so it cannot be displayed a second time. If you lose it, regenerate below.', 'keelhob'); ?></span>
+                                <span class="kh-u-sub"><?php esc_html_e('Keelhob stores only a hash of this token, so it cannot be displayed a second time. If you lose it, regenerate below.', 'keelhob'); ?></span>
                             </div>
-                            <input readonly value="<?php echo esc_attr($token); ?>" class="regular-text" style="width:100%;max-width:520px;font-family:monospace;" onclick="this.select()">
+                            <input readonly value="<?php echo esc_attr($token); ?>" class="regular-text kh-u-mono" onclick="this.select()">
                         <?php else : ?>
-                            <input readonly value="••••••••••••" class="regular-text" style="width:100%;max-width:520px;font-family:monospace;color:#888;">
-                            <p style="color:#666;margin-top:4px;">
+                            <input readonly value="••••••••••••" class="regular-text kh-u-mono">
+                            <p class="kh-u-sub">
                                 <?php esc_html_e('Stored hashed and cannot be shown again. Regenerate below to get a new one; existing clients will need updating.', 'keelhob'); ?>
                                 <?php
                                 $last_used = (int) Keelhob::instance()->get('token_last_used', 0);
@@ -459,7 +479,7 @@ final class Keelhob_Admin_Screens
                         if (Keelhob_Auth::is_locked_out()) :
                             $mins = (int) max(1, ceil(Keelhob_Auth::lock_seconds_left() / 60));
                             ?>
-                            <div class="notice notice-warning inline" style="margin:12px 0;">
+                            <div class="kh-u-note is-mid">
                                 <p><strong><?php
                                     /* translators: %d: minutes remaining. */
                                     echo esc_html(sprintf(__('This site is refusing connections for %d more minute(s) — too many failed attempts.', 'keelhob'), $mins));
@@ -468,25 +488,40 @@ final class Keelhob_Admin_Screens
                             </div>
                         <?php endif; ?>
 
-                        <p style="color:#666;margin:8px 0 4px;">
+                        <p class="kh-u-sub">
                             <?php esc_html_e('Update EVERY app that connects here, and delete any duplicate entry. An app left on the old token fails on every start, and ten failures in fifteen minutes locks the site — including for the one you just fixed.', 'keelhob'); ?>
                         </p>
 
-                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:8px;" onsubmit="return confirm('<?php echo esc_js(__('Regenerating the token will disconnect existing clients. Continue?', 'keelhob')); ?>');">
+                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="kh-u-actions" onsubmit="return confirm('<?php echo esc_js(__('Regenerating the token will disconnect existing clients. Continue?', 'keelhob')); ?>');">
                             <?php wp_nonce_field('keelhob_save'); ?>
                             <input type="hidden" name="action" value="keelhob_save">
                             <input type="hidden" name="keelhob_action" value="regenerate_token">
                             <button class="button"><?php esc_html_e('Regenerate token', 'keelhob'); ?></button>
                         </form>
 
-                        <p style="color:#666;margin-top:16px;"><?php esc_html_e('Application Password instead of a token: send Authorization: Basic base64(username:app_password) to the same endpoint. Make one under Users → Profile.', 'keelhob'); ?></p>
+                        <p class="kh-u-sub"><?php esc_html_e('Application Password instead of a token: send Authorization: Basic base64(username:app_password) to the same endpoint. Make one under Users → Profile.', 'keelhob'); ?></p>
                     </div>
                 </div>
 
-                <div style="flex:1;min-width:300px;">
-                    <div class="card" style="max-width:none;padding:16px 20px;">
-                        <h2 style="margin-top:0;"><?php esc_html_e('Status', 'keelhob'); ?></h2>
-                        <p><?php esc_html_e('Abilities:', 'keelhob'); ?> <strong style="color:<?php echo $enabled ? '#16a34a' : '#888'; ?>;"><?php echo $enabled ? esc_html__('ENABLED', 'keelhob') : esc_html__('DISABLED', 'keelhob'); ?></strong></p>
+                <div class="kh-u-col is-side kh-u-stack">
+                    <div class="kh-u-card">
+                        <h2><?php esc_html_e('Status', 'keelhob'); ?></h2>
+                        <?php
+                        /*
+                         * The word, not the colour. #16a34a as text measured
+                         * 2.84:1 on --kh-card in dark mode, and "#888" for OFF
+                         * was 3.54:1 even on white — so the one line on this
+                         * card that says whether an AI agent may change the site
+                         * was the hardest thing on it to read. It is --kh-ink
+                         * now, with the state in the dot beside it.
+                         */
+                        ?>
+                        <p><?php esc_html_e('Abilities:', 'keelhob'); ?>
+                            <span class="kh-u-pill<?php echo $enabled ? ' is-on' : ''; ?>">
+                                <span class="kh-u-dot <?php echo $enabled ? 'is-good' : 'is-off'; ?>" aria-hidden="true"></span>
+                                <?php echo $enabled ? esc_html__('ENABLED', 'keelhob') : esc_html__('DISABLED', 'keelhob'); ?>
+                            </span>
+                        </p>
                         <p><?php esc_html_e('Registered tools:', 'keelhob'); ?> <strong><?php echo count(Keelhob::instance()->registry->names()); ?></strong></p>
                         <p><?php esc_html_e('WooCommerce:', 'keelhob'); ?> <strong><?php echo class_exists('WooCommerce') ? esc_html__('detected ✓', 'keelhob') : esc_html__('not active', 'keelhob'); ?></strong></p>
                         <p><?php esc_html_e('Skills:', 'keelhob'); ?> <strong><?php echo count(Keelhob::instance()->skills->all()); ?></strong> · <?php esc_html_e('Memory:', 'keelhob'); ?> <strong><?php echo count(Keelhob::instance()->memory->all()); ?></strong> · <?php esc_html_e('Snippets:', 'keelhob'); ?> <strong><?php echo count(Keelhob_Snippets::all()); ?></strong></p>
@@ -498,14 +533,14 @@ final class Keelhob_Admin_Screens
                          * which is the one route a browser can actually load.
                          */
                         ?>
-                        <p style="margin-bottom:4px;"><?php esc_html_e('MCP endpoint (needs a token — not viewable in a browser):', 'keelhob'); ?></p>
-                        <p><input type="text" readonly value="<?php echo esc_attr($endpoint); ?>" class="regular-text" style="width:100%;font-family:monospace;font-size:11px;" onclick="this.select();"></p>
+                        <p><?php esc_html_e('MCP endpoint (needs a token — not viewable in a browser):', 'keelhob'); ?></p>
+                        <p><input type="text" readonly value="<?php echo esc_attr($endpoint); ?>" class="regular-text kh-u-mono is-wide" onclick="this.select();"></p>
                         <p><a href="<?php echo esc_url(rest_url(KEELHOB_REST_NAMESPACE . '/status')); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Open health check ↗', 'keelhob'); ?></a></p>
                     </div>
 
-                    <div class="card" style="max-width:none;padding:16px 20px;margin-top:16px;">
-                        <h2 style="margin-top:0;"><?php esc_html_e('Tool catalog', 'keelhob'); ?></h2>
-                        <div style="max-height:320px;overflow:auto;font-family:monospace;font-size:12px;line-height:1.8;">
+                    <div class="kh-u-card">
+                        <h2><?php esc_html_e('Tool catalog', 'keelhob'); ?></h2>
+                        <div class="kh-u-catalog">
                             <?php foreach (Keelhob::instance()->registry->names() as $name) : ?>
                                 <div><?php echo esc_html($name); ?></div>
                             <?php endforeach; ?>
@@ -514,17 +549,48 @@ final class Keelhob_Admin_Screens
                 </div>
             </div>
 
-            <div class="card" style="max-width:none;padding:16px 20px;margin-top:24px;">
-                <h2 style="margin-top:0;"><?php esc_html_e('Capabilities — what the agent may touch', 'keelhob'); ?></h2>
-                <p style="max-width:820px;"><?php esc_html_e('Turn an area off and it is off-limits: hidden from the agent, refused if called, named as blocked in every session. Sensitive areas (money, shipping, code, files, users, deploy) are marked ●.', 'keelhob'); ?></p>
-                <p style="color:#b45309;"><strong><?php esc_html_e('Note:', 'keelhob'); ?></strong> <?php esc_html_e('to truly wall off a sensitive area, also disable Code execution — otherwise the agent could reach it via raw PHP/SQL.', 'keelhob'); ?></p>
+            <div class="kh-u-sec">
+                <div class="kh-u-sec-head">
+                    <h2><?php esc_html_e('Capabilities — what the agent may touch', 'keelhob'); ?></h2>
+                    <p class="kh-u-measure"><?php esc_html_e('Turn an area off and it is off-limits: hidden from the agent, refused if called, named as blocked in every session. The areas that can cost you money, expose customers or run code carry a Sensitive badge.', 'keelhob'); ?></p>
+                </div>
+                <div class="kh-u-note is-mid kh-u-measure">
+                    <p><strong><?php esc_html_e('Note:', 'keelhob'); ?></strong> <?php esc_html_e('to truly wall off a sensitive area, also disable Code execution — otherwise the agent could reach it via raw PHP/SQL.', 'keelhob'); ?></p>
+                </div>
+                <?php
+                /*
+                 * THE SAVE PATH IS UNTOUCHED. Same `cap[<key>]` field names,
+                 * same `keelhob_save` nonce, same admin-post.php target, same
+                 * `keelhob_action=capabilities`, same real checkboxes. Only the
+                 * markup around them changed, and the checkbox is restyled by
+                 * CSS rather than replaced: no div with role="switch", no
+                 * JavaScript anywhere near a permission, and the whole grid
+                 * still works with this stylesheet missing.
+                 *
+                 * ONE CARD PER GROUP, NEVER PER TOOL. The tools are named inside
+                 * the card as read-only chips so the owner can see what a group
+                 * contains, but there is no second switch beside them:
+                 * class-capabilities.php warns in its own comment that two
+                 * permission lists drift, and the way this one would drift is by
+                 * switching something sensitive on for everybody.
+                 */
+                ?>
                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                     <?php wp_nonce_field('keelhob_save'); ?>
                     <input type="hidden" name="action" value="keelhob_save">
                     <input type="hidden" name="keelhob_action" value="capabilities">
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px 24px;">
+                    <div class="kh-u-caps">
                         <?php foreach (Keelhob_Capabilities::groups() as $key => $g) :
                             $on  = Keelhob_Capabilities::is_group_enabled($key);
+                            /*
+                             * The old screen hung this text off a `title` on a
+                             * small "i" bubble: not reachable by keyboard, not
+                             * announced on touch, and drawn in #217296, which is
+                             * 2.9:1 on the dark panel. Every word of it survives
+                             * — in a <details> that is closed by default, which
+                             * is PLAN §2.7's own prescription for moving the
+                             * "why" into the component without deleting it.
+                             */
                             $tip = sprintf(
                                 /* translators: 1: what the capability lets the agent do, 2: comma-separated tool names */
                                 __('WHEN ON — the agent can: %1$s Tools: %2$s.', 'keelhob'),
@@ -533,23 +599,287 @@ final class Keelhob_Admin_Screens
                             )
                                  . ' ' . __('WHEN OFF — these tools are hidden from the agent and refused if called.', 'keelhob')
                                  . (!empty($g['sensitive']) ? ' ' . __('This is a SENSITIVE area (money/data/code) — leave it off until you trust the agent.', 'keelhob') : ''); ?>
-                            <label style="display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border:1px solid #e2e2e2;border-radius:8px;background:<?php echo $on ? '#fff' : '#fbfbfb'; ?>;">
-                                <input type="checkbox" name="cap[<?php echo esc_attr($key); ?>]" value="1" <?php checked($on); ?> style="margin-top:3px;">
-                                <span>
-                                    <strong><?php echo esc_html($g['label']); ?></strong>
-                                    <?php if (!empty($g['sensitive'])) : ?>
-                                        <span style="color:#b91c1c;" title="<?php esc_attr_e('Sensitive area', 'keelhob'); ?>">●</span>
-                                    <?php endif; ?>
-                                    <span title="<?php echo esc_attr($tip); ?>" style="cursor:help;color:#217296;font-weight:700;border:1px solid #b9d3e0;border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;">i</span>
-                                    <br><span style="color:#666;font-size:12px;"><?php echo esc_html($g['desc']); ?></span>
+                            <div class="kh-u-cap<?php echo $on ? '' : ' is-off'; ?>">
+                                <div class="kh-u-cap-top">
+                                    <span class="kh-u-icon" aria-hidden="true"><span class="dashicons <?php echo esc_attr(Keelhob_Brand::group_icon((string) $key)); ?>"></span></span>
+                                    <span class="kh-u-cap-id">
+                                        <label class="kh-u-cap-label" for="kh-cap-<?php echo esc_attr($key); ?>"><?php echo esc_html($g['label']); ?></label>
+                                        <?php if (!empty($g['sensitive'])) : ?>
+                                            <span class="kh-u-badge"><?php esc_html_e('Sensitive', 'keelhob'); ?></span>
+                                        <?php endif; ?>
+                                    </span>
+                                    <input type="checkbox" class="kh-u-switch" id="kh-cap-<?php echo esc_attr($key); ?>" name="cap[<?php echo esc_attr($key); ?>]" value="1" <?php checked($on); ?>>
+                                </div>
+                                <p class="kh-u-cap-desc"><?php echo esc_html($g['desc']); ?></p>
+                                <span class="kh-u-chips">
+                                    <?php foreach ($g['tools'] as $kh_tool) : ?>
+                                        <span class="kh-u-chip"><?php echo esc_html($kh_tool); ?></span>
+                                    <?php endforeach; ?>
                                 </span>
-                            </label>
+                                <details class="kh-u-more">
+                                    <summary><?php esc_html_e('What this covers', 'keelhob'); ?></summary>
+                                    <p><?php echo esc_html($tip); ?></p>
+                                </details>
+                            </div>
                         <?php endforeach; ?>
                     </div>
-                    <p style="margin-top:14px;"><button class="button button-primary"><?php esc_html_e('Save capabilities', 'keelhob'); ?></button></p>
+                    <p class="kh-u-actions"><button class="button button-primary"><?php esc_html_e('Save capabilities', 'keelhob'); ?></button></p>
                 </form>
             </div>
         <?php Keelhob_Admin::shell_close(); ?>
+        <?php
+    }
+
+    /**
+     * The Overview block at the top of the Connect screen.
+     *
+     * WHY IT LIVES HERE AND NOT ON A SEVENTH TAB. The brief left the choice
+     * open, with "fewer new URLs" as the tie-breaker, and this is zero: no new
+     * page slug, no new menu entry, no change to Keelhob_Admin::tabs(), nothing
+     * new to add to DOCUMENTATION.md (which is mirrored to the live site's
+     * /docs), and nothing for a bookmark, a Telegram link or a notifier link to
+     * miss. It is also the honest shape of the screen: Connect is already the
+     * page an owner opens first, and an overview that is one click away from
+     * the first screen is an overview nobody reads.
+     *
+     * Four blocks, in the order the questions get asked:
+     *   1. How much can the AI do?  — the three band cards, a VIEW ONLY.
+     *   2. Four numbers.
+     *   3. What has it been doing?  — recent activity, with an empty state.
+     *   4. What wants me?           — needs attention, with an empty state.
+     *
+     * @param array<string, mixed> $settings The settings array render() already read.
+     * @param bool                 $enabled  Whether AI abilities are switched on.
+     */
+    private function overview(array $settings, bool $enabled): void
+    {
+        $caps  = Keelhob_Admin::capability_state();
+        $bands = Keelhob_Admin::bands();
+        $flags = Keelhob_Admin::needs_attention();
+
+        $logger = Keelhob::instance()->logger;
+        $recent = $logger->recent(5);
+
+        $tools   = Keelhob::instance()->registry->names();
+        $allowed = 0;
+        foreach ($tools as $kh_tool) {
+            if (Keelhob_Capabilities::tool_allowed((string) $kh_tool)) {
+                $allowed++;
+            }
+        }
+
+        $snippets     = Keelhob_Snippets::all();
+        $snippets_on  = 0;
+        foreach ($snippets as $kh_snip) {
+            if ((int) ($kh_snip['active'] ?? 0) === 1) {
+                $snippets_on++;
+            }
+        }
+        ?>
+        <div class="kh-u-sec">
+            <div class="kh-u-sec-head">
+                <h2><?php esc_html_e('How much can your AI do?', 'keelhob'); ?></h2>
+                <?php
+                /*
+                 * "Where the switches below have left it", not "pick one".
+                 *
+                 * These three cards READ the stored capability groups. They are
+                 * not a control and there is deliberately no button on them —
+                 * the reasons are set out at length above
+                 * Keelhob_Admin::capability_state(), and the short version is
+                 * that this plugin's real default already has snippets, files
+                 * and raw PHP ON, so a one-click "Building" preset would switch
+                 * off code a live site is running, a one-click "Full access"
+                 * would hand over payments, orders, users and deploys, and
+                 * writing a value for every group would permanently pin groups
+                 * the owner has never expressed an opinion about.
+                 */
+                ?>
+                <p class="kh-u-sub"><?php esc_html_e('This is where the switches further down have left it. Change it there.', 'keelhob'); ?></p>
+            </div>
+            <div class="kh-u-modes">
+                <?php foreach ($bands as $kh_key => $kh_band) :
+                    $is_current = ($kh_key === $caps['band']); ?>
+                    <div class="kh-u-mode<?php echo $is_current ? ' is-current' : ''; ?>"<?php echo $is_current ? ' aria-current="true"' : ''; ?>>
+                        <div class="kh-u-mode-top">
+                            <span class="kh-u-mode-name"><?php echo esc_html($kh_band['label']); ?></span>
+                            <?php if ($is_current) : ?>
+                                <span class="kh-u-mode-pill"><?php esc_html_e('Current', 'keelhob'); ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <p class="kh-u-mode-blurb"><?php echo esc_html($kh_band['blurb']); ?></p>
+                        <?php
+                        /*
+                         * The current card says what IS on. The other two say
+                         * what would have to be true to be in that band — a
+                         * fact about the switches, not an instruction and not a
+                         * link that would do it.
+                         */
+                        ?>
+                        <?php if ($is_current) : ?>
+                            <p class="kh-u-mode-change">
+                                <?php
+                                echo esc_html(sprintf(
+                                    /* translators: 1: how many capability areas are on, 2: how many there are in total. */
+                                    __('%1$d of %2$d areas are on right now.', 'keelhob'),
+                                    count($caps['on']),
+                                    $caps['total']
+                                ));
+                                ?>
+                                <?php
+                                /*
+                                 * Said out loud on the Building card, because
+                                 * "Building" must not be read as "nothing
+                                 * sensitive is on". Keelhob ships with
+                                 * snippets, files and raw code execution
+                                 * switched on, and those are sensitive groups
+                                 * that simply are not among the eight that ship
+                                 * off. The band is defined by those eight; this
+                                 * line stops the label overstating the case.
+                                 */
+                                ?>
+                                <?php if ($caps['sensitive_on'] !== []) : ?>
+                                    <?php
+                                    echo esc_html(sprintf(
+                                        /* translators: %d: how many of the areas that are on are marked sensitive. */
+                                        _n(
+                                            '%d of them is marked sensitive.',
+                                            '%d of them are marked sensitive.',
+                                            count($caps['sensitive_on']),
+                                            'keelhob'
+                                        ),
+                                        count($caps['sensitive_on'])
+                                    ));
+                                    ?>
+                                <?php endif; ?>
+                            </p>
+                        <?php else : ?>
+                            <p class="kh-u-mode-change"><?php echo esc_html($kh_band['change']); ?></p>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <?php
+        /*
+         * FOUR NUMBERS THAT ARE TRUE, rather than the four the design sketch
+         * asked for. "Actions this week" and "Success 100%" are not in it, and
+         * that is on purpose: Keelhob_Logger exposes recent() and count_all()
+         * and nothing date-ranged, the table is trimmed to a row cap, and
+         * counting a week out of the most recent hundred rows would print a
+         * number that silently understates on exactly the busy site where it
+         * matters. class-logger.php is another lane's file this round, so the
+         * tiles report what can be counted exactly. The missing two are noted in
+         * BUILD-NOTES.md for a later pass that can add a counting query.
+         */
+        ?>
+        <div class="kh-u-sec">
+            <div class="kh-u-tiles">
+                <div class="kh-u-tile">
+                    <span class="kh-u-tile-value"><?php echo esc_html(number_format_i18n(count($caps['on'])) . ' / ' . number_format_i18n($caps['total'])); ?></span>
+                    <span class="kh-u-tile-label"><?php esc_html_e('Areas switched on', 'keelhob'); ?></span>
+                </div>
+                <div class="kh-u-tile">
+                    <span class="kh-u-tile-value"><?php echo esc_html(number_format_i18n($allowed) . ' / ' . number_format_i18n(count($tools))); ?></span>
+                    <span class="kh-u-tile-label"><?php esc_html_e('Tools the agent may call', 'keelhob'); ?></span>
+                </div>
+                <div class="kh-u-tile">
+                    <span class="kh-u-tile-value"><?php echo esc_html(number_format_i18n($snippets_on) . ' / ' . number_format_i18n(count($snippets))); ?></span>
+                    <span class="kh-u-tile-label"><?php esc_html_e('Snippets running', 'keelhob'); ?></span>
+                </div>
+                <div class="kh-u-tile">
+                    <span class="kh-u-tile-value"><?php echo esc_html(number_format_i18n($logger->count_all())); ?></span>
+                    <span class="kh-u-tile-label">
+                        <?php
+                        echo empty($settings['log_calls'])
+                            ? esc_html__('Tool calls logged — logging is off', 'keelhob')
+                            : esc_html__('Tool calls logged', 'keelhob');
+                        ?>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="kh-u-sec">
+            <div class="kh-u-cols">
+                <div class="kh-u-col">
+                    <div class="kh-u-card">
+                        <h2><?php esc_html_e('Recent activity', 'keelhob'); ?></h2>
+                        <?php if ($recent === []) : ?>
+                            <p class="kh-u-empty">
+                                <?php
+                                echo $enabled
+                                    ? esc_html__('Nothing yet. What the agent does will appear here.', 'keelhob')
+                                    : esc_html__('Nothing yet — AI abilities are switched off.', 'keelhob');
+                                ?>
+                            </p>
+                        <?php else : ?>
+                            <ul class="kh-u-feed">
+                                <?php foreach ($recent as $kh_row) :
+                                    $kh_ok = !isset($kh_row['ok']) || (int) $kh_row['ok'] === 1; ?>
+                                    <li>
+                                        <span class="kh-u-dot <?php echo $kh_ok ? 'is-good' : 'is-off'; ?>" aria-hidden="true"></span>
+                                        <span class="kh-u-feed-name"><?php echo esc_html((string) ($kh_row['tool'] ?? '')); ?></span>
+                                        <?php
+                                        // The words, never the dot alone: a
+                                        // failed call that only differs by a
+                                        // ring colour says nothing to a screen
+                                        // reader or a colour-blind reader.
+                                        ?>
+                                        <span class="kh-u-feed-meta">
+                                            <?php echo $kh_ok ? esc_html__('worked', 'keelhob') : esc_html__('failed', 'keelhob'); ?>
+                                            <?php
+                                            $kh_at = strtotime((string) ($kh_row['created_at'] ?? ''));
+                                            if ($kh_at) {
+                                                echo ' · ' . esc_html(sprintf(
+                                                    /* translators: %s: human-readable time difference, e.g. "2 hours". */
+                                                    __('%s ago', 'keelhob'),
+                                                    human_time_diff($kh_at, time())
+                                                ));
+                                            }
+                                            ?>
+                                        </span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                            <p class="kh-u-actions"><a href="<?php echo esc_url(admin_url('admin.php?page=keelhob-activity')); ?>"><?php esc_html_e('See all activity', 'keelhob'); ?></a></p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div class="kh-u-col">
+                    <div class="kh-u-card">
+                        <h2><?php esc_html_e('Needs attention', 'keelhob'); ?></h2>
+                        <?php if ($flags === []) : ?>
+                            <?php
+                            /*
+                             * The empty state is the whole point of this card.
+                             * A dashboard that only ever has something to say
+                             * when it is broken is a dashboard nobody opens; one
+                             * that says "all good" is one somebody checks.
+                             */
+                            ?>
+                            <p class="kh-u-empty"><?php esc_html_e('All good. Nothing needs you right now.', 'keelhob'); ?></p>
+                        <?php else : ?>
+                            <ul class="kh-u-flags">
+                                <?php foreach ($flags as $kh_flag) : ?>
+                                    <li class="is-<?php echo esc_attr($kh_flag['level']); ?>">
+                                        <span class="kh-u-flag-tag">
+                                            <?php
+                                            echo $kh_flag['level'] === 'bad'
+                                                ? esc_html__('Fix', 'keelhob')
+                                                : esc_html__('Check', 'keelhob');
+                                            ?>
+                                        </span>
+                                        <span><?php echo esc_html($kh_flag['text']); ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
         <?php
     }
 
