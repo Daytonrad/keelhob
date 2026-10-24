@@ -102,6 +102,9 @@
 	--kh-accent-2-ink: #4bb8c1;
 
 	--kh-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 24px rgba(0, 0, 0, .35);
+
+	/* See the note on `.kh-ui`. Scoped to the panel root so nothing leaks. */
+	color-scheme: dark;
 }
 
 /* ========================================================================== */
@@ -126,6 +129,24 @@
 	min-height: calc(100vh - 32px);
 	color: var(--kh-ink);
 	font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+
+	/*
+	 * NATIVE CONTROLS FOLLOW THE PANEL, NOT THE OPERATING SYSTEM.
+	 *
+	 * A <select>'s drop-down list, a scrollbar, a date picker and a checkbox
+	 * tick are painted by the platform, not by CSS colours — so without this
+	 * they ignore every token above. The dark panel kept a bright white select
+	 * menu and a white scrollbar, and a light panel on a machine set to dark
+	 * mode got the mirror-image problem.
+	 *
+	 * Declared on BOTH sides deliberately. `light` here is not a no-op: it
+	 * stops the OS preference reaching the light panel at all, so the panel's
+	 * mode is the only thing that decides. And it is on `.kh-ui`, never on
+	 * :root or <html> — a stray `color-scheme: dark` at the document level
+	 * would repaint every scrollbar and form control on every screen of
+	 * WordPress, which is the one thing a plugin's stylesheet must not do.
+	 */
+	color-scheme: light;
 }
 
 /* RTL mirror. Without this the panel pulls away from the sidebar instead of
@@ -1280,4 +1301,429 @@ body.rtl .kh-ui {
 
 .kh-u-bullets li {
 	margin: 2px 0;
+}
+
+/* ========================================================================== */
+/* kh-u-table / kh-u-clamp — the static tables on the satellite screens        */
+/* ========================================================================== */
+
+/*
+ * These exist because they were MISSING, and the gap had a measurable cost.
+ *
+ * Skills, Automation and the provider guide all draw static tables. Core's
+ * `widefat striped` was the obvious choice and it is the wrong one: it paints
+ * #fff and #f6f7f7 unconditionally and knows nothing about `.kh-ui`, so under
+ * a dark admin scheme it is a light table inside a dark card. With no token
+ * component to use instead, `class-admin-automation.php` grew four PHP style
+ * STRING CONSTANTS (T_TABLE / T_TH / T_TD / T_SUB) and repeated them across
+ * forty-odd `style` attributes — and before they were constants they were
+ * method-local variables, which made them undefined in two other methods and
+ * rendered those `style` attributes empty on the live screen. PHPStan found
+ * that; nothing in the markup looked wrong. BUILD-NOTES asked for this
+ * component so the strings could collapse into it.
+ *
+ * `--kh-muted` on a column heading: 6.18:1 light, 8.90:1 dark. `--kh-line` is
+ * a divider between rows of text and carries no meaning on its own, so it is
+ * not held to 3:1.
+ */
+.kh-ui .kh-u-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.kh-ui .kh-u-table th {
+	text-align: left;
+	padding: 8px 10px;
+	border-bottom: 1px solid var(--kh-line);
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+	color: var(--kh-muted);
+}
+
+.kh-ui .kh-u-table td {
+	padding: 9px 10px;
+	border-bottom: 1px solid var(--kh-line);
+	vertical-align: top;
+}
+
+/*
+ * Three lines and then an ellipsis, for the one-paragraph summaries a task or
+ * an autonomous run writes into a table cell. The alternative in use was
+ * `wp_trim_words()`, which throws the rest of the sentence away server-side;
+ * this keeps the text in the DOM, so it is still selectable, still searchable
+ * with the browser's own Find, and still read in full by a screen reader.
+ *
+ * `-webkit-line-clamp` is the only line clamp with real support; it degrades
+ * to "show the whole thing", which is the correct failure.
+ */
+.kh-ui .kh-u-clamp {
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+/* ========================================================================== */
+/* CORE COMPONENTS WORDPRESS RENDERS INSIDE THE PANEL                         */
+/* ========================================================================== */
+
+/*
+ * THIS SECTION IS NOT TIDYING. Every rule in it replaces a measured AA failure
+ * on a shipped screen, and the reason they all got through is worth stating
+ * once: the token layer only ever styled the components this redesign WROTE.
+ * WordPress puts plenty inside `.kh-ui` that nobody here wrote —
+ *
+ *   - admin notices, which core JavaScript MOVES into the first `.wrap`, and
+ *     `Keelhob_Admin::root_class()` keeps `wrap` on purpose so the "AI
+ *     abilities are ON" banner is not silently deleted;
+ *   - `.nav-tab` strips, `.widefat` / `.wp-list-table` tables, `<pre>` blocks;
+ *   - every `.button`, `.button-primary` and `.button-link`.
+ *
+ * — and not one of them knows what `.kh-ui` is. They supply their own
+ * background, or take their text colour from the admin colour scheme, and the
+ * panel's inherited ink lands on it. Measured on the rig before these rules:
+ *
+ *   the abilities banner / Golden rule box, dark   1.43:1   (ink-2 on #fef8ee)
+ *   the Studio's nav-tab strip, dark               1.11:1   (ink-2 on #dcdcde)
+ *   core `.button` text, dark (midnight)           3.64:1   (#cf4339)
+ *   core `.button` text, LIGHT (fresh)             3.96:1   (#007cba)
+ *   `.subsubsub .count`, dark                      2.68:1   (#50575e)
+ *   row-actions Delete, dark                       2.69:1   (#b32d2e)
+ *
+ * The buttons fail in BOTH modes, which is why the button rules are not inside
+ * an `.is-dark` block: core's button is designed against its own #f6f7f7 and
+ * the panel puts it on --kh-card, --kh-soft and --kh-bg instead.
+ *
+ * Everything else here is dark-only, because in light mode core's own surfaces
+ * and the panel's happen to agree closely enough to pass.
+ */
+
+/* --------------------------------------------------------------------------
+   Buttons — both modes
+   --------------------------------------------------------------------------
+   Light: --kh-ink on --kh-card 18.33:1, border --kh-muted on white 6.18:1.
+   Dark:  --kh-ink on --kh-card 15.87:1, border --kh-muted 8.90:1.
+   Both clear the 3:1 a component boundary needs, with room to spare. */
+.kh-ui .button,
+.kh-ui .button-secondary,
+.kh-ui button.button {
+	background: var(--kh-card);
+	border: 1px solid var(--kh-muted);
+	color: var(--kh-ink);
+	text-decoration: none;
+	box-shadow: none;
+}
+
+.kh-ui .button:hover,
+.kh-ui .button:focus,
+.kh-ui .button-secondary:hover,
+.kh-ui .button-secondary:focus {
+	background: var(--kh-soft);
+	border-color: var(--kh-ink-2);
+	color: var(--kh-ink);
+}
+
+/* Copper as a FILL with near-black words on it — 5.47:1 light, 6.50:1 dark.
+   Copper as TEXT on paper is 3.35:1 and fails, which is hard rule 7; a badge
+   or button background is the case that rule explicitly permits. */
+.kh-ui .button-primary,
+.kh-ui .button-primary:hover,
+.kh-ui .button-primary:focus {
+	background: var(--kh-accent);
+	border: 1px solid var(--kh-accent);
+	color: #121517;
+	text-shadow: none;
+	box-shadow: none;
+}
+
+.kh-ui .button:disabled,
+.kh-ui .button[disabled],
+.kh-ui .button.disabled {
+	background: var(--kh-soft);
+	border-color: var(--kh-line);
+	color: var(--kh-muted);
+}
+
+/* `.button-link` is a <button> drawn as a link — core's Delete in a row's
+   actions, and the Studio's Clear chat. Core paints it #b32d2e, which is
+   2.69:1 on the dark card. --kh-bad-ink is 7.43:1 light and 7.60:1 dark, and
+   the word still says "Delete" either way. */
+.kh-ui .button-link,
+.kh-ui .submitdelete,
+.kh-ui .row-actions .delete a,
+.kh-ui .row-actions .trash a {
+	background: none;
+	border: 0;
+	box-shadow: none;
+	color: var(--kh-bad-ink);
+	text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------------
+   Inline hexes that live in another lane's PHP
+   --------------------------------------------------------------------------
+   `includes/class-studio-list.php` writes `style="color:#666"` (line 302),
+   `#999` (360) and `#d63638` (238, 300) straight onto the markup. Measured:
+   #999 is 2.85:1 on a white list row and #666 is 2.95:1 on the dark card, so
+   these fail AA in BOTH modes — and an inline declaration cannot be beaten by
+   a stylesheet without `!important`.
+
+   `!important` is used here and nowhere else in this file, and only because
+   the alternative was editing a file another lane owns mid-build. THESE FOUR
+   RULES SHOULD BE DELETED the moment class-studio-list.php stops inlining
+   hexes and uses var(--kh-muted) / var(--kh-bad-ink) instead; they are keyed
+   to the exact literal strings, so they fail safe (they simply stop matching)
+   rather than fighting a future value.
+
+   --kh-muted: 6.18:1 on white, 8.90:1 on the dark card.
+   --kh-bad-ink: 7.43:1 on white, 7.60:1 on the dark card. */
+.kh-ui [style*="color:#666"],
+.kh-ui [style*="color:#999"] {
+	color: var(--kh-muted) !important;
+}
+
+/* #d63638 fails in BOTH modes: 4.09:1 on --kh-bg light, 3.59:1 on --kh-soft
+   dark. --kh-bad-ink is 7.43:1 and 7.60:1. */
+.kh-ui [style*="color:#d63638"] {
+	color: var(--kh-bad-ink) !important;
+}
+
+/* class-studio-list.php:441 inlines the row actions: #b32d2e for Delete and
+   #2271b1 for Duplicate. Delete fails dark only (2.69:1 on the soft stripe;
+   5.46:1+ light, so light keeps core's red). Duplicate is 4.47:1 on --kh-bg
+   in light, which is a hair under AA, so that one is retoned in both modes —
+   and the panel's own convention is already ink-2 with an underline for a
+   link, so it is consistent rather than a new look. */
+.kh-ui [style*="color:#2271b1"] {
+	color: var(--kh-ink-2) !important;
+}
+
+.kh-ui.is-dark [style*="color:#b32d2e"] {
+	color: var(--kh-bad-ink) !important;
+}
+
+/* class-donate.php:62 inlines BOTH `border-color:#c2185b` and
+   `color:#c2185b` on the Donate button. The Ko-fi pink is 5.09:1+ in light and
+   stays exactly as it is there; in dark it is 3.12:1 and only the WORD is
+   retoned. The border keeps the pink, which is the AMENDMENT A1.1 pattern —
+   brand colour as the boundary, ink for the words — and #c2185b on the dark
+   card is 3.12:1, which clears the 3:1 a component boundary needs. */
+.kh-ui.is-dark [style*="color:#c2185b"] {
+	color: var(--kh-ink) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Admin notices — dark
+   --------------------------------------------------------------------------
+   THE SAFETY CONTROL. `Keelhob_Admin::notice()` prints the "AI abilities are
+   ON" banner and `chip_watchdog()` re-arms it if anything removes the toolbar
+   chip; hard rule 6 keeps both. Core JavaScript then moves the notice INSIDE
+   the first `.wrap`, which is `.kh-ui`, where it inherited a near-white ink
+   onto core's cream #fef8ee and measured 1.43:1. A safety banner that is
+   present and illegible keeps the letter of the rule and defeats the point of
+   it — and on `main`, before this panel existed, the same banner was about
+   14:1.
+
+   Nothing about the markup, the scope, the dismiss button or the watchdog is
+   touched here. Only the two colours core supplies.
+
+   The LEFT border is deliberately left alone: core paints it with the status
+   colour (#dba617 for a warning, 7.65:1 on --kh-soft) and that is exactly
+   AMENDMENT A1.1's pattern — soft fill, status colour as the border, ink for
+   the words. So only the other three edges are retoned.
+
+   --kh-ink on --kh-soft: 14.67:1. */
+.kh-ui.is-dark .notice,
+.kh-ui.is-dark div.updated,
+.kh-ui.is-dark div.error,
+.kh-ui.is-dark #message {
+	background: var(--kh-soft);
+	color: var(--kh-ink);
+	border-top-color: var(--kh-line);
+	border-right-color: var(--kh-line);
+	border-bottom-color: var(--kh-line);
+}
+
+.kh-ui.is-dark .notice p,
+.kh-ui.is-dark .notice strong,
+.kh-ui.is-dark .notice li,
+.kh-ui.is-dark div.updated p,
+.kh-ui.is-dark div.error p {
+	color: var(--kh-ink);
+}
+
+.kh-ui.is-dark .notice a {
+	color: var(--kh-ink-2);
+}
+
+/* The dismiss button is an icon font with no text; it needs the 3:1 of a
+   component, not the 4.5:1 of a word. --kh-muted is 8.23:1 on --kh-soft. */
+.kh-ui.is-dark .notice-dismiss::before {
+	color: var(--kh-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Core tables — dark
+   --------------------------------------------------------------------------
+   `.widefat` paints #fff and `.striped` paints #f6f7f7, unconditionally and
+   with no idea that `.kh-ui` exists, so the panel's light ink landed on a
+   light row. `studio.css` carries the same rules for `.wp-list-table` because
+   the Studio is enqueued separately; BUILD-NOTES flagged that if another
+   screen grew a core table this belonged here instead. Activity and the Guide
+   both render `.widefat`, so it now does.
+
+   --kh-ink on --kh-card 15.87:1, on the --kh-soft stripe 14.67:1;
+   --kh-muted 8.90:1 / 8.23:1. */
+.kh-ui.is-dark .widefat,
+.kh-ui.is-dark .wp-list-table,
+.kh-ui.is-dark .widefat tbody tr,
+.kh-ui.is-dark .wp-list-table tbody tr,
+.kh-ui.is-dark .widefat tfoot tr,
+.kh-ui.is-dark .wp-list-table tfoot tr {
+	background: var(--kh-card);
+	border-color: var(--kh-line);
+	color: var(--kh-ink);
+}
+
+.kh-ui.is-dark .widefat.striped > tbody > :nth-child(odd),
+.kh-ui.is-dark .wp-list-table.striped > tbody > :nth-child(odd),
+.kh-ui.is-dark .widefat .alternate,
+.kh-ui.is-dark .wp-list-table .alternate {
+	background: var(--kh-soft);
+}
+
+.kh-ui.is-dark .widefat th,
+.kh-ui.is-dark .widefat td,
+.kh-ui.is-dark .widefat thead th,
+.kh-ui.is-dark .widefat tfoot th,
+.kh-ui.is-dark .wp-list-table th,
+.kh-ui.is-dark .wp-list-table td,
+.kh-ui.is-dark .wp-list-table thead th,
+.kh-ui.is-dark .wp-list-table tfoot th {
+	border-color: var(--kh-line);
+	color: var(--kh-ink);
+}
+
+.kh-ui.is-dark .widefat thead th a,
+.kh-ui.is-dark .wp-list-table thead th a,
+.kh-ui.is-dark .wp-list-table thead th a span {
+	color: var(--kh-ink-2);
+}
+
+.kh-ui.is-dark .row-actions,
+.kh-ui.is-dark .wp-list-table .column-description,
+.kh-ui.is-dark .widefat .column-description {
+	color: var(--kh-muted);
+}
+
+/* --------------------------------------------------------------------------
+   The list-table furniture around a table — both modes
+   --------------------------------------------------------------------------
+   `.subsubsub`'s counts are core's #50575e, which is 2.68:1 on the dark panel
+   and carries the number of snippets in each state. --kh-muted is 8.90:1 dark
+   and 6.18:1 light. */
+/* The `.count` needs four classes and a type to win: core's own rule is
+   `.subsubsub a.current .count`, which is (0,3,1) — a bare
+   `.kh-ui .subsubsub .count` at (0,3,0) loses to it and the number stayed
+   #50575e, 2.50:1 on the dark card. Measured in the browser, not read off the
+   cascade. Same lesson as the capability switch in b111670.
+   --kh-muted: 6.18:1 light, 8.90:1 dark. */
+.kh-ui .subsubsub,
+.kh-ui .subsubsub a .count,
+.kh-ui .subsubsub a.current .count,
+.kh-ui .tablenav .displaying-num {
+	color: var(--kh-muted);
+}
+
+.kh-ui.is-dark .subsubsub a,
+.kh-ui.is-dark .tablenav .tablenav-pages a,
+.kh-ui.is-dark .tablenav .tablenav-pages .tablenav-pages-navspan {
+	color: var(--kh-ink-2);
+	border-color: var(--kh-line);
+}
+
+/* --------------------------------------------------------------------------
+   The nav-tab strip — dark
+   --------------------------------------------------------------------------
+   The Studio's sub-navigation. Core paints an inactive tab #dcdcde and the
+   active one #f0f0f1, so the panel's ink measured 1.11:1 and 1.33:1 — the two
+   least readable strings anywhere in the panel.
+
+   NOTE: this is `.nav-tab`, core's own component, which is NOT the page tab
+   strip. The page strip is `.kh-u-nav` and is real `<a href>` links per hard
+   rule 4. This rule changes two colours and no behaviour.
+
+   --kh-ink-2 on --kh-soft 11.18:1; --kh-ink on --kh-card 15.87:1. */
+.kh-ui.is-dark .nav-tab-wrapper,
+.kh-ui.is-dark .wp-clearfix.nav-tab-wrapper {
+	border-bottom-color: var(--kh-line);
+}
+
+.kh-ui.is-dark .nav-tab {
+	background: var(--kh-soft);
+	border-color: var(--kh-line);
+	color: var(--kh-ink-2);
+}
+
+.kh-ui.is-dark .nav-tab:hover,
+.kh-ui.is-dark .nav-tab:focus {
+	background: var(--kh-card);
+	color: var(--kh-ink);
+}
+
+.kh-ui.is-dark .nav-tab-active,
+.kh-ui.is-dark .nav-tab-active:hover,
+.kh-ui.is-dark .nav-tab-active:focus {
+	background: var(--kh-card);
+	border-bottom-color: var(--kh-card);
+	color: var(--kh-ink);
+}
+
+/* --------------------------------------------------------------------------
+   Headings, preformatted blocks and core field classes — dark
+   --------------------------------------------------------------------------
+   h2 and h3 already take --kh-ink from the type section above; h1 and h4 did
+   not, and a heading inside a core-supplied white surface was 1.15:1. `<pre>`
+   is core's #f6f7f7 with no dark variant at all, which measured 1.08:1.
+
+   --kh-ink on --kh-soft 14.67:1. */
+.kh-ui.is-dark h1,
+.kh-ui.is-dark h4,
+.kh-ui.is-dark h5,
+.kh-ui.is-dark h6,
+.kh-ui.is-dark dt,
+.kh-ui.is-dark label,
+.kh-ui.is-dark legend,
+.kh-ui.is-dark th {
+	color: var(--kh-ink);
+}
+
+.kh-ui.is-dark pre,
+.kh-ui.is-dark textarea.code,
+.kh-ui.is-dark .code {
+	background: var(--kh-soft);
+	border-color: var(--kh-line);
+	color: var(--kh-ink);
+}
+
+/* --------------------------------------------------------------------------
+   Core's `.card` — dark
+   --------------------------------------------------------------------------
+   Core paints `.card` #fff with a #c3c4c7 edge. The Studio's EMPTY STATE is
+   one (`class-studio-list.php:450`), so "No snippets yet." measured 1.52:1 in
+   dark — and it was invisible to every run that had snippets in the list,
+   which is the mirror image of the bug the fixtures were added to catch. The
+   gate now visits a filter that matches nothing, with the fixtures still in
+   place, so both states are measured in the same run.
+
+   --kh-ink on --kh-card: 15.87:1. */
+.kh-ui.is-dark .card,
+.kh-ui.is-dark .postbox,
+.kh-ui.is-dark .welcome-panel {
+	background: var(--kh-card);
+	border-color: var(--kh-line);
+	color: var(--kh-ink);
+	box-shadow: none;
 }

@@ -25,13 +25,29 @@
  * the problem was real. The first run of this file against the un-redesigned
  * screens is expected to be mostly RED.
  *
- * FIXTURES: there are none. This file only reads screens. The one piece of rig
- * state it touches is the admin colour scheme under `--dark`, and that is
- * restored in the `finally` block whether the run passes, fails or throws —
- * same rule as check-snippets.mjs, for the same reason.
+ * FIXTURES. This file used to have none, and that was a hole rather than a
+ * virtue: the dark run reported 96/96 while three elements in the snippets list
+ * were genuinely unreadable, because the list was EMPTY and the rows it was
+ * measuring did not exist. So it now seeds a snippet, two tasks, a skill, a
+ * memory row and an activity-log row, asserts that the seeded text is actually
+ * on the screen, and destroys all of it in the `finally` block whether the run
+ * passes, fails or throws — same rule as check-snippets.mjs, for the same
+ * reason, and with a different name prefix so the two files cannot delete each
+ * other's rows.
+ *
+ * RIG STATE. No shared key is written any more. `--dark` used to flip user 1's
+ * `admin_color` meta, which raced with the other lane's runs; each mode now has
+ * its own pinned administrator. See PROBE_USERS below.
+ *
+ * WHAT IS MEASURED. Not just `.kh-u-*`. Every text node in the panel, against
+ * the first ancestor that actually paints a background — because WordPress
+ * renders admin notices, `.nav-tab` strips, `.widefat` tables, `<pre>` blocks
+ * and core buttons INSIDE this panel, none of them know about `.kh-ui`, and the
+ * old selector-driven check could not see any of them. That blind spot hid a
+ * 1.43:1 safety banner and nineteen 1.15:1 headings in dark mode.
  */
 
-import { args, clearFailures, launch, login, Report, shoot, wpEval } from './harness.mjs';
+import { args, clearFailures, launch, login, Report, shoot, wpEval, wpJson } from './harness.mjs';
 
 const opt = args();
 const WP = (opt.wp || 'http://localhost:8899').replace(/\/$/, '');
@@ -44,6 +60,46 @@ const wpOpts = { path: RIG, cli: CLI };
 const DARK = opt.dark === true || opt.dark === 'true';
 const WIDTH = Number(opt.width) || 1440;
 const HEIGHT = Number(opt.height) || 900;
+
+/*
+ * DEDICATED RIG ADMINISTRATORS, ONE PER MODE.
+ *
+ * `--dark` used to flip one shared piece of rig state — user 1's `admin_color`
+ * user meta — and restore it in a `finally`. With two agents running browser
+ * checks against the same rig, one run's restore lands mid-flight in the
+ * other's, and the browser then sees `admin-color-fresh` while the run expects
+ * midnight. That produced three spurious failures on this build, and nothing
+ * about them looked like a race: the run printed "Admin colour scheme:
+ * midnight" and reported is-dark=false, which reads exactly like a redesign
+ * bug.
+ *
+ * So each mode gets its OWN administrator with its scheme PINNED at setup. The
+ * light run and the dark run write disjoint keys and cannot see each other.
+ * User 1 is never touched by this file again, which also means the other lane's
+ * runs cannot break ours.
+ *
+ * The users are created if missing and then LEFT IN PLACE. A teardown that
+ * deleted them would reintroduce the very race being fixed — run A's delete
+ * invalidating run B's session mid-flight. Creating them is idempotent;
+ * deleting them is not. They are local-rig fixtures and they carry the same
+ * password as the rig's own admin.
+ *
+ * THE TRAP, which has already cost this build a green run:
+ * `update_user_option()` writes the BLOG-PREFIXED meta (`wp_admin_color`) and
+ * `get_user_option()` reads the prefixed key FIRST, so a stray prefixed value
+ * silently outranks the unprefixed `admin_color` that `update_user_meta()`
+ * sets — and the panel renders light while the run swears it set midnight.
+ * Both keys are written here, to the same value, and the resolved value is read
+ * back and asserted before Chrome is launched.
+ */
+const PROBE_PASS = 'rigpass';
+const PROBE_USERS = { light: 'kh_rig_light', dark: 'kh_rig_dark' };
+/** `fresh` is excluded from DARK_SCHEMES on purpose, so it is the honest
+ *  "this install expressed no preference" scheme for the light run. */
+const LIGHT_SCHEME = 'fresh';
+/** An explicit `--user` is an escape hatch: run as that account, touch no
+ *  scheme at all, and let the is-dark check report whatever it finds. */
+const USER_GIVEN = Object.prototype.hasOwnProperty.call(opt, 'user');
 
 const r = new Report();
 
@@ -74,6 +130,59 @@ const ROOT = '.kh-ui';
 /** The tab strip. Deliberately NOT `.kh-tabs` — that name is taken by the
  *  Studio's app picker and means something else. See BUILD-BRIEF §3. */
 const NAV = '.kh-u-nav';
+
+/**
+ * The minimum number of rendered table rows each screen must have before its
+ * contrast numbers mean anything, and a string from the fixtures that proves
+ * the rows on screen are the seeded ones.
+ *
+ * WHY: the dark run went 96/96 while `.kh-switch-label` measured 1.41:1,
+ * `.kh-snippet-id` 1.92:1 and the On label 2.11:1 — because the snippets list
+ * was EMPTY, so none of those elements existed and there was nothing to be
+ * wrong with. A green check against no content is the most expensive kind of
+ * pass there is. The markers make an empty list a FAILURE rather than a clean
+ * run: a contrast assertion that cannot find its subject must go red.
+ */
+const SEEDED_ROWS = {
+  /* Connect renders no table at all — measured, not assumed: the run reports
+     "0 table(s)" there, and the `widefat` blocks that look like Connect's in
+     class-admin-screens.php belong to render_guide(). */
+  'keelhob-skills': 2,
+  'keelhob-automation': 3,
+  'keelhob-activity': 3,
+  'keelhob-studio': 2,
+};
+
+const SEEDED_MARKER = {
+  'keelhob-skills': 'zz-adm-probe-skill',
+  'keelhob-automation': 'ZZ ADM digest',
+  'keelhob-activity': 'zz_adm_probe_tool',
+  'keelhob-studio': 'ZZ ADM alpha',
+};
+
+/** Fixture name prefix. Deliberately NOT check-snippets.mjs's `ZZ UI`: both
+ *  files seed the snippets table, and a shared prefix means one file's
+ *  teardown deletes the other's fixtures mid-run. */
+const PREFIX = 'ZZ ADM';
+
+/**
+ * EMPTY states, measured in the same run as the full ones.
+ *
+ * Seeding fixed one hole and opened its mirror image: a screen only ever
+ * measured WITH rows never renders its empty-state card, and that card is
+ * core's `.card`, which paints #fff. "No snippets yet." measured 1.52:1 in
+ * dark and no run would have seen it. A filter that matches nothing renders
+ * the empty state while the fixtures are still in place, so one run covers
+ * both.
+ */
+const EMPTY_VIEWS = [
+  {
+    name: 'Snippets Studio · empty filter',
+    slug: 'keelhob-studio',
+    query: '&s=zzzz-nothing-matches-this',
+    expect: 'No snippets match that filter.',
+  },
+];
 
 /* ------------------------------------------------------------------ */
 /* Colour maths, run in node rather than in the page                    */
@@ -304,6 +413,108 @@ function probe() {
     }
   }
 
+  /* --- EVERY word in the panel, measured where it actually lands ---- */
+  //
+  // The token sampler above only ever sees text painted in a `--kh-*` value it
+  // was told to look for, which means it only sees the components this redesign
+  // WROTE. WordPress renders plenty inside the panel that nobody here wrote:
+  // admin notices (core JavaScript MOVES them into the first `.wrap`, and
+  // root_class() keeps `wrap` on purpose), `.nav-tab` strips, `.widefat`
+  // tables, `<pre>` blocks, core buttons. Every one of those supplies its own
+  // background and ignores `.kh-ui` entirely, so the panel's inherited ink
+  // lands on a core-white or core-cream surface and nothing in the token layer
+  // knows about it.
+  //
+  // That is how a dark run reported 96/96 while the "AI abilities are ON"
+  // safety banner measured 1.43:1 and nineteen Guide headings measured 1.15:1.
+  //
+  // So: walk the text nodes, resolve the first ancestor that actually paints a
+  // background, alpha-blend, and judge the pair. No selector list to keep in
+  // step with the markup, and a new core component cannot arrive unmeasured.
+  out.text = { measured: 0, records: [] };
+  if (root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const seen = new Set();
+    let node;
+    while ((node = walker.nextNode())) {
+      const text = (node.textContent || '').trim();
+      if (!text) continue;
+      const el = node.parentElement;
+      if (!el) continue;
+      // Screen-reader-only text is positioned off-canvas and clipped to 1px by
+      // design; it is never read with the eyes and has no surface to sit on.
+      if (el.closest('.kh-u-sr, .screen-reader-text, [aria-hidden="true"]')) continue;
+      const cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+      if (parseFloat(cs.opacity) === 0) continue;
+      const b = el.getBoundingClientRect();
+      // A 0x0 box is the honest signal for "inside a closed <details>, inside a
+      // display:none ancestor, or an <option> in a collapsed <select>".
+      if (b.width < 3 || b.height < 3) continue;
+      // Core parks `.row-actions` at left:-129987px. Present, sized, visible by
+      // every naive test, and not on screen for anybody.
+      if (b.left < -100) continue;
+      // Deduplicated by the PAIR, not by the element: two hundred table cells
+      // painted the same ink on the same surface are one contrast question.
+      const bg = effectiveBg(el);
+      const key = `${cs.color}|${bg}|${Math.round(parseFloat(cs.fontSize))}|${cs.fontWeight}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.text.measured++;
+      out.text.records.push({
+        fg: cs.color,
+        bg,
+        fontSize: parseFloat(cs.fontSize),
+        fontWeight: cs.fontWeight,
+        tag: el.tagName.toLowerCase(),
+        cls: (typeof el.className === 'string' ? el.className : '').slice(0, 48),
+        inTable: !!el.closest('table'),
+        inNotice: !!el.closest('.notice, .updated, .error, #message'),
+        text: text.replace(/\s+/g, ' ').slice(0, 44),
+      });
+      if (out.text.records.length >= 400) break;
+    }
+  }
+
+  /* --- tables: did any rows actually render? ----------------------- */
+  // A contrast check against an EMPTY table asserts nothing and reports green,
+  // which is how the dark list-table bug survived the first dark pass.
+  out.tables = [];
+  if (root) {
+    for (const t of root.querySelectorAll('table')) {
+      const b = t.getBoundingClientRect();
+      if (b.width < 3 || b.height < 3) continue;
+      const rows = [...t.querySelectorAll('tbody tr')].filter((tr) => {
+        const rb = tr.getBoundingClientRect();
+        return rb.width > 2 && rb.height > 2;
+      });
+      out.tables.push({
+        cls: (typeof t.className === 'string' ? t.className : '').slice(0, 48),
+        rows: rows.length,
+      });
+    }
+  }
+
+  /* --- color-scheme, for native selects and scrollbars -------------- */
+  // A `<select>` and a scrollbar are painted by the OS, not by CSS colours.
+  // Without `color-scheme` they stay light inside a dark panel, which is the
+  // most visible single defect this redesign could ship.
+  if (root) {
+    const rcs = getComputedStyle(root);
+    const selects = [...root.querySelectorAll('select')];
+    const outside = document.querySelector('#adminmenu') || document.body;
+    out.colorScheme = {
+      root: rcs.colorScheme,
+      html: getComputedStyle(document.documentElement).colorScheme,
+      body: getComputedStyle(document.body).colorScheme,
+      outside: getComputedStyle(outside).colorScheme,
+      outsideSel: document.querySelector('#adminmenu') ? '#adminmenu' : 'body',
+      selects: selects.length,
+      first: selects.length ? getComputedStyle(selects[0]).colorScheme : '',
+      wrong: selects.filter((s) => getComputedStyle(s).colorScheme !== rcs.colorScheme).length,
+    };
+  }
+
   return out;
 }
 
@@ -420,8 +631,12 @@ async function checkScreen(page, screen) {
   /* 8. Real contrast on the muted and accent text. ------------------ */
   const muted = d.samples.filter((s) => s.token === '--kh-muted');
   const accent = d.samples.filter((s) => s.token === '--kh-accent-ink' || s.token === '--kh-accent-2-ink');
+  // The ink tokens were COLLECTED and never asserted, which is most of why the
+  // dark run went green: --kh-ink is near-white in dark mode, and the pairs
+  // that fail are exactly the ones where it lands on a core-white surface.
+  const ink = d.samples.filter((s) => s.token === '--kh-ink' || s.token === '--kh-ink-2');
 
-  for (const [tokenLabel, set] of [['muted text', muted], ['accent text', accent]]) {
+  for (const [tokenLabel, set] of [['muted text', muted], ['accent text', accent], ['ink text', ink]]) {
     if (!set.length) {
       // Not a failure on a screen that legitimately uses neither. Recorded so
       // a silently-unstyled screen cannot look like a clean pass.
@@ -444,8 +659,150 @@ async function checkScreen(page, screen) {
       measured ? `worst ${ratio(worstRatio)} — ${worstOn}` : 'no measurable pair');
   }
 
+  /* 9. EVERY word in the panel clears AA on the surface it lands on. -- */
+  //
+  // The check that would have caught the dark-mode safety banner, the Guide's
+  // nineteen 1.15:1 headings, the 1.08:1 <pre> and the 1.11:1 nav-tab strip.
+  // Nothing is excluded for being "core's markup": if WordPress renders it
+  // inside the panel, the panel is responsible for it being readable.
+  {
+    const large = (c) => c.fontSize >= 24 || (c.fontSize >= 18.66 && Number(c.fontWeight) >= 700);
+    const bad = [];
+    let n = 0;
+    for (const c of d.text.records) {
+      const cr = contrast(c.fg, c.bg);
+      if (cr === null) continue;
+      n++;
+      const need = large(c) ? 3 : 4.5;
+      if (cr < need) bad.push({ cr, need, c });
+    }
+    bad.sort((a, b) => a.cr - b.cr);
+    const show = (x) =>
+      `${ratio(x.cr)} (needs ${x.need}:1) <${x.c.tag}${x.c.cls ? ` class="${x.c.cls}"` : ''}> ` +
+      `${x.c.fg} on ${x.c.bg}${x.c.inNotice ? ' [NOTICE]' : x.c.inTable ? ' [table]' : ''} — "${x.c.text}"`;
+    r.check(B, `${label} · every word in the panel clears AA where it lands`,
+      n > 0 && bad.length === 0,
+      bad.length
+        ? `${bad.length} of ${n} distinct ink/surface pairs fail — ${bad.slice(0, 6).map(show).join(' | ')}`
+        : `${n} distinct ink/surface pairs measured, worst ${ratio(Math.min(...d.text.records.map((c) => contrast(c.fg, c.bg)).filter((x) => x !== null)))}`);
+
+    // The safety banner is called out on its own line. Hard rule 6 keeps it on
+    // the screen; a banner that is present and illegible keeps the letter of
+    // that rule and defeats the point of it.
+    const notices = d.text.records.filter((c) => c.inNotice);
+    if (notices.length) {
+      const worstNotice = notices
+        .map((c) => ({ cr: contrast(c.fg, c.bg), c }))
+        .filter((x) => x.cr !== null)
+        .sort((a, b) => a.cr - b.cr)[0];
+      r.check(B, `${label} · admin notices inside the panel clear AA`,
+        !!worstNotice && worstNotice.cr >= 4.5,
+        worstNotice ? show({ ...worstNotice, need: 4.5 }) : 'no measurable notice text');
+    }
+  }
+
+  /* 10. The seeded content is ON the screen, and the tables have ROWS. --- */
+  const marker = SEEDED_MARKER[screen.slug];
+  if (marker) {
+    const seen = await page.evaluate((m) => {
+      const rt = document.querySelector('.kh-ui') || document.querySelector('.wrap');
+      return rt ? (rt.innerText || '').includes(m) : false;
+    }, marker);
+    r.check(B, `${label} · the seeded fixture is rendered on this screen`, seen,
+      seen ? `found "${marker}"` : `"${marker}" is not in the panel — the table this screen's contrast is measured on is EMPTY`);
+  }
+
+  // Contrast against an empty table is contrast against nothing. These numbers
+  // come from the fixtures seeded at the top of the run.
+  const wantRows = SEEDED_ROWS[screen.slug] || 0;
+  if (wantRows) {
+    const rows = d.tables.reduce((acc, t) => acc + t.rows, 0);
+    r.check(B, `${label} · seeded rows rendered (>= ${wantRows} table rows)`,
+      rows >= wantRows,
+      `${d.tables.length} table(s), ${rows} visible tbody row(s): ${d.tables.map((t) => `${t.cls || '(no class)'}=${t.rows}`).join(', ') || 'none'}`);
+  }
+
+  /* 11. color-scheme, so native controls follow the panel. ---------- */
+  if (d.colorScheme) {
+    const want = DARK ? 'dark' : 'light';
+    r.check(B, `${label} · panel root declares color-scheme: ${want}`,
+      d.colorScheme.root === want,
+      `root color-scheme: ${d.colorScheme.root || '(empty)'}`);
+
+    if (d.colorScheme.selects) {
+      r.check(B, `${label} · every native <select> inherits the panel's colour scheme`,
+        d.colorScheme.wrong === 0,
+        `${d.colorScheme.selects} select(s), ${d.colorScheme.wrong} not "${d.colorScheme.root}"; first: ${d.colorScheme.first || '(empty)'}`);
+    } else {
+      r.ok(B, `${label} · native <select> · none on this screen`, 'nothing to measure');
+    }
+
+    // And it must not escape the panel: the admin menu and the document root
+    // belong to WordPress, and a stray `color-scheme: dark` on <html> would
+    // repaint every scrollbar and form control on every screen of the site.
+    if (DARK) {
+      r.check(B, `${label} · color-scheme does not leak outside .kh-ui`,
+        d.colorScheme.outside !== 'dark' && d.colorScheme.html !== 'dark' && d.colorScheme.body !== 'dark',
+        `${d.colorScheme.outsideSel}=${d.colorScheme.outside || 'normal'}, html=${d.colorScheme.html || 'normal'}, body=${d.colorScheme.body || 'normal'}`);
+    }
+  }
+
   if (r.failures.some((f) => f.label.startsWith(label))) {
     await shoot(page, `admin-${screen.slug}${DARK ? '-dark' : ''}-${WIDTH}`);
+  }
+}
+
+/**
+ * An empty-state view: the panel root, and every word in it.
+ *
+ * No nav, slug or row assertions — this is the same screen as the main pass,
+ * reached with a filter that matches nothing, so repeating those would be
+ * repeating the main pass. What is different about it is the surface the words
+ * land on, and that is what gets measured.
+ */
+async function checkEmptyView(page, view) {
+  const label = `${view.name}${DARK ? ' (dark)' : ''} @${WIDTH}px`;
+  const B = view.slug;
+
+  await page.goto(`${WP}/wp-admin/admin.php?page=${view.slug}${view.query}`, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(400);
+
+  const d = await page.evaluate(probe);
+
+  r.check(B, `${label} · panel root ${ROOT} is present`, d.rootFound,
+    d.rootFound ? '' : 'no .kh-ui element');
+
+  if (view.expect) {
+    const seen = await page.evaluate((m) => {
+      const rt = document.querySelector('.kh-ui') || document.querySelector('.wrap');
+      return rt ? (rt.innerText || '').includes(m) : false;
+    }, view.expect);
+    r.check(B, `${label} · the empty state is actually rendered`, seen,
+      seen ? `found "${view.expect}"` : `"${view.expect}" is not on the screen — this view is measuring something else`);
+  }
+
+  if (!d.root) return;
+
+  const large = (c) => c.fontSize >= 24 || (c.fontSize >= 18.66 && Number(c.fontWeight) >= 700);
+  const bad = [];
+  let n = 0;
+  for (const c of d.text.records) {
+    const cr = contrast(c.fg, c.bg);
+    if (cr === null) continue;
+    n++;
+    const need = large(c) ? 3 : 4.5;
+    if (cr < need) bad.push({ cr, need, c });
+  }
+  bad.sort((a, b) => a.cr - b.cr);
+  r.check(B, `${label} · every word in the empty state clears AA where it lands`,
+    n > 0 && bad.length === 0,
+    bad.length
+      ? `${bad.length} of ${n} pairs fail — ${bad.slice(0, 4).map((x) =>
+          `${ratio(x.cr)} (needs ${x.need}:1) <${x.c.tag}${x.c.cls ? ` class="${x.c.cls}"` : ''}> ${x.c.fg} on ${x.c.bg} — "${x.c.text}"`).join(' | ')}`
+      : `${n} distinct ink/surface pairs measured`);
+
+  if (r.failures.some((f) => f.label.startsWith(label))) {
+    await shoot(page, `admin-${view.slug}-empty${DARK ? '-dark' : ''}-${WIDTH}`);
   }
 }
 
@@ -483,18 +840,171 @@ function darkScheme() {
   return 'midnight';
 }
 
-function getScheme(user) {
-  return wpEval(
-    `$u = get_user_by('login', '${user}'); echo $u ? (string) get_user_meta($u->ID, 'admin_color', true) : '';`,
+/**
+ * Create this mode's probe administrator if it is missing, pin its colour
+ * scheme, and report what WordPress actually resolves for it.
+ *
+ * Idempotent on every path: an existing user has its role re-asserted and its
+ * scheme rewritten, so a later correction to `DARK_SCHEMES` reaches the fixture
+ * without anybody having to remember to reset it.
+ */
+function ensureProbeUser(loginName, scheme) {
+  return wpJson(
+    `
+    $login  = '${loginName}';
+    $scheme = '${scheme}';
+    $u = get_user_by('login', $login);
+    $created = false;
+    if (!$u) {
+      $id = wp_insert_user([
+        'user_login'   => $login,
+        'user_pass'    => '${PROBE_PASS}',
+        'user_email'   => $login . '@rig.invalid',
+        'role'         => 'administrator',
+        'display_name' => 'Keelhob rig probe',
+      ]);
+      if (is_wp_error($id)) { echo json_encode(['error' => $id->get_error_message()]); return; }
+      $u = get_user_by('id', (int) $id);
+      $created = true;
+    }
+    if (!$u) { echo json_encode(['error' => 'could not create or load ' . $login]); return; }
+    if (!user_can($u, 'manage_options')) { $u->set_role('administrator'); }
+
+    /*
+     * BOTH keys, to the same value. update_user_option() writes the
+     * blog-prefixed meta and get_user_option() reads that one first, so the
+     * unprefixed key alone is silently outranked by any stray prefixed value.
+     */
+    update_user_meta($u->ID, 'admin_color', $scheme);
+    update_user_option($u->ID, 'admin_color', $scheme);
+
+    global $wpdb;
+    echo json_encode([
+      'id'       => (int) $u->ID,
+      'created'  => $created,
+      'resolved' => (string) get_user_option('admin_color', $u->ID),
+      'meta'     => (string) get_user_meta($u->ID, 'admin_color', true),
+      'prefixed' => (string) get_user_meta($u->ID, $wpdb->get_blog_prefix() . 'admin_color', true),
+    ]);
+  `,
     wpOpts
-  ).trim();
+  );
 }
 
-function setScheme(user, scheme) {
-  wpEval(
-    `$u = get_user_by('login', '${user}');
-     if ($u) { update_user_meta($u->ID, 'admin_color', '${scheme}'); }
-     echo 'ok';`,
+/**
+ * Give every screen that renders a table something to render.
+ *
+ * Deliberately through the product's own save paths, not through raw INSERTs:
+ * `Keelhob_Snippets::save()` has REQUIRED `purpose` and `impact` on a create
+ * since the security gate landed (class-snippets.php:654), and a seed without
+ * them is refused — leaving the list empty, every row-dependent check with
+ * nothing to measure, and the run green. That is the bug this job exists to
+ * close, so the seeder goes through the gate that caused it.
+ */
+function seed() {
+  return wpJson(
+    `
+    $out = ['snippets' => [], 'tasks' => [], 'skill' => '', 'memory' => false, 'log' => false];
+
+    /* Snippet code carries NO opening tag: snippet bodies are eval'd and eval()
+       rejects one, so a fixture with a tag crashes on init and the crash guard
+       correctly switches it straight back off. */
+    $specs = [
+      ['${PREFIX} alpha active php', 'php', 'add_action("init", function () { return true; });', 'everywhere', 1, 5],
+      ['${PREFIX} bravo inactive css', 'css', 'body { color: #123456; }', 'header', 0, 10],
+    ];
+    foreach ($specs as $sp) {
+      $res = Keelhob_Snippets::save([
+        'name' => $sp[0], 'snippet_type' => $sp[1], 'code' => $sp[2],
+        'location' => $sp[3], 'active' => $sp[4], 'priority' => $sp[5],
+        'description' => 'Browser-check fixture. Safe to delete.',
+        'purpose' => 'Fixture for tests/rig/ui/check-admin.mjs.',
+        'impact'  => 'None. It hooks init and returns. Deleting it breaks nothing.',
+      ]);
+      if (empty($res['success'])) { echo json_encode(['error' => 'snippet: ' . ($res['error'] ?? 'save refused')]); return; }
+      $out['snippets'][] = (int) $res['id'];
+    }
+
+    foreach ([
+      ['${PREFIX} digest task', 'digest', ''],
+      ['${PREFIX} autonomous task', 'autonomous', 'Look at the site and report what changed.'],
+    ] as $tk) {
+      $res = Keelhob_Tasks::save([
+        'name' => $tk[0], 'mode' => $tk[1], 'instruction' => $tk[2],
+        'schedule' => 'daily', 'enabled' => 1, 'notify' => 0,
+      ]);
+      if (empty($res['success'])) { echo json_encode(['error' => 'task: ' . ($res['error'] ?? 'save refused')]); return; }
+      $out['tasks'][] = (int) $res['id'];
+    }
+
+    $res = Keelhob::instance()->skills->save([
+      'name' => 'zz-adm-probe-skill',
+      'description' => 'Browser-check fixture for tests/rig/ui/check-admin.mjs. Safe to delete.',
+      'body' => 'Do nothing. This row exists so the Skills table has a row to measure.',
+      'version' => '0.0.1',
+    ]);
+    if (empty($res['success'])) { echo json_encode(['error' => 'skill: ' . ($res['error'] ?? 'save refused')]); return; }
+    $out['skill'] = (string) $res['name'];
+
+    /* The Activity screen's three tables. Memory is best-effort rather than
+       fatal: its save() uses ON DUPLICATE KEY UPDATE, which the rig's SQLite
+       drop-in does not always translate, and a snippet-log row plus an
+       activity-log row are enough to put rows under the ink. */
+    try {
+      $m = Keelhob::instance()->memory->save('zz_adm_probe', 'Browser-check fixture value. Safe to delete.', 'general');
+      $out['memory'] = !empty($m['success']);
+    } catch (Throwable $e) {
+      $out['memory'] = false;
+    }
+
+    Keelhob::instance()->logger->record(
+      'zz_adm_probe_tool',
+      ['note' => 'browser-check fixture'],
+      ['success' => true, 'message' => 'Fixture row. Safe to delete.']
+    );
+    $out['log'] = true;
+
+    echo json_encode($out);
+  `,
+    wpOpts
+  );
+}
+
+/** Torn down in the SAME run that asserts on it, including on failure. A rig
+ *  left holding an ACTIVE fixture snippet runs that code on every request. */
+function teardown() {
+  return wpJson(
+    `
+    $gone = ['snippets' => [], 'tasks' => [], 'skill' => false, 'memory' => false, 'log' => 0, 'snippet_log' => 0];
+
+    foreach (Keelhob_Snippets::query([]) as $row) {
+      if (strpos((string) $row['name'], '${PREFIX}') === 0) {
+        Keelhob_Snippets::delete((int) $row['id']);
+        $gone['snippets'][] = (int) $row['id'];
+      }
+    }
+    foreach (Keelhob_Tasks::all() as $t) {
+      if (strpos((string) $t['name'], '${PREFIX}') === 0) {
+        Keelhob_Tasks::delete((int) $t['id']);
+        $gone['tasks'][] = (int) $t['id'];
+      }
+    }
+    $gone['skill'] = !empty(Keelhob::instance()->skills->delete('zz-adm-probe-skill')['success']);
+    try {
+      $gone['memory'] = !empty(Keelhob::instance()->memory->delete('zz_adm_probe')['success']);
+    } catch (Throwable $e) {
+      $gone['memory'] = false;
+    }
+
+    global $wpdb;
+    $gone['log'] = (int) $wpdb->delete(Keelhob_Logger::table(), ['tool' => 'zz_adm_probe_tool']);
+    $gone['snippet_log'] = (int) $wpdb->query(
+      "DELETE FROM " . Keelhob_Snippet_Log::table() . " WHERE name LIKE '${PREFIX}%'"
+    );
+
+    $gone['remaining_snippets'] = count(Keelhob_Snippets::query([]));
+    echo json_encode($gone);
+  `,
     wpOpts
   );
 }
@@ -502,7 +1012,7 @@ function setScheme(user, scheme) {
 clearFailures();
 
 let browser = null;
-let restoreScheme = null;
+let didSeed = false;
 
 try {
   const ping = await fetch(`${WP}/wp-login.php`).then((x) => x.ok).catch(() => false);
@@ -513,19 +1023,49 @@ try {
     process.exit(2);
   }
 
-  if (DARK) {
-    const want = darkScheme();
-    const had = getScheme(USER) || 'fresh';
-    if (had !== want) {
-      setScheme(USER, want);
-      restoreScheme = had;
+  /* Who we run as, and in which colour scheme. No shared rig state is
+     touched: see the PROBE_USERS comment at the top of this file. */
+  let user = USER;
+  let pass = PASS;
+  const wantScheme = DARK ? darkScheme() : LIGHT_SCHEME;
+
+  if (USER_GIVEN) {
+    console.log(`--user given explicitly: running as ${USER}, no colour scheme written.`);
+  } else {
+    const who = PROBE_USERS[DARK ? 'dark' : 'light'];
+    const info = ensureProbeUser(who, wantScheme);
+    if (info.error) {
+      console.error(`Could not prepare the rig probe user ${who}: ${info.error}`);
+      process.exit(2);
     }
-    console.log(`Admin colour scheme: ${want} (was ${had})`);
+    user = who;
+    pass = PROBE_PASS;
+    console.log(
+      `Probe user ${who} (#${info.id}${info.created ? ', created' : ''}) · ` +
+      `admin_color resolves to "${info.resolved}" (unprefixed "${info.meta}", blog-prefixed "${info.prefixed}")`
+    );
+    // Asserted, not assumed. A prefixed value that disagrees with the
+    // unprefixed one is the exact failure that made a dark run report light,
+    // and it has to be loud here rather than six screens later.
+    r.check('—', `the ${DARK ? 'dark' : 'light'} fixture resolves to "${wantScheme}"`,
+      info.resolved === wantScheme && info.prefixed === wantScheme && info.meta === wantScheme,
+      `get_user_option="${info.resolved}", admin_color="${info.meta}", prefixed="${info.prefixed}"`);
+  }
+
+  /* Fixtures, before anything is measured. A contrast check against an empty
+     table reports green and asserts nothing. */
+  const seeded = seed();
+  didSeed = true;
+  if (seeded.error) {
+    r.fail('—', 'seeding the screens', seeded.error);
+  } else {
+    r.ok('—', 'screens seeded with real content',
+      `snippets ${seeded.snippets.join(',')} · tasks ${seeded.tasks.join(',')} · skill ${seeded.skill} · memory ${seeded.memory} · log ${seeded.log}`);
   }
 
   const launched = await launch({ chrome: opt.chrome, headed: opt.headed });
   browser = launched.browser;
-  const page = await login(launched.context, { wp: WP, user: USER, pass: PASS });
+  const page = await login(launched.context, { wp: WP, user, pass });
   await page.setViewportSize({ width: WIDTH, height: HEIGHT });
 
   for (const screen of SCREENS) {
@@ -534,21 +1074,36 @@ try {
     await checkScreen(page, screen).catch((e) =>
       r.fail(screen.slug, `${screen.name}${DARK ? ' (dark)' : ''} @${WIDTH}px · the checks themselves`, e.message));
   }
+
+  for (const view of EMPTY_VIEWS) {
+    process.stdout.write(`  ... ${view.name}\n`);
+    await checkEmptyView(page, view).catch((e) =>
+      r.fail(view.slug, `${view.name}${DARK ? ' (dark)' : ''} @${WIDTH}px · the checks themselves`, e.message));
+  }
 } catch (err) {
   r.fail('—', 'the run itself', err.message);
 } finally {
-  // Rig state is restored here and nowhere else. A failed assertion, a thrown
-  // error and a clean pass all reach this block — a rig left on `midnight`
-  // would make the next light-mode run fail for a reason that is not a bug.
-  if (restoreScheme) {
+  // Fixtures are destroyed here and nowhere else. A failed assertion, a thrown
+  // error and a clean pass all reach this block. One of the seeded snippets is
+  // ACTIVE, which means it runs on every request to the rig until it is gone —
+  // leaving test artifacts on a live rig has taken a site down on this project
+  // before.
+  if (didSeed) {
     try {
-      setScheme(USER, restoreScheme);
-      console.log(`Admin colour scheme restored to ${restoreScheme}.`);
+      const gone = teardown();
+      console.log(
+        `Fixtures removed: snippets [${gone.snippets.join(',')}], tasks [${gone.tasks.join(',')}], ` +
+        `skill ${gone.skill}, memory ${gone.memory}, log rows ${gone.log}, snippet-log rows ${gone.snippet_log} ` +
+        `(${gone.remaining_snippets} snippet(s) left on the rig)`
+      );
     } catch (e) {
-      console.error(`COULD NOT RESTORE the admin colour scheme: ${e.message}`);
-      r.fail('—', 'colour scheme teardown', e.message);
+      console.error(`COULD NOT TEAR DOWN the fixtures: ${e.message}`);
+      r.fail('—', 'fixture teardown', e.message);
     }
   }
+
+  // The colour scheme needs no restoring: this file no longer writes a shared
+  // key. Each mode's scheme lives on that mode's own probe user.
 
   // Chrome is killed here, on every path.
   //

@@ -275,6 +275,17 @@ export function wpEval(php, { path, cli }) {
   const bin = cli || (existsSync('/c/wp-cli/wp-cli.phar') ? 'php /c/wp-cli/wp-cli.phar' : 'wp');
   const parts = bin.split(' ');
 
+  // `/c/wp-rig/wordpress` is the path every command in the docs and in these
+  // files uses, because they are all written for Git Bash. PHP on Windows does
+  // not understand it: WP-CLI answers "This does not seem to be a WordPress
+  // installation. The used path is: /c/wp-rig/wordpress/" and the whole run
+  // dies on its first fixture call. Translating the MSYS drive prefix here,
+  // once, is better than every caller remembering to pass --rig C:/...
+  const rigPath =
+    process.platform === 'win32'
+      ? String(path).replace(/^\/([a-z])\//i, (_m, d) => `${d.toUpperCase()}:/`)
+      : path;
+
   // The PHP goes through a FILE, not through argv.
   //
   // `wp eval "<php>"` looked simpler and is unusable here: on Windows the call
@@ -288,7 +299,7 @@ ${php}
 `, 'utf8');
 
   try {
-    const res = spawnSync(parts[0], [...parts.slice(1), 'eval-file', tmp, `--path=${path}`], {
+    const res = spawnSync(parts[0], [...parts.slice(1), 'eval-file', tmp, `--path=${rigPath}`], {
       encoding: 'utf8',
       shell: process.platform === 'win32',
     });

@@ -77,7 +77,7 @@ final class Keelhob_Admin_Automation
         ?>
             <p style="margin:0 0 6px;max-width:760px;"><?php esc_html_e('Let the site run itself — on a schedule, or on a plain-language instruction.', 'keelhob'); ?></p>
             <details style="margin:0 0 18px;max-width:760px;">
-                <summary style="cursor:pointer;<?php echo esc_attr(self::T_SUB); ?>"><?php esc_html_e('What the two kinds of task do', 'keelhob'); ?></summary>
+                <summary class="kh-u-sub" style="cursor:pointer;"><?php esc_html_e('What the two kinds of task do', 'keelhob'); ?></summary>
                 <p style="margin:8px 0 0;">
                     <?php esc_html_e('Digest tasks email you a status snapshot on a schedule and need no API key. Autonomous tasks hand a plain-language instruction to the on-site AI agent, which does the work and reports back — no client open. Add a provider API key below to enable autonomy.', 'keelhob'); ?>
                 </p>
@@ -495,28 +495,28 @@ final class Keelhob_Admin_Automation
                         </div>
 
                         <p style="color:var(--kh-muted);"><?php esc_html_e('You can also create tasks by asking your AI:', 'keelhob'); ?> <em><?php esc_html_e('"Create an autonomous task that fulfils paid orders and publishes due drafts every morning at 7."', 'keelhob'); ?></em></p>
-                        <table style="<?php echo esc_attr(self::T_TABLE); ?>">
+                        <table class="kh-u-table">
                             <thead><tr>
-                                <th style="<?php echo esc_attr(self::T_TH); ?>"><?php esc_html_e('Name', 'keelhob'); ?></th>
-                                <th style="<?php echo esc_attr(self::T_TH); ?>"><?php esc_html_e('Mode', 'keelhob'); ?></th>
-                                <th style="<?php echo esc_attr(self::T_TH); ?>"><?php esc_html_e('Schedule', 'keelhob'); ?></th>
-                                <th style="<?php echo esc_attr(self::T_TH); ?>"><?php esc_html_e('On', 'keelhob'); ?></th>
-                                <th style="<?php echo esc_attr(self::T_TH); ?>"><?php esc_html_e('Last run', 'keelhob'); ?></th>
-                                <th style="<?php echo esc_attr(self::T_TH); ?>"><?php esc_html_e('Actions', 'keelhob'); ?></th>
+                                <th><?php esc_html_e('Name', 'keelhob'); ?></th>
+                                <th><?php esc_html_e('Mode', 'keelhob'); ?></th>
+                                <th><?php esc_html_e('Schedule', 'keelhob'); ?></th>
+                                <th><?php esc_html_e('On', 'keelhob'); ?></th>
+                                <th><?php esc_html_e('Last run', 'keelhob'); ?></th>
+                                <th><?php esc_html_e('Actions', 'keelhob'); ?></th>
                             </tr></thead>
                             <tbody>
                             <?php foreach ($tasks as $t) : ?>
                                 <tr>
-                                    <td style="<?php echo esc_attr(self::T_TD); ?>"><strong><?php echo esc_html($t['name']); ?></strong><?php if ((int) $t['allow_risky'] === 1) : ?> <span title="<?php esc_attr_e('allow_risky', 'keelhob'); ?>">⚠️</span><?php endif; ?></td>
-                                    <td style="<?php echo esc_attr(self::T_TD); ?>"><?php echo esc_html($t['mode']); ?></td>
-                                    <td style="<?php echo esc_attr(self::T_TD); ?>"><?php
+                                    <td><strong><?php echo esc_html($t['name']); ?></strong><?php if ((int) $t['allow_risky'] === 1) : ?> <span title="<?php esc_attr_e('allow_risky', 'keelhob'); ?>">⚠️</span><?php endif; ?></td>
+                                    <td><?php echo esc_html($t['mode']); ?></td>
+                                    <td><?php
                                         echo esc_html($t['schedule']);
                                         if (isset($t['run_hour']) && $t['run_hour'] !== null && $t['run_hour'] !== '') {
                                             echo ' <span style="color:var(--kh-muted);">@ ' . esc_html(sprintf('%02d:00', (int) $t['run_hour'])) . '</span>';
                                         }
                                     ?></td>
-                                    <td style="<?php echo esc_attr(self::T_TD); ?>"><?php echo (int) $t['enabled'] === 1 ? '✓' : '—'; ?></td>
-                                    <td style="<?php echo esc_attr(self::T_TD); ?>"><?php
+                                    <td><?php echo (int) $t['enabled'] === 1 ? '✓' : '—'; ?></td>
+                                    <td><?php
                                         if ($t['last_run']) {
                                             printf(
                                                 /* translators: 1: timestamp of the last run, 2: its status */
@@ -528,7 +528,7 @@ final class Keelhob_Admin_Automation
                                             echo '<em>' . esc_html__('never', 'keelhob') . '</em>';
                                         }
                                     ?></td>
-                                    <td style="<?php echo esc_attr(self::T_TD); ?>white-space:nowrap;">
+                                    <td style="white-space:nowrap;">
                                         <?php
                                         $task_actions = [
                                             'task_run'    => __('Run now', 'keelhob'),
@@ -547,10 +547,10 @@ final class Keelhob_Admin_Automation
                                     </td>
                                 </tr>
                                 <?php if (!empty($t['last_summary'])) : ?>
-                                    <tr><td colspan="6" style="<?php echo esc_attr(self::T_TD); ?>background:var(--kh-soft);"><small><strong><?php esc_html_e('Last summary:', 'keelhob'); ?></strong> <?php echo esc_html(wp_trim_words((string) $t['last_summary'], 60)); ?></small></td></tr>
+                                    <tr><td colspan="6" style="background:var(--kh-soft);"><small class="kh-u-clamp"><strong><?php esc_html_e('Last summary:', 'keelhob'); ?></strong> <?php echo esc_html((string) $t['last_summary']); ?></small></td></tr>
                                 <?php endif; ?>
                             <?php endforeach; ?>
-                            <?php if (empty($tasks)) : ?><tr><td colspan="6" style="<?php echo esc_attr(self::T_TD); ?>"><em><?php esc_html_e('No tasks yet.', 'keelhob'); ?></em></td></tr><?php endif; ?>
+                            <?php if (empty($tasks)) : ?><tr><td colspan="6"><em><?php esc_html_e('No tasks yet.', 'keelhob'); ?></em></td></tr><?php endif; ?>
                             </tbody>
                         </table>
                     </div>
@@ -559,16 +559,16 @@ final class Keelhob_Admin_Automation
                     <div class="kh-u-card" style="margin-top:16px;">
                         <h2 style="margin-top:0;"><?php esc_html_e('Agent run history', 'keelhob'); ?></h2>
                         <p style="color:var(--kh-muted);"><?php esc_html_e('Every autonomous run — scheduled or one-off — with what it cost. "capped" means a budget cap stopped it early; "truncated" means it hit the step limit. Costs are estimates, not billing.', 'keelhob'); ?></p>
-                        <table style="<?php echo esc_attr(self::T_TABLE); ?>">
+                        <table class="kh-u-table">
                             <thead><tr>
-                                <th style="<?php echo esc_attr(self::T_TH); ?>"><?php esc_html_e('Started', 'keelhob'); ?></th>
-                                <th style="<?php echo esc_attr(self::T_TH); ?>"><?php esc_html_e('Source', 'keelhob'); ?></th>
-                                <th style="<?php echo esc_attr(self::T_TH); ?>"><?php esc_html_e('Status', 'keelhob'); ?></th>
-                                <th style="<?php echo esc_attr(self::T_TH); ?>"><?php esc_html_e('Steps', 'keelhob'); ?></th>
-                                <th style="<?php echo esc_attr(self::T_TH); ?>"><?php esc_html_e('Tools', 'keelhob'); ?></th>
-                                <th style="<?php echo esc_attr(self::T_TH); ?>"><?php esc_html_e('Retries', 'keelhob'); ?></th>
-                                <th style="<?php echo esc_attr(self::T_TH); ?>"><?php esc_html_e('Tokens', 'keelhob'); ?></th>
-                                <th style="<?php echo esc_attr(self::T_TH); ?>"><?php esc_html_e('Est. cost', 'keelhob'); ?></th>
+                                <th><?php esc_html_e('Started', 'keelhob'); ?></th>
+                                <th><?php esc_html_e('Source', 'keelhob'); ?></th>
+                                <th><?php esc_html_e('Status', 'keelhob'); ?></th>
+                                <th><?php esc_html_e('Steps', 'keelhob'); ?></th>
+                                <th><?php esc_html_e('Tools', 'keelhob'); ?></th>
+                                <th><?php esc_html_e('Retries', 'keelhob'); ?></th>
+                                <th><?php esc_html_e('Tokens', 'keelhob'); ?></th>
+                                <th><?php esc_html_e('Est. cost', 'keelhob'); ?></th>
                             </tr></thead>
                             <tbody>
                             <?php foreach ($runs as $r) :
@@ -585,25 +585,25 @@ final class Keelhob_Admin_Automation
                                 $dots  = ['ok' => 'good', 'error' => 'bad', 'capped' => 'mid', 'truncated' => 'mid', 'running' => 'accent-2'];
                                 $dot   = $dots[$r['status']] ?? 'muted'; ?>
                                 <tr>
-                                    <td style="<?php echo esc_attr(self::T_TD); ?>"><?php echo esc_html($r['started_at']); ?></td>
-                                    <td style="<?php echo esc_attr(self::T_TD); ?>"><?php echo esc_html($r['context']); ?><?php echo $r['task_id'] ? ' #' . (int) $r['task_id'] : ''; ?></td>
-                                    <td style="<?php echo esc_attr(self::T_TD); ?>">
+                                    <td><?php echo esc_html($r['started_at']); ?></td>
+                                    <td><?php echo esc_html($r['context']); ?><?php echo $r['task_id'] ? ' #' . (int) $r['task_id'] : ''; ?></td>
+                                    <td>
                                         <span class="kh-u-pill" style="font-size:12px;padding:3px 10px;">
                                             <span class="kh-u-dot" style="background:var(--kh-<?php echo esc_attr($dot); ?>);" aria-hidden="true"></span>
                                             <?php echo esc_html($r['status']); ?>
                                         </span>
                                     </td>
-                                    <td style="<?php echo esc_attr(self::T_TD); ?>"><?php echo (int) $r['steps']; ?></td>
-                                    <td style="<?php echo esc_attr(self::T_TD); ?>"><?php echo (int) $r['tool_calls']; ?></td>
-                                    <td style="<?php echo esc_attr(self::T_TD); ?>"><?php echo (int) $r['retries'] ?: '—'; ?></td>
-                                    <td style="<?php echo esc_attr(self::T_TD); ?>"><?php echo esc_html(number_format((int) $r['input_tokens'] + (int) $r['output_tokens'])); ?></td>
-                                    <td style="<?php echo esc_attr(self::T_TD); ?>">$<?php echo esc_html(number_format((float) $r['cost_usd'], 4)); ?></td>
+                                    <td><?php echo (int) $r['steps']; ?></td>
+                                    <td><?php echo (int) $r['tool_calls']; ?></td>
+                                    <td><?php echo (int) $r['retries'] ?: '—'; ?></td>
+                                    <td><?php echo esc_html(number_format((int) $r['input_tokens'] + (int) $r['output_tokens'])); ?></td>
+                                    <td>$<?php echo esc_html(number_format((float) $r['cost_usd'], 4)); ?></td>
                                 </tr>
                                 <?php if (!empty($r['summary'])) : ?>
-                                    <tr><td colspan="8" style="<?php echo esc_attr(self::T_TD); ?>background:var(--kh-soft);"><small><strong><?php echo esc_html(wp_trim_words((string) $r['instruction'], 18)); ?></strong> → <?php echo esc_html(wp_trim_words((string) $r['summary'], 50)); ?></small></td></tr>
+                                    <tr><td colspan="8" style="background:var(--kh-soft);"><small class="kh-u-clamp"><strong><?php echo esc_html((string) $r['instruction']); ?></strong> → <?php echo esc_html((string) $r['summary']); ?></small></td></tr>
                                 <?php endif; ?>
                             <?php endforeach; ?>
-                            <?php if (empty($runs)) : ?><tr><td colspan="8" style="<?php echo esc_attr(self::T_TD); ?>"><em><?php esc_html_e('No autonomous runs yet.', 'keelhob'); ?></em></td></tr><?php endif; ?>
+                            <?php if (empty($runs)) : ?><tr><td colspan="8"><em><?php esc_html_e('No autonomous runs yet.', 'keelhob'); ?></em></td></tr><?php endif; ?>
                             </tbody>
                         </table>
                     </div>
@@ -713,15 +713,15 @@ final class Keelhob_Admin_Automation
                     <?php endif; ?>
                 </p>
 
-                <table style="<?php echo esc_attr(self::T_TABLE); ?>max-width:720px;margin:0 0 14px;">
+                <table class="kh-u-table" style="max-width:720px;margin:0 0 14px;">
                     <thead><tr>
-                        <th style="<?php echo esc_attr(self::T_TH); ?>width:150px;"><?php esc_html_e('Write it as', 'keelhob'); ?></th>
-                        <th style="<?php echo esc_attr(self::T_TH); ?>"><?php esc_html_e('What that chat can do', 'keelhob'); ?></th>
+                        <th style="width:150px;"><?php esc_html_e('Write it as', 'keelhob'); ?></th>
+                        <th><?php esc_html_e('What that chat can do', 'keelhob'); ?></th>
                     </tr></thead>
                     <tbody>
-                        <tr><td style="<?php echo esc_attr(self::T_TD); ?>"><code>123456789</code></td><td style="<?php echo esc_attr(self::T_TD); ?>"><?php esc_html_e('admin (the default) — everything, may press Approve and use /risky', 'keelhob'); ?></td></tr>
-                        <tr><td style="<?php echo esc_attr(self::T_TD); ?>"><code>123456789:editor</code></td><td style="<?php echo esc_attr(self::T_TD); ?>"><?php esc_html_e('may change the site, but never destructive or financial tools, and cannot approve', 'keelhob'); ?></td></tr>
-                        <tr><td style="<?php echo esc_attr(self::T_TD); ?>"><code>123456789:viewer</code></td><td style="<?php echo esc_attr(self::T_TD); ?>"><?php esc_html_e('read-only — can ask questions and read reports, cannot change anything', 'keelhob'); ?></td></tr>
+                        <tr><td><code>123456789</code></td><td><?php esc_html_e('admin (the default) — everything, may press Approve and use /risky', 'keelhob'); ?></td></tr>
+                        <tr><td><code>123456789:editor</code></td><td><?php esc_html_e('may change the site, but never destructive or financial tools, and cannot approve', 'keelhob'); ?></td></tr>
+                        <tr><td><code>123456789:viewer</code></td><td><?php esc_html_e('read-only — can ask questions and read reports, cannot change anything', 'keelhob'); ?></td></tr>
                     </tbody>
                 </table>
 
@@ -849,12 +849,12 @@ final class Keelhob_Admin_Automation
 
             <details style="margin-top:14px;">
                 <summary style="cursor:pointer;font-weight:600;"><?php esc_html_e('Commands the bot understands', 'keelhob'); ?></summary>
-                <table style="<?php echo esc_attr(self::T_TABLE); ?>max-width:720px;margin-top:10px;">
+                <table class="kh-u-table" style="max-width:720px;margin-top:10px;">
                     <tbody>
                     <?php foreach (Keelhob_Telegram::commands() as $tg_cmd => $tg_desc) : ?>
                         <tr>
-                            <td style="<?php echo esc_attr(self::T_TD); ?>width:120px;"><code>/<?php echo esc_html($tg_cmd); ?></code></td>
-                            <td style="<?php echo esc_attr(self::T_TD); ?>"><?php echo esc_html($tg_desc); ?></td>
+                            <td style="width:120px;"><code>/<?php echo esc_html($tg_cmd); ?></code></td>
+                            <td><?php echo esc_html($tg_desc); ?></td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>

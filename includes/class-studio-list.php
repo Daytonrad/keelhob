@@ -6,6 +6,31 @@
  * bundled library, the private library, or a person. Showing them in one list
  * with a source badge is the point — an owner should never have to wonder where
  * a piece of running code came from.
+ *
+ * NO LITERAL COLOUR MAY BE INLINED IN THIS FILE.
+ *
+ * Five `style="color:#…"` attributes used to be, and an inline declaration
+ * beats every stylesheet rule — including `.kh-ui.is-dark` — so each one
+ * silently opted its own span out of the panel's dark mode. Measured in
+ * Chromium on the rig: `#999` 2.85:1 on a white row and 2.65:1 on the
+ * `#f6f7f7` stripe, `#666` 3.19:1 on the dark card, `#d63638` 4.09:1 on
+ * `--kh-bg` in light and 3.59:1 on `--kh-soft` in dark, `#2271b1` 4.47:1 on
+ * `--kh-bg` in light. All below AA, and `php tests/run.php`, `php -l` and
+ * PHPStan are all blind to every one of them.
+ *
+ * They are now `var(--kh-*)` references, which follow the mode on their own
+ * and cannot drift from the palette:
+ *
+ *   --kh-muted    6.18:1 on a white row · 5.50:1 on the soft stripe
+ *                 8.90:1 on --kh-card dark · 8.23:1 on --kh-soft dark
+ *   --kh-bad-ink  7.43:1 on white · 6.61:1 on the stripe · 6.43:1 on --kh-bg
+ *                 7.60:1 on --kh-card dark · 7.03:1 on --kh-soft dark
+ *   --kh-ink-2   13.69:1 on white · 12.09:1 on --kh-card dark
+ *
+ * `assets/css/admin.css` carries `!important` overrides keyed to the exact
+ * literal strings this file used to print. They are now dead and fail safe —
+ * they simply stop matching. `tests/unit/test-studio-list-tokens.php` keeps a
+ * literal from coming back.
  */
 
 if (!defined('ABSPATH')) {
@@ -235,7 +260,7 @@ final class Keelhob_Studio_List
         // nothing has errored, so no tab.
         if ((int) ($counts['error'] ?? 0) > 0) {
             printf(
-                '%s<li><a href="%s" class="%s" style="color:#d63638;">%s <span class="count">(%d)</span></a></li>',
+                '%s<li><a href="%s" class="%s" style="color:var(--kh-bad-ink);">%s <span class="count">(%d)</span></a></li>',
                 $i++ ? ' | ' : '',
                 esc_url(Keelhob_Studio::url('all', ['active' => 'error'])),
                 $filters['active'] === 'error' ? 'current' : '',
@@ -297,9 +322,9 @@ final class Keelhob_Studio_List
                 ?>
                 <span class="kh-snippet-id" title="<?php esc_attr_e('Ask your agent about this snippet by number', 'keelhob'); ?>">#<?php echo (int) $id; ?></span>
                 <?php if ($error !== '') : ?>
-                    <br><span style="color:#d63638;font-size:12px;">&#9888; <?php echo esc_html(mb_substr($error, 0, 140)); ?></span>
+                    <br><span style="color:var(--kh-bad-ink);font-size:12px;">&#9888; <?php echo esc_html(mb_substr($error, 0, 140)); ?></span>
                 <?php elseif (trim((string) ($row['description'] ?? '')) !== '') : ?>
-                    <br><span style="color:#666;font-size:12px;"><?php echo esc_html(wp_trim_words((string) $row['description'], 18)); ?></span>
+                    <br><span style="color:var(--kh-muted);font-size:12px;"><?php echo esc_html(wp_trim_words((string) $row['description'], 18)); ?></span>
                 <?php endif; ?>
                 <div class="row-actions">
                     <span><a href="<?php echo esc_url($edit); ?>"><?php esc_html_e('Edit', 'keelhob'); ?></a> | </span>
@@ -357,7 +382,7 @@ final class Keelhob_Studio_List
             <td>
                 <?php
                 $tags = Keelhob_Snippets::tags_array($row['tags'] ?? '');
-                echo $tags ? esc_html(implode(', ', $tags)) : '<span style="color:#999;">&mdash;</span>';
+                echo $tags ? esc_html(implode(', ', $tags)) : '<span style="color:var(--kh-muted);">&mdash;</span>';
                 ?>
             </td>
             <?php if ($show_priority) : ?>
@@ -438,7 +463,7 @@ final class Keelhob_Studio_List
             <input type="hidden" name="action" value="keelhob_studio">
             <input type="hidden" name="studio_action" value="<?php echo esc_attr($action); ?>">
             <input type="hidden" name="snippet_id" value="<?php echo esc_attr((string) $id); ?>">
-            <button type="submit" class="button-link" style="color:<?php echo $action === 'delete' ? '#b32d2e' : '#2271b1'; ?>;"><?php echo esc_html($label); ?></button>
+            <button type="submit" class="button-link" style="color:<?php echo $action === 'delete' ? 'var(--kh-bad-ink)' : 'var(--kh-ink-2)'; ?>;"><?php echo esc_html($label); ?></button>
         </form>
         <?php
     }
