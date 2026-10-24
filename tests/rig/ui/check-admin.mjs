@@ -5,6 +5,11 @@
  *        --rig /c/wp-rig/wordpress --user admin --pass rigpass
  *   node tests/rig/ui/check-admin.mjs --dark
  *   node tests/rig/ui/check-admin.mjs --width 782
+ *   node tests/rig/ui/check-admin.mjs --rtl
+ *   node tests/rig/ui/check-admin.mjs --dark --rtl --width 782
+ *
+ * The three flags are independent and combine, which is the whole matrix:
+ * {light, dark} x {LTR, RTL} x {1440, 782}.
  *
  * WHY THIS FILE EXISTS.
  *
@@ -47,7 +52,7 @@
  * 1.43:1 safety banner and nineteen 1.15:1 headings in dark mode.
  */
 
-import { args, clearFailures, launch, login, Report, shoot, wpEval, wpJson } from './harness.mjs';
+import { args, clearFailures, launch, login, Report, shoot, wpCli, wpEval, wpJson } from './harness.mjs';
 
 const opt = args();
 const WP = (opt.wp || 'http://localhost:8899').replace(/\/$/, '');
@@ -58,8 +63,45 @@ const CLI = opt.cli || null;
 const wpOpts = { path: RIG, cli: CLI };
 
 const DARK = opt.dark === true || opt.dark === 'true';
+const RTL = opt.rtl === true || opt.rtl === 'true';
 const WIDTH = Number(opt.width) || 1440;
 const HEIGHT = Number(opt.height) || 900;
+
+/*
+ * --rtl RUNS AGAINST A GENUINELY RIGHT-TO-LEFT INSTALL. IT DOES NOT FAKE ONE.
+ *
+ * The first RTL pass on this build forced `body.rtl` on in a real browser and
+ * reported a 20px horizontal overflow. The overflow was an artefact of the
+ * fake: adding the class mirrors the panel's own negative margin, because that
+ * rule is written `body.rtl .kh-ui`, but it does NOT make WordPress enqueue
+ * `wp-admin-rtl.css` or `colors-<scheme>-rtl.css`, and those are what move
+ * `#wpcontent`'s padding and the admin menu to the other side. So the panel
+ * mirrored inside a content column that had not. A cycle was spent on a layout
+ * bug that does not exist.
+ *
+ * What makes an install really RTL is the LOCALE. `is_rtl()` answers from the
+ * loaded translation's own `ltr`/`rtl` string, `wp_default_scripts` picks the
+ * `-rtl` stylesheets off the same answer, and `locale_stylesheet` and the
+ * `dir`/`lang` attributes on `<html>` follow. None of that can be reached from
+ * the client side.
+ *
+ * So `--rtl` installs the `ar` language pack if the rig has not got it and
+ * signs in as an administrator whose `locale` user meta is `ar`. The proof is
+ * asserted on every screen, not assumed: `<html dir="rtl" lang="ar">`,
+ * `body.rtl`, and at least one core `-rtl` stylesheet actually in the
+ * document. If any of those is missing the run goes red rather than quietly
+ * measuring a left-to-right page and calling it RTL.
+ *
+ * The pack is installed and left in place, for the same reason the probe users
+ * are: creating it is idempotent, removing it is not, and a second agent's run
+ * must not have its translation deleted underneath it.
+ */
+const RTL_LOCALE = 'ar';
+
+/** How the cell names itself in every check label and capture filename, so a
+ *  failures/ directory holding four runs can be told apart. */
+const MODE_SUFFIX = `${DARK ? ' (dark)' : ''}${RTL ? ' (rtl)' : ''}`;
+const SHOT_SUFFIX = `${DARK ? '-dark' : ''}${RTL ? '-rtl' : ''}`;
 
 /*
  * DEDICATED RIG ADMINISTRATORS, ONE PER MODE.
@@ -93,7 +135,17 @@ const HEIGHT = Number(opt.height) || 900;
  * back and asserted before Chrome is launched.
  */
 const PROBE_PASS = 'rigpass';
-const PROBE_USERS = { light: 'kh_rig_light', dark: 'kh_rig_dark' };
+/** One pinned administrator per CELL of the matrix, not per mode: the RTL pair
+ *  carries a `locale` of `ar` and the LTR pair carries none, and a run that
+ *  flipped one account's locale back and forth would reintroduce exactly the
+ *  shared-state race the per-mode users were created to kill. */
+const PROBE_USERS = {
+  light: 'kh_rig_light',
+  dark: 'kh_rig_dark',
+  'rtl-light': 'kh_rig_rtl_light',
+  'rtl-dark': 'kh_rig_rtl_dark',
+};
+const probeUserKey = () => `${RTL ? 'rtl-' : ''}${DARK ? 'dark' : 'light'}`;
 /** `fresh` is excluded from DARK_SCHEMES on purpose, so it is the honest
  *  "this install expressed no preference" scheme for the light run. */
 const LIGHT_SCHEME = 'fresh';
@@ -280,10 +332,61 @@ function probe() {
   // has to beat.
   const found = document.querySelector(rootSel);
   const root = found || document.querySelector('.wrap');
+  /*
+   * The evidence that this page is really right-to-left.
+   *
+   * Every one of these comes from the SERVER's answer, not from anything the
+   * check could have set: `dir` and `lang` are printed by `language_attributes()`
+   * from the loaded locale, `body.rtl` by `admin_body_class()`, and the `-rtl`
+   * stylesheets are chosen by `wp_default_scripts()`/`wp_style_add_data()` off
+   * `is_rtl()`. Forcing `body.rtl` from the client reproduces the class and
+   * none of the rest, which is the false result this collects to prevent.
+   */
+  const rtlProof = {
+    htmlDir: document.documentElement.getAttribute('dir'),
+    htmlLang: document.documentElement.getAttribute('lang'),
+    computedDir: getComputedStyle(document.documentElement).direction,
+    bodyRtl: document.body.classList.contains('rtl'),
+    /*
+     * Core delivers its RTL stylesheets one of two ways and both count:
+     * separate files (`colors-midnight-rtl.css`, `common-rtl.css`) when
+     * concatenation is off, or one `load-styles.php?...&dir=rtl` when it is
+     * on, which is the rig's case. The `dir=rtl` query parameter is the part
+     * no client-side class can fabricate, so it is kept in the evidence
+     * string rather than stripped with the rest of the query.
+     */
+    sheets: Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+      .map((l) => l.href)
+      .filter((h) => /-rtl(\.min)?\.css|[?&]dir=rtl/.test(h))
+      .map((h) => {
+        const file = h.split('/').pop();
+        const dir = (file.match(/[?&](dir=rtl)/) || [])[1];
+        return dir ? `${file.split('?')[0]}?…&${dir}` : file.split('?')[0];
+      }),
+    /*
+     * The colour-scheme stylesheet, IF it is served as its own file.
+     *
+     * It usually is not. `fresh` is bundled into `load-styles.php` as the
+     * `colors` handle and emits no `colors-*.css` link at all, so requiring
+     * one made every light RTL screen go red while the page was perfectly
+     * right-to-left — six false failures from an assertion that was true of
+     * `midnight` and of nothing else. What is worth asserting is the
+     * conditional: when core DOES emit a separate scheme sheet, under RTL it
+     * must be the `-rtl` build of it (`colors-midnight-rtl.min.css`), because
+     * that file is what moves the admin menu to the other side.
+     */
+    colorHref: (Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+      .map((l) => l.href)
+      .find((h) => /\/colors[-/]/.test(h)) || '')
+      .split('/').pop().split('?')[0],
+  };
+  rtlProof.colorSheetRtl = rtlProof.colorHref === '' || /-rtl(\.min)?\.css$/.test(rtlProof.colorHref);
+
   const out = {
     url: location.href,
     viewport: { w: window.innerWidth, h: window.innerHeight },
     bodyClass: document.body.className,
+    rtlProof,
     rootFound: !!found,
     measuredOn: found ? rootSel : '.wrap (fallback — no .kh-ui on this screen)',
     root: null,
@@ -339,6 +442,22 @@ function probe() {
   // left by a negative margin on purpose, so its own box legitimately starts
   // outside the content column. What must not happen is the page gaining a
   // horizontal scrollbar.
+  //
+  // BOTH EDGES, because "overflow" has no fixed side.
+  //
+  // This swept `b.right - innerWidth` only, which is the inline-END edge in a
+  // left-to-right document and the inline-START edge in a right-to-left one.
+  // Under `--rtl` the whole panel is mirrored: the admin menu moves to the
+  // right, the content column starts at x=0, and anything that spills does so
+  // past the LEFT edge at a negative `b.left`. A right-edge-only sweep cannot
+  // see it and would have reported every RTL screen clean whatever it did.
+  //
+  // Measured on the rig to be sure the mirror is exact rather than assumed: at
+  // 1440 the panel's box is {left 160, right 1440} in LTR and {left 0, right
+  // 1280} in RTL, with the negative margin on `margin-left` and `margin-right`
+  // respectively. So neither edge needs an exemption for the deliberate
+  // overhang — in both directions the pulled edge lands exactly ON the
+  // viewport boundary, not past it.
   const docW = document.documentElement.scrollWidth;
   const worst = [];
   for (const el of root ? [root, ...root.querySelectorAll('*')] : []) {
@@ -347,10 +466,20 @@ function probe() {
     const cs = getComputedStyle(el);
     if (cs.display === 'none' || cs.visibility === 'hidden') continue;
     if (cs.position === 'fixed') continue;
-    const over = Math.round(b.right - window.innerWidth);
+    // PARKED, not overflowing. Core hides `.row-actions` at `left:-129987px`
+    // and `.screen-reader-text` behind a 50% inset clip; both have a real box
+    // and neither is on screen for anyone. A box wholly outside the viewport
+    // is somebody's hiding technique, and counting it as overflow is how a
+    // two-edge sweep reports 129,987px on a page that scrolls perfectly.
+    if (b.right <= 0 || b.left >= window.innerWidth) continue;
+    if (/inset\(50%\)/.test(cs.clipPath) || cs.clip === 'rect(1px, 1px, 1px, 1px)') continue;
+    const pastEnd = Math.round(b.right - window.innerWidth);
+    const pastStart = Math.round(-b.left);
+    const over = Math.max(pastEnd, pastStart);
     if (over > 2) {
       worst.push({
         over,
+        side: pastEnd >= pastStart ? 'right' : 'left',
         tag: el.tagName.toLowerCase(),
         cls: (typeof el.className === 'string' ? el.className : '').slice(0, 60),
       });
@@ -359,6 +488,7 @@ function probe() {
   worst.sort((a, b) => b.over - a.over);
   out.overflow = {
     docScrollWidth: docW,
+    docClientWidth: document.documentElement.clientWidth,
     overflows: docW > window.innerWidth + 1,
     worst: worst.slice(0, 4),
   };
@@ -451,9 +581,19 @@ function probe() {
       // A 0x0 box is the honest signal for "inside a closed <details>, inside a
       // display:none ancestor, or an <option> in a collapsed <select>".
       if (b.width < 3 || b.height < 3) continue;
-      // Core parks `.row-actions` at left:-129987px. Present, sized, visible by
-      // every naive test, and not on screen for anybody.
-      if (b.left < -100) continue;
+      // Core parks `.row-actions` off-canvas: `left:-129987px` in a
+      // left-to-right admin, and `left:+130694px` in a right-to-left one,
+      // because the offset is written as a margin that flips with the
+      // direction. Present, sized, visible by every naive test, and on screen
+      // for nobody in either direction.
+      //
+      // `b.left < -100` alone was the LTR half of that, and under --rtl it let
+      // two `.row-actions` separators into the sample at 782px — core leaves
+      // them `color: rgba(0,0,0,0)` until hover, so they measured 1.00:1 and
+      // reported the Studio as having unreadable text 130,000px to the right
+      // of the viewport. Both edges, and the test is now what it always meant:
+      // is any part of this box inside the window?
+      if (b.right < 0 || b.left > window.innerWidth) continue;
       // Deduplicated by the PAIR, not by the element: two hundred table cells
       // painted the same ink on the same surface are one contrast question.
       const bg = effectiveBg(el);
@@ -523,7 +663,7 @@ function probe() {
 /* ------------------------------------------------------------------ */
 
 async function checkScreen(page, screen) {
-  const label = `${screen.name}${DARK ? ' (dark)' : ''} @${WIDTH}px`;
+  const label = `${screen.name}${MODE_SUFFIX} @${WIDTH}px`;
   const B = screen.slug;
 
   await page.goto(`${WP}/wp-admin/admin.php?page=${screen.slug}`, { waitUntil: 'domcontentloaded' });
@@ -541,7 +681,7 @@ async function checkScreen(page, screen) {
   // remaining style checks would have no subject. Everything else still runs.
   if (!d.root) {
     r.fail(B, `${label} · there is a styleable container on the screen`, 'neither .kh-ui nor .wrap');
-    await shoot(page, `admin-${screen.slug}-noroot${DARK ? '-dark' : ''}`);
+    await shoot(page, `admin-${screen.slug}-noroot${SHOT_SUFFIX}`);
     return;
   }
 
@@ -621,12 +761,41 @@ async function checkScreen(page, screen) {
       `${reachable.length}/${SCREENS.length}: missing ${SCREENS.filter((s) => !reachable.includes(s)).map((s) => s.slug).join(', ') || 'none'}`);
   }
 
+  /* 6b. Under --rtl, this had better really BE right-to-left. -------- */
+  //
+  // Asserted on EVERY screen rather than once per run, because the direction
+  // is decided per request: `is_rtl()` answers from the loaded translation and
+  // a screen that failed to load one would silently render left-to-right while
+  // the rest of the run looked fine. All four facts come from the server, and
+  // the one a client-side fake can reproduce — `body.rtl` — is deliberately
+  // not trusted on its own.
+  if (RTL) {
+    const p = d.rtlProof;
+    r.check(B, `${label} · the served page is genuinely RTL`,
+      p.htmlDir === 'rtl' && p.htmlLang === RTL_LOCALE && p.computedDir === 'rtl' && p.bodyRtl,
+      `<html dir="${p.htmlDir}" lang="${p.htmlLang}">, computed direction ${p.computedDir}, body.rtl ${p.bodyRtl}`);
+    // The stylesheets are the half that forcing a class CANNOT fake, and they
+    // are the half that moves #wpcontent's padding and the admin menu to the
+    // other side. The first RTL pass on this build forced the class, got none
+    // of these, and reported a 20px overflow that does not exist.
+    r.check(B, `${label} · core's own -rtl stylesheets are loading`,
+      p.sheets.length > 0 && p.colorSheetRtl,
+      p.sheets.length
+        ? `${p.sheets.join(', ')} · scheme sheet: ${p.colorHref || 'bundled into load-styles.php'}`
+        : 'none found — this is a faked RTL, not a real one');
+  } else {
+    r.check(B, `${label} · the served page is left-to-right`,
+      d.rtlProof.htmlDir !== 'rtl' && !d.rtlProof.bodyRtl && d.rtlProof.sheets.length === 0,
+      `dir="${d.rtlProof.htmlDir}", body.rtl ${d.rtlProof.bodyRtl}, -rtl sheets ${d.rtlProof.sheets.length}`);
+  }
+
   /* 7. Nothing escapes the viewport sideways. ----------------------- */
   r.check(B, `${label} · no horizontal overflow`,
     !d.overflow.overflows && d.overflow.worst.length === 0,
     d.overflow.worst.length
-      ? `widest: ${d.overflow.worst.map((w) => `${w.tag}.${w.cls || '(no class)'} +${w.over}px`).join('; ')}`
-      : `document scrollWidth ${d.overflow.docScrollWidth} <= viewport ${d.viewport.w}`);
+      ? `widest: ${d.overflow.worst.map((w) => `${w.tag}.${w.cls || '(no class)'} +${w.over}px past the ${w.side}`).join('; ')}`
+      : `document scrollWidth ${d.overflow.docScrollWidth} <= viewport ${d.viewport.w}; ` +
+        `nothing past either edge (${d.rtlProof.computedDir})`);
 
   /* 8. Real contrast on the muted and accent text. ------------------ */
   const muted = d.samples.filter((s) => s.token === '--kh-muted');
@@ -748,7 +917,7 @@ async function checkScreen(page, screen) {
   }
 
   if (r.failures.some((f) => f.label.startsWith(label))) {
-    await shoot(page, `admin-${screen.slug}${DARK ? '-dark' : ''}-${WIDTH}`);
+    await shoot(page, `admin-${screen.slug}${SHOT_SUFFIX}-${WIDTH}`);
   }
 }
 
@@ -761,7 +930,7 @@ async function checkScreen(page, screen) {
  * land on, and that is what gets measured.
  */
 async function checkEmptyView(page, view) {
-  const label = `${view.name}${DARK ? ' (dark)' : ''} @${WIDTH}px`;
+  const label = `${view.name}${MODE_SUFFIX} @${WIDTH}px`;
   const B = view.slug;
 
   await page.goto(`${WP}/wp-admin/admin.php?page=${view.slug}${view.query}`, { waitUntil: 'domcontentloaded' });
@@ -802,7 +971,7 @@ async function checkEmptyView(page, view) {
       : `${n} distinct ink/surface pairs measured`);
 
   if (r.failures.some((f) => f.label.startsWith(label))) {
-    await shoot(page, `admin-${view.slug}-empty${DARK ? '-dark' : ''}-${WIDTH}`);
+    await shoot(page, `admin-${view.slug}-empty${SHOT_SUFFIX}-${WIDTH}`);
   }
 }
 
@@ -848,11 +1017,41 @@ function darkScheme() {
  * scheme rewritten, so a later correction to `DARK_SCHEMES` reaches the fixture
  * without anybody having to remember to reset it.
  */
-function ensureProbeUser(loginName, scheme) {
+/**
+ * Make sure the rig can actually serve the RTL locale, and say so either way.
+ *
+ * Installing a translation is the one fixture that cannot be done from inside
+ * `wpEval`: `wp_download_language_pack()` goes straight to HTTP, while
+ * `wp language core install` resolves the same request through WP-CLI's own
+ * on-disk cache and therefore works on a machine with no network once the pack
+ * has been fetched once. See `wpCli` in harness.mjs.
+ *
+ * Returns what it found rather than throwing, so a rig that genuinely cannot
+ * get the pack produces one explicit red check — "--rtl cannot run" — instead
+ * of a stack trace, or worse, a silent left-to-right run wearing an RTL label.
+ */
+function ensureLanguage(locale) {
+  const list = wpCli(['language', 'core', 'list', '--status=installed', '--field=language'], wpOpts);
+  const installed = list.stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (installed.includes(locale)) return { locale, present: true, installed: false };
+
+  const add = wpCli(['language', 'core', 'install', locale], wpOpts);
+  const after = wpCli(['language', 'core', 'list', '--status=installed', '--field=language'], wpOpts);
+  const now = after.stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  return {
+    locale,
+    present: now.includes(locale),
+    installed: now.includes(locale),
+    error: now.includes(locale) ? '' : (add.stderr || add.stdout || `exit ${add.status}`),
+  };
+}
+
+function ensureProbeUser(loginName, scheme, locale = '') {
   return wpJson(
     `
     $login  = '${loginName}';
     $scheme = '${scheme}';
+    $locale = '${locale}';
     $u = get_user_by('login', $login);
     $created = false;
     if (!$u) {
@@ -878,6 +1077,25 @@ function ensureProbeUser(loginName, scheme) {
     update_user_meta($u->ID, 'admin_color', $scheme);
     update_user_option($u->ID, 'admin_color', $scheme);
 
+    /*
+     * The user locale, which is what actually makes the admin RTL.
+     *
+     * NO BACKTICKS IN THIS COMMENT: it lives inside a JavaScript template
+     * literal, where a backtick ends the string. One pair here turned the rest
+     * of the PHP into JavaScript and the file stopped parsing.
+     *
+     * The locale meta is NOT one of the options get_user_option() prefixes, so
+     * there is no second key to be outranked by here — but it is rewritten on every
+     * run anyway, and set to the empty string for the LTR pair, so an account
+     * cannot be left carrying the other cell's locale. An empty value is how
+     * core spells "use the site locale", which is the LTR case.
+     */
+    if ($locale === '') {
+      delete_user_meta($u->ID, 'locale');
+    } else {
+      update_user_meta($u->ID, 'locale', $locale);
+    }
+
     global $wpdb;
     echo json_encode([
       'id'       => (int) $u->ID,
@@ -885,6 +1103,8 @@ function ensureProbeUser(loginName, scheme) {
       'resolved' => (string) get_user_option('admin_color', $u->ID),
       'meta'     => (string) get_user_meta($u->ID, 'admin_color', true),
       'prefixed' => (string) get_user_meta($u->ID, $wpdb->get_blog_prefix() . 'admin_color', true),
+      'locale'   => (string) get_user_meta($u->ID, 'locale', true),
+      'user_locale' => (string) get_user_locale($u->ID),
     ]);
   `,
     wpOpts
@@ -1029,11 +1249,33 @@ try {
   let pass = PASS;
   const wantScheme = DARK ? darkScheme() : LIGHT_SCHEME;
 
+  /* The translation has to be on disk before the probe user's locale means
+     anything: a `locale` of `ar` with no `ar` pack installed falls straight
+     back to en_US, and the run would measure a left-to-right page. */
+  if (RTL) {
+    const lang = ensureLanguage(RTL_LOCALE);
+    r.check('—', `the ${RTL_LOCALE} language pack is installed on the rig`,
+      lang.present,
+      lang.present
+        ? (lang.installed ? `installed by this run` : 'already present')
+        : `could not install it: ${lang.error}`);
+    if (!lang.present) {
+      // Thrown rather than measured on: a left-to-right page reported under an
+      // RTL label is worse than no result at all. The catch below records it
+      // and the report still prints every row gathered so far.
+      throw new Error(
+        `--rtl cannot run without the ${RTL_LOCALE} language pack (${lang.error}). ` +
+        `Nothing was measured.`
+      );
+    }
+  }
+
   if (USER_GIVEN) {
-    console.log(`--user given explicitly: running as ${USER}, no colour scheme written.`);
+    console.log(`--user given explicitly: running as ${USER}, no colour scheme and no locale written.`);
   } else {
-    const who = PROBE_USERS[DARK ? 'dark' : 'light'];
-    const info = ensureProbeUser(who, wantScheme);
+    const who = PROBE_USERS[probeUserKey()];
+    const wantLocale = RTL ? RTL_LOCALE : '';
+    const info = ensureProbeUser(who, wantScheme, wantLocale);
     if (info.error) {
       console.error(`Could not prepare the rig probe user ${who}: ${info.error}`);
       process.exit(2);
@@ -1042,14 +1284,23 @@ try {
     pass = PROBE_PASS;
     console.log(
       `Probe user ${who} (#${info.id}${info.created ? ', created' : ''}) · ` +
-      `admin_color resolves to "${info.resolved}" (unprefixed "${info.meta}", blog-prefixed "${info.prefixed}")`
+      `admin_color resolves to "${info.resolved}" (unprefixed "${info.meta}", blog-prefixed "${info.prefixed}") · ` +
+      `locale meta "${info.locale}" → get_user_locale() "${info.user_locale}"`
     );
     // Asserted, not assumed. A prefixed value that disagrees with the
     // unprefixed one is the exact failure that made a dark run report light,
     // and it has to be loud here rather than six screens later.
-    r.check('—', `the ${DARK ? 'dark' : 'light'} fixture resolves to "${wantScheme}"`,
+    r.check('—', `the ${DARK ? 'dark' : 'light'}${RTL ? ' RTL' : ''} fixture resolves to "${wantScheme}"`,
       info.resolved === wantScheme && info.prefixed === wantScheme && info.meta === wantScheme,
       `get_user_option="${info.resolved}", admin_color="${info.meta}", prefixed="${info.prefixed}"`);
+
+    /* The locale, asserted the same way and for the same reason. `ar` in the
+       meta but `en_US` out of get_user_locale() means the pack is missing or
+       the meta was written to the wrong key, and either way the RTL run is
+       about to measure a left-to-right page. */
+    r.check('—', `the fixture's locale is ${RTL ? `"${RTL_LOCALE}"` : 'the site default'}`,
+      info.locale === wantLocale && (RTL ? info.user_locale === RTL_LOCALE : info.user_locale !== RTL_LOCALE),
+      `locale meta="${info.locale}", get_user_locale()="${info.user_locale}"`);
   }
 
   /* Fixtures, before anything is measured. A contrast check against an empty
@@ -1072,13 +1323,13 @@ try {
     process.stdout.write(`  ... ${screen.name}\n`);
     // One screen must never be able to take the whole run down with it.
     await checkScreen(page, screen).catch((e) =>
-      r.fail(screen.slug, `${screen.name}${DARK ? ' (dark)' : ''} @${WIDTH}px · the checks themselves`, e.message));
+      r.fail(screen.slug, `${screen.name}${MODE_SUFFIX} @${WIDTH}px · the checks themselves`, e.message));
   }
 
   for (const view of EMPTY_VIEWS) {
     process.stdout.write(`  ... ${view.name}\n`);
     await checkEmptyView(page, view).catch((e) =>
-      r.fail(view.slug, `${view.name}${DARK ? ' (dark)' : ''} @${WIDTH}px · the checks themselves`, e.message));
+      r.fail(view.slug, `${view.name}${MODE_SUFFIX} @${WIDTH}px · the checks themselves`, e.message));
   }
 } catch (err) {
   r.fail('—', 'the run itself', err.message);

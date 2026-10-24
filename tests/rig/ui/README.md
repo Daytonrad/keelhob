@@ -98,9 +98,34 @@ A third file, added on **2026-10-24** for the admin redesign on
 
 ```bash
 node tests/rig/ui/check-admin.mjs --wp http://localhost:8899 --rig /c/wp-rig/wordpress
-node tests/rig/ui/check-admin.mjs --dark      # switches the admin colour scheme, then restores it
+node tests/rig/ui/check-admin.mjs --dark      # a pinned administrator on a dark colour scheme
 node tests/rig/ui/check-admin.mjs --width 782 # tablet, where wp-admin restacks
+node tests/rig/ui/check-admin.mjs --rtl       # a genuinely right-to-left install
+node tests/rig/ui/check-admin.mjs --dark --rtl --width 782
 ```
+
+The three flags are independent and combine, which is the whole matrix:
+`{light, dark}` × `{LTR, RTL}` × `{1440, 782}`. Each cell runs as its own pinned
+administrator — `kh_rig_light`, `kh_rig_dark`, `kh_rig_rtl_light`,
+`kh_rig_rtl_dark` — created if missing and then left in place, so two agents
+running cells at once cannot restore one another's shared state mid-flight.
+
+**`--rtl` is a real RTL install, not an injected `body.rtl` class.** Forcing the
+class mirrors the panel's own negative margin and nothing else: it does not make
+WordPress enqueue `wp-admin-rtl.css` or `colors-<scheme>-rtl.css`, and those are
+what move `#wpcontent`'s padding and the admin menu to the other side. The first
+RTL pass on this build faked it that way and reported a 20px horizontal overflow
+that does not exist. So `--rtl` installs the `ar` language pack if the rig has
+not got it and signs in as an administrator whose `locale` user meta is `ar`,
+then asserts the proof on every screen: `<html dir="rtl" lang="ar">`,
+`body.rtl`, and a core stylesheet actually served in its RTL form. A faked RTL
+goes red instead of quietly passing.
+
+Overflow is swept against **both** viewport edges for the same reason. "Past the
+right" is the inline-end edge in LTR and the inline-start edge in RTL, so a
+right-only sweep reports every RTL screen clean whatever it does. At 600px — below
+the 782 floor — Connect overflows 23px and Automation 82px, past the right in LTR
+and past the left in RTL: the same two elements, mirrored exactly.
 
 It walks all six Keelhob screens — Connect, Skills, Automation, Guide, Activity
 and the Snippets Studio — and asserts, per screen, that the `.kh-ui` panel root
