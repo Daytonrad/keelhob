@@ -1020,8 +1020,17 @@ body.rtl .kh-ui {
  *
  * If appearance:none is not honoured, the control renders as an ordinary
  * checkbox and still works. Nothing depends on the pseudo-element.
+ *
+ * EVERY SELECTOR HERE IS `.kh-ui input[type="checkbox"].kh-u-switch`, AND THAT
+ * IS NOT STYLE PEDANTRY. Core's forms.css styles `input[type=checkbox]` — an
+ * element plus an attribute, specificity 0,1,1 — which outranks a bare class at
+ * 0,1,0. Measured in the rig before this was fixed: the switch rendered at
+ * 16x16px and filled itself WordPress blue when checked, because core won every
+ * declaration that mattered. The class alone looked right in the stylesheet and
+ * was wrong on the screen, which is exactly why the house rule is to assert
+ * computed styles instead of reading the CSS.
  */
-.kh-u-switch {
+.kh-ui input[type="checkbox"].kh-u-switch {
 	flex: none;
 	margin: 2px 0 0;
 	appearance: none;
@@ -1036,7 +1045,7 @@ body.rtl .kh-ui {
 	transition: background .12s linear;
 }
 
-.kh-u-switch::before {
+.kh-ui input[type="checkbox"].kh-u-switch::before {
 	content: "";
 	position: absolute;
 	top: 2px;
@@ -1048,17 +1057,17 @@ body.rtl .kh-ui {
 	transition: transform .12s linear, background .12s linear;
 }
 
-.kh-u-switch:checked {
+.kh-ui input[type="checkbox"].kh-u-switch:checked {
 	background: var(--kh-accent);
 	border-color: var(--kh-accent);
 }
 
-.kh-u-switch:checked::before {
+.kh-ui input[type="checkbox"].kh-u-switch:checked::before {
 	transform: translateX(18px);
 	background: #fff;
 }
 
-.kh-u-switch:focus-visible {
+.kh-ui input[type="checkbox"].kh-u-switch:focus-visible {
 	outline: 2px solid var(--kh-accent);
 	outline-offset: 2px;
 }
