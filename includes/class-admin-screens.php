@@ -931,7 +931,20 @@ final class Keelhob_Admin_Screens
                         '<a href="' . esc_url(admin_url('admin.php?page=keelhob')) . '">' . esc_html__('Connect', 'keelhob') . '</a>'
                     );
                     ?>
-                    <strong style="color:<?php echo $enabled ? '#16a34a' : '#b91c1c'; ?>;"><?php echo $enabled ? esc_html__('ON', 'keelhob') : esc_html__('OFF', 'keelhob'); ?></strong>.
+                    <?php
+                    /*
+                     * A1.1 construction: the state is in the DOT, the word is in
+                     * --kh-ink-2 on the pill's own --kh-card fill. The old inline
+                     * #16a34a measured 2.85:1 on the Guide's panel background --
+                     * the single word telling an owner whether an AI may change
+                     * their site was the least readable thing on the screen.
+                     * Measured in Chromium on the rig: 13.69:1 light, 12.09:1
+                     * dark. The pill
+                     * paints its own background, so it does not depend on an
+                     * ancestor core component.
+                     */
+                    ?>
+                    <span class="kh-u-pill"><span class="kh-u-dot <?php echo $enabled ? 'is-good' : 'is-off'; ?>" aria-hidden="true"></span><strong><?php echo $enabled ? esc_html__('ON', 'keelhob') : esc_html__('OFF', 'keelhob'); ?></strong></span>.
                 </li>
                 <li><strong><?php esc_html_e('Connect your AI', 'keelhob'); ?></strong> — <?php esc_html_e('copy the ready-made command on the Connect page into your AI app (e.g. Claude Code). It links your AI to this site securely with a token.', 'keelhob'); ?></li>
                 <li><strong><?php esc_html_e('Start chatting.', 'keelhob'); ?></strong> <?php esc_html_e('Try: "List the plugins on this site" or "Show me this month\'s sales." If it answers, you\'re set.', 'keelhob'); ?></li>
@@ -984,25 +997,67 @@ final class Keelhob_Admin_Screens
                     <td style="vertical-align:top;"><?php echo esc_html(implode(' · ', $off_by_default)); ?></td>
                 </tr></tbody>
             </table>
-            <p style="color:#b45309;max-width:800px;">
-                <strong><?php esc_html_e('If you only want the AI to write content:', 'keelhob'); ?></strong>
-                <?php esc_html_e('turn off Raw code execution, Filesystem, Site admin and Autonomy. Filesystem can read wp-config.php, which holds your database password and security keys.', 'keelhob'); ?>
-            </p>
-            <p style="color:#b45309;max-width:800px;"><strong><?php esc_html_e('Important:', 'keelhob'); ?></strong> <?php esc_html_e('"Code execution" is the master key — with raw PHP the AI can reach any area. To truly wall off something sensitive, turn Code execution OFF too.', 'keelhob'); ?></p>
+            <?php
+            /*
+             * These two are safety text and not one word of either is cut.
+             * They were drawn in inline #b45309, which fails AA on the panel
+             * background in both modes -- on the paragraph that tells an owner
+             * the filesystem tool can read their database password.
+             *
+             * Rebuilt as the A1.1 callout: --kh-mid-soft as the FILL, --kh-mid
+             * as the left BORDER only, --kh-ink for the words. Measured in
+             * Chromium on the rig: 17.20:1 on #fff7e6 in light, 14.34:1 on
+             * #2a1c08 in dark. The border is a component
+             * boundary and needs 3:1, not 4.5:1.
+             */
+            ?>
+            <div class="kh-u-note is-mid kh-u-measure">
+                <p>
+                    <strong><?php esc_html_e('If you only want the AI to write content:', 'keelhob'); ?></strong>
+                    <?php esc_html_e('turn off Raw code execution, Filesystem, Site admin and Autonomy. Filesystem can read wp-config.php, which holds your database password and security keys.', 'keelhob'); ?>
+                </p>
+            </div>
+            <div class="kh-u-note is-mid kh-u-measure">
+                <p><strong><?php esc_html_e('Important:', 'keelhob'); ?></strong> <?php esc_html_e('"Code execution" is the master key — with raw PHP the AI can reach any area. To truly wall off something sensitive, turn Code execution OFF too.', 'keelhob'); ?></p>
+            </div>
 
             <h2 style="<?php echo esc_attr($h); ?>"><?php esc_html_e('What the AI can do — every area & tool', 'keelhob'); ?></h2>
             <p style="max-width:800px;"><?php esc_html_e('Each area below is one capability toggle. When it\'s ON, the AI can use the listed tools.', 'keelhob'); ?></p>
             <?php foreach (Keelhob_Capabilities::groups() as $key => $g) :
                 $on = Keelhob_Capabilities::is_group_enabled($key); ?>
-                <div class="card" style="max-width:none;padding:12px 18px;margin:10px 0;">
+                <?php
+                /*
+                 * WHY THIS IS kh-u-card AND NOT CORE'S .card. Core paints .card
+                 * #fff unconditionally and knows nothing about .kh-ui, so under
+                 * a dark admin scheme these twenty-one cards stayed white while
+                 * the panel around them went near-black. Same reason the
+                 * satellite screens dropped `widefat striped` at 12:40.
+                 *
+                 * The "ENABLED" / "OFF" word was the bulk of the defect: 13
+                 * inline #16a34a labels at 2.85:1 and 9 inline #888 ones. Both
+                 * are now kh-u-pill -- state in the dot, word in --kh-ink-2 on
+                 * the pill's own fill. Measured in Chromium on the rig:
+                 * 13.69:1 light, 12.09:1 dark, for both states.
+                 *
+                 * The sensitive marker keeps its exact words and becomes the
+                 * copper-FILL badge; #b91c1c as text failed on the dark card.
+                 * Copper is never text on light -- hard rule 7 -- so the badge
+                 * is a fill with near-black words on it. Measured:
+                 * 5.47:1 light, 6.96:1 dark.
+                 *
+                 * The group description drops `color:#555` and inherits
+                 * --kh-ink-2. Measured: 13.69:1 light, 12.09:1 dark.
+                 */
+                ?>
+                <div class="kh-u-card" style="margin:10px 0;">
                     <h3 style="margin:.2em 0;">
                         <?php echo esc_html($g['label']); ?>
                         <?php if (!empty($g['sensitive'])) : ?>
-                            <span style="color:#b91c1c;font-size:12px;"><?php esc_html_e('● sensitive', 'keelhob'); ?></span>
+                            <span class="kh-u-badge"><?php esc_html_e('● sensitive', 'keelhob'); ?></span>
                         <?php endif; ?>
-                        <span style="float:right;font-size:12px;color:<?php echo $on ? '#16a34a' : '#888'; ?>;"><?php echo $on ? esc_html__('ENABLED', 'keelhob') : esc_html__('OFF', 'keelhob'); ?></span>
+                        <span class="kh-u-pill" style="float:right;"><span class="kh-u-dot <?php echo $on ? 'is-good' : 'is-off'; ?>" aria-hidden="true"></span><?php echo $on ? esc_html__('ENABLED', 'keelhob') : esc_html__('OFF', 'keelhob'); ?></span>
                     </h3>
-                    <p style="color:#555;margin:.2em 0 .6em;"><?php echo esc_html($g['desc']); ?></p>
+                    <p style="margin:.2em 0 .6em;"><?php echo esc_html($g['desc']); ?></p>
                     <table class="widefat" style="font-size:12px;"><tbody>
                         <?php foreach ($g['tools'] as $tool) : ?>
                             <tr><td style="width:180px;"><code><?php echo esc_html($tool); ?></code></td><td><?php echo esc_html(isset($desc[$tool]) ? $short($desc[$tool]) : '—'); ?></td></tr>
@@ -1069,7 +1124,7 @@ final class Keelhob_Admin_Screens
                     </tr>
                 </tbody>
             </table>
-            <p style="max-width:800px;color:#555;">
+            <p style="max-width:800px;">
                 <?php esc_html_e('Deleting a snippet deletes its revisions with it. Deleting the whole plugin keeps everything, so reinstalling puts your snippets back — unless you tick "Delete all Keelhob data" in Settings first.', 'keelhob'); ?>
             </p>
 
@@ -1118,7 +1173,17 @@ final class Keelhob_Admin_Screens
             <p style="max-width:800px;"><?php esc_html_e('Memory = facts it remembers between chats ("our brand color is #f8ca50"). Skills = playbooks it follows automatically (this plugin ships expert skills for WooCommerce, SEO, blogging, design, and deploys). Both are shared by every AI you connect, so your whole team\'s AI stays consistent.', 'keelhob'); ?></p>
 
             <h2 style="<?php echo esc_attr($h); ?>"><?php esc_html_e('Copy-paste starter prompts', 'keelhob'); ?></h2>
-            <pre style="white-space:pre-wrap;background:#f6f7f7;padding:14px;border-radius:8px;max-width:800px;font-size:12px;"><?php
+            <?php
+            /*
+             * The fill is --kh-soft, not the literal #f6f7f7 it used to be. An
+             * inline literal beats any stylesheet rule, so under a dark scheme
+             * this block stayed near-white and the panel ink landed on it at
+             * 1.08:1 — the whole starter-prompt list was unreadable. The token
+             * follows the mode. Measured in Chromium on the rig: 16.32:1 in
+             * light, 14.67:1 in dark.
+             */
+            ?>
+            <pre style="white-space:pre-wrap;background:var(--kh-soft);padding:14px;border-radius:8px;max-width:800px;font-size:12px;"><?php
             echo esc_html(implode("\n", [
                 __('• "Give me a full status report on the store and site."', 'keelhob'),
                 __('• "Write and publish a 900-word blog post about <topic>, add a hero image, and optimize its SEO."', 'keelhob'),
@@ -1256,9 +1321,9 @@ final class Keelhob_Admin_Screens
                         <tr><td colspan="5"><?php esc_html_e('Nothing noted. That is the good outcome.', 'keelhob'); ?></td></tr>
                     <?php else : foreach ($kh_feedback_rows as $kh_row) : ?>
                         <tr>
-                            <td><?php echo esc_html(Keelhob_Feedback::label((string) $kh_row['friction'])); ?><?php echo ((int) $kh_row['attempts']) > 1 ? ' <span style="color:#888;">×' . (int) $kh_row['attempts'] . '</span>' : ''; ?></td>
+                            <td><?php echo esc_html(Keelhob_Feedback::label((string) $kh_row['friction'])); ?><?php echo ((int) $kh_row['attempts']) > 1 ? ' <span class="kh-u-dim">×' . (int) $kh_row['attempts'] . '</span>' : ''; ?></td>
                             <td><code><?php echo esc_html($kh_row['tool'] !== '' ? (string) $kh_row['tool'] : '—'); ?></code></td>
-                            <td><?php echo esc_html((string) $kh_row['note']); ?><?php if (!empty($kh_row['redacted'])) : ?> <span style="color:#888;">(<?php esc_html_e('redacted', 'keelhob'); ?>)</span><?php endif; ?></td>
+                            <td><?php echo esc_html((string) $kh_row['note']); ?><?php if (!empty($kh_row['redacted'])) : ?> <span class="kh-u-dim">(<?php esc_html_e('redacted', 'keelhob'); ?>)</span><?php endif; ?></td>
                             <td><?php echo esc_html((string) $kh_row['created_at']); ?></td>
                             <td><?php echo empty($kh_row['sent']) ? esc_html__('no', 'keelhob') : esc_html__('yes', 'keelhob'); ?></td>
                         </tr>
