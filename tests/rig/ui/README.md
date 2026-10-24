@@ -127,8 +127,9 @@ right-only sweep reports every RTL screen clean whatever it does. At 600px — b
 the 782 floor — Connect overflows 23px and Automation 82px, past the right in LTR
 and past the left in RTL: the same two elements, mirrored exactly.
 
-It walks all six Keelhob screens — Connect, Skills, Automation, Guide, Activity
-and the Snippets Studio — and asserts, per screen, that the `.kh-ui` panel root
+It walks all seven Keelhob screens — Connect, Skills, Automation, Guide,
+Activity, the Snippets Studio and Donate — and asserts, per screen, that the
+`.kh-ui` panel root
 is present, that the `--kh-*` custom properties actually **resolve** in the
 browser, that the panel background is painted rather than inherited, that the
 panel ink clears 4.5:1 against it, that `is-dark` tracks the WordPress admin
@@ -138,10 +139,18 @@ horizontally, and that every muted and accent word on the screen clears 4.5:1
 measured from its **composited** colour against the first non-transparent
 background above it.
 
+Donate was the seventh, and it was added to `SCREENS` only after it passed.
+It had been absent for the whole redesign, which is exactly why it was the one
+screen never migrated: it rendered a bare `<div class="wrap">`, no token
+resolved on it, and it carried one AA failure in all eight cells. Because it is
+not one of the six tabs, its entry is marked `inStrip: false` — it must carry
+the strip as the way back out of the ask, and **no** tab in that strip may claim
+to be the current page. That is asserted, not skipped.
+
 It was written before the redesign on purpose, and its first run — 2026-10-24,
 against the un-redesigned screens — was **30 of 60 red**, failing on the panel
 root, the token layer, the panel background and the tab strip on all six
-screens. That red run is the baseline reproducing itself.
+screens it then listed. That red run is the baseline reproducing itself.
 
 **Its count is deliberately NOT in the table above yet.** The number moves with
 every step of the redesign, and `tests/unit/test-doc-counts.php` would then

@@ -166,6 +166,20 @@ const r = new Report();
  * the list because decision 3 migrates it in this pass; it is the screen most
  * likely to be left behind, since it has 828 lines of its own stylesheet that
  * predate the tokens.
+ *
+ * Donate is the SEVENTH, and its absence is the reason it stayed unmigrated for
+ * the whole redesign: it renders a `<div class="wrap">` of its own, it is in
+ * neither lane's ownership table, and because it was not in this list every
+ * "all screens pass" result in this build was true of six screens. A screen
+ * nobody measures is a screen nobody fixes, so it is in the list now and the
+ * list is the thing that cannot silently shrink.
+ *
+ * `inStrip: false` says this screen is reachable but is NOT one of the tabs in
+ * Keelhob_Admin::tabs(). It carries the strip as its way back into the panel
+ * and nothing in that strip is marked current, which is asserted positively
+ * below rather than skipped — "no tab claims to be this page" is a fact worth
+ * checking, and it is what keeps the ask from being promoted to a seventh tab
+ * by accident.
  */
 const SCREENS = [
   { name: 'Connect', slug: 'keelhob' },
@@ -174,7 +188,12 @@ const SCREENS = [
   { name: 'Guide', slug: 'keelhob-guide' },
   { name: 'Activity', slug: 'keelhob-activity' },
   { name: 'Snippets Studio', slug: 'keelhob-studio' },
+  { name: 'Donate', slug: 'keelhob-donate', inStrip: false },
 ];
+
+/** The screens that ARE tabs. Every one of them must be linked from the strip
+ *  on every screen, including the ones that are not tabs themselves. */
+const STRIP_SCREENS = SCREENS.filter((s) => s.inStrip !== false);
 
 /** The root the whole panel is scoped under. See BUILD-BRIEF §3. */
 const ROOT = '.kh-ui';
@@ -745,20 +764,33 @@ async function checkScreen(page, screen) {
     r.check(B, `${label} · tab strip is on screen`, d.nav.onScreen,
       `links=${d.nav.links}`);
     r.check(B, `${label} · every tab is an a[href]`,
-      d.nav.links >= SCREENS.length && d.nav.buttons === 0 && d.nav.anchorsWithoutHref === 0,
+      d.nav.links >= STRIP_SCREENS.length && d.nav.buttons === 0 && d.nav.anchorsWithoutHref === 0,
       `a[href]=${d.nav.links}, buttons/roles=${d.nav.buttons}, href-less anchors=${d.nav.anchorsWithoutHref}`);
-    r.check(B, `${label} · exactly one aria-current="page"`,
-      d.nav.currentCount === 1, `found ${d.nav.currentCount}`);
-    if (d.nav.currentCount === 1) {
-      r.check(B, `${label} · aria-current is on this screen's link`,
-        d.nav.currentHref.includes(`page=${screen.slug}`) && d.nav.currentTag === 'a',
-        `<${d.nav.currentTag} href="${d.nav.currentHref}">`);
+    // A screen that is one of the tabs must have exactly one current tab, and
+    // it must be its own. A screen that is NOT one of the tabs — Donate — must
+    // have NONE: it carries the strip to get back out of the ask, and marking
+    // some other tab current there would tell a screen reader the owner is on a
+    // page they are not. Both are assertions; neither screen is skipped.
+    if (screen.inStrip === false) {
+      r.check(B, `${label} · not a tab, so no aria-current="page" in the strip`,
+        d.nav.currentCount === 0,
+        d.nav.currentCount === 0
+          ? `${d.nav.links} tabs, none current`
+          : `found ${d.nav.currentCount}: <${d.nav.currentTag} href="${d.nav.currentHref}">`);
+    } else {
+      r.check(B, `${label} · exactly one aria-current="page"`,
+        d.nav.currentCount === 1, `found ${d.nav.currentCount}`);
+      if (d.nav.currentCount === 1) {
+        r.check(B, `${label} · aria-current is on this screen's link`,
+          d.nav.currentHref.includes(`page=${screen.slug}`) && d.nav.currentTag === 'a',
+          `<${d.nav.currentTag} href="${d.nav.currentHref}">`);
+      }
     }
-    const reachable = SCREENS.filter((s) =>
+    const reachable = STRIP_SCREENS.filter((s) =>
       d.nav.hrefs.some((h) => new RegExp(`page=${s.slug}(?:&|$)`).test(h)));
     r.check(B, `${label} · every Keelhob slug is linked from the strip`,
-      reachable.length === SCREENS.length,
-      `${reachable.length}/${SCREENS.length}: missing ${SCREENS.filter((s) => !reachable.includes(s)).map((s) => s.slug).join(', ') || 'none'}`);
+      reachable.length === STRIP_SCREENS.length,
+      `${reachable.length}/${STRIP_SCREENS.length}: missing ${STRIP_SCREENS.filter((s) => !reachable.includes(s)).map((s) => s.slug).join(', ') || 'none'}`);
   }
 
   /* 6b. Under --rtl, this had better really BE right-to-left. -------- */

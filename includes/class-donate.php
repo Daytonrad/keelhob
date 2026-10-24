@@ -113,16 +113,45 @@ final class Keelhob_Donate
         return $links;
     }
 
-    /** The Donate screen: what the money is for, stated plainly. */
+    /**
+     * The Donate screen: what the money is for, stated plainly.
+     *
+     * Drawn inside the panel shell like every other Keelhob screen. It was the
+     * last one left on a bare `<div class="wrap">`, and that was not a cosmetic
+     * gap: every `--kh-*` token is declared on `.kh-ui`, so with no root class
+     * the dark variant could not apply and admin.css's fix for core's own
+     * `.button` colour — WordPress blue at 4.02:1 under `fresh`, its red at
+     * 4.08:1 under `midnight`, both on core's #f0f0f1 — was unreachable here.
+     * The two secondary buttons at the foot of this screen were the only AA
+     * failure the browser gate measured on it, in all eight cells.
+     *
+     * THE TAB STRIP IS RENDERED AND NOTHING IN IT IS MARKED CURRENT, on
+     * purpose. Donate is a submenu item, deliberately last, and it is an ask
+     * rather than a feature: it is not one of the six screens in
+     * Keelhob_Admin::tabs() and putting it there would promote the ask to a
+     * peer of Connect and Snippets. But a screen inside the panel with no way
+     * back into it is the argument that made Snippets the sixth tab, so the
+     * strip stays as the way out. shell_open() is given this page's own slug,
+     * which matches no tab, so `aria-current="page"` is simply absent — the
+     * honest answer for a page that is not in the list — rather than being put
+     * on a tab the owner is not looking at.
+     */
     public static function render(): void
     {
         if (!current_user_can('manage_options')) {
             return;
         }
+        Keelhob_Admin::shell_open(self::PAGE);
         ?>
-        <div class="wrap">
-            <h1><?php echo Keelhob_Brand::heading_mark(); ?><?php esc_html_e('Support Keelhob', 'keelhob'); ?></h1>
+            <?php /* <h2>, not <h1>: the shell prints the panel's one <h1>, and
+                     core moves admin notices into the first .wrap after the
+                     first heading — two <h1>s give it the wrong one. The brand
+                     mark went with it; it is in the header line now. */ ?>
+            <h2><?php esc_html_e('Support Keelhob', 'keelhob'); ?></h2>
 
+            <?php /* Kept as a literal measure rather than .kh-u-prose, which is
+                     the Guide's 1000px: 15px prose at that width runs ~150
+                     characters a line. Direction-neutral, and no colour. */ ?>
             <div style="max-width:760px;">
                 <p style="font-size:15px;line-height:1.7;">
                     <?php esc_html_e('Keelhob is free, GPL, and stays that way. There is no paid version, no locked feature, no trial, and nothing held back. Everything that was going to be sold is in the plugin you already have.', 'keelhob'); ?>
@@ -132,15 +161,31 @@ final class Keelhob_Donate
                 </p>
 
                 <p style="margin:24px 0;">
+                    <?php
+                    /*
+                     * The Ko-fi pink stays, and `color:#fff` is now stated
+                     * rather than inherited from core — which is a fix, not a
+                     * tidy-up. `.kh-ui .button-primary` paints near-black words
+                     * on copper (the one case hard rule 7 permits), and an
+                     * inline `background` beats the stylesheet while the colour
+                     * does not: wrapping this screen in the shell would have put
+                     * #121517 on #c2185b at 3.12:1 and FAILED AA on the donate
+                     * button itself. White on #c2185b is 5.87:1. Measured both.
+                     */
+                    ?>
                     <a href="<?php echo esc_url(KEELHOB_DONATE_URL); ?>" target="_blank" rel="noopener noreferrer"
                        class="button button-primary button-hero"
-                       style="background:#c2185b;border-color:#a01449;box-shadow:none;text-shadow:none;">
+                       style="background:#c2185b;border-color:#a01449;color:#fff;box-shadow:none;text-shadow:none;">
                         <?php esc_html_e('♥ Donate on Ko-fi', 'keelhob'); ?>
                     </a>
                 </p>
 
                 <h2><?php esc_html_e('Other ways that help just as much', 'keelhob'); ?></h2>
-                <ul style="list-style:disc;margin-left:20px;line-height:1.9;">
+                <?php /* `margin-inline-start`, not `margin-left`: the panel is
+                         checked under a real `ar` install, and a one-sided
+                         margin leaves the bullets indented from the wrong edge
+                         there. Same list, same indent, mirrored. */ ?>
+                <ul style="list-style:disc;margin-inline-start:20px;line-height:1.9;">
                     <li><?php esc_html_e('Star the repository. It is the first thing anyone deciding whether to trust this looks at.', 'keelhob'); ?></li>
                     <li><?php esc_html_e('Report a bug you hit. A reproducible bug report is worth more than most donations.', 'keelhob'); ?></li>
                     <li><?php esc_html_e('Write a skill and open a pull request. Skills are plain markdown — no PHP needed.', 'keelhob'); ?></li>
@@ -161,7 +206,7 @@ final class Keelhob_Donate
                     </a>
                 </p>
             </div>
-        </div>
         <?php
+        Keelhob_Admin::shell_close();
     }
 }
