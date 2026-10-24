@@ -10,6 +10,76 @@ file is the one written for developers: it names files, says what broke and why,
 and keeps the pre-release history that `readme.txt` presents as if it were
 public. When the two disagree, this file is correct.
 
+## [2.1.0] - unreleased
+
+The admin screens get a design system. 2.0.0 ships first and unchanged; this
+is deliberately a separate release, so that a regression in it is unambiguously
+a UI regression.
+
+### Added
+
+- **`assets/css/admin.css`** — one scoped stylesheet for every Keelhob screen.
+  Everything lives under a `.kh-ui` root with `kh-u-` components, because over
+  forty `kh-*` classes already belonged to the Snippets Studio and three of them
+  — `kh-tabs`, `kh-tab`, `kh-panel` — meant something else entirely. Warm greys
+  and copper, taken from the values already on keelhob.com rather than invented.
+- **A dark variant**, keyed to the WordPress admin colour scheme and not to the
+  operating system: the seam being fixed is the one against the sidebar, and the
+  sidebar follows the scheme. Eight of the nine schemes WordPress registers have
+  a dark menu, so `modern` and `fresh` — the current and former defaults — are
+  deliberately excluded. A site on a default scheme has expressed no preference,
+  and flipping every install to a dark panel is not a call a restyle gets to
+  make. **Known consequence: a stock install has a dark sidebar beside a light
+  panel.**
+- **A header line and a tab strip on every screen.** Every tab is a real
+  `<a href>` to the page slug it already had. No URL changed, nothing needs
+  JavaScript, the Back button works, and the nineteen references in
+  `DOCUMENTATION.md` and `docs/` still land where they point.
+- **Three state cards on Connect** reporting which band the site is in —
+  Reading only, Building, or Full access. **They are a view. They write
+  nothing**: no option, no preset, no new stored state. Keelhob's real default
+  already has snippets, files and code execution on, so a "Build" preset would
+  switch off code a live site is running, and a "Full access" preset would grant
+  payments, orders, users and deploys in one click. `test-admin-overview.php`
+  checks the band against every distinguishable stored array, including the
+  empty "owner never said" case.
+- **`tests/rig/ui/check-admin.mjs`** — a browser gate that asserts computed
+  styles. It walks every text node, resolves the first opaque ancestor
+  background and alpha-blends before measuring.
+
+### Fixed
+
+- **The "AI abilities are ON" banner was illegible in dark mode — 1.43:1.**
+  `root_class()` keeps `wrap` so WordPress moves admin notices inside `.kh-ui`,
+  where they inherited the panel's near-white ink while keeping core's cream
+  background. A safety control that is present and unreadable is worse than one
+  that is absent, because it still looks safe. Now 14.67:1.
+- **The capability switch never painted.** It rendered as a 16px
+  WordPress-blue checkbox: core's `input[type=checkbox]` outranks a bare class.
+- **The Guide screen failed WCAG AA in light mode**, 26 failures, worst 2.85:1 —
+  inherited, not introduced, but it was wearing the new panel while carrying old
+  hardcoded colours. The root cause was core's `.card`, which paints white
+  unconditionally and knows nothing about `.kh-ui`, so every token inside it was
+  measured against white. Now zero failures; fixing it also repaired two dark
+  defects that had been blamed elsewhere.
+- **Status pills across the Studio.** A naive colour-to-token swap measured
+  2.99–4.41:1. The construction is now a soft tint fill, the status colour as a
+  border or dot, and `--kh-ink` for the words: 16.32–17.38:1, up from 4.86–5.70.
+- **`class-admin-automation.php` rendered empty `style` attributes.**
+  `$t_table` / `$t_th` / `$t_td` were locals in `render_automation()` but used in
+  two sibling methods, where they were undefined. Now class constants.
+- **`.kh-panel` rendered unstyled on Connect**, because the stylesheet defining
+  it is enqueued only on Studio screens.
+
+### A note on what the tests could not see
+
+The browser gate reported **96/96 in dark while all of the above was live**,
+because it measured only `kh-u-*` elements and never the core components
+WordPress renders inside the panel — and because it ran against an *empty*
+snippets list, so the broken rows never rendered at all. It now seeds real rows
+before measuring and destroys them in a `finally`. A gate nobody has watched
+fail is not a gate.
+
 ## [2.0.0] - unreleased
 
 ### Changed
