@@ -230,6 +230,7 @@ final class Keelhob_Brand
         'tax'          => 'dashicons-media-spreadsheet',
         'seo'          => 'dashicons-search',
         'seo_optimize' => 'dashicons-chart-line',
+        'sitecare'     => 'dashicons-heart',
         'design'       => 'dashicons-admin-appearance',
         'snippets'     => 'dashicons-editor-code',
         'code_exec'    => 'dashicons-media-code',

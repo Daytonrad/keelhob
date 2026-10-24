@@ -15,7 +15,7 @@ the fast path and the ownership path the same path: install one plugin, connect
 your agent, say what you want, and get a real database, a real store and real
 code on hosting you control.
 
-Working today: 71 tools across content, WooCommerce, SEO, files, PHP execution,
+Working today: 76 tools across content, WooCommerce, SEO, files, PHP execution,
 snippets, Elementor, memory and autonomy · 25 expert skills · a Snippets Studio
 with a real code editor, conditional logic and revision history · cross-session
 memory · a Telegram front-end with voice, photos and approve-by-button ·

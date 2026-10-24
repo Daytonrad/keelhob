@@ -119,6 +119,20 @@ final class Keelhob_Capabilities
                 'desc' => 'Score pages against a target keyword, and manage redirects when URLs change.',
                 'tools' => ['seo_analyze', 'seo_redirect'],
             ],
+            // Site care is the looking-after half of the product, and every
+            // tool in it is a report: it reads, counts, ranks and changes
+            // nothing. That is why it is not sensitive and ships on - an owner
+            // who cannot ask "why is my site slow" without first finding a
+            // switch has a worse product, and there is nothing here to switch
+            // off for safety. The tools that ACT on these findings
+            // (image_compress, db_cleanup, link_fix, media_set_alt,
+            // plugin_install) are a separate group and a separate decision,
+            // because db_cleanup in particular cannot be undone.
+            'sitecare' => [
+                'label' => 'Site care (read-only reports)', 'sensitive' => false,
+                'desc' => 'Speed audit, database-junk counts, plugin security and conflict reports, and a broken-link scan. Reads only — none of these changes anything on the site.',
+                'tools' => ['speed_audit', 'db_cleanup_preview', 'plugin_security_check', 'plugin_conflicts', 'broken_links'],
+            ],
             'design' => [
                 'label' => 'Design / Elementor', 'sensitive' => false,
                 'desc' => 'Build and edit Elementor pages, kit, settings.',

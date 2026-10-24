@@ -61,10 +61,10 @@ $kh_ov_set = static function (array $on) use ($kh_ov_groups): void {
  *
  * So the complete cover is: all 256 subsets of the eight, crossed with every
  * distinguishable state of the rest — none on, exactly one on (each of the
- * thirteen in turn), and all of them on. That is 256 x 15 = 3840 stored arrays,
+ * fourteen in turn), and all of them on. That is 256 x 16 = 4096 stored arrays,
  * and it visits every equivalence class the logic has.
  *
- * Counted into one assertion rather than 3840, so a failure names the first
+ * Counted into one assertion rather than 4096, so a failure names the first
  * combination that broke instead of burying it in a wall of green ticks.
  */
 $kh_ov_cases = 0;
@@ -114,7 +114,7 @@ for ($kh_mask = 0; $kh_mask < (1 << 8); $kh_mask++) {
     }
 }
 
-KH_Test::same(3840, $kh_ov_cases, 'every equivalence class of the stored array was visited (' . $kh_ov_cases . ' combinations)');
+KH_Test::same(4096, $kh_ov_cases, 'every equivalence class of the stored array was visited (' . $kh_ov_cases . ' combinations)');
 KH_Test::same([], $kh_ov_bad, 'and the band is right for all of them' . ($kh_ov_bad ? ' — first failure: ' . $kh_ov_bad[0] : ''));
 
 KH_Test::group('Overview — the three cases a reviewer gets wrong');

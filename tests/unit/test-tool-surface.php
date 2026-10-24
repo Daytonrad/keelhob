@@ -38,7 +38,7 @@ $registry = new Keelhob_Tool_Registry();
 foreach ([
     'Core', 'Filesystem', 'Content', 'Site', 'WooCommerce', 'SEO', 'Memory',
     'Skills', 'Snippets', 'Elementor', 'Ops', 'Automation', 'Payments',
-    'Deploy', 'Readiness',
+    'Deploy', 'Readiness', 'Sitecare',
 ] as $group) {
     call_user_func(['Keelhob_Tools_' . $group, 'register'], $registry);
 }
@@ -77,6 +77,23 @@ $expected['skill_lint'] = ['required' => [], 'properties' => ['markdown', 'name'
 // read-only and always on. See class-lessons.php for the four guards on it.
 $expected['lesson_save'] = ['required' => ['topic', 'lesson'], 'properties' => ['lesson', 'topic']];
 $expected['lesson_list'] = ['required' => [], 'properties' => ['topic']];
+
+// The read-only half of the Site-Care / Optimize family. All five are reports:
+// they read, count and rank, and write nothing — which is why they sit in a
+// non-sensitive capability group that ships on. The tools that act on what
+// they find (image_compress, db_cleanup, link_fix, media_set_alt,
+// plugin_install) are deliberately NOT here yet: they write or destroy, and
+// db_cleanup cannot be undone at all, so they wait for their own pass.
+//
+// Four of the five take no arguments on purpose. A speed audit of "the site"
+// has one answer, and an optional scope argument is a thing for a model to get
+// wrong. broken_links is the exception because it genuinely cannot finish in
+// one request.
+$expected['speed_audit']           = ['required' => [], 'properties' => []];
+$expected['db_cleanup_preview']    = ['required' => [], 'properties' => []];
+$expected['plugin_security_check'] = ['required' => [], 'properties' => []];
+$expected['plugin_conflicts']      = ['required' => [], 'properties' => []];
+$expected['broken_links']          = ['required' => [], 'properties' => ['external', 'offset']];
 
 KH_Test::same([], array_values(array_diff(array_keys($expected), array_keys($now))), 'no tool was lost in the merge');
 KH_Test::same([], array_values(array_diff(array_keys($now), array_keys($expected))), 'no tool appeared unannounced');
@@ -229,6 +246,14 @@ $counting = [
     'memory_list'  => 'memory',
     'skill_list'   => 'skills',
     'list_posts'   => 'posts',
+    // The site-care reports hand back lists too — findings, junk counts,
+    // conflicts, broken links — and the same rule applies: the tool counts,
+    // not the model.
+    'speed_audit'           => 'findings',
+    'db_cleanup_preview'    => 'counts',
+    'plugin_security_check' => 'findings',
+    'plugin_conflicts'      => 'overlaps',
+    'broken_links'          => 'broken',
 ];
 $missing = [];
 foreach ($counting as $tool => $rows_key) {

@@ -200,7 +200,7 @@ things, and it keeps a record of what it did.
 
 ## What it can do
 
-Keelhob gives the agent **71 tools**, grouped by job. You never call these
+Keelhob gives the agent **76 tools**, grouped by job. You never call these
 yourself; you ask for an outcome and the agent picks the tools.
 
 This section is the honest inventory. If a feature is not listed here, Keelhob
@@ -295,6 +295,29 @@ Options, plugins, themes, menus, user accounts and updates.
 `manage_option` · `manage_plugin` · `manage_theme` · `manage_menu` ·
 `manage_user` · `manage_updates`
 
+### Site care
+
+Looking after a site that already exists. Every one of these is a **report**:
+it reads, counts and ranks, and changes nothing at all.
+
+`speed_audit` scores the site out of 100 — homepage load time and size,
+script and stylesheet counts, compression, caching plugin, object cache, the
+weight of autoloaded options (naming the eight heaviest), database junk,
+oversized images, plugin count and PHP version — and every finding names the
+tool that fixes it. `db_cleanup_preview` counts revisions, auto-drafts,
+trashed posts, spam and trashed comments, expired transients and orphaned post
+meta, and deletes nothing. `plugin_security_check` flags plugins removed from
+WordPress.org, plugins untouched for over two years, updates waiting, and —
+with a free WPScan token — known vulnerabilities in the installed version.
+`plugin_conflicts` finds two plugins doing the same job, PHP errors in the
+debug log counted per plugin, plugins WordPress paused after a crash, and
+plugins needing a newer PHP or WordPress; it never deactivates anything.
+`broken_links` scans published pages and posts in batches of 15, Elementor
+layouts included, and reports what no longer answers.
+
+`speed_audit` · `db_cleanup_preview` · `plugin_security_check` ·
+`plugin_conflicts` · `broken_links`
+
 ### Memory
 
 Keelhob remembers things between sessions. Not chat history — decisions. "This
@@ -381,6 +404,7 @@ until you personally turn them on.
 | Tax | *Off* | Tax settings and rates |
 | SEO setup | **On** | Titles, descriptions, schema, sitemap |
 | SEO optimization | **On** | Page scoring, redirects |
+| Site care (read-only reports) | **On** | Speed, database junk, plugin security and conflicts, broken links |
 | Design / Elementor | **On** | Pages, kit, settings |
 | Snippets | **On** | Live code snippets |
 | Raw code execution | **On** | Arbitrary PHP and SQL |

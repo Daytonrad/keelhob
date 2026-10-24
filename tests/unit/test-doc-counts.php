@@ -42,7 +42,7 @@ $registry = new Keelhob_Tool_Registry();
 foreach ([
     'Core', 'Filesystem', 'Content', 'Site', 'WooCommerce', 'SEO', 'Memory',
     'Skills', 'Snippets', 'Elementor', 'Ops', 'Automation', 'Payments',
-    'Deploy', 'Readiness',
+    'Deploy', 'Readiness', 'Sitecare',
 ] as $group) {
     call_user_func(['Keelhob_Tools_' . $group, 'register'], $registry);
 }
