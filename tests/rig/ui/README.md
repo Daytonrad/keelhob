@@ -90,3 +90,36 @@ Advisory first. A new browser layer is flaky before it is trustworthy, and a
 flaky gate on a one-person project blocks the one person. The job runs with
 `continue-on-error: true` and prints what it found. Once it has been green for
 seven consecutive days on `main`, that flag comes off.
+
+## `check-admin.mjs` — the admin panel
+
+A third file, added on **2026-10-24** for the admin redesign on
+`feature/admin-redesign`:
+
+```bash
+node tests/rig/ui/check-admin.mjs --wp http://localhost:8899 --rig /c/wp-rig/wordpress
+node tests/rig/ui/check-admin.mjs --dark      # switches the admin colour scheme, then restores it
+node tests/rig/ui/check-admin.mjs --width 782 # tablet, where wp-admin restacks
+```
+
+It walks all six Keelhob screens — Connect, Skills, Automation, Guide, Activity
+and the Snippets Studio — and asserts, per screen, that the `.kh-ui` panel root
+is present, that the `--kh-*` custom properties actually **resolve** in the
+browser, that the panel background is painted rather than inherited, that the
+panel ink clears 4.5:1 against it, that `is-dark` tracks the WordPress admin
+colour scheme, that the tab strip is `a[href]` links with exactly one
+`aria-current="page"` and no buttons, that nothing overflows the viewport
+horizontally, and that every muted and accent word on the screen clears 4.5:1
+measured from its **composited** colour against the first non-transparent
+background above it.
+
+It was written before the redesign on purpose, and its first run — 2026-10-24,
+against the un-redesigned screens — was **30 of 60 red**, failing on the panel
+root, the token layer, the panel background and the tab strip on all six
+screens. That red run is the baseline reproducing itself.
+
+**Its count is deliberately NOT in the table above yet.** The number moves with
+every step of the redesign, and `tests/unit/test-doc-counts.php` would then
+require a matching edit to ROADMAP.md's browser-check total on each one. It gets
+folded into the counted table, with ROADMAP.md updated in the same commit, at
+step 8 — once the figure has stopped moving.

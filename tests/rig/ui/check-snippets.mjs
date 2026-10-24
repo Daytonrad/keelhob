@@ -73,6 +73,12 @@ function seed() {
         'name' => $s[0], 'snippet_type' => $s[1], 'code' => $s[2],
         'location' => $s[3], 'active' => $s[4], 'priority' => $s[5],
         'description' => 'Browser-check fixture. Safe to delete.',
+        // purpose and impact are REQUIRED on a create since the security gate
+        // landed (class-snippets.php:654). Without them save() refuses every
+        // fixture and the whole file dies in seed() before it has rendered a
+        // single screen, which is exactly how this check went quiet.
+        'purpose' => 'Fixture for tests/rig/ui/check-snippets.mjs.',
+        'impact'  => 'None. It hooks init and returns. Deleting it breaks nothing.',
       ]);
       if (empty($res['success'])) { echo json_encode(['error' => $res['error'] ?? 'save failed']); return; }
       $ids[] = (int) $res['id'];
@@ -496,9 +502,28 @@ async function checkDonate(page) {
     const found = await page.evaluate(() => {
       const h1 = document.querySelector('.wrap h1');
       if (!h1) return 0;
-      // Only the heading area counts. A link inside page copy is not a plea.
-      const zone = [h1, h1.nextElementSibling, h1.nextElementSibling?.nextElementSibling].filter(Boolean);
-      return zone.filter((el) => /donate|ko-?fi|sponsor/i.test(el.textContent || '')).length;
+      /*
+       * Only the heading AREA counts. A link inside page copy is not a plea.
+       *
+       * The <h1> used to be a direct child of `.wrap`, so "the heading and its
+       * next two siblings" was the heading area. The admin redesign moved the
+       * heading into the panel's header line (`.kh-u-head` > `.kh-u-head-id` >
+       * `.kh-u-head-text` > h1), which left the donate button a sibling of the
+       * header rather than of the heading — and this check read that as the
+       * button having disappeared, on the one screen where it is supposed to be.
+       *
+       * So the zone is now: the header block the heading lives in, plus the
+       * first two elements of the panel body after it. That is the same region
+       * of the page it always meant, expressed against the new DOM, and it is
+       * still nowhere near page copy. On a screen with no panel shell it falls
+       * back to the old sibling walk.
+       */
+      const head = h1.closest('.kh-u-head');
+      const zone = head
+        ? [head, head.nextElementSibling, head.nextElementSibling?.nextElementSibling]
+        : [h1, h1.nextElementSibling, h1.nextElementSibling?.nextElementSibling];
+      return zone.filter(Boolean)
+        .filter((el) => /donate|ko-?fi|sponsor/i.test(el.textContent || '')).length;
     });
     r.check(
       'B11',

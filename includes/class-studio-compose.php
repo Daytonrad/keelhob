@@ -47,10 +47,22 @@ final class Keelhob_Studio_Compose
             </div>
 
             <?php if (!$ready) : ?>
-                <div class="notice notice-warning">
-                    <p><strong><?php esc_html_e('No AI provider is connected yet.', 'keelhob'); ?></strong></p>
-                    <p><?php esc_html_e('Compose needs a provider key. Everything below still works once one is set — you are not missing a feature, only a connection.', 'keelhob'); ?></p>
-                    <p><a class="button" href="<?php echo esc_url(admin_url('admin.php?page=keelhob-automation')); ?>"><?php esc_html_e('Connect a provider', 'keelhob'); ?></a></p>
+                <?php
+                /*
+                 * Three paragraphs became one line plus the button. Not a
+                 * safety notice and nothing here says anything is irreversible,
+                 * so PLAN.md 2.7's do-not-shorten list does not cover it — and
+                 * the vertical space it was taking is space the transcript
+                 * needs: see the note in Keelhob_Studio::render() about the Save
+                 * button falling below the fold.
+                 */
+                ?>
+                <div class="notice notice-warning" style="margin:8px 0;">
+                    <p>
+                        <strong><?php esc_html_e('No AI provider is connected yet.', 'keelhob'); ?></strong>
+                        <?php esc_html_e('Everything below still works once one is set.', 'keelhob'); ?>
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=keelhob-automation')); ?>"><?php esc_html_e('Connect a provider', 'keelhob'); ?></a>
+                    </p>
                 </div>
             <?php endif; ?>
 

@@ -133,17 +133,59 @@ final class Keelhob_Studio
         }
 
         $current = self::current_tab();
+
+        /*
+         * THE STUDIO IS INSIDE THE PANEL SHELL, AND IT HAS TO BE.
+         *
+         * assets/css/studio.css no longer names its own colours: every one is a
+         * var(--kh-*) reference, and those custom properties are declared on
+         * `.kh-ui` in assets/css/admin.css. Without the root class the whole
+         * stylesheet would resolve to nothing and the screen would render as
+         * unstyled markup — so wrapping the Studio is not cosmetic, it is what
+         * makes the retokenised stylesheet work at all.
+         *
+         * Keelhob_Admin::root_class() keeps `wrap`, which core JavaScript needs
+         * in order to move admin notices onto the page, and the shell prints the
+         * <h1>. The screen's own title is therefore an <h2>: two <h1>s would
+         * hand core's notice relocation the wrong heading, and the plugin name
+         * belongs in the header line once.
+         *
+         * `wp-header-end` stays. Core uses it as the marker for where notices
+         * land, and the "Add Snippet" button is still a page-title-action beside
+         * the heading it belongs to.
+         */
+        Keelhob_Admin::shell_open(self::SLUG);
         ?>
-        <div class="wrap">
-            <h1 class="wp-heading-inline"><?php echo Keelhob_Brand::heading_mark(); ?><?php esc_html_e('Snippets Studio', 'keelhob'); ?></h1>
-            <?php if ($current !== 'edit') : ?>
-                <a href="<?php echo esc_url(self::url('edit')); ?>" class="page-title-action"><?php esc_html_e('Add Snippet', 'keelhob'); ?></a>
-            <?php endif; ?>
-            <hr class="wp-header-end">
+            <?php
+            /*
+             * NO SECOND HEADING, NO "ADD SNIPPET" BUTTON, NO wp-header-end, AND
+             * THE REASON IS A MEASUREMENT RATHER THAN A PREFERENCE.
+             *
+             * This used to open with an <h1> "Snippets Studio", an "Add Snippet"
+             * page-title-action beside it and core's wp-header-end rule. All
+             * three are now redundant: the panel's tab strip marks this screen
+             * "Snippets" with aria-current, and the sub-tab strip below has
+             * "Add Snippet" as a tab, so the button was a second route to a
+             * destination already on the page.
+             *
+             * Removing them also fixed a real bug. The shell's header line and
+             * tab strip add 140px above everything, and on AI Compose that
+             * pushed the transcript down until the Save button under a generated
+             * code block fell below the fold on a 674px window —
+             * check-compose.mjs chat-12, which is the same class of failure the
+             * 58vh-to-380px fix in studio.css was written for. Shrinking the
+             * transcript could not fix it: a whole message has to FIT in the box
+             * for its Save row to be visible, so the chrome above had to come
+             * down instead.
+             *
+             * wp-header-end is a marker core uses to place admin notices. With
+             * it gone they land after the shell's <h1> instead, which is where
+             * every other Keelhob screen now puts them.
+             */
+            self::notices();
+            ?>
 
-            <?php self::notices(); ?>
-
-            <nav class="nav-tab-wrapper wp-clearfix" aria-label="<?php esc_attr_e('Snippets Studio tabs', 'keelhob'); ?>">
+            <nav class="nav-tab-wrapper wp-clearfix kh-subnav" aria-label="<?php esc_attr_e('Snippets Studio tabs', 'keelhob'); ?>">
                 <?php foreach (self::tabs() as $slug => $label) : ?>
                     <a href="<?php echo esc_url(self::url($slug)); ?>"
                        class="nav-tab <?php echo $slug === $current ? 'nav-tab-active' : ''; ?>"><?php echo esc_html($label); ?></a>
@@ -161,9 +203,7 @@ final class Keelhob_Studio
                 default:
                     Keelhob_Studio_List::render();
             }
-            ?>
-        </div>
-        <?php
+        Keelhob_Admin::shell_close();
     }
 
     /**
