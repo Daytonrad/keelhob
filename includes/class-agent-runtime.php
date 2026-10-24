@@ -230,6 +230,17 @@ final class Keelhob_Agent_Runtime
         $run_id   = Keelhob_Agent_Runs::start($instruction, $context, $model, (int) ($opts['task_id'] ?? 0) ?: null);
         $registry = Keelhob::instance()->registry;
 
+        /*
+         * Mark every tool call that follows as this run's.
+         *
+         * Set AFTER Agent_Runs::start(), which resets the per-request receipt.
+         * Without this line the run log cannot tell "the owner asked for this
+         * in a chat" from "the site did this to itself at 4am", and those are
+         * different facts about the same tool call — the second is the one an
+         * owner most wants to be able to read back.
+         */
+        Keelhob_Tool_Registry::set_source($context, $run_id);
+
         // A whitelist (the read-only chat role) is applied to what the model is
         // even told about, as well as to dispatch below. Offering a tool and
         // then refusing it wastes a step and reads as a malfunction.

@@ -1375,27 +1375,257 @@ final class Keelhob_Admin_Screens
             </tbody></table>
             <?php $pager('snip_page', $snip_total, $snip_page); ?>
 
-            <h2 style="margin-top:32px;"><?php esc_html_e('Recent tool calls', 'keelhob'); ?></h2>
+            <?php $this->lessons_section(); ?>
+            <?php $this->ratings_section(); ?>
+
+            <h2 id="kh-runs" style="margin-top:32px;"><?php esc_html_e('Recent tool calls', 'keelhob'); ?></h2>
+            <p class="description" style="max-width:720px;"><?php esc_html_e('Every tool call, what asked for it, how long it took and whether it worked. Thumbs up or down here is what moves that tool\'s rating — and the rating is written into the description the agent reads before it picks the tool.', 'keelhob'); ?></p>
+            <?php if (isset($_GET['rate_failed'])) : ?>
+                <div class="kh-u-note is-bad"><p><?php esc_html_e('That entry is no longer in the log, so the vote was not saved. This log keeps the most recent 200 calls.', 'keelhob'); ?></p></div>
+            <?php endif; ?>
             <table class="widefat striped"><thead><tr>
                 <th><?php esc_html_e('When', 'keelhob'); ?></th>
                 <th><?php esc_html_e('Tool', 'keelhob'); ?></th>
+                <th><?php esc_html_e('Asked by', 'keelhob'); ?></th>
+                <th><?php esc_html_e('Took', 'keelhob'); ?></th>
                 <th><?php esc_html_e('OK', 'keelhob'); ?></th>
                 <th><?php esc_html_e('Args', 'keelhob'); ?></th>
                 <th><?php esc_html_e('Note', 'keelhob'); ?></th>
+                <th><?php esc_html_e('Any good?', 'keelhob'); ?></th>
             </tr></thead><tbody>
                 <?php foreach ($log_rows as $row) : ?>
+                    <?php
+                    $run_id = (int) ($row['id'] ?? 0);
+                    $vote   = (int) ($row['feedback'] ?? 0);
+                    $took   = (int) ($row['duration_ms'] ?? 0);
+                    ?>
                     <tr>
                         <td><?php echo esc_html((string) $row['created_at']); ?></td>
                         <td><code><?php echo esc_html((string) $row['tool']); ?></code></td>
+                        <td><?php echo esc_html(self::source_label((string) ($row['source'] ?? 'chat'))); ?></td>
+                        <td><?php echo $took > 0 ? esc_html(self::took_label($took)) : '<span class="kh-u-dim">&mdash;</span>'; ?></td>
                         <td><?php echo $row['ok'] ? '✓' : '✗'; ?></td>
-                        <td style="max-width:360px;overflow:hidden;"><code style="font-size:11px;"><?php echo esc_html(wp_trim_words((string) $row['args_json'], 30)); ?></code></td>
+                        <td style="max-width:300px;overflow:hidden;"><code style="font-size:11px;"><?php echo esc_html(wp_trim_words((string) $row['args_json'], 24)); ?></code></td>
                         <td><?php echo esc_html((string) $row['summary']); ?></td>
+                        <td>
+                            <?php
+                            /*
+                             * A real form posting to admin-post.php, nonce and
+                             * all. assets/js/admin-ratings.js intercepts it so
+                             * a vote does not reload a long table, and waits
+                             * for the server's answer before changing anything
+                             * on screen. With JavaScript off, blocked or
+                             * broken, this posts and redirects back — which is
+                             * the whole reason it is a form and not a link.
+                             */
+                            ?>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                                  class="kh-u-thumbs"
+                                  data-kh-vote="<?php echo esc_attr((string) $run_id); ?>"
+                                  data-kh-tool="<?php echo esc_attr((string) $row['tool']); ?>">
+                                <?php wp_nonce_field(Keelhob_Admin_Ratings::NONCE_VOTE); ?>
+                                <input type="hidden" name="action" value="keelhob_rate_run">
+                                <input type="hidden" name="run_id" value="<?php echo esc_attr((string) $run_id); ?>">
+                                <input type="hidden" name="log_page" value="<?php echo esc_attr((string) $log_page); ?>">
+                                <button class="button" name="vote" value="up" aria-pressed="<?php echo $vote === 1 ? 'true' : 'false'; ?>">
+                                    <span aria-hidden="true">&#9650;</span>
+                                    <span class="kh-u-sr"><?php echo esc_html(sprintf(/* translators: %s: tool name. */ __('This %s call was good', 'keelhob'), (string) $row['tool'])); ?></span>
+                                </button>
+                                <button class="button" name="vote" value="down" aria-pressed="<?php echo $vote === -1 ? 'true' : 'false'; ?>">
+                                    <span aria-hidden="true">&#9660;</span>
+                                    <span class="kh-u-sr"><?php echo esc_html(sprintf(/* translators: %s: tool name. */ __('This %s call was wrong', 'keelhob'), (string) $row['tool'])); ?></span>
+                                </button>
+                                <span class="kh-u-thumbs-msg" data-kh-vote-status></span>
+                            </form>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
-                <?php if (empty($log_rows)) : ?><tr><td colspan="5"><em><?php esc_html_e('No activity logged yet.', 'keelhob'); ?></em></td></tr><?php endif; ?>
+                <?php if (empty($log_rows)) : ?><tr><td colspan="8"><em><?php esc_html_e('No activity logged yet.', 'keelhob'); ?></em></td></tr><?php endif; ?>
             </tbody></table>
             <?php $pager('log_page', $log_total, $log_page); ?>
         <?php Keelhob_Admin::shell_close(); ?>
+        <?php
+    }
+
+    /** Plain English for the stored `source` of a logged call. */
+    private static function source_label(string $source): string
+    {
+        switch ($source) {
+            case 'chat':
+                return __('You, in a chat', 'keelhob');
+            case 'task':
+                return __('A scheduled task', 'keelhob');
+            case 'telegram':
+                return __('Telegram', 'keelhob');
+            case 'run_agent':
+            case 'manual':
+                return __('An unattended run', 'keelhob');
+        }
+        return $source;
+    }
+
+    private static function took_label(int $ms): string
+    {
+        return $ms >= 1000
+            ? sprintf(/* translators: %s: seconds, one decimal place. */ __('%ss', 'keelhob'), number_format_i18n($ms / 1000, 1))
+            : sprintf(/* translators: %s: milliseconds. */ __('%sms', 'keelhob'), number_format_i18n($ms));
+    }
+
+    /**
+     * Lessons — the owner's control over what gets pushed into the tool
+     * descriptions an agent reads.
+     *
+     * This screen IS the safety guard, not a convenience. A lesson is a
+     * standing instruction to something that can change a live site, so the
+     * owner has to be able to see every one, see who wrote it, rewrite it and
+     * delete it. The length cap and the stripping happen in
+     * Keelhob_Lessons::clean(); this is the half a person can act on.
+     */
+    private function lessons_section(): void
+    {
+        $rows = Keelhob_Lessons::all(200);
+        ?>
+        <h2 id="kh-lessons" style="margin-top:32px;"><?php esc_html_e('Lessons the agent reads', 'keelhob'); ?></h2>
+        <div class="kh-u-note is-info">
+            <p><strong><?php esc_html_e('These are instructions, not notes.', 'keelhob'); ?></strong>
+            <?php esc_html_e('Every lesson below is written into the description of the tool it names, so an agent reads it on every connection whether it looks for it or not. That is what makes them useful and it is why they are worth checking. Each one is capped at 300 characters of plain text, you can rewrite or delete any of them here, and the table says whether you or an agent wrote it.', 'keelhob'); ?></p>
+            <p><?php esc_html_e('Use the topic "general" for something true of the whole site; anything else should be a tool name, such as seo_meta or create_post.', 'keelhob'); ?></p>
+        </div>
+
+        <?php if (isset($_GET['lesson_error'])) : ?>
+            <div class="kh-u-note is-bad"><p><?php esc_html_e('That lesson was not saved — it needs a topic and some text that survives having markup stripped out.', 'keelhob'); ?></p></div>
+        <?php endif; ?>
+
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="kh-u-lesson-add">
+            <?php wp_nonce_field(Keelhob_Admin_Ratings::NONCE_LESSON); ?>
+            <input type="hidden" name="action" value="keelhob_lesson_save">
+            <p>
+                <label for="kh-lesson-topic"><?php esc_html_e('Tool name, or "general"', 'keelhob'); ?></label><br>
+                <input type="text" id="kh-lesson-topic" name="topic" class="regular-text" maxlength="191" placeholder="seo_meta" required>
+            </p>
+            <p>
+                <label for="kh-lesson-text"><?php echo esc_html(sprintf(/* translators: %d: character limit. */ __('The lesson (%d characters max)', 'keelhob'), Keelhob_Lessons::MAX_LEN)); ?></label><br>
+                <textarea id="kh-lesson-text" name="lesson" rows="2" class="large-text" maxlength="<?php echo esc_attr((string) Keelhob_Lessons::MAX_LEN); ?>" required placeholder="<?php esc_attr_e('Rank Math is the SEO plugin here, not Yoast.', 'keelhob'); ?>"></textarea>
+            </p>
+            <p><button class="button button-primary"><?php esc_html_e('Add lesson', 'keelhob'); ?></button></p>
+        </form>
+
+        <table class="widefat striped"><thead><tr>
+            <th><?php esc_html_e('Topic', 'keelhob'); ?></th>
+            <th><?php esc_html_e('What the agent will read', 'keelhob'); ?></th>
+            <th><?php esc_html_e('Written by', 'keelhob'); ?></th>
+            <th><?php esc_html_e('When', 'keelhob'); ?></th>
+            <th><?php esc_html_e('Remove', 'keelhob'); ?></th>
+        </tr></thead><tbody>
+            <?php foreach ($rows as $lesson) : ?>
+                <?php $lid = (int) $lesson['id']; ?>
+                <tr>
+                    <td><code><?php echo esc_html((string) $lesson['topic']); ?></code></td>
+                    <td>
+                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                            <?php wp_nonce_field(Keelhob_Admin_Ratings::NONCE_LESSON); ?>
+                            <input type="hidden" name="action" value="keelhob_lesson_save">
+                            <input type="hidden" name="lesson_id" value="<?php echo esc_attr((string) $lid); ?>">
+                            <label class="kh-u-sr" for="kh-lesson-<?php echo esc_attr((string) $lid); ?>"><?php esc_html_e('Lesson text', 'keelhob'); ?></label>
+                            <textarea id="kh-lesson-<?php echo esc_attr((string) $lid); ?>" name="lesson" rows="2" class="large-text" maxlength="<?php echo esc_attr((string) Keelhob_Lessons::MAX_LEN); ?>"><?php echo esc_textarea((string) $lesson['lesson']); ?></textarea>
+                            <button class="button"><?php esc_html_e('Save', 'keelhob'); ?></button>
+                        </form>
+                    </td>
+                    <td>
+                        <?php
+                        // Attribution, and it is not settable by the agent —
+                        // lesson_save always records 'agent'. "Who told the
+                        // agent this?" has to have a truthful answer.
+                        $by_owner = ((string) $lesson['source']) === 'owner';
+                        ?>
+                        <span class="kh-u-pill<?php echo $by_owner ? ' is-on' : ''; ?>">
+                            <?php echo esc_html($by_owner ? __('You', 'keelhob') : __('The agent', 'keelhob')); ?>
+                        </span>
+                    </td>
+                    <td><?php echo esc_html((string) ($lesson['updated_at'] ?: $lesson['created_at'])); ?></td>
+                    <td>
+                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                              onsubmit="return confirm('<?php echo esc_js(__('Delete this lesson? The agent will stop reading it.', 'keelhob')); ?>');">
+                            <?php wp_nonce_field(Keelhob_Admin_Ratings::NONCE_LESSON); ?>
+                            <input type="hidden" name="action" value="keelhob_lesson_delete">
+                            <input type="hidden" name="lesson_id" value="<?php echo esc_attr((string) $lid); ?>">
+                            <button class="button button-link-delete"><?php esc_html_e('Delete', 'keelhob'); ?></button>
+                        </form>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if (empty($rows)) : ?>
+                <tr><td colspan="5"><em><?php esc_html_e('No lessons yet. Nothing extra is being added to any tool description.', 'keelhob'); ?></em></td></tr>
+            <?php endif; ?>
+        </tbody></table>
+        <?php
+    }
+
+    /**
+     * The ratings table: 1-100 per tool, earned from real use.
+     *
+     * The number is never the only signal — every row carries the word next to
+     * it ("Good", "Needs work") and the run count it was computed from, because
+     * 78/100 over two runs and 78/100 over forty are not the same claim.
+     */
+    private function ratings_section(): void
+    {
+        $rows = Keelhob_Tool_Stats::all(100);
+        ?>
+        <h2 id="kh-ratings" style="margin-top:32px;"><?php esc_html_e('Tool ratings', 'keelhob'); ?></h2>
+        <p class="description" style="max-width:720px;"><?php esc_html_e('How each tool has actually gone on this site: how often it worked, and what you said about it. The agent reads this score in the tool\'s own description, so a tool you keep marking wrong gets used less.', 'keelhob'); ?></p>
+        <table class="widefat striped"><thead><tr>
+            <th><?php esc_html_e('Tool', 'keelhob'); ?></th>
+            <th><?php esc_html_e('Rating', 'keelhob'); ?></th>
+            <th><?php esc_html_e('Worked', 'keelhob'); ?></th>
+            <th><?php esc_html_e('Your verdicts', 'keelhob'); ?></th>
+            <th><?php esc_html_e('Last used', 'keelhob'); ?></th>
+        </tr></thead><tbody>
+            <?php foreach ($rows as $stat) : ?>
+                <?php
+                $score = $stat['score'];
+                $tone  = $score === null ? '' : ($score >= 75 ? ' is-good' : ($score >= 50 ? ' is-mid' : ' is-bad'));
+                ?>
+                <tr>
+                    <td><code><?php echo esc_html((string) $stat['tool']); ?></code></td>
+                    <td>
+                        <?php
+                        /*
+                         * Soft tint as the fill, the status colour as the
+                         * border, --kh-ink for the words. The status colours
+                         * measure 2.99-4.41:1 as text on their own tints and
+                         * fail AA at every size; see BUILD-BRIEF A1.1.
+                         */
+                        ?>
+                        <span class="kh-u-score<?php echo esc_attr($tone); ?>" data-kh-rating="<?php echo esc_attr((string) $stat['tool']); ?>">
+                            <?php
+                            echo $score === null
+                                ? esc_html__('New', 'keelhob')
+                                : esc_html(sprintf(
+                                    /* translators: 1: score out of 100, 2: word for the score, 3: number of runs. */
+                                    __('%1$d/100 · %2$s · %3$d runs', 'keelhob'),
+                                    (int) $score,
+                                    (string) $stat['label'],
+                                    (int) $stat['runs']
+                                ));
+                            ?>
+                        </span>
+                    </td>
+                    <td><?php echo esc_html(sprintf(/* translators: 1: successful runs, 2: total runs. */ __('%1$d of %2$d', 'keelhob'), (int) $stat['ok_runs'], (int) $stat['runs'])); ?></td>
+                    <td>
+                        <?php if ((int) $stat['thumbs_up'] + (int) $stat['thumbs_down'] === 0) : ?>
+                            <span class="kh-u-dim"><?php esc_html_e('none yet', 'keelhob'); ?></span>
+                        <?php else : ?>
+                            <?php echo esc_html(sprintf(/* translators: 1: thumbs up, 2: thumbs down. */ __('%1$d good, %2$d wrong', 'keelhob'), (int) $stat['thumbs_up'], (int) $stat['thumbs_down'])); ?>
+                        <?php endif; ?>
+                    </td>
+                    <td><?php echo esc_html((string) ($stat['last_used_at'] ?: '—')); ?></td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if (empty($rows)) : ?>
+                <tr><td colspan="5"><em><?php esc_html_e('No tool has been used here yet, so nothing has a rating.', 'keelhob'); ?></em></td></tr>
+            <?php endif; ?>
+        </tbody></table>
         <?php
     }
 }

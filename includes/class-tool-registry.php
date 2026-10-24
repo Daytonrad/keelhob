@@ -26,6 +26,41 @@ final class Keelhob_Tool_Registry
     private static $skills_loaded = [];
 
     /**
+     * Where the calls in this request are coming from: 'chat' for an
+     * interactive MCP client, or the agent run's own context ('task',
+     * 'telegram', 'run_agent', 'manual') while an unattended run is in flight.
+     *
+     * Static and request-scoped, which is right for both paths: over MCP every
+     * tool call is its own HTTP request so the default is always correct, and
+     * an agent run holds one request for its whole loop.
+     *
+     * @var string
+     */
+    private static $source = 'chat';
+
+    /** @var int the agent run row these calls belong to, 0 when interactive */
+    private static $agent_run_id = 0;
+
+    /**
+     * Declare that the calls that follow belong to an unattended run.
+     *
+     * Keelhob_Agent_Runtime calls this before its loop. Nothing else should:
+     * the whole point of recording a source is that "the owner asked for this
+     * in a chat" and "the site did this to itself at 4am" are different facts
+     * about the same tool call.
+     */
+    public static function set_source(string $source, int $agent_run_id = 0): void
+    {
+        self::$source       = substr($source, 0, 32) ?: 'chat';
+        self::$agent_run_id = max(0, $agent_run_id);
+    }
+
+    public static function source(): string
+    {
+        return self::$source;
+    }
+
+    /**
      * @param array $input_schema  JSON Schema for the tool's arguments.
      * @param mixed $callback      fn(array $args): array — return value is the tool result.
      *                             Not type-hinted `callable` on purpose — see below.
@@ -77,11 +112,45 @@ final class Keelhob_Tool_Registry
         foreach ($this->tools as $name => $t) {
             $out[] = [
                 'name'        => $name,
-                'description' => $t['description'],
+                'description' => self::decorate_description($name, $t['description']),
                 'inputSchema' => $t['schema'],
             ] + (empty($t['annotations']) ? [] : ['annotations' => $t['annotations']]);
         }
         return $out;
+    }
+
+    /**
+     * The tool's own description, plus what this site has learned about it.
+     *
+     * This is the point of the whole ratings/lessons track. Keelhob has
+     * memory_save/memory_get, but memory is a separate store the agent has to
+     * remember to read; a lesson stapled here is read on every tools/list
+     * whether the agent went looking or not.
+     *
+     * Order is deliberate: the base description first, so a client that
+     * truncates long descriptions keeps the part that says what the tool does;
+     * then the lessons; then the rating last, because it is the least
+     * actionable of the three.
+     *
+     * Both halves return '' when there is nothing to add, so an untouched site
+     * — and the unit suite, whose $wpdb returns no rows — sees descriptions
+     * byte-for-byte as they were written.
+     */
+    public static function decorate_description(string $name, string $base): string
+    {
+        $parts = [$base];
+
+        $lessons = Keelhob_Lessons::description_block($name);
+        if ($lessons !== '') {
+            $parts[] = $lessons;
+        }
+
+        $rating = Keelhob_Tool_Stats::description_line($name);
+        if ($rating !== '') {
+            $parts[] = $rating;
+        }
+
+        return implode("\n\n", $parts);
     }
 
     /**
@@ -136,9 +205,33 @@ final class Keelhob_Tool_Registry
         }
         $result['_meta'] = array_merge($result['_meta'] ?? [], ['execution_time_ms' => $elapsed]);
 
+        $ok    = !(isset($result['success']) && $result['success'] === false);
+        $error = (string) ($result['error'] ?? '');
+
         if (Keelhob::instance()->get('log_calls')) {
-            Keelhob::instance()->logger->record($name, $args, $result);
+            $run_id = Keelhob::instance()->logger->record($name, $args, $result, [
+                'source'       => self::$source,
+                'duration_ms'  => (int) round($elapsed),
+                'agent_run_id' => self::$agent_run_id,
+            ]);
+            // Handed back so the owner can thumb THIS call rather than the
+            // tool in general, and so a client that shows the run id can link
+            // straight to the row on the Activity screen.
+            if ($run_id > 0) {
+                $result['_meta']['run_id'] = $run_id;
+            }
         }
+
+        /*
+         * The rating tally, kept separately from the log on purpose.
+         *
+         * It is updated even when log_calls is off: the log is a record of
+         * arguments, which an owner may well not want kept, whereas this is
+         * four integers with no payload at all and it is what the agent reads
+         * to know whether a tool works here. Switching off the audit trail
+         * should not also blind the agent.
+         */
+        Keelhob_Tool_Stats::observe($name, $ok, $error);
 
         // Friction, captured from the same choke point and for the same reason
         // the receipt above is: an agent's own account of what went badly is

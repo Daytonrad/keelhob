@@ -25,12 +25,15 @@ cd /c/wp-rig/wordpress && PHP_CLI_SERVER_WORKERS=4 php -S localhost:8899 &
 npm install                 # once: playwright-core, nothing else
 node tests/rig/ui/check-snippets.mjs --wp http://localhost:8899 --rig /c/wp-rig/wordpress
 node tests/rig/ui/check-compose.mjs  --wp http://localhost:8899 --rig /c/wp-rig/wordpress
+node tests/rig/ui/check-thumbs.mjs   # needs one row in the tool log first
 ```
 
-Two files, because they cover two screens:
+Three files, because they cover different screens and different claims. The
+table at the bottom is the record; the notes below it say what each one is for.
 
-Both files were last run green on **2026-09-23** (54 + 26 = 80) against a
-freshly built rig on Keelhob 2.0.0. `tests/unit/test-doc-counts.php` reads the
+`check-snippets.mjs` and `check-compose.mjs` were last run green on
+**2026-09-23** (54 + 26 = 80), and `check-thumbs.mjs` on **2026-10-24** (11),
+against a rig on Keelhob 2.0.0. `tests/unit/test-doc-counts.php` reads the
 per-file numbers in this table and fails if ROADMAP.md stops agreeing with them,
 so **update this table in the same commit that adds or removes a check.**
 
@@ -41,6 +44,7 @@ every check here times out at login — see "Serving it" in `tests/rig/README.md
 |---|---|---|
 | `check-snippets.mjs` | the snippet list and the editor | 54 |
 | `check-compose.mjs`  | AI Compose, which is a chat | 26 |
+| `check-thumbs.mjs`   | the thumbs control, and that it reverts rather than lying | 11 |
 
 `check-compose.mjs` makes **no AI call**. Every assistant turn it asserts on is
 server-rendered markup injected through the same path the live screen uses, so

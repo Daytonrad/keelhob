@@ -289,6 +289,11 @@ final class Keelhob
         // Admin UI.
         if (is_admin()) {
             (new Keelhob_Admin())->hooks();
+            // Thumbs on a logged call, and the lesson editor. Its own class
+            // because the lesson text it accepts is read by an agent that can
+            // change a live site, and a safety surface is worth being able to
+            // read in one file. See class-admin-ratings.php.
+            (new Keelhob_Admin_Ratings())->hooks();
         }
     }
 
@@ -299,6 +304,20 @@ final class Keelhob
      */
     private function maybe_upgrade(): void
     {
+        /*
+         * Schema added after this site last changed version, checked on its own
+         * generation counter rather than on KEELHOB_VERSION.
+         *
+         * The version-keyed gate below cannot create it: a site already
+         * recorded at the current version returns early and never reaches
+         * install_table() — which is every development rig, and every site
+         * that updated before these tables existed. Each call is one read of
+         * an autoloaded option and then nothing.
+         */
+        Keelhob_Logger::maybe_upgrade_schema();
+        Keelhob_Tool_Stats::maybe_install();
+        Keelhob_Lessons::maybe_install();
+
         $stored = get_option('keelhob_db_version', '');
         if ($stored === KEELHOB_VERSION) {
             return;
@@ -318,6 +337,8 @@ final class Keelhob
         Keelhob_Logger::install_table();
         Keelhob_Snippet_Log::install_table();
         Keelhob_Feedback::install_table();
+        Keelhob_Tool_Stats::install_table();
+        Keelhob_Lessons::install_table();
         // After install_table() has added the columns: give pre-1.9 snippets a
         // uid and a created_at so the Snippets page and cross-site copy work.
         Keelhob_Snippets::backfill();
@@ -457,6 +478,8 @@ final class Keelhob
         Keelhob_Logger::install_table();
         Keelhob_Snippet_Log::install_table();
         Keelhob_Feedback::install_table();
+        Keelhob_Tool_Stats::install_table();
+        Keelhob_Lessons::install_table();
         Keelhob_Snippets::backfill();
         // Rows written before the source column existed have to be classified
         // before anything can refresh them; see Keelhob_Skills::backfill_sources().

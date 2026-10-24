@@ -70,6 +70,14 @@ unset($expected['pro_status']);
 // never the ones agents write on other people's sites.
 $expected['skill_lint'] = ['required' => [], 'properties' => ['markdown', 'name']];
 
+// lesson_save / lesson_list, added with the ratings track. A lesson is pushed
+// into the description of the tool it names, so the agent reads it whether it
+// looks for it or not — which is why it is not memory_save with a convention
+// on top. lesson_save sits in the memory capability group; lesson_list is
+// read-only and always on. See class-lessons.php for the four guards on it.
+$expected['lesson_save'] = ['required' => ['topic', 'lesson'], 'properties' => ['lesson', 'topic']];
+$expected['lesson_list'] = ['required' => [], 'properties' => ['topic']];
+
 KH_Test::same([], array_values(array_diff(array_keys($expected), array_keys($now))), 'no tool was lost in the merge');
 KH_Test::same([], array_values(array_diff(array_keys($now), array_keys($expected))), 'no tool appeared unannounced');
 KH_Test::ok(!isset($now['pro_status']), 'pro_status is gone, which is the one intended removal');

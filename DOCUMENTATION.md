@@ -200,7 +200,7 @@ things, and it keeps a record of what it did.
 
 ## What it can do
 
-Keelhob gives the agent **69 tools**, grouped by job. You never call these
+Keelhob gives the agent **71 tools**, grouped by job. You never call these
 yourself; you ask for an outcome and the agent picks the tools.
 
 This section is the honest inventory. If a feature is not listed here, Keelhob
@@ -304,6 +304,26 @@ explain a preference once.
 
 `memory_save` · `memory_list` · `memory_get` · `memory_delete`
 
+### Lessons
+
+A lesson is a sharper form of the same idea. Memory is a store the agent has to
+remember to read; a lesson is written straight into the description of the tool
+it names, so the next agent reads it whether it went looking or not. "Rank Math
+is the SEO plugin here, not Yoast", filed against `seo_meta`, is read on every
+single connection.
+
+That makes a lesson a standing instruction to something that can change your
+site, so it is fenced: 300 characters of plain text each, six per tool at most,
+and every one of them visible, editable and deletable by you on **Keelhob >
+Activity**, with a note saying whether you or an agent wrote it. A lesson saved
+by an agent is always recorded as the agent's — it cannot claim you said it.
+
+The same screen carries each tool's rating: a 1-100 score earned from how often
+that tool has actually worked here and what you said about it, which the agent
+also reads in the tool's own description.
+
+`lesson_save` · `lesson_list`
+
 ### Automation
 
 Run the agent unattended, on a schedule. A weekly blog post. A nightly check
@@ -371,7 +391,7 @@ until you personally turn them on.
 | Images | **On** | Search and generation |
 | Email & notifications | *Off* | Sending email to real addresses |
 | Autonomy (agent & scheduled tasks) | **On** | Unattended and scheduled runs |
-| Memory (write) | **On** | Saving and deleting memory |
+| Memory & lessons (write) | **On** | Saving and deleting memory, and saving lessons the agent reads |
 | Skills (write) | **On** | Creating and deleting skills |
 | Deploy to production | *Off* | Bundles and pushing to production |
 

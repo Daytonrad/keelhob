@@ -1727,3 +1727,109 @@ body.rtl .kh-ui {
 	color: var(--kh-ink);
 	box-shadow: none;
 }
+
+/* --------------------------------------------------------------------------
+   Ratings, thumbs and lessons — the Activity screen (PLAN §3.3)
+   --------------------------------------------------------------------------
+   THE SCORE PILL IS BUILT THE WAY AMENDMENT A1.1 SAYS, AND NOT THE OBVIOUS WAY.
+   `--kh-good` on `--kh-good-soft` measures 3.12:1, `--kh-mid` on `--kh-mid-soft`
+   2.99:1 and `--kh-bad` on `--kh-bad-soft` 4.41:1. All three fail AA at every
+   size, so the status colour is the BORDER and the words are `--kh-ink`:
+   17.38 / 17.20 / 16.76:1 respectively. The colour still carries the signal at
+   a glance; it just never has to be read.
+
+   And the number is never alone: every pill reads "82/100 · Good · 9 runs",
+   because 82 over two runs and 82 over forty are not the same claim. */
+.kh-ui .kh-u-score {
+	display: inline-block;
+	padding: 3px 10px;
+	border-radius: 999px;
+	border: 1px solid var(--kh-line);
+	background: var(--kh-soft);
+	color: var(--kh-ink);
+	font-size: 12px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.kh-ui .kh-u-score.is-good {
+	border-color: var(--kh-good);
+	background: var(--kh-good-soft);
+}
+
+.kh-ui .kh-u-score.is-mid {
+	border-color: var(--kh-mid);
+	background: var(--kh-mid-soft);
+}
+
+.kh-ui .kh-u-score.is-bad {
+	border-color: var(--kh-bad);
+	background: var(--kh-bad-soft);
+}
+
+/* The thumbs pair. Two real submit buttons in a real form: with JavaScript off
+   this posts to admin-post.php and redirects back, which is why it is not a
+   link and not a div. `aria-pressed` is the state, set from the server's answer
+   and never from a guess — see assets/js/admin-ratings.js. */
+.kh-ui .kh-u-thumbs {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-wrap: wrap;
+}
+
+.kh-ui .kh-u-thumbs .button {
+	min-width: 34px;
+	padding: 0 8px;
+	line-height: 26px;
+	height: 28px;
+}
+
+/* The chosen verdict. Copper fill with ink on it, not copper text: `--kh-accent`
+   measures 3.35:1 on white and fails as a word by design. The fill is the
+   signal and the glyph sits on it at 10.63:1 (#121517 on #c87941). */
+.kh-ui .kh-u-thumbs .button[aria-pressed="true"] {
+	background: var(--kh-accent);
+	border-color: var(--kh-accent);
+	color: #121517;
+	font-weight: 700;
+}
+
+.kh-ui.is-dark .kh-u-thumbs .button[aria-pressed="true"] {
+	color: var(--kh-bg);
+}
+
+/* The failure message next to a thumb. It only ever appears when the server
+   refused the vote, and it carries `role="alert"` at that moment, so it is not
+   decoration — it is the revert being announced.
+   --kh-bad-ink: 6.79:1 on --kh-bad-soft, 4.83:1 on --kh-card. */
+.kh-ui .kh-u-thumbs-msg {
+	color: var(--kh-bad-ink);
+	font-size: 12px;
+}
+
+.kh-ui .kh-u-thumbs-msg:empty {
+	display: none;
+}
+
+.kh-ui .kh-u-lesson-add {
+	max-width: 720px;
+	margin: 0 0 16px;
+	padding: 16px 20px;
+	border: 1px solid var(--kh-line);
+	border-radius: var(--kh-radius);
+	background: var(--kh-card);
+	box-shadow: var(--kh-shadow);
+}
+
+.kh-ui .kh-u-lesson-add p:first-child {
+	margin-top: 0;
+}
+
+.kh-ui .kh-u-lesson-add p:last-child {
+	margin-bottom: 0;
+}
+
+.kh-ui .kh-u-lesson-add label {
+	font-weight: 600;
+}

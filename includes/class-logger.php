@@ -19,6 +19,25 @@ final class Keelhob_Logger
      */
     const MAX_ROWS = 200;
 
+    /**
+     * Schema generation, independent of KEELHOB_VERSION.
+     *
+     * Keelhob::maybe_upgrade() only runs install_table() when the stored
+     * db_version differs from the plugin version, so on any site already
+     * recorded at the current version — which is every development rig, and
+     * every site that updated before this column set existed — the new columns
+     * would never be created. This number is bumped instead, and checked on
+     * its own.
+     */
+    const SCHEMA = 2;
+
+    const OPTION_SCHEMA = 'keelhob_log_schema';
+
+    /** Thumbs values stored in the `feedback` column. */
+    const NO_VOTE = 0;
+    const THUMBS_UP = 1;
+    const THUMBS_DOWN = -1;
+
     public static function table(): string
     {
         global $wpdb;
@@ -39,12 +58,43 @@ final class Keelhob_Logger
             summary TEXT NULL,
             user_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            source VARCHAR(32) NOT NULL DEFAULT 'chat',
+            duration_ms INT UNSIGNED NOT NULL DEFAULT 0,
+            output_json LONGTEXT NULL,
+            error TEXT NULL,
+            feedback TINYINT NOT NULL DEFAULT 0,
+            agent_run_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
             PRIMARY KEY (id),
-            KEY created_at (created_at)
+            KEY created_at (created_at),
+            KEY tool (tool)
         ) {$charset};");
     }
 
-    public function record(string $tool, array $args, array $result): void
+    /**
+     * Create or widen the table when this schema generation has not been
+     * applied here yet. Cheap: one autoloaded option read, then nothing.
+     */
+    public static function maybe_upgrade_schema(): void
+    {
+        if ((int) get_option(self::OPTION_SCHEMA, 0) >= self::SCHEMA) {
+            return;
+        }
+        self::install_table();
+        update_option(self::OPTION_SCHEMA, self::SCHEMA);
+    }
+
+    /**
+     * Write one tool call to the log, and return the row id (0 on failure).
+     *
+     * $meta is optional so every existing three-argument caller — the browser
+     * gate seeds a row that way — keeps working unchanged. Recognised keys:
+     * `source` (chat | the agent run's context), `duration_ms`, `agent_run_id`.
+     *
+     * The returned id is what the Activity screen's thumbs controls address, so
+     * a vote can be attached to one specific call rather than to a tool in
+     * general.
+     */
+    public function record(string $tool, array $args, array $result, array $meta = []): int
     {
         global $wpdb;
         $ok = !(isset($result['success']) && $result['success'] === false);
@@ -64,14 +114,34 @@ final class Keelhob_Logger
         // that carries an API key, a bearer token, or a password.
         $safe_args = self::redact($safe_args);
 
-        $wpdb->insert(self::table(), [
-            'tool'       => $tool,
-            'args_json'  => wp_json_encode($safe_args),
-            'ok'         => $ok ? 1 : 0,
-            'summary'    => mb_substr((string) ($result['error'] ?? ($result['message'] ?? '')), 0, 500),
-            'user_id'    => get_current_user_id(),
-            'created_at' => current_time('mysql'),
+        $error = (string) ($result['error'] ?? '');
+
+        // The output, redacted on exactly the same path as the arguments and
+        // clipped hard. A tool result can be a whole page of HTML or a 2 MB
+        // media listing, and this table is read on an admin screen.
+        $output = self::redact(is_array($result) ? $result : ['result' => $result]);
+        unset($output['_meta']);
+        $output_json = (string) wp_json_encode($output);
+        if (strlen($output_json) > 20000) {
+            $output_json = substr($output_json, 0, 20000);
+        }
+
+        $inserted = $wpdb->insert(self::table(), [
+            'tool'         => $tool,
+            'args_json'    => wp_json_encode($safe_args),
+            'ok'           => $ok ? 1 : 0,
+            'summary'      => mb_substr((string) ($result['error'] ?? ($result['message'] ?? '')), 0, 500),
+            'user_id'      => get_current_user_id(),
+            'created_at'   => current_time('mysql'),
+            'source'       => substr((string) ($meta['source'] ?? 'chat'), 0, 32),
+            'duration_ms'  => max(0, (int) ($meta['duration_ms'] ?? 0)),
+            'output_json'  => $output_json,
+            'error'        => mb_substr($error, 0, 1000),
+            'feedback'     => self::NO_VOTE,
+            'agent_run_id' => max(0, (int) ($meta['agent_run_id'] ?? 0)),
         ]);
+
+        $id = $inserted ? (int) $wpdb->insert_id : 0;
 
         // Trim.
         $count = (int) $wpdb->get_var("SELECT COUNT(*) FROM " . self::table());
@@ -79,6 +149,50 @@ final class Keelhob_Logger
             $cut = $count - self::MAX_ROWS;
             $wpdb->query($wpdb->prepare("DELETE FROM " . self::table() . " ORDER BY id ASC LIMIT %d", $cut));
         }
+
+        return $id;
+    }
+
+    /** One row by id, or null. */
+    public function find(int $id): ?array
+    {
+        global $wpdb;
+        if ($id <= 0) {
+            return null;
+        }
+        $row = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM " . self::table() . " WHERE id = %d",
+            $id
+        ), ARRAY_A);
+        return is_array($row) ? $row : null;
+    }
+
+    /**
+     * Record the owner's thumbs on one logged call.
+     *
+     * Returns the stats row the vote landed on, or null when the row is gone —
+     * the log is a 200-row ring buffer, so a vote on a screen left open for a
+     * busy week can arrive after its row was trimmed. That has to be a visible
+     * failure rather than a silently dropped vote, which is why the caller gets
+     * null instead of true.
+     *
+     * The previous vote is passed to the stats tally so changing a mind adjusts
+     * both counters rather than adding a second vote.
+     */
+    public function vote(int $id, int $vote): ?array
+    {
+        global $wpdb;
+        $vote = $vote > 0 ? self::THUMBS_UP : ($vote < 0 ? self::THUMBS_DOWN : self::NO_VOTE);
+        $row  = $this->find($id);
+        if ($row === null) {
+            return null;
+        }
+        $was = (int) ($row['feedback'] ?? 0);
+        if ($was !== $vote) {
+            $wpdb->update(self::table(), ['feedback' => $vote], ['id' => $id]);
+            Keelhob_Tool_Stats::vote((string) $row['tool'], $was, $vote);
+        }
+        return Keelhob_Tool_Stats::get((string) $row['tool']);
     }
 
     public function recent(int $limit = 50, int $offset = 0): array

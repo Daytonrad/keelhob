@@ -58,7 +58,7 @@ final class Keelhob_Capabilities
      */
     public static function always_on(): array
     {
-        return ['get_site_info', 'get_dashboard', 'memory_list', 'memory_get', 'skill_list', 'skill_get', 'skill_lint', 'task_list', 'agent_runs', 'site_readiness', 'feedback_status', 'feedback_send'];
+        return ['get_site_info', 'get_dashboard', 'memory_list', 'memory_get', 'skill_list', 'skill_get', 'skill_lint', 'task_list', 'agent_runs', 'site_readiness', 'feedback_status', 'feedback_send', 'lesson_list'];
     }
 
     /**
@@ -177,9 +177,9 @@ final class Keelhob_Capabilities
                 'tools' => ['run_agent', 'task_save', 'task_run', 'task_delete'],
             ],
             'memory' => [
-                'label' => 'Memory (write)', 'sensitive' => false,
-                'desc' => 'Save/delete cross-session memory.',
-                'tools' => ['memory_save', 'memory_delete'],
+                'label' => 'Memory & lessons (write)', 'sensitive' => false,
+                'desc' => 'Save/delete cross-session memory, and save lessons that are injected into the tool descriptions the agent reads. The owner can read, edit and delete every lesson on Keelhob > Activity.',
+                'tools' => ['memory_save', 'memory_delete', 'lesson_save'],
             ],
             'skills' => [
                 'label' => 'Skills (write)', 'sensitive' => false,

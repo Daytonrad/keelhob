@@ -45,6 +45,19 @@ parameters:
 			count: 1
 			path: includes/class-admin.php
 
+		# And again for the thumbs script on the Activity screen. Checked
+		# against the rule at the top of this file rather than added
+		# reflexively: Keelhob_Admin_Ratings::enqueue() builds the src for
+		# assets/js/admin-ratings.js, KEELHOB_URL is defined unconditionally at
+		# keelhob.php:28 before the autoloader that opens this class, and the
+		# method only ever runs on admin_enqueue_scripts — so there is no code
+		# path on which the constant is missing.
+		-
+			message: '#^Constant KEELHOB_URL not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: includes/class-admin-ratings.php
+
 		# Same cause as class-brand.php above: the two Studio screens now enqueue
 		# real JavaScript files, which need the plugin URL to build their src.
 		-

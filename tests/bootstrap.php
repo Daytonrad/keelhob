@@ -886,6 +886,10 @@ require_once KEELHOB_DIR . 'includes/class-transcribe-provider.php';
 require_once KEELHOB_DIR . 'includes/class-transcribe-provider-openai.php';
 require_once KEELHOB_DIR . 'includes/class-transcribe-provider-google.php';
 require_once KEELHOB_DIR . 'includes/class-agent-runtime.php';
+// The ratings/lessons track. Keelhob_Tool_Registry::list() names both of these
+// on every call, so they have to be loaded before any test builds a registry.
+require_once KEELHOB_DIR . 'includes/class-tool-stats.php';
+require_once KEELHOB_DIR . 'includes/class-lessons.php';
 require_once KEELHOB_DIR . 'includes/class-undo.php';
 require_once KEELHOB_DIR . 'includes/class-events.php';
 require_once KEELHOB_DIR . 'includes/class-telegram.php';
@@ -920,6 +924,7 @@ require_once KEELHOB_DIR . 'includes/class-admin-providers.php';
 require_once KEELHOB_DIR . 'includes/class-admin-settings.php';
 require_once KEELHOB_DIR . 'includes/class-admin-screens.php';
 require_once KEELHOB_DIR . 'includes/class-admin-automation.php';
+require_once KEELHOB_DIR . 'includes/class-admin-ratings.php';
 require_once KEELHOB_DIR . 'includes/tools/class-tools-filesystem.php';
 
 // --- notifier -------------------------------------------------------------
