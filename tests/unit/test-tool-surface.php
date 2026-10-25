@@ -38,7 +38,7 @@ $registry = new Keelhob_Tool_Registry();
 foreach ([
     'Core', 'Filesystem', 'Content', 'Site', 'WooCommerce', 'SEO', 'Memory',
     'Skills', 'Snippets', 'Elementor', 'Ops', 'Automation', 'Payments',
-    'Deploy', 'Readiness', 'Sitecare',
+    'Deploy', 'Readiness', 'Sitecare', 'Sitecare_Write',
 ] as $group) {
     call_user_func(['Keelhob_Tools_' . $group, 'register'], $registry);
 }
@@ -94,6 +94,18 @@ $expected['db_cleanup_preview']    = ['required' => [], 'properties' => []];
 $expected['plugin_security_check'] = ['required' => [], 'properties' => []];
 $expected['plugin_conflicts']      = ['required' => [], 'properties' => []];
 $expected['broken_links']          = ['required' => [], 'properties' => ['external', 'offset']];
+
+// The WRITING half of the Site-Care / Optimize family, added deliberately.
+// These five act on what the reports found, and all five sit in `sitecare_fix`
+// — a sensitive capability group that ships SWITCHED OFF, because
+// image_compress overwrites original uploads and db_cleanup cannot be undone by
+// anyone. They live in their own file so that test-sitecare.php can keep
+// grepping the read-only half for write calls it must never contain.
+$expected['image_compress'] = ['required' => ['ids'], 'properties' => ['ids', 'max_width', 'quality']];
+$expected['db_cleanup']     = ['required' => [], 'properties' => ['items', 'keep_revisions']];
+$expected['link_fix']       = ['required' => ['post_id', 'old_url'], 'properties' => ['new_url', 'old_url', 'post_id']];
+$expected['media_set_alt']  = ['required' => ['items'], 'properties' => ['items']];
+$expected['plugin_install'] = ['required' => ['slug'], 'properties' => ['activate', 'slug']];
 
 KH_Test::same([], array_values(array_diff(array_keys($expected), array_keys($now))), 'no tool was lost in the merge');
 KH_Test::same([], array_values(array_diff(array_keys($now), array_keys($expected))), 'no tool appeared unannounced');
@@ -254,6 +266,14 @@ $counting = [
     'plugin_security_check' => 'findings',
     'plugin_conflicts'      => 'overlaps',
     'broken_links'          => 'broken',
+    // And the five that WRITE. "I deleted some revisions" is the version of
+    // this bug that actually hurts: a destructive tool that does not state its
+    // own numbers leaves the owner with no record of what went.
+    'image_compress'        => 'compressed',
+    'db_cleanup'            => 'removed',
+    'link_fix'              => 'changes',
+    'media_set_alt'         => 'updated',
+    'plugin_install'        => 'installed',
 ];
 $missing = [];
 foreach ($counting as $tool => $rows_key) {

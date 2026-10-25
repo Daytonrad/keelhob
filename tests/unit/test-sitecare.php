@@ -140,7 +140,7 @@ $kh_sc_registry = new Keelhob_Tool_Registry();
 foreach ([
     'Core', 'Filesystem', 'Content', 'Site', 'WooCommerce', 'SEO', 'Memory',
     'Skills', 'Snippets', 'Elementor', 'Ops', 'Automation', 'Payments',
-    'Deploy', 'Readiness', 'Sitecare',
+    'Deploy', 'Readiness', 'Sitecare', 'Sitecare_Write',
 ] as $kh_group) {
     call_user_func(['Keelhob_Tools_' . $kh_group, 'register'], $kh_sc_registry);
 }

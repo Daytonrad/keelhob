@@ -29,13 +29,32 @@
 
 KH_Test::group('Overview — the band, for every combination of stored groups');
 
-/** Every group key, and the eight that ship switched off. */
+/** Every group key, and the ones that ship switched off. */
 $kh_ov_groups = array_keys(Keelhob_Capabilities::groups());
 $kh_ov_gated  = Keelhob_Capabilities::DISABLED_BY_DEFAULT;
 $kh_ov_free   = array_values(array_diff($kh_ov_groups, $kh_ov_gated));
 
-KH_Test::same(8, count($kh_ov_gated), 'there are eight groups that ship switched off');
-KH_Test::ok(count($kh_ov_groups) >= 20, 'and around twenty groups in total (' . count($kh_ov_groups) . ')');
+/*
+ * TEN, not eight. The count is asserted as a literal on purpose — it is the
+ * number of powers a fresh install refuses to hand an agent, and a group that
+ * quietly leaves this list is exactly the regression worth failing on. It moved
+ * from eight to ten when the site-care FIXERS (image_compress overwrites
+ * original uploads; db_cleanup cannot be undone by anyone) and the
+ * write-your-own-code abilities each got their own default-off group.
+ */
+KH_Test::same(10, count($kh_ov_gated), 'there are ten groups that ship switched off');
+KH_Test::ok(in_array('sitecare_fix', $kh_ov_gated, true), 'and the site-care fixers are one of them — nothing overwrites an image on a fresh install');
+KH_Test::ok(in_array('abilities', $kh_ov_gated, true), 'as is letting the AI write new code tools');
+
+// Each of the ten is genuinely off when nothing is stored, which is the claim
+// the list is making. Asserted through the code that decides it, not by
+// re-reading the same array.
+kh_test_reset_options();
+foreach ($kh_ov_gated as $kh_g) {
+    KH_Test::ok(!Keelhob_Capabilities::is_group_enabled($kh_g), $kh_g . ' is OFF on an install where the owner has said nothing');
+    KH_Test::ok(!Keelhob_Capabilities::default_enabled($kh_g), 'and its default is off, not merely absent');
+}
+KH_Test::ok(count($kh_ov_groups) >= 20, 'and over twenty groups in total (' . count($kh_ov_groups) . ')');
 foreach ($kh_ov_gated as $kh_g) {
     KH_Test::ok(in_array($kh_g, $kh_ov_groups, true), 'the gated group ' . $kh_g . ' is a real group, not a stale name');
 }
@@ -52,20 +71,26 @@ $kh_ov_set = static function (array $on) use ($kh_ov_groups): void {
 /**
  * EXHAUSTIVE, AND WHY THIS IS EXHAUSTIVE RATHER THAN A SAMPLE.
  *
- * There are 2^21 ways the stored array can look, which is two million — too
+ * There are 2^N ways the stored array can look for N groups — millions — too
  * slow to sweep and pointless to sweep, because the band can only distinguish
  * two facts about that array:
  *
- *   A. is any of the eight gated groups on?   (-> Full access)
- *   B. is ANY group at all on?                (-> Reading only when not)
+ *   A. is any of the GATED groups on?   (-> Full access)
+ *   B. is ANY group at all on?          (-> Reading only when not)
  *
- * So the complete cover is: all 256 subsets of the eight, crossed with every
- * distinguishable state of the rest — none on, exactly one on (each of the
- * fourteen in turn), and all of them on. That is 256 x 16 = 4096 stored arrays,
- * and it visits every equivalence class the logic has.
+ * So the complete cover is: all 2^G subsets of the G gated groups, crossed with
+ * every distinguishable state of the rest — none on, exactly one on (each in
+ * turn), and all of them on. That visits every equivalence class the logic has.
  *
- * Counted into one assertion rather than 4096, so a failure names the first
- * combination that broke instead of burying it in a wall of green ticks.
+ * The sizes are DERIVED from the group list rather than written in, because
+ * they moved twice: 2^8 x 16 = 4096 when eight groups shipped off, and
+ * 2^10 x 16 once the site-care fixers and the code-writing abilities got their
+ * own. A hand-kept total here is a test that fails for arithmetic reasons every
+ * time a group is added, which trains people to edit the number without
+ * reading it.
+ *
+ * Counted into one assertion rather than thousands, so a failure names the
+ * first combination that broke instead of burying it in a wall of green ticks.
  */
 $kh_ov_cases = 0;
 $kh_ov_bad   = [];
@@ -75,9 +100,10 @@ foreach ($kh_ov_free as $kh_one) {
 }
 $kh_ov_rest[] = $kh_ov_free;
 
-for ($kh_mask = 0; $kh_mask < (1 << 8); $kh_mask++) {
+$kh_ov_bits = count($kh_ov_gated);
+for ($kh_mask = 0; $kh_mask < (1 << $kh_ov_bits); $kh_mask++) {
     $kh_gated_on = [];
-    for ($kh_bit = 0; $kh_bit < 8; $kh_bit++) {
+    for ($kh_bit = 0; $kh_bit < $kh_ov_bits; $kh_bit++) {
         if ($kh_mask & (1 << $kh_bit)) {
             $kh_gated_on[] = $kh_ov_gated[$kh_bit];
         }
@@ -114,7 +140,8 @@ for ($kh_mask = 0; $kh_mask < (1 << 8); $kh_mask++) {
     }
 }
 
-KH_Test::same(4096, $kh_ov_cases, 'every equivalence class of the stored array was visited (' . $kh_ov_cases . ' combinations)');
+KH_Test::same((1 << $kh_ov_bits) * count($kh_ov_rest), $kh_ov_cases, 'every equivalence class of the stored array was visited (' . $kh_ov_cases . ' combinations)');
+KH_Test::ok($kh_ov_cases >= 4096, 'and that is at least as thorough as the sweep has ever been (' . $kh_ov_cases . ')');
 KH_Test::same([], $kh_ov_bad, 'and the band is right for all of them' . ($kh_ov_bad ? ' — first failure: ' . $kh_ov_bad[0] : ''));
 
 KH_Test::group('Overview — the three cases a reviewer gets wrong');
@@ -122,7 +149,7 @@ KH_Test::group('Overview — the three cases a reviewer gets wrong');
 /*
  * THE NEVER-SAID CASE. An empty array does not mean "nothing is on" — it means
  * the owner has never expressed an opinion, and Keelhob_Capabilities::
- * default_enabled() then says yes to everything except the eight. A band
+ * default_enabled() then says yes to everything except the gated ten. A band
  * function that treated empty as "off" would tell a fresh install it was in
  * Reading only while an agent could rewrite every page on the site.
  */
@@ -134,16 +161,16 @@ KH_Test::same(
     'a fresh install, with nothing stored at all, reads as Building — NOT as Reading only'
 );
 KH_Test::same(
-    count($kh_ov_groups) - 8,
+    count($kh_ov_groups) - count($kh_ov_gated),
     count($kh_fresh['on']),
-    'with every group on except the eight that ship off (' . count($kh_fresh['on']) . ')'
+    'with every group on except the ten that ship off (' . count($kh_fresh['on']) . ')'
 );
-KH_Test::same([], $kh_fresh['gated_on'], 'and none of the eight is on');
+KH_Test::same([], $kh_fresh['gated_on'], 'and none of the ten is on');
 /*
  * And the honest part: Building does NOT mean "nothing sensitive is on".
  * snippets, files, code_exec, store and site_admin are sensitive groups that
- * simply are not among the eight, and they are ON by default. The band is
- * defined by the eight; the card says this out loud so the label cannot be read
+ * simply are not among the ten, and they are ON by default. The band is
+ * defined by those ten; the card says this out loud so the label cannot be read
  * as a safety claim it is not making.
  */
 KH_Test::ok(
@@ -161,7 +188,7 @@ $kh_ov_set(['code_exec']);
 KH_Test::same(
     Keelhob_Admin::BAND_BUILDING,
     Keelhob_Admin::capability_band(),
-    'raw code execution alone is Building, because it is not one of the eight — the band is defined by the eight'
+    'raw code execution alone is Building, because it is not one of the gated ten — the band is defined by those ten'
 );
 KH_Test::same(['code_exec'], Keelhob_Admin::capability_state()['sensitive_on'], 'and it is reported as sensitive');
 
@@ -211,7 +238,7 @@ KH_Test::same(
 KH_Test::same(
     [],
     array_diff($kh_part['gated_on'], $kh_part['on']),
-    'and the same for the gated eight'
+    'and the same for the gated ten'
 );
 KH_Test::same(
     Keelhob_Admin::capability_state()['band'],
@@ -505,7 +532,7 @@ KH_Test::contains('Tools the agent may call', $kh_page, 'the second counts the t
 
 /*
  * The stat tiles must agree with the band view. With nothing stored, the gated
- * eight are off, so wc_payments and send_email are refused and three of the
+ * ten are off, so wc_payments and send_email are refused and three of the
  * five stand-in tools are callable.
  */
 KH_Test::contains('3 / 5', $kh_page, 'the tool tile counts only the tools the capability gate actually allows');

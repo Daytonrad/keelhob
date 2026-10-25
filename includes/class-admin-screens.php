@@ -83,6 +83,19 @@ final class Keelhob_Admin_Screens
                 <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Saved.', 'keelhob'); ?></p></div>
             <?php endif; ?>
 
+            <?php
+            /*
+             * Agent-written abilities, above the Overview.
+             *
+             * A pending ability is model-written PHP waiting for permission to
+             * run on this site. There is nothing further down this screen that
+             * matters more than that, so it is not further down this screen. The
+             * section renders nothing at all on a site that has never used the
+             * feature — see Keelhob_Admin_Abilities::section().
+             */
+            Keelhob_Admin_Abilities::section();
+            ?>
+
             <?php $this->overview($s, $enabled); ?>
 
             <div class="kh-u-cols">

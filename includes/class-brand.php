@@ -202,12 +202,12 @@ final class Keelhob_Brand
      * A dashicon for each capability group's card tile.
      *
      * WHY DASHICONS AND NOT TWENTY-ONE DRAWN ICONS. The capability cards want an
-     * icon tile each, and there are twenty-one groups. Dashicons is a font
+     * icon tile each, and there are more than twenty groups. Dashicons is a font
      * WordPress already loads on every admin screen — it is a dependency of
      * core's own `wp-admin` stylesheet — so this costs no new asset, no extra
      * request, no sprite to keep in step with the group list, and it inherits
-     * `color` like any other text. Drawing twenty-one SVGs that are each used
-     * once is a bigger maintenance surface than the cards are worth.
+     * `color` like any other text. Drawing one SVG per group, each used
+     * once, is a bigger maintenance surface than the cards are worth.
      *
      * Every icon is decoration: the card already names the group in words and
      * the tile is aria-hidden. If the font is missing the tile renders as an
@@ -231,6 +231,8 @@ final class Keelhob_Brand
         'seo'          => 'dashicons-search',
         'seo_optimize' => 'dashicons-chart-line',
         'sitecare'     => 'dashicons-heart',
+        'sitecare_fix' => 'dashicons-admin-tools',
+        'abilities'    => 'dashicons-hammer',
         'design'       => 'dashicons-admin-appearance',
         'snippets'     => 'dashicons-editor-code',
         'code_exec'    => 'dashicons-media-code',

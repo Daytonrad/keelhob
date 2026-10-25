@@ -42,6 +42,58 @@ final class Keelhob_Tool_Registry
     private static $agent_run_id = 0;
 
     /**
+     * Tools whose rating is kept under a different key from their name.
+     *
+     * Only agent-written abilities use this, and only because their rating has
+     * to be PER VERSION: the owner's question when they approve a replacement
+     * is "is the new one actually better?", and a number rolled up across every
+     * version of the ability cannot answer it. Keelhob_Abilities points both
+     * the tally and the description line at `ability:{name}:v{n}`.
+     *
+     * Every built-in tool is absent from this map, so stats_key() returns the
+     * name and nothing about their behaviour changes.
+     *
+     * @var array<string, string> tool name => rating key
+     */
+    private static $stats_keys = [];
+
+    /**
+     * Build the registry.
+     *
+     * The constructor exists for one reason: it is the single moment in a
+     * request at which "a tool registry now exists" is true, and the abilities
+     * an AI wrote FOR THIS SITE are part of what this site's registry contains.
+     * They are not a built-in group, so they are not in Keelhob::boot()'s list
+     * of Keelhob_Tools_*::register() calls — see the note on
+     * Keelhob_Abilities::boot(), which also records that three explicit lines
+     * in boot() are the tidier home and a safe move later.
+     *
+     * Failing soft, for exactly the reason add() does: a fault in the abilities
+     * table must cost the abilities, not the request. A site whose agent-written
+     * tools cannot load still has sixty-nine working ones.
+     */
+    public function __construct()
+    {
+        try {
+            Keelhob_Abilities::boot($this);
+        } catch (Throwable $e) {
+            error_log('[Keelhob] Agent-written abilities did not load: ' . $e->getMessage());
+        }
+    }
+
+    /** Point one tool's rating at a different key. See $stats_keys. */
+    public static function set_stats_key(string $tool, string $key): void
+    {
+        self::$stats_keys[$tool] = $key;
+    }
+
+    /** The key this tool's rating is tallied under — its own name, unless aliased. */
+    public static function stats_key(string $tool): string
+    {
+        return self::$stats_keys[$tool] ?? $tool;
+    }
+
+    /**
      * Declare that the calls that follow belong to an unattended run.
      *
      * Keelhob_Agent_Runtime calls this before its loop. Nothing else should:
@@ -145,7 +197,7 @@ final class Keelhob_Tool_Registry
             $parts[] = $lessons;
         }
 
-        $rating = Keelhob_Tool_Stats::description_line($name);
+        $rating = Keelhob_Tool_Stats::description_line(self::stats_key($name));
         if ($rating !== '') {
             $parts[] = $rating;
         }
@@ -231,7 +283,7 @@ final class Keelhob_Tool_Registry
          * to know whether a tool works here. Switching off the audit trail
          * should not also blind the agent.
          */
-        Keelhob_Tool_Stats::observe($name, $ok, $error);
+        Keelhob_Tool_Stats::observe(self::stats_key($name), $ok, $error);
 
         // Friction, captured from the same choke point and for the same reason
         // the receipt above is: an agent's own account of what went badly is

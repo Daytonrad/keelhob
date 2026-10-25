@@ -200,7 +200,7 @@ things, and it keeps a record of what it did.
 
 ## What it can do
 
-Keelhob gives the agent **76 tools**, grouped by job. You never call these
+Keelhob gives the agent **81 tools**, grouped by job. You never call these
 yourself; you ask for an outcome and the agent picks the tools.
 
 This section is the honest inventory. If a feature is not listed here, Keelhob
@@ -318,6 +318,48 @@ layouts included, and reports what no longer answers.
 `speed_audit` · `db_cleanup_preview` · `plugin_security_check` ·
 `plugin_conflicts` · `broken_links`
 
+### Site care — fixing what the reports found
+
+These five **change the site**, so they are a separate permission and they are
+**switched off until you turn them on** (Keelhob → Settings → "Site care (fix &
+clean up)"). You can always ask what is wrong; acting on it is your decision.
+
+`image_compress` shrinks oversized images in place: it resizes anything wider
+than 2048px (800–4000 if you ask for something else) and re-saves it at quality
+82, up to ten images per call. **Your original file is copied into Keelhob's
+backup folder before anything is written**, the new version is written to a
+temporary file first, and if that file is not actually smaller the original is
+left exactly as it was. Thumbnails are not regenerated — only the full-size
+file changes, and its recorded width, height and file size are updated to
+match. If a copy of the original cannot be taken, that image is refused rather
+than overwritten.
+
+`db_cleanup` deletes database junk: revisions (keeping the newest three per
+post, or however many you say), auto-drafts and trashed posts older than a
+week, spam and trashed comments, expired transients and orphaned post meta.
+**This cannot be undone — not by Keelhob and not by WordPress.** It refuses to
+run until `db_cleanup_preview` has been taken, so you always see the numbers
+first; take a host backup before you say yes. It is capped per call (2,000
+revisions, 1,000 auto-drafts, 1,000 trashed posts, 2,000 comments) and tells
+you both what it removed and what is left.
+
+`link_fix` replaces one broken link on one page with a new address, or removes
+the link and keeps its words. It works in normal content and in Elementor
+layouts (both the plain and the escaped form of the address, which is how
+Elementor stores them), backs the page up first, and errors rather than
+guessing if the old link is not there.
+
+`media_set_alt` sets alt text on up to 50 images at once.
+
+`plugin_install` installs a plugin from the official WordPress.org directory by
+its slug — a slug only, never a URL or a ZIP file. It is installed switched off
+unless you ask for it to be activated, and activating loads your homepage
+straight afterwards: if the site broke, the plugin is switched off again and the
+result says `rolled_back`. Keelhob never switches itself on or off.
+
+`image_compress` · `db_cleanup` · `link_fix` · `media_set_alt` ·
+`plugin_install`
+
 ### Memory
 
 Keelhob remembers things between sessions. Not chat history — decisions. "This
@@ -405,6 +447,8 @@ until you personally turn them on.
 | SEO setup | **On** | Titles, descriptions, schema, sitemap |
 | SEO optimization | **On** | Page scoring, redirects |
 | Site care (read-only reports) | **On** | Speed, database junk, plugin security and conflicts, broken links |
+| Site care (fix & clean up) | *Off* | Compressing images, deleting database junk, fixing links, alt text, installing plugins |
+| Let the AI write new code tools | *Off* | The AI writing new PHP tools for this site, for you to approve |
 | Design / Elementor | **On** | Pages, kit, settings |
 | Snippets | **On** | Live code snippets |
 | Raw code execution | **On** | Arbitrary PHP and SQL |

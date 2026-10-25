@@ -243,6 +243,7 @@ final class Keelhob
         Keelhob_Tools_Deploy::register($this->registry);
         Keelhob_Tools_Readiness::register($this->registry);
         Keelhob_Tools_Sitecare::register($this->registry);
+        Keelhob_Tools_Sitecare_Write::register($this->registry);
         Keelhob_Tools_Feedback::register($this->registry);
 
         /**

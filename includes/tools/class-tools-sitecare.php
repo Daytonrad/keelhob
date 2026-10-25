@@ -6,9 +6,18 @@
  * the looking-after half, and every one of them is a report: they read, they
  * count, they rank, and they change nothing at all. The tools that act on what
  * they find (`image_compress`, `db_cleanup`, `link_fix`, `media_set_alt`,
- * `plugin_install`) are deliberately NOT here — they write or destroy, and
- * `db_cleanup` cannot be undone at all, so they ship in a second pass once
- * Keelhob_Undo's `file` backup type (added alongside this file) has been proven.
+ * `plugin_install`) live in class-tools-sitecare-write.php and in their own
+ * sensitive, default-off capability group, because they write or destroy and
+ * `db_cleanup` cannot be undone at all.
+ *
+ * THEY ARE A SEPARATE FILE FOR A REASON WORTH KEEPING: tests/unit/test-sitecare.php
+ * greps THIS file for a list of write calls it must never contain — the ones
+ * that delete a post, write a meta value, remove or rename a file, or switch a
+ * plugin on. That assertion is what keeps the read-only half read-only, it is
+ * deliberately a dumb text search, and it only works while the writers live
+ * somewhere else. Do not move them in here to save a file; and do not name
+ * those functions in this file's comments either, which is a mistake already
+ * made once and caught by the same assertion.
  *
  * Two house rules show up everywhere below and both were learned the hard way:
  *
@@ -55,6 +64,22 @@ final class Keelhob_Tools_Sitecare
     private const IMAGE_MANY        = 10;   // more than this many big images -> high
     private const MAX_PLUGINS       = 30;
     private const MIN_PHP           = '8.1';
+
+    /**
+     * The marker db_cleanup_preview leaves behind, and how long it lasts.
+     *
+     * `db_cleanup` is the one tool in the plugin with no undo of any kind, so
+     * it refuses to run until a preview has been taken — the owner has to have
+     * been shown a number before anything is deleted. The marker lives here
+     * rather than in the write half because the preview is what sets it, and
+     * two files holding the same key is how a guard quietly stops guarding.
+     *
+     * Fifteen minutes: long enough for the agent to show the counts and get an
+     * answer, short enough that a preview from an hour ago cannot authorise a
+     * deletion against a site that has changed since.
+     */
+    public const PREVIEW_MARKER = 'keelhob_db_cleanup_previewed';
+    public const PREVIEW_WINDOW = 900;
 
     /** How many autoloaded options and large images a result carries. */
     private const TOP_OPTIONS = 8;
@@ -234,7 +259,7 @@ final class Keelhob_Tools_Sitecare
         }
 
         if ((string) ($f['cache_plugin'] ?? '') === '') {
-            $out[] = self::finding('high', 'No caching plugin is active', 'None of the ' . count(self::CACHE_SLUGS) . ' known caching plugins is active.', 'Install one caching plugin — one, not two; two of them fight (see plugin_conflicts).', 'manage_plugin');
+            $out[] = self::finding('high', 'No caching plugin is active', 'None of the ' . count(self::CACHE_SLUGS) . ' known caching plugins is active.', 'Install one caching plugin with plugin_install — one, not two; two of them fight (see plugin_conflicts).', 'plugin_install');
         }
 
         if (empty($f['object_cache'])) {
@@ -276,8 +301,8 @@ final class Keelhob_Tools_Sitecare
                 $sev,
                 $n . ' oversized image' . ($n === 1 ? '' : 's'),
                 'Over ' . self::IMAGE_MAX_KB . ' KB or wider than ' . self::IMAGE_MAX_WIDTH . 'px. The largest are listed in this result.',
-                'Re-upload each one resized, with upload_media, largest first — they are the heaviest thing on the page.',
-                'upload_media'
+                'Run image_compress on the ids listed here, largest first, ten at a time — it resizes and re-saves them in place and keeps a copy of each original.',
+                'image_compress'
             );
         }
 
@@ -669,12 +694,19 @@ final class Keelhob_Tools_Sitecare
         $counts = self::count_junk();
         $total  = array_sum($counts);
 
+        // The one thing this tool leaves behind: a marker saying a preview was
+        // taken. db_cleanup refuses to delete anything until it finds one, so
+        // the owner cannot be shown a deletion they were never shown a count
+        // for. It is a cache entry like the HTTP caches above, not site data.
+        set_transient(self::PREVIEW_MARKER, time(), self::PREVIEW_WINDOW);
+
         return [
             'success'  => true,
             'count'    => $total,
             'total'    => $total,
             'counts'   => $counts,
             'deleted'  => 0,
+            'unlocked' => 'db_cleanup can now run for the next ' . (int) round(self::PREVIEW_WINDOW / 60) . ' minutes, if the owner says yes.',
             'note'     => 'Nothing was deleted — this is a count only. Show these numbers to the owner and suggest a host backup before any cleanup. Cleaning up cannot be undone by Keelhob.',
         ];
     }
@@ -929,9 +961,14 @@ final class Keelhob_Tools_Sitecare
      * the one form that works on MySQL and on an SQLite-backed install, and
      * this rig is SQLite.
      *
+     * Public because db_cleanup reports what is LEFT after it deletes, and it
+     * has to read that from the same place the preview read it: two counters
+     * over the same tables would eventually disagree, and the owner would be
+     * shown a "remaining" number that never matched the next preview.
+     *
      * @return array<string, int>
      */
-    private static function count_junk(): array
+    public static function count_junk(): array
     {
         global $wpdb;
 

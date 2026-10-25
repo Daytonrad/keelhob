@@ -1833,3 +1833,213 @@ body.rtl .kh-ui {
 .kh-ui .kh-u-lesson-add label {
 	font-weight: 600;
 }
+
+/* ========================================================================== */
+/* kh-u-review / kh-u-ability — abilities an AI wrote, and the approval gate   */
+/* ========================================================================== */
+
+/*
+ * THE REVIEW CARD IS THE SAFETY SURFACE, SO IT IS STYLED LIKE ONE.
+ *
+ * A pending ability is PHP a language model wrote, sitting in front of a human
+ * being who is about to decide whether it may run on their live site. Two
+ * things follow from that and both are design constraints, not taste:
+ *
+ *   1. The code is never hidden. The <details> that holds it ships `open`, and
+ *      the only panel on the card that starts closed is the comparison against
+ *      the version already running. An approval screen whose code is one click
+ *      away is an approval screen on which nobody reads the code.
+ *
+ *   2. The code block is dark in BOTH modes. It is the one element here that
+ *      does not follow the panel: it is a verbatim quotation of something the
+ *      machine wrote, and it should read as foreign to the surface around it
+ *      rather than as more interface. --kh-code-ink on --kh-code-bg measures
+ *      13.84:1, which it has to, because this is the longest piece of text an
+ *      owner will ever read on a Keelhob screen.
+ *
+ * The status badges follow the rule in "Status tints" above — soft tint as the
+ * fill, the status colour as the border only, --kh-ink for the words. The copper
+ * fill of the base .kh-u-badge is left alone for "Written by your AI", which is
+ * a provenance label rather than a status.
+ */
+.kh-ui {
+	--kh-code-bg: #16191b;
+	--kh-code-ink: #e8e3dc;   /* 13.84:1 on --kh-code-bg */
+	--kh-code-line: #2a2e31;
+}
+
+.kh-ui .kh-u-review,
+.kh-ui .kh-u-ability {
+	max-width: 900px;
+	margin: 0 0 16px;
+	padding: 18px 20px;
+	border: 1px solid var(--kh-line);
+	border-radius: var(--kh-radius);
+	background: var(--kh-card);
+	box-shadow: var(--kh-shadow);
+}
+
+/* The queue reads as urgent without colour carrying the message: the words
+   "Waiting for your review" above it already say so, and the copper edge is a
+   boundary, never text. */
+.kh-ui .kh-u-review {
+	border-left: 4px solid var(--kh-accent);
+}
+
+/* Blocked by the hash guard. Same treatment: tint and edge, ink words, and the
+   card also carries a full .kh-u-note saying so in sentences. */
+.kh-ui .kh-u-ability.is-blocked {
+	border-left: 4px solid var(--kh-bad);
+	background: var(--kh-bad-soft);
+}
+
+.kh-ui .kh-u-review-top {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 8px 12px;
+	margin-bottom: 10px;
+}
+
+.kh-ui .kh-u-review-id {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 10px;
+	flex: 1 1 240px;
+}
+
+.kh-ui .kh-u-review-label {
+	font-size: 16px;
+	color: var(--kh-ink);
+}
+
+/* .kh-u-mono is capped at 560px for the copy boxes it was written for. Inline
+   inside a card it is a word, not a field, so the cap is dropped here rather
+   than by adding .is-wide to every call site. */
+.kh-ui .kh-u-review-id .kh-u-mono,
+.kh-ui .kh-u-vers .kh-u-mono {
+	width: auto;
+	max-width: none;
+	padding: 1px 6px;
+	border: 1px solid var(--kh-line);
+	border-radius: 6px;
+	background: var(--kh-soft);
+	color: var(--kh-ink);
+}
+
+.kh-ui .kh-u-review-desc,
+.kh-ui .kh-u-review-note,
+.kh-ui .kh-u-review-inputs {
+	margin: 0 0 10px;
+	color: var(--kh-ink);
+}
+
+.kh-ui .kh-u-review-inputs .kh-u-mono {
+	width: auto;
+	max-width: none;
+	margin-right: 6px;
+	padding: 1px 6px;
+	border-radius: 6px;
+	background: var(--kh-soft);
+	color: var(--kh-ink);
+}
+
+.kh-ui .kh-u-badge.is-pending {
+	border: 1px solid var(--kh-mid);
+	background: var(--kh-mid-soft);
+	color: var(--kh-ink);        /* 17.20:1 light, 14.34:1 dark */
+}
+
+.kh-ui .kh-u-badge.is-live {
+	border: 1px solid var(--kh-good);
+	background: var(--kh-good-soft);
+	color: var(--kh-ink);        /* 17.38:1 light, 13.96:1 dark */
+}
+
+.kh-ui .kh-u-badge.is-writes {
+	border: 1px solid var(--kh-mid);
+	background: var(--kh-mid-soft);
+	color: var(--kh-ink);
+}
+
+.kh-ui .kh-u-badge.is-risky {
+	border: 1px solid var(--kh-bad);
+	background: var(--kh-bad-soft);
+	color: var(--kh-ink);        /* 16.76:1 light, 15.25:1 dark */
+}
+
+.kh-ui .kh-u-code-wrap {
+	margin: 0 0 12px;
+}
+
+.kh-ui .kh-u-code-wrap > summary {
+	cursor: pointer;
+	font-weight: 600;
+	color: var(--kh-ink);
+}
+
+.kh-ui pre.kh-u-code {
+	margin: 8px 0 0;
+	padding: 14px 16px;
+	max-height: 420px;
+	overflow: auto;
+	border: 1px solid var(--kh-code-line);
+	border-radius: 10px;
+	background: var(--kh-code-bg);
+	color: var(--kh-code-ink);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 12.5px;
+	line-height: 1.6;
+	white-space: pre;
+	tab-size: 4;
+}
+
+.kh-ui pre.kh-u-code code {
+	background: none;
+	color: inherit;
+	font-size: inherit;
+	padding: 0;
+}
+
+/* The version running now, shown for comparison. Dimmer, because it is the
+   thing being replaced — 10.09:1 on --kh-code-bg, still well clear of AA. */
+.kh-ui pre.kh-u-code.is-old {
+	color: #c9c3ba;
+}
+
+.kh-ui .kh-u-review-act {
+	margin-top: 4px;
+	padding-top: 12px;
+	border-top: 1px solid var(--kh-line);
+}
+
+/*
+ * The confirm. A real <input type="checkbox" required> — the browser enforces
+ * it with scripts off, and Keelhob_Admin_Abilities::handle_approve() refuses
+ * the POST without it, so it is a server-side gate and not a nicety.
+ */
+.kh-ui .kh-u-confirm {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	max-width: 620px;
+	margin-bottom: 12px;
+	color: var(--kh-ink);
+	font-weight: 600;
+}
+
+.kh-ui .kh-u-vers {
+	margin-top: 8px;
+}
+
+.kh-ui .kh-u-vers form {
+	margin: 0;
+}
+
+@media (max-width: 782px) {
+	.kh-ui .kh-u-review,
+	.kh-ui .kh-u-ability {
+		padding: 14px 16px;
+	}
+}

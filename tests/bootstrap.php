@@ -901,6 +901,13 @@ require_once KEELHOB_DIR . 'includes/class-migration.php';
 require_once KEELHOB_DIR . 'includes/class-health.php';
 require_once KEELHOB_DIR . 'includes/class-snippet-conditions.php';
 require_once KEELHOB_DIR . 'includes/class-snippets.php';
+// Agent-written abilities. Keelhob_Tool_Registry's constructor names
+// Keelhob_Abilities, so these have to be loaded before any test builds a
+// registry — and class-admin-abilities.php before any test renders the Connect
+// screen, which now carries the review queue.
+require_once KEELHOB_DIR . 'includes/class-abilities.php';
+require_once KEELHOB_DIR . 'includes/tools/class-tools-abilities.php';
+require_once KEELHOB_DIR . 'includes/class-admin-abilities.php';
 require_once KEELHOB_DIR . 'includes/class-skills.php';
 require_once KEELHOB_DIR . 'includes/class-skills-remote.php';
 // Project links, matching the defaults in keelhob.php.
