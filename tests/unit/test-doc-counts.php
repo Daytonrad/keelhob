@@ -38,13 +38,28 @@ if (!class_exists('WooCommerce')) {
 foreach (glob(KEELHOB_DIR . 'includes/tools/class-tools-*.php') ?: [] as $file) {
     require_once $file;
 }
+// The group list is DISCOVERED, not written out here. It used to be a hand-kept
+// array of seventeen names, and that is exactly how the number rotted again:
+// two groups shipped yesterday — Abilities and Feedback — were added to the
+// code and not to this list, so the test went on cheerfully agreeing that there
+// were 81 tools while the registry held 85. A hand-kept list of the things to
+// count has the same failure mode as a hand-kept count, which is the whole
+// point of this file. Every Keelhob_Tools_* class that exists is now counted,
+// so a new group cannot be forgotten here.
 $registry = new Keelhob_Tool_Registry();
-foreach ([
-    'Core', 'Filesystem', 'Content', 'Site', 'WooCommerce', 'SEO', 'Memory',
-    'Skills', 'Snippets', 'Elementor', 'Ops', 'Automation', 'Payments',
-    'Deploy', 'Readiness', 'Sitecare', 'Sitecare_Write',
-] as $group) {
-    call_user_func(['Keelhob_Tools_' . $group, 'register'], $registry);
+$groups   = [];
+foreach (get_declared_classes() as $class) {
+    if (strpos($class, 'Keelhob_Tools_') === 0 && method_exists($class, 'register')) {
+        $groups[] = $class;
+    }
+}
+sort($groups);
+KH_Test::ok(
+    count($groups) >= 19,
+    'every tool group class was discovered, not listed by hand (' . count($groups) . ' groups)'
+);
+foreach ($groups as $group) {
+    call_user_func([$group, 'register'], $registry);
 }
 $real_tools = count($registry->list());
 KH_Test::ok($real_tools > 0, 'the tool registry populated (' . $real_tools . ')');

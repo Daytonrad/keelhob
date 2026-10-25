@@ -42,9 +42,11 @@ Features:
 A connected agent can write PHP, read your database and change your files. That is the product, not
 a defect. So the answer is not "staging only" — it is graded, and this is the grading.
 
-**Eight capability groups ship switched off**, and are forced off once on any site still carrying
+**Ten capability groups ship switched off**, and are forced off once on any site still carrying
 settings from the old free/paid split, so an automatic update cannot quietly hand them over:
 
+* abilities — let the AI write new PHP tools for this site, for you to approve
+* sitecare_fix — compress images in place, delete database junk, rewrite links, install plugins
 * store_orders — read and refund real orders, and read sales reports
 * payments — enable and configure payment gateways and their keys
 * shipping — change shipping zones, methods and rates
@@ -299,8 +301,9 @@ the site.
    with a backup you have actually restored.
 5. Copy the "Connect Claude Code" command from the Connect page and run it in your terminal.
 
-Eight capability groups are switched off until you turn them on: store_orders, payments, shipping,
-tax, users, updates, comms and deploy. Autonomous runs are also off until you add a provider API key
+Ten capability groups are switched off until you turn them on: abilities, sitecare_fix,
+store_orders, payments, shipping, tax, users, updates, comms and deploy. Autonomous runs are also
+off until you add a provider API key
 under Keelhob > Automation. Pick your provider there — the model guide next to the field lists
 the exact model IDs to type for each one.
 

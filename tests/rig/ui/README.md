@@ -23,28 +23,53 @@ Grep could not see it. The PHP rig checks could not see it. It shipped.
 cd /c/wp-rig/wordpress && PHP_CLI_SERVER_WORKERS=4 php -S localhost:8899 &
 
 npm install                 # once: playwright-core, nothing else
+node tests/rig/ui/check-admin.mjs    --wp http://localhost:8899 --rig /c/wp-rig/wordpress --cli "php C:/wp-cli/wp-cli.phar"
 node tests/rig/ui/check-snippets.mjs --wp http://localhost:8899 --rig /c/wp-rig/wordpress
 node tests/rig/ui/check-compose.mjs  --wp http://localhost:8899 --rig /c/wp-rig/wordpress
 node tests/rig/ui/check-thumbs.mjs   # needs one row in the tool log first
+node tests/rig/check-abilities.mjs   --wp http://localhost:8899 --rig /c/wp-rig/wordpress --user admin --pass rigpass
 ```
 
-Three files, because they cover different screens and different claims. The
+`check-thumbs.mjs` measures a real thumbs form, and the form only exists if the
+run log has a row in it, so drive one tool call through the MCP endpoint first —
+or run `check-abilities.mjs`, which leaves log rows behind. Those rows are
+residue, not fixtures: clear them when you are done.
+
+Five files, because they cover different screens and different claims. The
 table at the bottom is the record; the notes below it say what each one is for.
 
-`check-snippets.mjs` and `check-compose.mjs` were last run green on
-**2026-09-23** (54 + 26 = 80), and `check-thumbs.mjs` on **2026-10-24** (11),
-against a rig on Keelhob 2.0.0. `tests/unit/test-doc-counts.php` reads the
-per-file numbers in this table and fails if ROADMAP.md stops agreeing with them,
-so **update this table in the same commit that adds or removes a check.**
+Every file in the table was last run green on **2026-10-25**, against a rig on
+Keelhob 2.0.0 — 162 + 54 + 26 + 11 + 79 = **332**.
+`tests/unit/test-doc-counts.php` reads the per-file numbers in this table and
+fails if ROADMAP.md stops agreeing with them, so **update this table in the same
+commit that adds or removes a check.**
 
 On Windows you must serve the rig with several `php -S` instances, not one, or
 every check here times out at login — see "Serving it" in `tests/rig/README.md`.
 
 | File | Screen | Checks |
 |---|---|---|
+| `check-admin.mjs` | all seven Keelhob screens, tokens and contrast | 162 |
 | `check-snippets.mjs` | the snippet list and the editor | 54 |
 | `check-compose.mjs`  | AI Compose, which is a chat | 26 |
 | `check-thumbs.mjs`   | the thumbs control, and that it reverts rather than lying | 11 |
+| `check-abilities.mjs` | agent-written abilities, end to end | 79 |
+
+Two notes on that table, because two of its rows are not quite like the others.
+
+`check-admin.mjs` is **162 on its default run**, and that is the number counted
+here. Its flags add assertions rather than replacing them: `--dark` adds 6 and
+`--rtl` adds 8, so the eight cells of the full matrix run 162, 168, 162, 168,
+170, 176, 170 and 176 — **1,352 assertions in all**. Counting the default run is
+the convention that keeps one file to one number.
+
+`check-abilities.mjs` lives in **`tests/rig/`, not in this directory**, because
+it is not a screen check: it drives the real MCP endpoint, asserts against the
+database and the filesystem, and only then opens a browser to approve what it
+created. It is counted here anyway, because it opens a browser and because a
+figure kept in two places is a figure that rots. Its 79 are not double-counted
+against the end-to-end total ROADMAP.md states separately: that total belongs to
+`tests/rig/e2e-mcp.mjs`, a different file, and this one is not in it.
 
 `check-compose.mjs` makes **no AI call**. Every assistant turn it asserts on is
 server-rendered markup injected through the same path the live screen uses, so
@@ -156,8 +181,14 @@ against the un-redesigned screens — was **30 of 60 red**, failing on the panel
 root, the token layer, the panel background and the tab strip on all six
 screens it then listed. That red run is the baseline reproducing itself.
 
-**Its count is deliberately NOT in the table above yet.** The number moves with
-every step of the redesign, and `tests/unit/test-doc-counts.php` would then
-require a matching edit to ROADMAP.md's browser-check total on each one. It gets
-folded into the counted table, with ROADMAP.md updated in the same commit, at
-step 8 — once the figure has stopped moving.
+**Its count was held out of the table during the redesign**, because the number
+moved with every step and `tests/unit/test-doc-counts.php` would have demanded a
+matching edit to ROADMAP.md each time. The redesign is finished and the figure
+has stopped moving, so as of **2026-10-25** it is in the table at 162, and
+ROADMAP.md was updated in the same commit.
+
+**Run it without `--user`.** The `--user` / `--pass` flags are an escape hatch:
+given an explicit user, the harness touches no colour scheme, and every dark
+cell then measures against `admin-color-fresh` and reports around fourteen
+failures that are not real. Pass `--cli "php C:/wp-cli/wp-cli.phar"` and let it
+pick its own pinned administrator.

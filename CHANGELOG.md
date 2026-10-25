@@ -12,11 +12,83 @@ public. When the two disagree, this file is correct.
 
 ## [2.1.0] - unreleased
 
-The admin screens get a design system. 2.0.0 ships first and unchanged; this
-is deliberately a separate release, so that a regression in it is unambiguously
-a UI regression.
+The admin screens get a design system, and the plugin learns to look after a
+site rather than only build one. 2.0.0 ships first and unchanged; this is
+deliberately a separate release, so that a regression in the redesign is
+unambiguously a UI regression.
 
-### Added
+Counts moved, and three agents edited them in turn, so they are restated here
+against the code rather than against the last doc that mentioned them. Since
+2.0.0: tools **69 → 85**, capability groups **21 → 24**, groups shipping
+switched off **8 → 10**, browser checks **80 → 332**.
+
+### Added — agent-written abilities
+
+- **`ability_create` and `ability_improve`**, in a new `abilities` capability
+  group that is **sensitive and ships off**. These let a language model author
+  PHP that then runs on the owner's site as a Keelhob tool, which is the single
+  most dangerous thing in this codebase, so the gate is described in full in
+  `DOCUMENTATION.md` rather than summarised. They were briefly registered in
+  **no capability group at all**, which left model-authored PHP ungated on a
+  fresh install; that is the hole `1368491` closed.
+- **A pending → approve → live flow.** A submitted ability is stored `pending`
+  and is *not registered as a tool*, so the agent that wrote it cannot call it.
+  Approval is a form in wp-admin with a `required` confirm checkbox, and it
+  works with JavaScript disabled.
+- **Versions, each with its own rating, and roll back.** A new version arrives
+  pending while the live one keeps serving. Retired versions are kept, not
+  deleted, and **Roll back to this** makes one live again.
+- **A `code_hash` guard.** The approved bytes are hashed at approval and
+  re-hashed before every run. Code edited in the database after approval is
+  refused. Proved by tampering with the row directly: 231 bytes became 91 with
+  the hash untouched, and the body never ran.
+- **Auto-retire on fatal error**, so a crashing ability takes the site down once
+  rather than on every request.
+- **Documented honestly.** The new section says what the hash does *not* prove:
+  that approval is once and the running is forever, that the AI writes its own
+  description of its own code and the two are not checked against each other,
+  that the body is not sandboxed, and that switching the capability back off
+  does **not** stop an ability already approved.
+
+### Added — ratings, the run log, thumbs and lessons
+
+- **A per-tool score out of 100**, earned from that tool's real results on that
+  site, injected into the tool's own description so the agent reads it on every
+  connection.
+- **A run log** behind it — tool, arguments, outcome, duration, source — shown
+  on **Keelhob → Activity**. It is a **ring buffer**, and the documentation now
+  says so: a vote arriving after a trim fails visibly with a 404 rather than
+  being dropped.
+- **Thumbs up and down on Activity**, with no optimistic UI: the pressed state
+  is set only from the server's response, and a failed vote reverts to exactly
+  what it was and says so in a `role="alert"` message.
+- **Lessons injected into tool descriptions.** The documentation now states
+  plainly that a lesson is a standing instruction to something that can change
+  the site — 300 characters, six per tool, every one visible, editable and
+  deletable by the owner, and a lesson written by an agent is always recorded as
+  the agent's and cannot claim the owner said it.
+
+### Added — site care
+
+- **Five read-only reports** in a new `sitecare` group that ships **on**, because
+  nothing in it writes: `speed_audit`, `db_cleanup_preview`,
+  `plugin_security_check`, `plugin_conflicts`, `broken_links`. A test fails if
+  any of those files ever gains a write call.
+- **Five tools that act on what the reports found**, in a separate
+  `sitecare_fix` group that ships **off**: `image_compress`, `db_cleanup`,
+  `link_fix`, `media_set_alt`, `plugin_install`. Backups go through
+  `Keelhob_Undo::record_file()`. `db_cleanup` **cannot be undone** and refuses to
+  run until a preview has been taken; the manual says both things in those
+  words.
+
+### Added — scroll-craft
+
+- **A twenty-fifth skill**, `scroll-craft`, reached through `web-design-master`:
+  scroll-driven pages built as three snippets plus a custom page template. It
+  does **not** work inside Elementor and says so before building. Verified on
+  desktop, at 390×844, and under reduced motion.
+
+### Added — the admin design system
 
 - **`assets/css/admin.css`** — one scoped stylesheet for every Keelhob screen.
   Everything lives under a `.kh-ui` root with `kh-u-` components, because over
