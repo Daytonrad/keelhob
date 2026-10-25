@@ -1163,8 +1163,19 @@ final class Keelhob_Tools_Sitecare_Write
                  * exactly the case this tool exists to handle: an Elementor
                  * site, which is what Keelhob builds.
                  */
-                update_post_meta($post_id, '_keelhob_elementor_backup', $elementor);
-                update_post_meta($post_id, '_elementor_data', $in_elementor['json']);
+                /*
+                 * wp_slash() BOTH, and this was found by running it rather
+                 * than by reading it. update_post_meta() expects SLASHED data
+                 * and unslashes what it is given, so writing Elementor's JSON
+                 * through it raw silently eats every backslash in the
+                 * document: `https:\/\/x` becomes `https://x` and, worse,
+                 * every `\"` inside an HTML widget becomes a bare `"`, which
+                 * leaves the meta value as a string that is no longer valid
+                 * JSON at all. Elementor then renders nothing. Elementor's own
+                 * save path slashes it for exactly this reason.
+                 */
+                update_post_meta($post_id, '_keelhob_elementor_backup', wp_slash($elementor));
+                update_post_meta($post_id, '_elementor_data', wp_slash($in_elementor['json']));
                 $backed_up[] = 'the previous _elementor_data (in _keelhob_elementor_backup)';
 
                 // Elementor serves a cached copy of the rendered page.
@@ -1234,7 +1245,10 @@ final class Keelhob_Tools_Sitecare_Write
                 $skipped[] = ['id' => $id, 'reason' => 'already had exactly that alt text'];
                 continue;
             }
-            update_post_meta($id, '_wp_attachment_image_alt', $alt);
+            // Slashed, the same way core's own media screen writes this
+            // field: update_post_meta() unslashes, so alt text containing a
+            // quote or a backslash would otherwise come back mangled.
+            update_post_meta($id, '_wp_attachment_image_alt', wp_slash($alt));
             $updated[] = [
                 'id'   => $id,
                 'file' => basename((string) get_attached_file($id)),

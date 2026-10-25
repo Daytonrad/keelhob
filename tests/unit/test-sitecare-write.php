@@ -439,6 +439,26 @@ KH_Test::contains('does not switch itself', $kh_w_src, 'and refuses to activate 
 KH_Test::contains('Keelhob_Health::guard', $kh_w_src, 'activation is guarded by the shared front-end check');
 KH_Test::contains("'rolled_back'", $kh_w_src, 'and says rolled_back when it switched the plugin off again');
 
+/*
+ * EVERY meta write is slashed, and this is here because running it on the rig
+ * is the only thing that found it. update_post_meta() expects SLASHED data and
+ * unslashes whatever it is handed, so writing Elementor's JSON through it raw
+ * ate every backslash in the document: `https:\/\/x` became `https://x`, and
+ * every `\"` inside an HTML widget became a bare `"` — leaving the meta value
+ * as a string that is no longer valid JSON, on a page that then renders
+ * nothing. The unit stubs cannot catch this (they store what they are given),
+ * so the shape of the call is asserted from the source instead.
+ */
+$kh_w_meta_writes = preg_match_all('/update_post_meta\([^;]*?\);/s', $kh_w_src, $kh_w_mm);
+KH_Test::ok($kh_w_meta_writes > 0, 'there are meta writes to check (' . $kh_w_meta_writes . ')');
+$kh_w_unslashed = [];
+foreach ($kh_w_mm[0] as $kh_call) {
+    if (strpos($kh_call, 'wp_slash(') === false) {
+        $kh_w_unslashed[] = preg_replace('/\s+/', ' ', substr($kh_call, 0, 90));
+    }
+}
+KH_Test::same([], $kh_w_unslashed, 'every update_post_meta call slashes its value, or it would silently corrupt Elementor data');
+
 // Thumbnails are deliberately not regenerated, and the result says so rather
 // than leaving the owner to wonder.
 KH_Test::contains('NOT regenerated', $kh_w_src, 'image_compress states that thumbnails were not regenerated');
