@@ -10,7 +10,21 @@ file is the one written for developers: it names files, says what broke and why,
 and keeps the pre-release history that `readme.txt` presents as if it were
 public. When the two disagree, this file is correct.
 
-## [2.0.0] - unreleased
+## [2.0.0] - 2026-10-26
+
+The plugin is renamed to Keelhob, the admin screens get a design system, and it
+learns to look after a site rather than only build one.
+
+This release carries everything that was written for 1.2.0 and for a planned
+2.1.0. Neither was ever tagged or published, so shipping them separately would
+have put three releases in front of users who had seen none of them. The
+1.2.0 section remains below only as a record of what was written when; the
+planned 2.1.0 section has been folded into this one, and its subsections keep
+their names.
+
+Counts are stated against the code, not against the last document that
+mentioned them. Since 1.1.0: tools **69 → 85**, capability groups **21 → 24**,
+groups shipping switched off **8 → 10**, browser checks **80 → 332**.
 
 ### Changed
 
@@ -142,6 +156,136 @@ public. When the two disagree, this file is correct.
   prefix literal. `tests/unit/test-integrity.php` caught it, and turned out to
   carry a duplicate copy of the same bug in its own re-implementation of the
   autoloader.
+
+### Added — agent-written abilities
+
+- **`ability_create` and `ability_improve`**, in a new `abilities` capability
+  group that is **sensitive and ships off**. These let a language model author
+  PHP that then runs on the owner's site as a Keelhob tool, which is the single
+  most dangerous thing in this codebase, so the gate is described in full in
+  `DOCUMENTATION.md` rather than summarised. They were briefly registered in
+  **no capability group at all**, which left model-authored PHP ungated on a
+  fresh install; that is the hole `1368491` closed.
+- **A pending → approve → live flow.** A submitted ability is stored `pending`
+  and is *not registered as a tool*, so the agent that wrote it cannot call it.
+  Approval is a form in wp-admin with a `required` confirm checkbox, and it
+  works with JavaScript disabled.
+- **Versions, each with its own rating, and roll back.** A new version arrives
+  pending while the live one keeps serving. Retired versions are kept, not
+  deleted, and **Roll back to this** makes one live again.
+- **A `code_hash` guard.** The approved bytes are hashed at approval and
+  re-hashed before every run. Code edited in the database after approval is
+  refused. Proved by tampering with the row directly: 231 bytes became 91 with
+  the hash untouched, and the body never ran.
+- **Auto-retire on fatal error**, so a crashing ability takes the site down once
+  rather than on every request.
+- **Documented honestly.** The new section says what the hash does *not* prove:
+  that approval is once and the running is forever, that the AI writes its own
+  description of its own code and the two are not checked against each other,
+  that the body is not sandboxed, and that switching the capability back off
+  does **not** stop an ability already approved.
+
+### Added — ratings, the run log, thumbs and lessons
+
+- **A per-tool score out of 100**, earned from that tool's real results on that
+  site, injected into the tool's own description so the agent reads it on every
+  connection.
+- **A run log** behind it — tool, arguments, outcome, duration, source — shown
+  on **Keelhob → Activity**. It is a **ring buffer**, and the documentation now
+  says so: a vote arriving after a trim fails visibly with a 404 rather than
+  being dropped.
+- **Thumbs up and down on Activity**, with no optimistic UI: the pressed state
+  is set only from the server's response, and a failed vote reverts to exactly
+  what it was and says so in a `role="alert"` message.
+- **Lessons injected into tool descriptions.** The documentation now states
+  plainly that a lesson is a standing instruction to something that can change
+  the site — 300 characters, six per tool, every one visible, editable and
+  deletable by the owner, and a lesson written by an agent is always recorded as
+  the agent's and cannot claim the owner said it.
+
+### Added — site care
+
+- **Five read-only reports** in a new `sitecare` group that ships **on**, because
+  nothing in it writes: `speed_audit`, `db_cleanup_preview`,
+  `plugin_security_check`, `plugin_conflicts`, `broken_links`. A test fails if
+  any of those files ever gains a write call.
+- **Five tools that act on what the reports found**, in a separate
+  `sitecare_fix` group that ships **off**: `image_compress`, `db_cleanup`,
+  `link_fix`, `media_set_alt`, `plugin_install`. Backups go through
+  `Keelhob_Undo::record_file()`. `db_cleanup` **cannot be undone** and refuses to
+  run until a preview has been taken; the manual says both things in those
+  words.
+
+### Added — scroll-craft
+
+- **A twenty-fifth skill**, `scroll-craft`, reached through `web-design-master`:
+  scroll-driven pages built as three snippets plus a custom page template. It
+  does **not** work inside Elementor and says so before building. Verified on
+  desktop, at 390×844, and under reduced motion.
+
+### Added — the admin design system
+
+- **`assets/css/admin.css`** — one scoped stylesheet for every Keelhob screen.
+  Everything lives under a `.kh-ui` root with `kh-u-` components, because over
+  forty `kh-*` classes already belonged to the Snippets Studio and three of them
+  — `kh-tabs`, `kh-tab`, `kh-panel` — meant something else entirely. Warm greys
+  and copper, taken from the values already on keelhob.com rather than invented.
+- **A dark variant**, keyed to the WordPress admin colour scheme and not to the
+  operating system: the seam being fixed is the one against the sidebar, and the
+  sidebar follows the scheme. Eight of the nine schemes WordPress registers have
+  a dark menu, so `modern` and `fresh` — the current and former defaults — are
+  deliberately excluded. A site on a default scheme has expressed no preference,
+  and flipping every install to a dark panel is not a call a restyle gets to
+  make. **Known consequence: a stock install has a dark sidebar beside a light
+  panel.**
+- **A header line and a tab strip on every screen.** Every tab is a real
+  `<a href>` to the page slug it already had. No URL changed, nothing needs
+  JavaScript, the Back button works, and the nineteen references in
+  `DOCUMENTATION.md` and `docs/` still land where they point.
+- **Three state cards on Connect** reporting which band the site is in —
+  Reading only, Building, or Full access. **They are a view. They write
+  nothing**: no option, no preset, no new stored state. Keelhob's real default
+  already has snippets, files and code execution on, so a "Build" preset would
+  switch off code a live site is running, and a "Full access" preset would grant
+  payments, orders, users and deploys in one click. `test-admin-overview.php`
+  checks the band against every distinguishable stored array, including the
+  empty "owner never said" case.
+- **`tests/rig/ui/check-admin.mjs`** — a browser gate that asserts computed
+  styles. It walks every text node, resolves the first opaque ancestor
+  background and alpha-blends before measuring.
+
+### Fixed — the admin redesign
+
+- **The "AI abilities are ON" banner was illegible in dark mode — 1.43:1.**
+  `root_class()` keeps `wrap` so WordPress moves admin notices inside `.kh-ui`,
+  where they inherited the panel's near-white ink while keeping core's cream
+  background. A safety control that is present and unreadable is worse than one
+  that is absent, because it still looks safe. Now 14.67:1.
+- **The capability switch never painted.** It rendered as a 16px
+  WordPress-blue checkbox: core's `input[type=checkbox]` outranks a bare class.
+- **The Guide screen failed WCAG AA in light mode**, 26 failures, worst 2.85:1 —
+  inherited, not introduced, but it was wearing the new panel while carrying old
+  hardcoded colours. The root cause was core's `.card`, which paints white
+  unconditionally and knows nothing about `.kh-ui`, so every token inside it was
+  measured against white. Now zero failures; fixing it also repaired two dark
+  defects that had been blamed elsewhere.
+- **Status pills across the Studio.** A naive colour-to-token swap measured
+  2.99–4.41:1. The construction is now a soft tint fill, the status colour as a
+  border or dot, and `--kh-ink` for the words: 16.32–17.38:1, up from 4.86–5.70.
+- **`class-admin-automation.php` rendered empty `style` attributes.**
+  `$t_table` / `$t_th` / `$t_td` were locals in `render_automation()` but used in
+  two sibling methods, where they were undefined. Now class constants.
+- **`.kh-panel` rendered unstyled on Connect**, because the stylesheet defining
+  it is enqueued only on Studio screens.
+
+### A note on what the tests could not see
+
+The browser gate reported **96/96 in dark while all of the above was live**,
+because it measured only `kh-u-*` elements and never the core components
+WordPress renders inside the panel — and because it ran against an *empty*
+snippets list, so the broken rows never rendered at all. It now seeds real rows
+before measuring and destroys them in a `finally`. A gate nobody has watched
+fail is not a gate.
 
 ## [1.2.0] - not released; folded into 2.0.0
 

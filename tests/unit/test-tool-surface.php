@@ -38,7 +38,7 @@ $registry = new Keelhob_Tool_Registry();
 foreach ([
     'Core', 'Filesystem', 'Content', 'Site', 'WooCommerce', 'SEO', 'Memory',
     'Skills', 'Snippets', 'Elementor', 'Ops', 'Automation', 'Payments',
-    'Deploy', 'Readiness',
+    'Deploy', 'Readiness', 'Sitecare', 'Sitecare_Write',
 ] as $group) {
     call_user_func(['Keelhob_Tools_' . $group, 'register'], $registry);
 }
@@ -69,6 +69,43 @@ unset($expected['pro_status']);
 // standard would otherwise only ever police the skills in this repository, and
 // never the ones agents write on other people's sites.
 $expected['skill_lint'] = ['required' => [], 'properties' => ['markdown', 'name']];
+
+// lesson_save / lesson_list, added with the ratings track. A lesson is pushed
+// into the description of the tool it names, so the agent reads it whether it
+// looks for it or not — which is why it is not memory_save with a convention
+// on top. lesson_save sits in the memory capability group; lesson_list is
+// read-only and always on. See class-lessons.php for the four guards on it.
+$expected['lesson_save'] = ['required' => ['topic', 'lesson'], 'properties' => ['lesson', 'topic']];
+$expected['lesson_list'] = ['required' => [], 'properties' => ['topic']];
+
+// The read-only half of the Site-Care / Optimize family. All five are reports:
+// they read, count and rank, and write nothing — which is why they sit in a
+// non-sensitive capability group that ships on. The tools that act on what
+// they find (image_compress, db_cleanup, link_fix, media_set_alt,
+// plugin_install) are deliberately NOT here yet: they write or destroy, and
+// db_cleanup cannot be undone at all, so they wait for their own pass.
+//
+// Four of the five take no arguments on purpose. A speed audit of "the site"
+// has one answer, and an optional scope argument is a thing for a model to get
+// wrong. broken_links is the exception because it genuinely cannot finish in
+// one request.
+$expected['speed_audit']           = ['required' => [], 'properties' => []];
+$expected['db_cleanup_preview']    = ['required' => [], 'properties' => []];
+$expected['plugin_security_check'] = ['required' => [], 'properties' => []];
+$expected['plugin_conflicts']      = ['required' => [], 'properties' => []];
+$expected['broken_links']          = ['required' => [], 'properties' => ['external', 'offset']];
+
+// The WRITING half of the Site-Care / Optimize family, added deliberately.
+// These five act on what the reports found, and all five sit in `sitecare_fix`
+// — a sensitive capability group that ships SWITCHED OFF, because
+// image_compress overwrites original uploads and db_cleanup cannot be undone by
+// anyone. They live in their own file so that test-sitecare.php can keep
+// grepping the read-only half for write calls it must never contain.
+$expected['image_compress'] = ['required' => ['ids'], 'properties' => ['ids', 'max_width', 'quality']];
+$expected['db_cleanup']     = ['required' => [], 'properties' => ['items', 'keep_revisions']];
+$expected['link_fix']       = ['required' => ['post_id', 'old_url'], 'properties' => ['new_url', 'old_url', 'post_id']];
+$expected['media_set_alt']  = ['required' => ['items'], 'properties' => ['items']];
+$expected['plugin_install'] = ['required' => ['slug'], 'properties' => ['activate', 'slug']];
 
 KH_Test::same([], array_values(array_diff(array_keys($expected), array_keys($now))), 'no tool was lost in the merge');
 KH_Test::same([], array_values(array_diff(array_keys($now), array_keys($expected))), 'no tool appeared unannounced');
@@ -221,6 +258,22 @@ $counting = [
     'memory_list'  => 'memory',
     'skill_list'   => 'skills',
     'list_posts'   => 'posts',
+    // The site-care reports hand back lists too — findings, junk counts,
+    // conflicts, broken links — and the same rule applies: the tool counts,
+    // not the model.
+    'speed_audit'           => 'findings',
+    'db_cleanup_preview'    => 'counts',
+    'plugin_security_check' => 'findings',
+    'plugin_conflicts'      => 'overlaps',
+    'broken_links'          => 'broken',
+    // And the five that WRITE. "I deleted some revisions" is the version of
+    // this bug that actually hurts: a destructive tool that does not state its
+    // own numbers leaves the owner with no record of what went.
+    'image_compress'        => 'compressed',
+    'db_cleanup'            => 'removed',
+    'link_fix'              => 'changes',
+    'media_set_alt'         => 'updated',
+    'plugin_install'        => 'installed',
 ];
 $missing = [];
 foreach ($counting as $tool => $rows_key) {

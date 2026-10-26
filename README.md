@@ -73,7 +73,7 @@ Already know what this is, and want the tool-by-tool detail? That is
 | | |
 |---|---|
 | ![The Connect page, showing the generated MCP command](docs/img/01-connect.png)<br>**Connect** — the ready-to-paste command, with this site's URL already in it. The token is stored hashed and shown once. | ![The Snippets Studio listing installed snippets](docs/img/02-studio.png)<br>**Snippets Studio** — every piece of code the agent installed, why it exists, and its off switch. The top row switched itself off after taking the site down. |
-| ![The capability toggles panel](docs/img/03-capabilities.png)<br>**Capabilities** — twenty-one groups, eight of them off out of the box, each saying what it unlocks. | |
+| ![The capability toggles panel](docs/img/03-capabilities.png)<br>**Capabilities** — twenty-four groups, ten of them off out of the box, each saying what it unlocks. | |
 
 ## Why it is free
 
@@ -133,11 +133,13 @@ case: one that runs exactly as written and breaks the site anyway.
 A connected agent can write PHP, read your database and change your files. That is the product,
 not a defect. So the answer is not "staging only" — it is graded, and this is the grading.
 
-**Eight capability groups ship switched off**, and are forced off once on any site still carrying
+**Ten capability groups ship switched off**, and are forced off once on any site still carrying
 settings from the old free/paid split, so an automatic update cannot quietly hand them over:
 
 | Group | Off because it can |
 |---|---|
+| `abilities` | let the AI write new PHP tools for this site, for you to approve |
+| `sitecare_fix` | compress images in place, delete database junk, rewrite links, install plugins |
 | `store_orders` | read and refund real orders, and read sales reports |
 | `payments` | enable and configure payment gateways and their keys |
 | `shipping` | change shipping zones, methods and rates |
@@ -190,7 +192,7 @@ is the kill switch that stops every one of them at once.
 ## Skills and memory
 
 **Skills** are markdown playbooks stored in WordPress that the agent loads when a task matches their
-description; twenty-four ship with the plugin, and you can write your own from the agent — *"create a
+description; twenty-five ship with the plugin, and you can write your own from the agent — *"create a
 skill that…"* — with no PHP. **Memory** is per-site key/value knowledge every connected agent shares
 (*"remember: primary color is #f8ca50"*).
 

@@ -271,9 +271,66 @@ export async function onScreen(page, selector) {
  * WP-CLI is often only a phar on Windows, so the command is configurable and
  * falls back to the path this machine uses.
  */
-export function wpEval(php, { path, cli }) {
+
+/** WP-CLI's argv, as an array. A phar on this machine, `wp` on a PATH. */
+function wpBin(cli) {
   const bin = cli || (existsSync('/c/wp-cli/wp-cli.phar') ? 'php /c/wp-cli/wp-cli.phar' : 'wp');
-  const parts = bin.split(' ');
+  return bin.split(' ');
+}
+
+/**
+ * `/c/wp-rig/wordpress` is the path every command in the docs and in these
+ * files uses, because they are all written for Git Bash. PHP on Windows does
+ * not understand it: WP-CLI answers "This does not seem to be a WordPress
+ * installation. The used path is: /c/wp-rig/wordpress/" and the whole run dies
+ * on its first fixture call. Translating the MSYS drive prefix here, once, is
+ * better than every caller remembering to pass --rig C:/...
+ */
+function rigPathFor(path) {
+  return process.platform === 'win32'
+    ? String(path).replace(/^\/([a-z])\//i, (_m, d) => `${d.toUpperCase()}:/`)
+    : path;
+}
+
+/** WP-CLI's own deprecation chatter on PHP 8.4, which every command prints
+ *  whatever it was asked to do. run-all.sh filters the same lines. */
+function cleanCli(text) {
+  return (text || '')
+    .split(/\r?\n/)
+    .filter((l) => !/deprecated|^\s*$/i.test(l))
+    .join('\n')
+    .trim();
+}
+
+/**
+ * Run an arbitrary WP-CLI command against the rig.
+ *
+ * `wpEval` covers anything expressible in PHP inside a loaded WordPress, which
+ * is almost everything a fixture needs. It does NOT cover the commands that
+ * reach outside that runtime — installing a translation is the case this was
+ * added for. `wp language core install ar` resolves api.wordpress.org through
+ * WP-CLI's own on-disk cache, so it works on a machine with no network as long
+ * as the pack has been fetched once; doing the same thing from
+ * `wp_download_language_pack()` inside `wpEval` does not, because that path
+ * goes straight to HTTP.
+ *
+ * Returns the exit status and the cleaned streams rather than throwing: a
+ * caller that is probing for something absent needs to see a failure without
+ * losing the run, and `--rtl` has to be able to say "the `ar` pack is missing
+ * and I could not fetch it" as a check rather than as a crash.
+ */
+export function wpCli(argv, { path, cli } = {}) {
+  const parts = wpBin(cli);
+  const res = spawnSync(
+    parts[0],
+    [...parts.slice(1), ...argv, `--path=${rigPathFor(path)}`],
+    { encoding: 'utf8', shell: process.platform === 'win32' }
+  );
+  return { status: res.status, stdout: cleanCli(res.stdout), stderr: cleanCli(res.stderr) };
+}
+export function wpEval(php, { path, cli }) {
+  const parts = wpBin(cli);
+  const rigPath = rigPathFor(path);
 
   // The PHP goes through a FILE, not through argv.
   //
@@ -288,22 +345,15 @@ ${php}
 `, 'utf8');
 
   try {
-    const res = spawnSync(parts[0], [...parts.slice(1), 'eval-file', tmp, `--path=${path}`], {
+    const res = spawnSync(parts[0], [...parts.slice(1), 'eval-file', tmp, `--path=${rigPath}`], {
       encoding: 'utf8',
       shell: process.platform === 'win32',
     });
 
     // WP-CLI prints core's deprecation notices on 8.4 whatever the command
     // does. run-all.sh filters the same lines for the same reason.
-    const clean = (t) =>
-      (t || '')
-        .split(/\r?\n/)
-        .filter((l) => !/deprecated|^\s*$/i.test(l))
-        .join('\n')
-        .trim();
-
-    const out = clean(res.stdout);
-    const err = clean(res.stderr);
+    const out = cleanCli(res.stdout);
+    const err = cleanCli(res.stderr);
 
     // Exit status alone is not trustworthy here: WP-CLI can exit non-zero on a
     // deprecation it also printed. Treat it as a failure only when it also had

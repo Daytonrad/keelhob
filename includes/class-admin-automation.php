@@ -9,6 +9,24 @@
  * being asked. The Telegram and Events cards are the two halves of that and
  * live here rather than in their own files, because neither is reachable or
  * meaningful outside this page.
+ *
+ * STYLED FROM assets/css/admin.css. The screen is wrapped in
+ * Keelhob_Admin::shell_open(), which carries the `.kh-ui` root the token layer
+ * is scoped under, and the surfaces are `.kh-u-card` rather than core's
+ * `.card`. Colours named inline are var(--kh-*) references, never literal
+ * hexes, so they follow the dark variant instead of staying light inside a
+ * dark panel.
+ *
+ * THE STATUS INDICATORS DO NOT CARRY THEIR MEANING IN COLOUR. --kh-good on
+ * --kh-good-soft measures 3.12:1, --kh-mid on --kh-mid-soft 2.99:1 and
+ * --kh-bad on --kh-bad-soft 4.41:1, all of which fail AA. So every pill here
+ * is built the other way round: the tint is the fill, the status colour is the
+ * dot or the border only, and the words are --kh-ink-2 (13.69:1 light,
+ * 12.09:1 dark). The word itself always says which state it is.
+ *
+ * Prose was cut to one sub-line per heading, with the long "why" moved into
+ * closed <details> panels. Nothing that says a thing cannot be undone, and
+ * nothing in a safety notice, was shortened.
  */
 
 if (!defined('ABSPATH')) {
@@ -17,6 +35,31 @@ if (!defined('ABSPATH')) {
 
 final class Keelhob_Admin_Automation
 {
+    /*
+     * TABLE STYLING AS CLASS CONSTANTS, AND THE REASON THEY ARE NOT LOCALS.
+     *
+     * assets/css/admin.css belongs to the core-screens lane and is read-only
+     * here, so a `kh-u-table` component cannot be added to it from this file.
+     * Core's own list-table classes are the other option and they are worse:
+     * they paint white and near-white unconditionally, which is a light table
+     * inside a dark card the moment the panel goes dark. Recorded in
+     * BUILD-NOTES.md as a component the token layer should grow.
+     *
+     * They started as `$t_*` locals in render_automation(), which was a real
+     * bug rather than a tidiness problem: render_telegram_card() and
+     * render_events_card() are separate methods and draw tables of their own, so
+     * the locals were simply undefined there and those `style` attributes
+     * rendered empty. PHPStan found it; nothing in the markup looked wrong.
+     * Constants are visible to every method in the class and cannot drift apart.
+     */
+    private const T_TABLE = 'width:100%;border-collapse:collapse;';
+    private const T_TH    = 'text-align:left;padding:8px 10px;border-bottom:1px solid var(--kh-line);'
+                          . 'font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;'
+                          . 'color:var(--kh-muted);';
+    private const T_TD    = 'padding:9px 10px;border-bottom:1px solid var(--kh-line);vertical-align:top;';
+    /* --kh-muted: 6.18:1 on --kh-card light, 8.90:1 dark. */
+    private const T_SUB   = 'color:var(--kh-muted);font-size:12px;';
+
     public function render_automation(): void
     {
         $s       = Keelhob::instance()->settings();
@@ -24,10 +67,21 @@ final class Keelhob_Admin_Automation
         $tasks   = Keelhob_Tasks::all();
         $next    = wp_next_scheduled(Keelhob_Tasks::HOOK);
         $has_key = !empty($s['agent_api_key']);
+
+        // The shell — root class, header line and tab strip — is drawn by
+        // Keelhob_Admin so the screens cannot drift into one header each. It
+        // prints the <h1> too, which is why one no longer appears here: core
+        // moves admin notices into the first .wrap after the first heading, and
+        // a second <h1> would hand it the wrong one.
+        Keelhob_Admin::shell_open('keelhob-automation');
         ?>
-        <div class="wrap">
-            <h1><?php echo Keelhob_Brand::heading_mark(); ?><?php esc_html_e('Keelhob · Automation', 'keelhob'); ?></h1>
-            <p style="max-width:760px;"><?php esc_html_e('Let the site run itself. Digest tasks email you a status snapshot on a schedule. Autonomous tasks hand a plain-language instruction to the on-site AI agent, which does the work and reports back — no client open. Add a provider API key below to enable autonomy.', 'keelhob'); ?></p>
+            <p style="margin:0 0 6px;max-width:760px;"><?php esc_html_e('Let the site run itself — on a schedule, or on a plain-language instruction.', 'keelhob'); ?></p>
+            <details style="margin:0 0 18px;max-width:760px;">
+                <summary class="kh-u-sub" style="cursor:pointer;"><?php esc_html_e('What the two kinds of task do', 'keelhob'); ?></summary>
+                <p style="margin:8px 0 0;">
+                    <?php esc_html_e('Digest tasks email you a status snapshot on a schedule and need no API key. Autonomous tasks hand a plain-language instruction to the on-site AI agent, which does the work and reports back — no client open. Add a provider API key below to enable autonomy.', 'keelhob'); ?>
+                </p>
+            </details>
             <?php if (isset($_GET['saved'])) : ?><div class="notice notice-success is-dismissible"><p><?php esc_html_e('Saved.', 'keelhob'); ?></p></div><?php endif; ?>
             <?php if (isset($_GET['ran'])) : ?><div class="notice notice-success is-dismissible"><p><?php esc_html_e('Task ran. See its last summary below.', 'keelhob'); ?></p></div><?php endif; ?>
             <?php
@@ -63,6 +117,7 @@ final class Keelhob_Admin_Automation
                                 <strong><?php echo $line[0] ? '✓' : '✕'; ?></strong>
                                 <?php echo esc_html($line[1]); ?>
                                 <?php if (!$line[0] && $line[2] !== '') : ?>
+                                    <?php /* Inside a core .notice, which paints its own white background in both modes; #a00 on #fff is 8.42:1. The ✕ above carries the state, so the colour is decoration. */ ?>
                                     — <span style="color:#a00;"><?php echo esc_html($line[2]); ?></span>
                                 <?php endif; ?>
                             </p>
@@ -75,13 +130,13 @@ final class Keelhob_Admin_Automation
 
             <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
                 <div style="flex:2;min-width:460px;">
-                    <div class="card" style="max-width:none;padding:16px 20px;">
+                    <div class="kh-u-card">
                         <h2 style="margin-top:0;">
                             <?php esc_html_e('Autonomy engine', 'keelhob'); ?>
                             <?php if ($has_key) : ?>
-                                <span style="color:#16a34a;"><?php esc_html_e('● ready', 'keelhob'); ?></span>
+                                <span class="kh-u-pill" style="margin-left:8px;vertical-align:middle;font-weight:400;font-size:12px;"><span class="kh-u-dot" style="background:var(--kh-good);" aria-hidden="true"></span><?php esc_html_e('ready', 'keelhob'); ?></span>
                             <?php else : ?>
-                                <span style="color:#888;"><?php esc_html_e('○ needs API key', 'keelhob'); ?></span>
+                                <span class="kh-u-pill" style="margin-left:8px;vertical-align:middle;font-weight:400;font-size:12px;"><span class="kh-u-dot" style="background:var(--kh-muted);" aria-hidden="true"></span><?php esc_html_e('needs API key', 'keelhob'); ?></span>
                             <?php endif; ?>
                         </h2>
                         <p>
@@ -102,7 +157,7 @@ final class Keelhob_Admin_Automation
                             $agent_p  = Keelhob_Provider::get($agent_id);
                             ?>
                             <h3><?php esc_html_e('Agent brain', 'keelhob'); ?></h3>
-                            <p style="color:#666;max-width:620px;">
+                            <p style="color:var(--kh-muted);max-width:620px;">
                                 <?php esc_html_e('Bring your own key. Pick a provider, paste its key and choose a model — the fields below follow whichever provider is selected, with no save in between.', 'keelhob'); ?>
                             </p>
                             <?php
@@ -129,7 +184,7 @@ final class Keelhob_Admin_Automation
                                     $has_list   = ($cls::models_list_url($cls::default_endpoint()) !== '');
                                     ?>
                                     <div class="keelhob-provider-row" data-provider="<?php echo esc_attr($pid); ?>" <?php echo $is_current ? '' : 'hidden'; ?>
-                                        style="border:1px solid #e2e4e7;border-radius:8px;padding:12px 14px;margin:0 0 12px;background:#fbfbfc;">
+                                        style="border:1px solid var(--kh-line);border-radius:8px;padding:12px 14px;margin:0 0 12px;background:var(--kh-soft);">
                                         <?php
                                         // Disabled fields post nothing. The form stores one key, one
                                         // model and one endpoint, so without this the two rows nobody
@@ -147,7 +202,7 @@ final class Keelhob_Admin_Automation
                                                 class="regular-text keelhob-key-input" style="width:100%;max-width:520px;" autocomplete="off"
                                                 value="<?php echo $is_current ? esc_attr(Keelhob_Secrets::mask((string) ($s['agent_api_key'] ?? ''))) : ''; ?>"
                                                 placeholder="<?php echo esc_attr($cls::key_hint()); ?>">
-                                            <br><span style="color:#888;">
+                                            <br><span style="color:var(--kh-muted);">
                                                 <?php if ($cls::key_url() !== '') : ?>
                                                     <a href="<?php echo esc_url($cls::key_url()); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Get a key ↗', 'keelhob'); ?></a> &middot;
                                                 <?php endif; ?>
@@ -173,7 +228,7 @@ final class Keelhob_Admin_Automation
                                                 <input type="hidden" name="agent_model" value="<?php echo esc_attr(Keelhob_Admin_Providers::MODEL_CUSTOM); ?>">
                                                 <input type="text" name="agent_model_custom" class="regular-text keelhob-model-custom" style="max-width:280px;"
                                                     value="<?php echo $is_current ? esc_attr($stored_model) : ''; ?>" placeholder="<?php echo esc_attr($cls::default_model()); ?>">
-                                                <br><span style="color:#888;"><?php esc_html_e('This provider does not publish a model list — type the model name your service uses.', 'keelhob'); ?></span><br>
+                                                <br><span style="color:var(--kh-muted);"><?php esc_html_e('This provider does not publish a model list — type the model name your service uses.', 'keelhob'); ?></span><br>
                                             <?php endif; ?>
                                             <button type="button" class="button keelhob-provider-action"
                                                 data-action="keelhob_test_connection" data-busy="<?php esc_attr_e('Testing…', 'keelhob'); ?>"><?php esc_html_e('Test connection', 'keelhob'); ?></button>
@@ -188,7 +243,7 @@ final class Keelhob_Admin_Automation
                                                     class="regular-text keelhob-endpoint-input" style="width:100%;max-width:520px;"
                                                     value="<?php echo $is_current ? esc_attr((string) ($s['agent_api_endpoint'] ?? '')) : ''; ?>"
                                                     placeholder="<?php echo esc_attr($cls::default_endpoint()); ?>">
-                                                <br><span style="color:#888;">
+                                                <br><span style="color:var(--kh-muted);">
                                                     <?php esc_html_e('Pointing this at a gateway, proxy or self-hosted deployment sends your site\'s data to that host, under that host\'s terms rather than the vendor\'s. Blank uses the provider default.', 'keelhob'); ?>
                                                 </span>
                                             </p>
@@ -276,7 +331,7 @@ final class Keelhob_Admin_Automation
                                     body.set('model', modelOf(row));
                                     body.set('endpoint', valueOf(row, '.keelhob-endpoint-input'));
 
-                                    status.style.color = '#666';
+                                    status.style.color = 'var(--kh-muted)';
                                     status.textContent = btn.getAttribute('data-busy');
                                     btn.disabled = true;
 
@@ -290,12 +345,16 @@ final class Keelhob_Admin_Automation
                                     }).then(function (json) {
                                         var ok  = !!(json && json.success);
                                         var msg = (json && json.data && json.data.message) ? json.data.message : FAILED;
-                                        status.style.color = ok ? '#16a34a' : '#b91c1c';
-                                        status.textContent = msg;
+                                        // The GLYPH carries the state, not the colour: --kh-good as
+                                        // text on a light card is 3.30:1 and fails AA, and a
+                                        // colour-only signal says nothing to a colour-blind reader
+                                        // either way. --kh-ink is 18.33:1 light, 15.87:1 dark.
+                                        status.style.color = 'var(--kh-ink)';
+                                        status.textContent = (ok ? '✓ ' : '✕ ') + msg;
                                         if (ok && sel && json.data.models) { fill(sel, json.data.models); }
                                     })['catch'](function () {
-                                        status.style.color = '#b91c1c';
-                                        status.textContent = FAILED;
+                                        status.style.color = 'var(--kh-ink)';
+                                        status.textContent = '✕ ' + FAILED;
                                     })['finally'](function () {
                                         btn.disabled = false;
                                     });
@@ -312,11 +371,21 @@ final class Keelhob_Admin_Automation
                             ); ?>
 
                             <h3><?php esc_html_e('Budget caps', 'keelhob'); ?></h3>
-                            <p style="color:#666;max-width:620px;">
+                            <p style="color:var(--kh-muted);max-width:620px;">
                                 <?php esc_html_e('The agent bills your API key on every run. These caps stop a runaway loop from spending real money — a run halts cleanly and reports what it managed to finish.', 'keelhob'); ?>
                                 <strong><?php esc_html_e('0 = unlimited.', 'keelhob'); ?></strong>
                             </p>
-                            <p style="color:#b45309;max-width:620px;">
+                            <?php
+                            /*
+                             * A tinted callout, not orange words. --kh-mid on --kh-card is
+                             * 3.19:1 and fails AA; --kh-ink on --kh-mid-soft is 17.20:1 light
+                             * and 14.34:1 dark. admin.css redefines the tint for dark, so the
+                             * ink must invert with it. NOT SHORTENED — this is the notice that says the
+                             * numbers are estimates and the provider's invoice is the real
+                             * one, and PLAN.md 2.7 puts that in the do-not-cut list.
+                             */
+                            ?>
+                            <p style="margin:10px 0;max-width:720px;background:var(--kh-mid-soft);border-left:3px solid var(--kh-mid);border-radius:8px;padding:10px 14px;color:var(--kh-ink);">
                                 <?php esc_html_e('Costs shown here are estimates, not billing. They are calculated from token counts using built-in list prices that can go out of date, and they do not know about your discounts, cached-token rates, or a gateway\'s own pricing. Treat them as a safety brake — your provider\'s invoice is the real number.', 'keelhob'); ?>
                             </p>
                             <p>
@@ -328,7 +397,7 @@ final class Keelhob_Admin_Automation
                                 <label style="margin-left:14px;"><?php esc_html_e('Max runs per day:', 'keelhob'); ?> <input type="number" step="1" min="0" name="agent_max_runs_per_day" value="<?php echo esc_attr($s['agent_max_runs_per_day'] ?? 48); ?>" style="max-width:120px;"></label>
                             </p>
                             <?php $u24 = Keelhob_Agent_Runs::usage_since(24); ?>
-                            <p style="color:#555;">
+                            <p style="color:var(--kh-ink-2);">
                                 <?php
                                 printf(
                                     /* translators: 1: number of runs, 2: token count, 3: estimated USD cost */
@@ -365,7 +434,7 @@ final class Keelhob_Admin_Automation
                                         value="<?php echo esc_attr(trim((string) ($s['notify_email'] ?? '')) ?: (string) get_option('admin_email')); ?>"
                                         class="regular-text" style="max-width:300px;">
                                 </label>
-                                <span style="color:#666;font-size:12px;display:block;margin-left:2px;">
+                                <span style="color:var(--kh-muted);font-size:12px;display:block;margin-left:2px;">
                                     <?php esc_html_e('This one message only — it is not saved, and it does not change your notification address. Telegram and webhook go to their configured destinations.', 'keelhob'); ?>
                                 </span>
                             </p>
@@ -376,12 +445,12 @@ final class Keelhob_Admin_Automation
                     <?php $this->render_telegram_card($s); ?>
                     <?php $this->render_events_card($s); ?>
 
-                    <div class="card" style="max-width:none;padding:16px 20px;margin-top:16px;">
+                    <div class="kh-u-card" style="margin-top:16px;">
                         <h2 style="margin-top:0;"><?php esc_html_e('Scheduled tasks', 'keelhob'); ?></h2>
 
-                        <div style="background:#f6f7f7;border:1px solid #e2e4e7;border-radius:8px;padding:12px 16px;margin-bottom:16px;">
+                        <div style="background:var(--kh-soft);border:1px solid var(--kh-line);border-radius:8px;padding:12px 16px;margin-bottom:16px;">
                             <strong><?php esc_html_e('Schedule a status digest', 'keelhob'); ?></strong>
-                            <p style="color:#666;margin:.4em 0 .8em;">
+                            <p style="color:var(--kh-muted);margin:.4em 0 .8em;">
                                 <?php
                                 printf(
                                     /* translators: 1: site timezone string, 2: current site time (HH:MM) */
@@ -422,11 +491,11 @@ final class Keelhob_Admin_Automation
                                 <label style="padding-bottom:6px;"><input type="checkbox" name="task_notify" value="1" checked> <?php esc_html_e('Notify me', 'keelhob'); ?></label>
                                 <button class="button button-primary"><?php esc_html_e('Add digest', 'keelhob'); ?></button>
                             </form>
-                            <p style="color:#888;font-size:12px;margin:.8em 0 0;"><?php esc_html_e('Hour-of-day applies to daily, weekly and monthly cadences. WP-Cron fires on site traffic, so a digest lands on the first visit at or after the chosen hour.', 'keelhob'); ?></p>
+                            <p style="color:var(--kh-muted);font-size:12px;margin:.8em 0 0;"><?php esc_html_e('Hour-of-day applies to daily, weekly and monthly cadences. WP-Cron fires on site traffic, so a digest lands on the first visit at or after the chosen hour.', 'keelhob'); ?></p>
                         </div>
 
-                        <p style="color:#666;"><?php esc_html_e('You can also create tasks by asking your AI:', 'keelhob'); ?> <em><?php esc_html_e('"Create an autonomous task that fulfils paid orders and publishes due drafts every morning at 7."', 'keelhob'); ?></em></p>
-                        <table class="widefat striped">
+                        <p style="color:var(--kh-muted);"><?php esc_html_e('You can also create tasks by asking your AI:', 'keelhob'); ?> <em><?php esc_html_e('"Create an autonomous task that fulfils paid orders and publishes due drafts every morning at 7."', 'keelhob'); ?></em></p>
+                        <table class="kh-u-table">
                             <thead><tr>
                                 <th><?php esc_html_e('Name', 'keelhob'); ?></th>
                                 <th><?php esc_html_e('Mode', 'keelhob'); ?></th>
@@ -443,7 +512,7 @@ final class Keelhob_Admin_Automation
                                     <td><?php
                                         echo esc_html($t['schedule']);
                                         if (isset($t['run_hour']) && $t['run_hour'] !== null && $t['run_hour'] !== '') {
-                                            echo ' <span style="color:#666;">@ ' . esc_html(sprintf('%02d:00', (int) $t['run_hour'])) . '</span>';
+                                            echo ' <span style="color:var(--kh-muted);">@ ' . esc_html(sprintf('%02d:00', (int) $t['run_hour'])) . '</span>';
                                         }
                                     ?></td>
                                     <td><?php echo (int) $t['enabled'] === 1 ? '✓' : '—'; ?></td>
@@ -478,7 +547,7 @@ final class Keelhob_Admin_Automation
                                     </td>
                                 </tr>
                                 <?php if (!empty($t['last_summary'])) : ?>
-                                    <tr><td colspan="6" style="background:#fafafa;"><small><strong><?php esc_html_e('Last summary:', 'keelhob'); ?></strong> <?php echo esc_html(wp_trim_words((string) $t['last_summary'], 60)); ?></small></td></tr>
+                                    <tr><td colspan="6" style="background:var(--kh-soft);"><small class="kh-u-clamp"><strong><?php esc_html_e('Last summary:', 'keelhob'); ?></strong> <?php echo esc_html((string) $t['last_summary']); ?></small></td></tr>
                                 <?php endif; ?>
                             <?php endforeach; ?>
                             <?php if (empty($tasks)) : ?><tr><td colspan="6"><em><?php esc_html_e('No tasks yet.', 'keelhob'); ?></em></td></tr><?php endif; ?>
@@ -487,10 +556,10 @@ final class Keelhob_Admin_Automation
                     </div>
 
                     <?php $runs = Keelhob_Agent_Runs::recent(25); ?>
-                    <div class="card" style="max-width:none;padding:16px 20px;margin-top:16px;">
+                    <div class="kh-u-card" style="margin-top:16px;">
                         <h2 style="margin-top:0;"><?php esc_html_e('Agent run history', 'keelhob'); ?></h2>
-                        <p style="color:#666;"><?php esc_html_e('Every autonomous run — scheduled or one-off — with what it cost. "capped" means a budget cap stopped it early; "truncated" means it hit the step limit. Costs are estimates, not billing.', 'keelhob'); ?></p>
-                        <table class="widefat striped">
+                        <p style="color:var(--kh-muted);"><?php esc_html_e('Every autonomous run — scheduled or one-off — with what it cost. "capped" means a budget cap stopped it early; "truncated" means it hit the step limit. Costs are estimates, not billing.', 'keelhob'); ?></p>
+                        <table class="kh-u-table">
                             <thead><tr>
                                 <th><?php esc_html_e('Started', 'keelhob'); ?></th>
                                 <th><?php esc_html_e('Source', 'keelhob'); ?></th>
@@ -503,12 +572,27 @@ final class Keelhob_Admin_Automation
                             </tr></thead>
                             <tbody>
                             <?php foreach ($runs as $r) :
-                                $colors = ['ok' => '#16a34a', 'error' => '#b91c1c', 'capped' => '#b45309', 'truncated' => '#b45309', 'running' => '#888'];
-                                $color  = $colors[$r['status']] ?? '#555'; ?>
+                                /*
+                                 * A DOT, NOT COLOURED TEXT. --kh-bad on --kh-card is
+                                 * 4.83:1 light but 3.80:1 dark, and --kh-good is 3.30:1
+                                 * light — coloured status words fail AA in one mode or
+                                 * the other. As an 8px dot the same tokens only have to
+                                 * clear 3:1 for a graphical object, which all of them do
+                                 * in both modes (good 3.30/5.56, mid 3.19/5.76,
+                                 * bad 4.83/3.80, muted 6.18/8.90). The word beside it is
+                                 * --kh-ink-2: 13.69:1 light, 12.09:1 dark.
+                                 */
+                                $dots  = ['ok' => 'good', 'error' => 'bad', 'capped' => 'mid', 'truncated' => 'mid', 'running' => 'accent-2'];
+                                $dot   = $dots[$r['status']] ?? 'muted'; ?>
                                 <tr>
                                     <td><?php echo esc_html($r['started_at']); ?></td>
                                     <td><?php echo esc_html($r['context']); ?><?php echo $r['task_id'] ? ' #' . (int) $r['task_id'] : ''; ?></td>
-                                    <td style="color:<?php echo esc_attr($color); ?>;font-weight:600;"><?php echo esc_html($r['status']); ?></td>
+                                    <td>
+                                        <span class="kh-u-pill" style="font-size:12px;padding:3px 10px;">
+                                            <span class="kh-u-dot" style="background:var(--kh-<?php echo esc_attr($dot); ?>);" aria-hidden="true"></span>
+                                            <?php echo esc_html($r['status']); ?>
+                                        </span>
+                                    </td>
                                     <td><?php echo (int) $r['steps']; ?></td>
                                     <td><?php echo (int) $r['tool_calls']; ?></td>
                                     <td><?php echo (int) $r['retries'] ?: '—'; ?></td>
@@ -516,7 +600,7 @@ final class Keelhob_Admin_Automation
                                     <td>$<?php echo esc_html(number_format((float) $r['cost_usd'], 4)); ?></td>
                                 </tr>
                                 <?php if (!empty($r['summary'])) : ?>
-                                    <tr><td colspan="8" style="background:#fafafa;"><small><strong><?php echo esc_html(wp_trim_words((string) $r['instruction'], 18)); ?></strong> → <?php echo esc_html(wp_trim_words((string) $r['summary'], 50)); ?></small></td></tr>
+                                    <tr><td colspan="8" style="background:var(--kh-soft);"><small class="kh-u-clamp"><strong><?php echo esc_html((string) $r['instruction']); ?></strong> → <?php echo esc_html((string) $r['summary']); ?></small></td></tr>
                                 <?php endif; ?>
                             <?php endforeach; ?>
                             <?php if (empty($runs)) : ?><tr><td colspan="8"><em><?php esc_html_e('No autonomous runs yet.', 'keelhob'); ?></em></td></tr><?php endif; ?>
@@ -526,7 +610,7 @@ final class Keelhob_Admin_Automation
                 </div>
 
                 <div style="flex:1;min-width:300px;">
-                    <div class="card" style="max-width:none;padding:16px 20px;">
+                    <div class="kh-u-card">
                         <h2 style="margin-top:0;"><?php esc_html_e('Live status', 'keelhob'); ?></h2>
                         <?php $d = Keelhob_Digest::snapshot(); ?>
                         <ul style="line-height:1.7;">
@@ -537,8 +621,8 @@ final class Keelhob_Admin_Automation
                     </div>
                 </div>
             </div>
-        </div>
         <?php
+        Keelhob_Admin::shell_close();
     }
 
     /**
@@ -562,15 +646,15 @@ final class Keelhob_Admin_Automation
         $hook = is_array($info['result'] ?? null) ? $info['result'] : [];
         $live = !empty($hook['url']) && strpos((string) $hook['url'], Keelhob_Telegram::webhook_url()) === 0;
         ?>
-        <div class="card" style="max-width:none;padding:16px 20px;margin-top:16px;" id="chat">
+        <div class="kh-u-card" style="margin-top:16px;" id="chat">
             <h2 style="margin-top:0;">
                 <?php esc_html_e('Chat to your site on Telegram', 'keelhob'); ?>
                 <?php if ($tg_on && $live) : ?>
-                    <span style="color:#16a34a;"><?php esc_html_e('● connected', 'keelhob'); ?></span>
+                    <span class="kh-u-pill" style="margin-left:8px;vertical-align:middle;font-weight:400;font-size:12px;"><span class="kh-u-dot" style="background:var(--kh-good);" aria-hidden="true"></span><?php esc_html_e('connected', 'keelhob'); ?></span>
                 <?php elseif ($tg_on) : ?>
-                    <span style="color:#b45309;"><?php esc_html_e('● on, webhook not registered', 'keelhob'); ?></span>
+                    <span class="kh-u-pill" style="margin-left:8px;vertical-align:middle;font-weight:400;font-size:12px;"><span class="kh-u-dot" style="background:var(--kh-mid);" aria-hidden="true"></span><?php esc_html_e('on, webhook not registered', 'keelhob'); ?></span>
                 <?php else : ?>
-                    <span style="color:#888;"><?php esc_html_e('○ off', 'keelhob'); ?></span>
+                    <span class="kh-u-pill" style="margin-left:8px;vertical-align:middle;font-weight:400;font-size:12px;"><span class="kh-u-dot" style="background:var(--kh-muted);" aria-hidden="true"></span><?php esc_html_e('off', 'keelhob'); ?></span>
                 <?php endif; ?>
             </h2>
 
@@ -620,15 +704,16 @@ final class Keelhob_Admin_Automation
                 <p>
                     <label><?php esc_html_e('Allowed chat IDs (comma-separated, optionally with a role):', 'keelhob'); ?><br>
                     <input type="text" name="telegram_allowed_chats" value="<?php echo esc_attr($s['telegram_allowed_chats'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;" placeholder="<?php echo esc_attr(($s['notify_telegram_chat'] ?? '123456789') . ', 987654321:viewer'); ?>"></label>
-                    <br><span style="color:#888;">
+                    <br><span style="color:var(--kh-muted);">
                         <?php esc_html_e('Only these chats get answered; everyone else is refused. Blank falls back to the notification chat ID above. Don\'t know yours? Message the bot and it replies with your ID.', 'keelhob'); ?>
                     </span>
                     <?php if (empty($allowed)) : ?>
-                        <br><span style="color:#a00;"><?php esc_html_e('No chat is allowlisted yet, so the bot will refuse everyone — including you.', 'keelhob'); ?></span>
+                        <?php /* --kh-ink on --kh-bad-soft: 16.76:1 light, 15.25:1 dark. Not shortened: it says the bot will refuse the owner. */ ?>
+                        <br><span style="margin:10px 0;max-width:720px;background:var(--kh-bad-soft);border-left:3px solid var(--kh-bad);border-radius:8px;padding:10px 14px;color:var(--kh-ink);"><?php esc_html_e('No chat is allowlisted yet, so the bot will refuse everyone — including you.', 'keelhob'); ?></span>
                     <?php endif; ?>
                 </p>
 
-                <table class="widefat striped" style="max-width:720px;margin:0 0 14px;">
+                <table class="kh-u-table" style="max-width:720px;margin:0 0 14px;">
                     <thead><tr>
                         <th style="width:150px;"><?php esc_html_e('Write it as', 'keelhob'); ?></th>
                         <th><?php esc_html_e('What that chat can do', 'keelhob'); ?></th>
@@ -641,7 +726,7 @@ final class Keelhob_Admin_Automation
                 </table>
 
                 <?php if (!empty($chat_roles)) : ?>
-                    <p style="color:#555;">
+                    <p style="color:var(--kh-ink-2);">
                         <strong><?php esc_html_e('Currently allowlisted:', 'keelhob'); ?></strong>
                         <?php
                         $bits = [];
@@ -656,7 +741,7 @@ final class Keelhob_Admin_Automation
                 <p>
                     <label><?php esc_html_e('Remember this many turns per conversation:', 'keelhob'); ?>
                     <input type="number" min="0" max="60" step="1" name="telegram_history_turns" value="<?php echo esc_attr($s['telegram_history_turns'] ?? 12); ?>" style="max-width:100px;"></label>
-                    <span style="color:#888;margin-left:8px;"><?php esc_html_e('0 = every message starts fresh. Longer memory means better follow-ups and a bigger bill per message.', 'keelhob'); ?></span>
+                    <span style="color:var(--kh-muted);margin-left:8px;"><?php esc_html_e('0 = every message starts fresh. Longer memory means better follow-ups and a bigger bill per message.', 'keelhob'); ?></span>
                 </p>
 
                 <p>
@@ -664,7 +749,7 @@ final class Keelhob_Admin_Automation
                         <input type="checkbox" name="telegram_allow_risky" value="1" <?php checked(!empty($s['telegram_allow_risky'])); ?>>
                         <?php esc_html_e('Let an admin chat escalate to destructive/financial tools', 'keelhob'); ?>
                     </label>
-                    <br><span style="color:#888;"><?php esc_html_e('Off by default. When allowed, escalation is either a per-action "Approve & run" button on the reply, or a /risky on window that lapses by itself after 30 minutes. Editor and viewer chats can never escalate, whatever this says.', 'keelhob'); ?></span>
+                    <br><span style="color:var(--kh-muted);"><?php esc_html_e('Off by default. When allowed, escalation is either a per-action "Approve & run" button on the reply, or a /risky on window that lapses by itself after 30 minutes. Editor and viewer chats can never escalate, whatever this says.', 'keelhob'); ?></span>
                 </p>
 
                 <hr>
@@ -675,7 +760,7 @@ final class Keelhob_Admin_Automation
                         <input type="checkbox" name="telegram_progress" value="1" <?php checked(!empty($s['telegram_progress'])); ?>>
                         <?php esc_html_e('Show the work in progress', 'keelhob'); ?>
                     </label>
-                    <br><span style="color:#888;"><?php esc_html_e('One message is edited in place as the agent works, then becomes the answer — instead of silence for 40 seconds.', 'keelhob'); ?></span>
+                    <br><span style="color:var(--kh-muted);"><?php esc_html_e('One message is edited in place as the agent works, then becomes the answer — instead of silence for 40 seconds.', 'keelhob'); ?></span>
                 </p>
 
                 <p>
@@ -683,7 +768,7 @@ final class Keelhob_Admin_Automation
                         <input type="checkbox" name="telegram_photos" value="1" <?php checked(!empty($s['telegram_photos'])); ?>>
                         <?php esc_html_e('Accept photos and screenshots', 'keelhob'); ?>
                     </label>
-                    <br><span style="color:#888;"><?php esc_html_e('The image is shown to the model and filed in the media library, so it can go straight into a post or product. Needs a model that can see images — all current Claude, GPT and Gemini models can.', 'keelhob'); ?></span>
+                    <br><span style="color:var(--kh-muted);"><?php esc_html_e('The image is shown to the model and filed in the media library, so it can go straight into a post or product. Needs a model that can see images — all current Claude, GPT and Gemini models can.', 'keelhob'); ?></span>
                 </p>
 
                 <?php
@@ -695,13 +780,13 @@ final class Keelhob_Admin_Automation
                         <input type="checkbox" name="telegram_voice" value="1" <?php checked(!empty($s['telegram_voice'])); ?>>
                         <?php esc_html_e('Accept voice notes', 'keelhob'); ?>
                     </label>
-                    <br><span style="color:#888;"><?php esc_html_e('Transcribed first, and the transcript is shown to you before the agent acts — so a mis-hearing is visible, not silently acted on.', 'keelhob'); ?></span>
+                    <br><span style="color:var(--kh-muted);"><?php esc_html_e('Transcribed first, and the transcript is shown to you before the agent acts — so a mis-hearing is visible, not silently acted on.', 'keelhob'); ?></span>
                     <?php if (!empty($s['telegram_voice']) && $voice_key === '') : ?>
-                        <br><span style="color:#a00;"><?php esc_html_e('Voice is on but there is no transcription key, so voice notes will be refused.', 'keelhob'); ?></span>
+                        <br><span style="margin:10px 0;max-width:720px;background:var(--kh-bad-soft);border-left:3px solid var(--kh-bad);border-radius:8px;padding:10px 14px;color:var(--kh-ink);"><?php esc_html_e('Voice is on but there is no transcription key, so voice notes will be refused.', 'keelhob'); ?></span>
                     <?php endif; ?>
                 </p>
 
-                <p style="color:#666;max-width:620px;">
+                <p style="color:var(--kh-muted);max-width:620px;">
                     <?php esc_html_e('Transcription is a separate service from the agent brain: Anthropic has no speech-to-text API, so voice needs an OpenAI or Google key even if Claude is doing the thinking. Leave the key blank to reuse a key you already entered for the same vendor.', 'keelhob'); ?>
                 </p>
                 <?php Keelhob_Admin_Providers::render_media_provider([
@@ -735,7 +820,7 @@ final class Keelhob_Admin_Automation
                 <code><?php echo esc_html(Keelhob_Telegram::webhook_url()); ?></code>
             </p>
             <?php if ($tg_on && !empty($hook['last_error_message'])) : ?>
-                <p style="color:#b91c1c;">
+                <p style="margin:10px 0;max-width:720px;background:var(--kh-bad-soft);border-left:3px solid var(--kh-bad);border-radius:8px;padding:10px 14px;color:var(--kh-ink);">
                     <?php esc_html_e('Telegram\'s last delivery failed:', 'keelhob'); ?>
                     <code><?php echo esc_html((string) $hook['last_error_message']); ?></code>
                 </p>
@@ -758,13 +843,13 @@ final class Keelhob_Admin_Automation
                     </form>
                 <?php endforeach; ?>
             </div>
-            <p style="color:#888;margin-top:10px;">
+            <p style="color:var(--kh-muted);margin-top:10px;">
                 <?php esc_html_e('Telegram only delivers to a publicly reachable HTTPS URL with a valid certificate — a localhost or self-signed staging site cannot receive messages.', 'keelhob'); ?>
             </p>
 
             <details style="margin-top:14px;">
                 <summary style="cursor:pointer;font-weight:600;"><?php esc_html_e('Commands the bot understands', 'keelhob'); ?></summary>
-                <table class="widefat striped" style="max-width:720px;margin-top:10px;">
+                <table class="kh-u-table" style="max-width:720px;margin-top:10px;">
                     <tbody>
                     <?php foreach (Keelhob_Telegram::commands() as $tg_cmd => $tg_desc) : ?>
                         <tr>
@@ -774,7 +859,7 @@ final class Keelhob_Admin_Automation
                     <?php endforeach; ?>
                     </tbody>
                 </table>
-                <p style="color:#666;">
+                <p style="color:var(--kh-muted);">
                     <?php esc_html_e('Anything that is not a command goes to the agent as plain instruction. /status and /usage are answered by the plugin itself, so they cost nothing.', 'keelhob'); ?>
                 </p>
             </details>
@@ -793,13 +878,13 @@ final class Keelhob_Admin_Automation
     {
         $has_wc = class_exists('WooCommerce');
         ?>
-        <div class="card" style="max-width:none;padding:16px 20px;margin-top:16px;" id="events">
+        <div class="kh-u-card" style="margin-top:16px;" id="events">
             <h2 style="margin-top:0;">
                 <?php esc_html_e('Let the site tell you first', 'keelhob'); ?>
                 <?php if (!empty($s['events_enabled'])) : ?>
-                    <span style="color:#16a34a;"><?php esc_html_e('● on', 'keelhob'); ?></span>
+                    <span class="kh-u-pill" style="margin-left:8px;vertical-align:middle;font-weight:400;font-size:12px;"><span class="kh-u-dot" style="background:var(--kh-good);" aria-hidden="true"></span><?php esc_html_e('on', 'keelhob'); ?></span>
                 <?php else : ?>
-                    <span style="color:#888;"><?php esc_html_e('○ off', 'keelhob'); ?></span>
+                    <span class="kh-u-pill" style="margin-left:8px;vertical-align:middle;font-weight:400;font-size:12px;"><span class="kh-u-dot" style="background:var(--kh-muted);" aria-hidden="true"></span><?php esc_html_e('off', 'keelhob'); ?></span>
                 <?php endif; ?>
             </h2>
             <p style="max-width:720px;">
@@ -826,7 +911,7 @@ final class Keelhob_Admin_Automation
                     <label style="margin-left:14px;"><?php esc_html_e('only at or above:', 'keelhob'); ?>
                         <input type="number" step="0.01" min="0" name="events_order_min" value="<?php echo esc_attr($s['events_order_min'] ?? 0); ?>" style="max-width:110px;">
                     </label>
-                    <span style="color:#888;margin-left:8px;"><?php esc_html_e('0 = every order. Each order is announced once per status change, never twice.', 'keelhob'); ?></span>
+                    <span style="color:var(--kh-muted);margin-left:8px;"><?php esc_html_e('0 = every order. Each order is announced once per status change, never twice.', 'keelhob'); ?></span>
                 </p>
 
                 <p>
@@ -841,7 +926,7 @@ final class Keelhob_Admin_Automation
                         <input type="checkbox" name="events_snippet" value="1" <?php checked(!empty($s['events_snippet'])); ?>>
                         <?php esc_html_e('A live code snippet crashed and was auto-disabled', 'keelhob'); ?>
                     </label>
-                    <br><span style="color:#888;"><?php esc_html_e('Strongly recommended. The site stays up because the snippet switched itself off — but whatever it was doing has stopped, and only you can judge whether that matters.', 'keelhob'); ?></span>
+                    <br><span style="color:var(--kh-muted);"><?php esc_html_e('Strongly recommended. The site stays up because the snippet switched itself off — but whatever it was doing has stopped, and only you can judge whether that matters.', 'keelhob'); ?></span>
                 </p>
 
                 <p>
@@ -849,11 +934,11 @@ final class Keelhob_Admin_Automation
                         <input type="checkbox" name="events_updates" value="1" <?php checked(!empty($s['events_updates'])); ?>>
                         <?php esc_html_e('New plugin, theme or core updates are available', 'keelhob'); ?>
                     </label>
-                    <br><span style="color:#888;"><?php esc_html_e('Checked on the hourly cron tick, and only when the set of pending updates actually changes — so holding one back deliberately does not nag you forever.', 'keelhob'); ?></span>
+                    <br><span style="color:var(--kh-muted);"><?php esc_html_e('Checked on the hourly cron tick, and only when the set of pending updates actually changes — so holding one back deliberately does not nag you forever.', 'keelhob'); ?></span>
                 </p>
 
                 <?php if (!$has_wc) : ?>
-                    <p style="color:#888;"><?php esc_html_e('Order and stock alerts need WooCommerce, which is not active on this site.', 'keelhob'); ?></p>
+                    <p style="color:var(--kh-muted);"><?php esc_html_e('Order and stock alerts need WooCommerce, which is not active on this site.', 'keelhob'); ?></p>
                 <?php endif; ?>
 
                 <p><button class="button button-primary"><?php esc_html_e('Save notification events', 'keelhob'); ?></button></p>

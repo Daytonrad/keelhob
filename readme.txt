@@ -30,7 +30,7 @@ Features:
 * Filesystem tools confined to a configurable base, plus a crash-recovering sandbox
 * Live code snippets (PHP/CSS/JS/HTML) with syntax checking and a crash guard
 * Cross-session memory shared across agents
-* Skills engine with twenty-four bundled expert playbooks
+* Skills engine with twenty-five bundled expert playbooks
 * Master safety switch, capability groups, and a full activity log
 * Bring your own key: Anthropic, OpenAI or Google for the agent brain and image generation
 * Telegram chat: message a bot and the on-site agent runs your site — no MCP client needed
@@ -42,9 +42,11 @@ Features:
 A connected agent can write PHP, read your database and change your files. That is the product, not
 a defect. So the answer is not "staging only" — it is graded, and this is the grading.
 
-**Eight capability groups ship switched off**, and are forced off once on any site still carrying
+**Ten capability groups ship switched off**, and are forced off once on any site still carrying
 settings from the old free/paid split, so an automatic update cannot quietly hand them over:
 
+* abilities — let the AI write new PHP tools for this site, for you to approve
+* sitecare_fix — compress images in place, delete database junk, rewrite links, install plugins
 * store_orders — read and refund real orders, and read sales reports
 * payments — enable and configure payment gateways and their keys
 * shipping — change shipping zones, methods and rates
@@ -299,8 +301,9 @@ the site.
    with a backup you have actually restored.
 5. Copy the "Connect Claude Code" command from the Connect page and run it in your terminal.
 
-Eight capability groups are switched off until you turn them on: store_orders, payments, shipping,
-tax, users, updates, comms and deploy. Autonomous runs are also off until you add a provider API key
+Ten capability groups are switched off until you turn them on: abilities, sitecare_fix,
+store_orders, payments, shipping, tax, users, updates, comms and deploy. Autonomous runs are also
+off until you add a provider API key
 under Keelhob > Automation. Pick your provider there — the model guide next to the field lists
 the exact model IDs to type for each one.
 
@@ -319,6 +322,26 @@ the exact model IDs to type for each one.
 * **You must reconnect your AI client.** The MCP address changed to
   /wp-json/keelhob/v1/mcp. An old configuration will fail with a 404. Copy the
   new command from the Connect screen.
+* **The admin screens have a look of their own.** Every Keelhob screen now sits
+  on one panel with the same type, spacing and colours, and a tab strip across
+  the top. It follows your WordPress admin colour scheme, so a dark scheme gets
+  a dark panel. Nothing moved and no form field was renamed.
+* **New: it can look after a site, not only build one.** Five read-only
+  reports — broken_links, speed_audit, db_cleanup_preview, plugin_conflicts
+  and plugin_security_check — and five tools that fix what those reports find:
+  image_compress, db_cleanup, link_fix, media_set_alt and plugin_install. The
+  five that write are in a new sitecare_fix group and ship switched OFF,
+  because they overwrite images, empty tables and install plugins.
+* **New: every tool can be rated from real use.** A run log records what each
+  tool did, how long it took and whether it worked, and a thumbs-down with a
+  note becomes a lesson that is added to that tool's description.
+* **New: an AI can write its own tools — switched OFF.** ability_create and
+  ability_improve let a model author PHP that then runs on your site. This is
+  the most dangerous thing in the plugin, so it is off by default and every
+  new ability must be approved by you before it can run once.
+* **Ten capability groups now ship switched off**, up from eight: abilities,
+  sitecare_fix, store_orders, payments, shipping, tax, users, updates, comms
+  and deploy.
 * Everything that was written for 1.2.0 ships here: Gemini tool-list fixes, the
   hourly-digest timezone fix, per-bot Telegram replay marks, the chat-style AI
   Compose screen, and counts on every list tool.

@@ -886,6 +886,10 @@ require_once KEELHOB_DIR . 'includes/class-transcribe-provider.php';
 require_once KEELHOB_DIR . 'includes/class-transcribe-provider-openai.php';
 require_once KEELHOB_DIR . 'includes/class-transcribe-provider-google.php';
 require_once KEELHOB_DIR . 'includes/class-agent-runtime.php';
+// The ratings/lessons track. Keelhob_Tool_Registry::list() names both of these
+// on every call, so they have to be loaded before any test builds a registry.
+require_once KEELHOB_DIR . 'includes/class-tool-stats.php';
+require_once KEELHOB_DIR . 'includes/class-lessons.php';
 require_once KEELHOB_DIR . 'includes/class-undo.php';
 require_once KEELHOB_DIR . 'includes/class-events.php';
 require_once KEELHOB_DIR . 'includes/class-telegram.php';
@@ -897,6 +901,13 @@ require_once KEELHOB_DIR . 'includes/class-migration.php';
 require_once KEELHOB_DIR . 'includes/class-health.php';
 require_once KEELHOB_DIR . 'includes/class-snippet-conditions.php';
 require_once KEELHOB_DIR . 'includes/class-snippets.php';
+// Agent-written abilities. Keelhob_Tool_Registry's constructor names
+// Keelhob_Abilities, so these have to be loaded before any test builds a
+// registry — and class-admin-abilities.php before any test renders the Connect
+// screen, which now carries the review queue.
+require_once KEELHOB_DIR . 'includes/class-abilities.php';
+require_once KEELHOB_DIR . 'includes/tools/class-tools-abilities.php';
+require_once KEELHOB_DIR . 'includes/class-admin-abilities.php';
 require_once KEELHOB_DIR . 'includes/class-skills.php';
 require_once KEELHOB_DIR . 'includes/class-skills-remote.php';
 // Project links, matching the defaults in keelhob.php.
@@ -920,6 +931,7 @@ require_once KEELHOB_DIR . 'includes/class-admin-providers.php';
 require_once KEELHOB_DIR . 'includes/class-admin-settings.php';
 require_once KEELHOB_DIR . 'includes/class-admin-screens.php';
 require_once KEELHOB_DIR . 'includes/class-admin-automation.php';
+require_once KEELHOB_DIR . 'includes/class-admin-ratings.php';
 require_once KEELHOB_DIR . 'includes/tools/class-tools-filesystem.php';
 
 // --- notifier -------------------------------------------------------------
@@ -996,4 +1008,29 @@ class KH_Test_Admin_Bar
     {
         return $this->nodes[$id] ?? null;
     }
+}
+
+/*
+ * Stubs added for the admin design system (assets/css/admin.css).
+ *
+ * Guarded with function_exists because two lanes work on this branch at once
+ * and a bare redeclaration of the same stub from the other side would be a
+ * fatal error rather than a merge conflict anybody notices.
+ */
+if (!function_exists('get_user_option')) {
+    /** The admin colour scheme. '' unless a test sets it, which means light. */
+    function get_user_option($option, $user = 0)
+    {
+        return $GLOBALS['kh_test_user_options'][$option] ?? '';
+    }
+}
+if (!function_exists('wp_enqueue_style')) {
+    function wp_enqueue_style($handle, $src = '', $deps = [], $ver = false, $media = 'all')
+    {
+        $GLOBALS['kh_test_styles'][(string) $handle] = ['src' => $src, 'ver' => $ver];
+        return true;
+    }
+}
+if (!function_exists('is_rtl')) {
+    function is_rtl() { return !empty($GLOBALS['kh_test_rtl']); }
 }

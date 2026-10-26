@@ -22,7 +22,7 @@ final class Keelhob_Capabilities
     /**
      * Capability groups that ship SWITCHED OFF, and why that list exists.
      *
-     * These eight used to be unreachable for a different reason: they were
+     * Eight of these ten used to be unreachable for a different reason: they were
      * behind a paywall, and the paywall happened to be acting as a safety
      * fence. Removing the paywall without replacing the fence would have handed
      * every fresh install - and worse, every site that merely *upgraded* - the
@@ -36,8 +36,26 @@ final class Keelhob_Capabilities
      * Everything not named here is on: content, design, snippets, SEO, files,
      * images, memory, skills and code execution are what "build me a site"
      * needs, and asking permission for those would make the product pointless.
+     *
+     * `sitecare_fix` is the ninth, and it is here for the plainest reason of
+     * all: `image_compress` writes over the owner's original uploads and
+     * `db_cleanup` cannot be undone by anything, by us or by WordPress. A fresh
+     * install must not be able to resize someone's photographs or empty their
+     * revision history because a model read "tidy up my site" generously. The
+     * reports that FIND that work are a separate group (`sitecare`) and ship on,
+     * so nothing has to be switched on to learn what is wrong — only to act.
+     *
+     * `abilities` is the tenth, and it is the plainest case of all: those two
+     * tools let a language model AUTHOR PHP for this site. The code is saved as
+     * pending and runs nothing until the owner has read it and approved it, so
+     * the review gate is real — but a fresh install should not even be
+     * accepting submissions from an agent nobody asked. The owner switches this
+     * on when they want the agent extending the plugin, and that is a decision,
+     * not a default.
      */
     const DISABLED_BY_DEFAULT = [
+        'abilities',
+        'sitecare_fix',
         'store_orders',
         'payments',
         'shipping',
@@ -58,7 +76,7 @@ final class Keelhob_Capabilities
      */
     public static function always_on(): array
     {
-        return ['get_site_info', 'get_dashboard', 'memory_list', 'memory_get', 'skill_list', 'skill_get', 'skill_lint', 'task_list', 'agent_runs', 'site_readiness', 'feedback_status', 'feedback_send'];
+        return ['get_site_info', 'get_dashboard', 'memory_list', 'memory_get', 'skill_list', 'skill_get', 'skill_lint', 'task_list', 'agent_runs', 'site_readiness', 'feedback_status', 'feedback_send', 'lesson_list'];
     }
 
     /**
@@ -119,6 +137,43 @@ final class Keelhob_Capabilities
                 'desc' => 'Score pages against a target keyword, and manage redirects when URLs change.',
                 'tools' => ['seo_analyze', 'seo_redirect'],
             ],
+            // Site care is the looking-after half of the product, and every
+            // tool in it is a report: it reads, counts, ranks and changes
+            // nothing. That is why it is not sensitive and ships on - an owner
+            // who cannot ask "why is my site slow" without first finding a
+            // switch has a worse product, and there is nothing here to switch
+            // off for safety. The tools that ACT on these findings
+            // (image_compress, db_cleanup, link_fix, media_set_alt,
+            // plugin_install) are a separate group and a separate decision,
+            // because db_cleanup in particular cannot be undone.
+            'sitecare' => [
+                'label' => 'Site care (read-only reports)', 'sensitive' => false,
+                'desc' => 'Speed audit, database-junk counts, plugin security and conflict reports, and a broken-link scan. Reads only — none of these changes anything on the site.',
+                'tools' => ['speed_audit', 'db_cleanup_preview', 'plugin_security_check', 'plugin_conflicts', 'broken_links'],
+            ],
+            // The other half of site care: the five tools that ACT on what the
+            // reports found. Separate group, sensitive, and switched OFF on a
+            // fresh install - see DISABLED_BY_DEFAULT. image_compress writes
+            // over original uploads (undoable, but only because it banks a copy
+            // first) and db_cleanup is the one tool in the whole plugin that
+            // cannot be undone by anybody. Reading the site's problems and
+            // being allowed to overwrite its files are not the same permission.
+            'sitecare_fix' => [
+                'label' => 'Site care (fix & clean up)', 'sensitive' => true,
+                'desc' => 'Act on what the site-care reports found: compress and resize original image files, DELETE database junk (this cannot be undone), fix or remove links in posts and Elementor layouts, set image alt text, and install plugins from WordPress.org.',
+                'tools' => ['image_compress', 'db_cleanup', 'link_fix', 'media_set_alt', 'plugin_install'],
+            ],
+            // Letting the agent write new tools for this site. The code it
+            // submits is saved as pending and runs nothing until the owner
+            // reads and approves it, so this group is not the only guard - but
+            // it is the one that decides whether the agent may write code here
+            // at all, and that answer is no until the owner says otherwise.
+            // See DISABLED_BY_DEFAULT.
+            'abilities' => [
+                'label' => 'Let the AI write new code tools', 'sensitive' => true,
+                'desc' => 'Let the AI write brand new tools (PHP code) for this site when the built-in ones cannot do a job, and submit improved versions of them. Nothing it writes runs until you have read the code and approved it yourself.',
+                'tools' => ['ability_create', 'ability_improve'],
+            ],
             'design' => [
                 'label' => 'Design / Elementor', 'sensitive' => false,
                 'desc' => 'Build and edit Elementor pages, kit, settings.',
@@ -177,9 +232,9 @@ final class Keelhob_Capabilities
                 'tools' => ['run_agent', 'task_save', 'task_run', 'task_delete'],
             ],
             'memory' => [
-                'label' => 'Memory (write)', 'sensitive' => false,
-                'desc' => 'Save/delete cross-session memory.',
-                'tools' => ['memory_save', 'memory_delete'],
+                'label' => 'Memory & lessons (write)', 'sensitive' => false,
+                'desc' => 'Save/delete cross-session memory, and save lessons that are injected into the tool descriptions the agent reads. The owner can read, edit and delete every lesson on Keelhob > Activity.',
+                'tools' => ['memory_save', 'memory_delete', 'lesson_save'],
             ],
             'skills' => [
                 'label' => 'Skills (write)', 'sensitive' => false,

@@ -291,29 +291,45 @@ final class Keelhob_Admin_Providers
     public static function render_model_guide(string $title, array $providers, string $selected): void
     {
         ?>
-        <details style="margin:10px 0 18px;border:1px solid #dcdcde;border-radius:8px;padding:10px 14px;background:#fbfbfc;">
+        <?php
+        /*
+         * Table styling as PHP strings. assets/css/admin.css is the core-screens
+         * lane's file and is read-only here, so a `kh-u-table` component cannot
+         * be added to it from this one. Core's list-table classes paint white
+         * and near-white unconditionally, which is a light table inside a dark
+         * card as soon as the panel goes dark. Recorded in BUILD-NOTES.md.
+         */
+        $t_table = 'width:100%;border-collapse:collapse;';
+        $t_th    = 'text-align:left;padding:8px 10px;border-bottom:1px solid var(--kh-line);'
+                 . 'font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;'
+                 . 'color:var(--kh-muted);';
+        $t_td    = 'padding:9px 10px;border-bottom:1px solid var(--kh-line);vertical-align:top;';
+        ?>
+        <details style="margin:10px 0 18px;border:1px solid var(--kh-line);border-radius:8px;padding:10px 14px;background:var(--kh-soft);">
             <summary style="cursor:pointer;font-weight:600;"><?php echo esc_html($title); ?></summary>
-            <p style="color:#666;margin:10px 0;">
+            <?php /* --kh-muted on --kh-soft is 5.50:1 light, 8.23:1 dark. */ ?>
+            <p style="color:var(--kh-muted);margin:10px 0;">
                 <?php esc_html_e('Type the ID exactly as shown. Anything not on this list may still work if your provider offers it — check the vendor\'s model list.', 'keelhob'); ?>
             </p>
             <?php foreach ($providers as $pid => $cls) : ?>
-                <div style="margin:12px 0;<?php echo $pid === $selected ? 'padding:8px 10px;border-left:3px solid #2271b1;background:#fff;' : ''; ?>">
+                <div style="margin:12px 0;<?php echo $pid === $selected ? 'padding:8px 10px;border-left:3px solid var(--kh-accent-2);background:var(--kh-card);' : ''; ?>">
                     <p style="margin:0 0 6px;">
                         <strong><?php echo esc_html($cls::label()); ?></strong>
                         <?php if ($pid === $selected) : ?>
-                            <span style="color:#2271b1;">← <?php esc_html_e('your current provider', 'keelhob'); ?></span>
+                            <?php /* --kh-accent-2-ink is the TEXT variant: 5.03:1 on --kh-card light; in dark it resolves to #4bb8c1 at 8.58:1. Raw --kh-accent-2 would be 3.35:1 and fail. */ ?>
+                            <span style="color:var(--kh-accent-2-ink);">← <?php esc_html_e('your current provider', 'keelhob'); ?></span>
                         <?php endif; ?>
                     </p>
-                    <table class="widefat striped" style="max-width:720px;">
+                    <table style="<?php echo esc_attr($t_table); ?>max-width:720px;">
                         <thead><tr>
-                            <th style="width:230px;"><?php esc_html_e('Model ID to type', 'keelhob'); ?></th>
-                            <th><?php esc_html_e('What it is', 'keelhob'); ?></th>
+                            <th style="<?php echo esc_attr($t_th); ?>width:230px;"><?php esc_html_e('Model ID to type', 'keelhob'); ?></th>
+                            <th style="<?php echo esc_attr($t_th); ?>"><?php esc_html_e('What it is', 'keelhob'); ?></th>
                         </tr></thead>
                         <tbody>
                         <?php foreach ($cls::models() as $m) : ?>
                             <tr>
-                                <td><code><?php echo esc_html($m['id']); ?></code></td>
-                                <td><?php echo esc_html($m['note']); ?></td>
+                                <td style="<?php echo esc_attr($t_td); ?>"><code><?php echo esc_html($m['id']); ?></code></td>
+                                <td style="<?php echo esc_attr($t_td); ?>"><?php echo esc_html($m['note']); ?></td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
@@ -387,7 +403,7 @@ final class Keelhob_Admin_Providers
                 $models     = Keelhob_Media_Check::models($cls, $kind, $pid, $is_current ? $chosen : '');
                 ?>
                 <div class="keelhob-provider-row" data-provider="<?php echo esc_attr($pid); ?>" <?php echo $is_current ? '' : 'hidden'; ?>
-                    style="border:1px solid #e2e4e7;border-radius:8px;padding:12px 14px;margin:0 0 12px;background:#fbfbfc;">
+                    style="border:1px solid var(--kh-line);border-radius:8px;padding:12px 14px;margin:0 0 12px;background:var(--kh-soft);">
                     <?php
                     // Disabled fields post nothing. The form stores one key, one
                     // model and one endpoint, so without this the rows nobody is
@@ -406,7 +422,7 @@ final class Keelhob_Admin_Providers
                                     value="<?php echo $is_current ? esc_attr($a['key_value']) : ''; ?>"
                                     placeholder="<?php echo esc_attr($cls::key_hint()); ?>">
                             </label>
-                            <br><span style="color:#888;">
+                            <br><span style="color:var(--kh-muted);">
                                 <?php
                                 // The link is per-row and unconditional. Hiding
                                 // it behind the reuse note was the original bug
@@ -441,7 +457,7 @@ final class Keelhob_Admin_Providers
                                 <?php esc_html_e('Test connection', 'keelhob'); ?>
                             </button>
                             <span class="keelhob-provider-status" role="status" style="margin-left:8px;"></span>
-                            <br><span style="color:#888;"><?php esc_html_e('The test only asks the provider to describe the model, so it costs nothing and generates nothing.', 'keelhob'); ?></span>
+                            <br><span style="color:var(--kh-muted);"><?php esc_html_e('The test only asks the provider to describe the model, so it costs nothing and generates nothing.', 'keelhob'); ?></span>
                         </p>
 
                         <details>
@@ -453,7 +469,7 @@ final class Keelhob_Admin_Providers
                                         value="<?php echo $is_current ? esc_attr($a['endpoint_value']) : ''; ?>"
                                         placeholder="<?php echo esc_attr($cls::default_endpoint()); ?>">
                                 </label>
-                                <br><span style="color:#888;">
+                                <br><span style="color:var(--kh-muted);">
                                     <?php esc_html_e('Pointing this at a gateway, proxy or self-hosted deployment sends your data to that host, under that host\'s terms rather than the vendor\'s. Blank uses the provider default.', 'keelhob'); ?>
                                 </span>
                             </p>
@@ -552,7 +568,7 @@ final class Keelhob_Admin_Providers
                 body.set('model', valueOf(row, '.keelhob-model-select'));
                 body.set('endpoint', valueOf(row, '.keelhob-endpoint-input'));
 
-                status.style.color = '#666';
+                status.style.color = 'var(--kh-muted)';
                 status.textContent = btn.getAttribute('data-busy');
                 btn.disabled = true;
 
@@ -566,14 +582,18 @@ final class Keelhob_Admin_Providers
                 }).then(function (json) {
                     var ok  = !!(json && json.success);
                     var msg = (json && json.data && json.data.message) ? json.data.message : FAILED;
-                    status.style.color = ok ? '#16a34a' : '#b91c1c';
-                    status.textContent = msg;
+                    // The GLYPH carries the state, never the colour alone: --kh-good
+                    // as text on a light card measures 3.30:1 and fails AA, and a
+                    // colour-only signal says nothing to a colour-blind reader.
+                    // --kh-ink is 18.33:1 light, 15.87:1 dark.
+                    status.style.color = 'var(--kh-ink)';
+                    status.textContent = (ok ? '✓ ' : '✕ ') + msg;
                     if (ok && refreshing && json.data.models) {
                         fill(row.querySelector('.keelhob-model-select'), json.data.models);
                     }
                 })['catch'](function () {
-                    status.style.color = '#b91c1c';
-                    status.textContent = FAILED;
+                    status.style.color = 'var(--kh-ink)';
+                    status.textContent = '✕ ' + FAILED;
                 })['finally'](function () {
                     btn.disabled = false;
                 });

@@ -6,7 +6,7 @@ enable_agentic: true
 enable_prompt: true
 role: reference
 surface: any
-next_skills: motion-and-interaction, website-building
+next_skills: motion-and-interaction, website-building, scroll-craft
 verified_by: pre-launch-audit
 ---
 

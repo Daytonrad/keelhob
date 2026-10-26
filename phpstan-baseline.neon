@@ -1,4 +1,4 @@
-# PHPStan baseline — 54 findings at level 1, none of them bugs.
+# PHPStan baseline — 55 findings at level 1, none of them bugs.
 #
 # What is in here, and why each group is noise rather than substance:
 #
@@ -7,7 +7,7 @@
 #       php-stubs/woocommerce-stubs would remove all 44 and is a reasonable
 #       future change; it was left out to keep the dev dependency list at two.
 #
-#    9  KEELHOB_DIR / KEELHOB_URL / KEELHOB_BASENAME "not found". PHPStan
+#   10  KEELHOB_DIR / KEELHOB_URL / KEELHOB_BASENAME "not found". PHPStan
 #       does not carry define() across files. All three are defined unconditionally
 #       in keelhob.php before anything that uses them loads.
 #
@@ -32,6 +32,31 @@ parameters:
 			identifier: constant.notFound
 			count: 1
 			path: includes/class-brand.php
+
+		# Same cause again: Keelhob_Admin::enqueue_ui() attaches
+		# assets/css/admin.css, the design-system stylesheet, and needs the
+		# plugin URL to build its src. Checked against the rule at the top of
+		# this file before adding it: KEELHOB_URL is defined unconditionally at
+		# keelhob.php:28, before the autoloader that opens this class, so there
+		# is no code path on which it is missing.
+		-
+			message: '#^Constant KEELHOB_URL not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: includes/class-admin.php
+
+		# And again for the thumbs script on the Activity screen. Checked
+		# against the rule at the top of this file rather than added
+		# reflexively: Keelhob_Admin_Ratings::enqueue() builds the src for
+		# assets/js/admin-ratings.js, KEELHOB_URL is defined unconditionally at
+		# keelhob.php:28 before the autoloader that opens this class, and the
+		# method only ever runs on admin_enqueue_scripts — so there is no code
+		# path on which the constant is missing.
+		-
+			message: '#^Constant KEELHOB_URL not found\.$#'
+			identifier: constant.notFound
+			count: 1
+			path: includes/class-admin-ratings.php
 
 		# Same cause as class-brand.php above: the two Studio screens now enqueue
 		# real JavaScript files, which need the plugin URL to build their src.

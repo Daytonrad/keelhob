@@ -147,6 +147,39 @@ final class Keelhob_Brand
         );
     }
 
+    /** Mark width in the redesigned panel header, in CSS pixels. Height follows. */
+    const PANEL_PX = 34;
+
+    /**
+     * The wide mark for the redesigned panel header.
+     *
+     * The same image as heading_mark(), with two differences, and both are the
+     * reason this is a second method rather than an argument on the first.
+     *
+     * It carries NO inline style. heading_mark() has to, because it sits inside
+     * a core <h1> on a screen with no stylesheet of its own; this one sits inside
+     * .kh-u-head, where assets/css/admin.css owns the layout, and an inline
+     * `vertical-align` and `margin-right` would fight the flexbox doing the
+     * alignment. The width and height attributes stay — they are not styling,
+     * they reserve the box before the image loads and stop the header jumping.
+     *
+     * The ratio is still taken from MARK_W / MARK_H rather than written down, so
+     * a re-exported mark cannot render squashed here either.
+     *
+     * The alt is empty for the same reason as heading_mark(): the <h1> beside it
+     * already says "Keelhob", and a screen reader announcing the word twice is
+     * worse than a decorative image announcing nothing.
+     */
+    public static function panel_mark(): string
+    {
+        return sprintf(
+            '<img src="%s" alt="" width="%d" height="%d" class="kh-u-mark" />',
+            esc_url(self::url('logo.png')),
+            (int) round(self::PANEL_PX * self::MARK_W / self::MARK_H),
+            self::PANEL_PX
+        );
+    }
+
     /**
      * The square mark, sized for the admin bar.
      *
@@ -163,6 +196,62 @@ final class Keelhob_Brand
         // and a mask filled with currentColor is right in all of them without
         // being told which one it is in. styles() draws it.
         return '<span class="keelhob-bar-mark" aria-hidden="true"></span>';
+    }
+
+    /**
+     * A dashicon for each capability group's card tile.
+     *
+     * WHY DASHICONS AND NOT TWENTY-ONE DRAWN ICONS. The capability cards want an
+     * icon tile each, and there are more than twenty groups. Dashicons is a font
+     * WordPress already loads on every admin screen — it is a dependency of
+     * core's own `wp-admin` stylesheet — so this costs no new asset, no extra
+     * request, no sprite to keep in step with the group list, and it inherits
+     * `color` like any other text. Drawing one SVG per group, each used
+     * once, is a bigger maintenance surface than the cards are worth.
+     *
+     * Every icon is decoration: the card already names the group in words and
+     * the tile is aria-hidden. If the font is missing the tile renders as an
+     * empty rounded square and nothing is lost but the picture.
+     *
+     * Only long-established dashicon names are used, so an older WordPress does
+     * not render an empty box for a recently added glyph.
+     *
+     * The map is keyed by Keelhob_Capabilities::groups() keys. A group with no
+     * entry gets the generic cog rather than nothing — and a test asserts the
+     * map covers every group, so a new capability shows up as a failing test
+     * rather than as a cog nobody notices.
+     */
+    const GROUP_ICONS = [
+        'content'      => 'dashicons-admin-page',
+        'store'        => 'dashicons-cart',
+        'store_orders' => 'dashicons-list-view',
+        'payments'     => 'dashicons-money-alt',
+        'shipping'     => 'dashicons-airplane',
+        'tax'          => 'dashicons-media-spreadsheet',
+        'seo'          => 'dashicons-search',
+        'seo_optimize' => 'dashicons-chart-line',
+        'sitecare'     => 'dashicons-heart',
+        'sitecare_fix' => 'dashicons-admin-tools',
+        'abilities'    => 'dashicons-hammer',
+        'design'       => 'dashicons-admin-appearance',
+        'snippets'     => 'dashicons-editor-code',
+        'code_exec'    => 'dashicons-media-code',
+        'files'        => 'dashicons-portfolio',
+        'users'        => 'dashicons-admin-users',
+        'site_admin'   => 'dashicons-admin-plugins',
+        'updates'      => 'dashicons-update',
+        'images'       => 'dashicons-format-image',
+        'comms'        => 'dashicons-email-alt',
+        'automation'   => 'dashicons-clock',
+        'memory'       => 'dashicons-database',
+        'skills'       => 'dashicons-welcome-learn-more',
+        'deploy'       => 'dashicons-upload',
+    ];
+
+    /** The dashicon class for one capability group, or the generic cog. */
+    public static function group_icon(string $group): string
+    {
+        return self::GROUP_ICONS[$group] ?? 'dashicons-admin-generic';
     }
 
     /**

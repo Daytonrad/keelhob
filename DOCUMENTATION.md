@@ -200,8 +200,10 @@ things, and it keeps a record of what it did.
 
 ## What it can do
 
-Keelhob gives the agent **69 tools**, grouped by job. You never call these
-yourself; you ask for an outcome and the agent picks the tools.
+Keelhob gives the agent **85 tools**, grouped by job. You never call these
+yourself; you ask for an outcome and the agent picks the tools. Two of the 85
+only exist once you switch on agent-written abilities, and eight more need
+WooCommerce installed, so a plain site shows the agent fewer than this.
 
 This section is the honest inventory. If a feature is not listed here, Keelhob
 does not have it.
@@ -295,6 +297,133 @@ Options, plugins, themes, menus, user accounts and updates.
 `manage_option` · `manage_plugin` · `manage_theme` · `manage_menu` ·
 `manage_user` · `manage_updates`
 
+### Site care
+
+Looking after a site that already exists. Every one of these is a **report**:
+it reads, counts and ranks, and changes nothing at all.
+
+`speed_audit` scores the site out of 100 — homepage load time and size,
+script and stylesheet counts, compression, caching plugin, object cache, the
+weight of autoloaded options (naming the eight heaviest), database junk,
+oversized images, plugin count and PHP version — and every finding names the
+tool that fixes it. `db_cleanup_preview` counts revisions, auto-drafts,
+trashed posts, spam and trashed comments, expired transients and orphaned post
+meta, and deletes nothing. `plugin_security_check` flags plugins removed from
+WordPress.org, plugins untouched for over two years, updates waiting, and —
+with a free WPScan token — known vulnerabilities in the installed version.
+`plugin_conflicts` finds two plugins doing the same job, PHP errors in the
+debug log counted per plugin, plugins WordPress paused after a crash, and
+plugins needing a newer PHP or WordPress; it never deactivates anything.
+`broken_links` scans published pages and posts in batches of 15, Elementor
+layouts included, and reports what no longer answers.
+
+`speed_audit` · `db_cleanup_preview` · `plugin_security_check` ·
+`plugin_conflicts` · `broken_links`
+
+### Site care — fixing what the reports found
+
+These five **change the site**, so they are a separate permission and they are
+**switched off until you turn them on** (Keelhob → Settings → "Site care (fix &
+clean up)"). You can always ask what is wrong; acting on it is your decision.
+
+`image_compress` shrinks oversized images in place: it resizes anything wider
+than 2048px (800–4000 if you ask for something else) and re-saves it at quality
+82, up to ten images per call. **Your original file is copied into Keelhob's
+backup folder before anything is written**, the new version is written to a
+temporary file first, and if that file is not actually smaller the original is
+left exactly as it was. Thumbnails are not regenerated — only the full-size
+file changes, and its recorded width, height and file size are updated to
+match. If a copy of the original cannot be taken, that image is refused rather
+than overwritten.
+
+`db_cleanup` deletes database junk: revisions (keeping the newest three per
+post, or however many you say), auto-drafts and trashed posts older than a
+week, spam and trashed comments, expired transients and orphaned post meta.
+**This cannot be undone — not by Keelhob and not by WordPress.** It refuses to
+run until `db_cleanup_preview` has been taken, so you always see the numbers
+first; take a host backup before you say yes. It is capped per call (2,000
+revisions, 1,000 auto-drafts, 1,000 trashed posts, 2,000 comments) and tells
+you both what it removed and what is left.
+
+`link_fix` replaces one broken link on one page with a new address, or removes
+the link and keeps its words. It works in normal content and in Elementor
+layouts (both the plain and the escaped form of the address, which is how
+Elementor stores them), backs the page up first, and errors rather than
+guessing if the old link is not there.
+
+`media_set_alt` sets alt text on up to 50 images at once.
+
+`plugin_install` installs a plugin from the official WordPress.org directory by
+its slug — a slug only, never a URL or a ZIP file. It is installed switched off
+unless you ask for it to be activated, and activating loads your homepage
+straight afterwards: if the site broke, the plugin is switched off again and the
+result says `rolled_back`. Keelhob never switches itself on or off.
+
+`image_compress` · `db_cleanup` · `link_fix` · `media_set_alt` ·
+`plugin_install`
+
+### Agent-written abilities
+
+This is the one feature where the AI writes PHP that later runs on your site as
+part of Keelhob itself. It is **switched off when you install** (Keelhob →
+Settings → "Let the AI write new code tools"), and while it is off the two tools
+below do not exist: the agent is not told about them and cannot call them.
+
+When an agent hits a job Keelhob has no tool for, it can write one. `ability_create`
+submits a new ability — a name, a plain-English description, and a body of PHP.
+`ability_improve` submits a new version of one that already exists, with a note
+saying what changed.
+
+**Nothing submitted this way runs until you approve it.** A new ability is saved
+as *pending*. Pending code is not registered as a tool, so the agent that wrote
+it cannot call it, and neither can any other agent. You approve it on **Keelhob →
+Connect**, where the card shows you the full PHP, badges saying whether it changes
+the site and whether it is risky, and a tick-box you have to tick before the
+button works. Approving is a form in your own admin, not something an agent can
+do on your behalf.
+
+**Versions and rolling back.** Each approved version is kept. A new version
+arrives pending in the same way, and the version already live keeps working while
+the new one waits — so an improvement that is never approved breaks nothing. Each
+version earns its own rating from its own runs, so you can see that version 2 is
+doing worse than version 1 did. The Versions panel offers **Roll back to this**
+on any retired version; rolling back makes it live again and retires the current
+one. Nothing is deleted by rolling back, so you can roll forward again.
+
+**The code-hash guard.** When you approve an ability, Keelhob records a hash of
+the exact bytes you read. Before every run it hashes the stored code again. If
+the two do not match, the ability is blocked and the agent is told to ask you to
+review it again. So code edited in the database after approval — by a plugin, by
+another agent, by anything with database access — does not run.
+
+**What the gate does not protect against.** The hash proves the code is the code
+you approved. It does not prove the code is safe. If you approve an ability that
+deletes posts, it will delete posts, every time it runs, without asking again —
+approval is once, and the running is forever after. An ability's own description
+of itself is written by the AI that wrote the code, and the description is not
+checked against what the code does: read the PHP, not the summary. The code runs
+with the full powers of your site, the same as a snippet does, and it is not
+sandboxed. Keelhob parse-checks the PHP and will not register a body that does
+not parse, but parsing is not safety — broken code is caught, harmful code is
+not. If you cannot read PHP, leave this capability off, or ask someone who can
+to read the body before you tick the box.
+
+**Switching the capability back off does not stop abilities you already
+approved.** It stops the AI writing new ones and submitting new versions —
+nothing more. An ability you approved stays live and keeps running, on purpose:
+it went live because you read it and said yes, and un-registering it behind your
+back would mean "Approve & go live" did not mean what it said. The review screen
+gives you **Approve**, **Reject** and **Roll back**; there is no button that
+retires a live ability. To stop one immediately, use the kill switch below —
+`KEELHOB_SNIPPETS_OFF` stops agent-written abilities as well as snippets. To
+remove one permanently today takes a database edit.
+
+One thing Keelhob does by itself: if an ability causes a fatal error, it is
+retired automatically and the error is recorded against it, so a crashing
+ability takes your site down once rather than on every request.
+
+`ability_create` · `ability_improve`
+
 ### Memory
 
 Keelhob remembers things between sessions. Not chat history — decisions. "This
@@ -304,12 +433,55 @@ explain a preference once.
 
 `memory_save` · `memory_list` · `memory_get` · `memory_delete`
 
+### Lessons
+
+A lesson is a sharper form of the same idea. Memory is a store the agent has to
+remember to read; a lesson is written straight into the description of the tool
+it names, so the next agent reads it whether it went looking or not. "Rank Math
+is the SEO plugin here, not Yoast", filed against `seo_meta`, is read on every
+single connection.
+
+That makes a lesson a standing instruction to something that can change your
+site, so it is fenced: 300 characters of plain text each, six per tool at most,
+and every one of them visible, editable and deletable by you on **Keelhob >
+Activity**, with a note saying whether you or an agent wrote it. A lesson saved
+by an agent is always recorded as the agent's — it cannot claim you said it.
+
+`lesson_save` · `lesson_list`
+
+### Ratings, and the run log behind them
+
+Every tool call is recorded: which tool, what it was asked for, whether it
+worked, how long it took, and where the request came from. That is the **run
+log**, and it is what **Keelhob → Activity** shows you.
+
+From that log each tool earns a **score out of 100** on this site specifically —
+how often it has actually worked here, and what you said about it. A tool that
+keeps failing on your host scores badly even if it works everywhere else, which
+is the point: the score is about your site, not about Keelhob.
+
+Next to each run you get **thumbs up and thumbs down**. Use them. A thumbs down
+on a result that was technically a success but not what you wanted is the only
+way the plugin can tell the difference. The buttons do not lie to you — the
+control changes only after the server has confirmed the vote, and if the vote
+fails it goes back to what it was and says so, rather than showing a vote that
+was never recorded.
+
+The score and the lessons are both read by the agent, in the tool's own
+description, on every connection. So a tool you have rated badly arrives already
+carrying that fact.
+
+The run log is a **ring buffer**: old rows are trimmed as new ones arrive. It is
+a record of what happened recently, not an audit trail you can rely on months
+later. If you need to keep a run, copy it out.
+
 ### Automation
 
 Run the agent unattended, on a schedule. A weekly blog post. A nightly check
 that the site is up. A monthly SEO report.
 
-`run_agent` · `task_save` · `task_run` · `task_delete` · `agent_runs`
+`run_agent` · `task_save` · `task_list` · `task_run` · `task_delete` ·
+`agent_runs`
 
 There is also a **Telegram front end**: message your site from your phone, with
 voice notes, photos, and approve-or-reject buttons for anything risky.
@@ -332,8 +504,36 @@ authentication salts, debug exposure, public directory listings, version
 disclosure and XML-RPC — reported as findings the agent has to clear before it
 may call the site done. The parts no tool can judge, like whether your backups
 actually restore, are listed separately as yours to check rather than quietly
-omitted. `get_dashboard` gives a full status snapshot. `seo_analyze` grades
+omitted. `get_dashboard` gives a full status snapshot. `get_site_info` is the
+smaller version an agent reads on connecting: WordPress and PHP versions, the
+active theme and plugins, whether WooCommerce and a known SEO plugin are there,
+post and page counts, and whether abilities are switched on. `seo_analyze` grades
 a page. These are read-only — they report, they do not change anything.
+
+`site_readiness` · `get_dashboard` · `get_site_info` · `seo_analyze`
+
+### Telling you about it
+
+`send_email` sends an email from your site, and `notify_owner` sends the same
+message across every channel you have set up — email, Telegram, a webhook. They
+are for the agent to reach you when something needs a person: an approval, a
+summary, a warning. This is **off when you install**, because a tool that can
+email real addresses is worth turning on deliberately.
+
+`send_email` · `notify_owner`
+
+### Reporting problems back to the project
+
+When an agent gets properly stuck — a tool that will not do the job, a
+capability that blocks the obvious route — it can report that to the Keelhob
+project. `feedback_status` asks whether a report is due and produces the draft;
+`feedback_send` sends it, or records that you said no.
+
+**Nothing is sent without you seeing it first.** The agent has to show you the
+whole draft, word for word, and get an explicit yes. Saying no is recorded so
+you are not asked the same thing again.
+
+`feedback_status` · `feedback_send`
 
 ---
 
@@ -361,6 +561,9 @@ until you personally turn them on.
 | Tax | *Off* | Tax settings and rates |
 | SEO setup | **On** | Titles, descriptions, schema, sitemap |
 | SEO optimization | **On** | Page scoring, redirects |
+| Site care (read-only reports) | **On** | Speed, database junk, plugin security and conflicts, broken links |
+| Site care (fix & clean up) | *Off* | Compressing images, deleting database junk, fixing links, alt text, installing plugins |
+| Let the AI write new code tools | *Off* | The AI writing new PHP tools for this site, for you to approve |
 | Design / Elementor | **On** | Pages, kit, settings |
 | Snippets | **On** | Live code snippets |
 | Raw code execution | **On** | Arbitrary PHP and SQL |
@@ -371,7 +574,7 @@ until you personally turn them on.
 | Images | **On** | Search and generation |
 | Email & notifications | *Off* | Sending email to real addresses |
 | Autonomy (agent & scheduled tasks) | **On** | Unattended and scheduled runs |
-| Memory (write) | **On** | Saving and deleting memory |
+| Memory & lessons (write) | **On** | Saving and deleting memory, and saving lessons the agent reads |
 | Skills (write) | **On** | Creating and deleting skills |
 | Deploy to production | *Off* | Bundles and pushing to production |
 
@@ -391,8 +594,9 @@ this line in `wp-config.php`, above the *"That's all, stop editing"* comment:
 define('KEELHOB_SNIPPETS_OFF', true);
 ```
 
-Every snippet stops immediately. Nothing is deleted. Remove the line to switch
-them back on.
+Every snippet stops immediately, and so does every agent-written ability — it is
+one switch for all code an agent put on your site. Nothing is deleted. Remove
+the line to switch them back on.
 
 Edit that file however you normally would — FTP, your host's file manager, a
 shell. **None of that needs a working site or a database.** That is the point:
@@ -466,9 +670,21 @@ look.
 A **skill** is a written procedure the agent loads when the job calls for it.
 Not a prompt you retype — a document that lives on the site.
 
-Twenty-four ship with the plugin, covering things like building a site from
+Twenty-five ship with the plugin, covering things like building a site from
 scratch, Elementor page building, SEO, WooCommerce operations, security
 hardening, a pre-launch audit, and cloning an existing site into WordPress.
+
+One of them, `scroll-craft`, is for the kind of page where scrolling is the
+experience: layers that travel at different rates, a section that holds still
+while you read it, a clip that plays frame by frame as you move down. It builds
+this out of three snippets and a custom page template, so what you get is real
+code on your own site.
+
+Two things worth knowing before you ask for one. **It does not work inside
+Elementor** — a scroll-craft page is a page template, not an Elementor layout,
+and the skill says so before it builds anything. And it is checked three times
+over: on a desktop, on a 390×844 phone, and with reduced motion switched on, so
+a visitor whose system asks for less movement still gets a page that reads.
 
 They matter because they are the difference between an agent that *can* build a
 page and one that builds a page the way a professional would — with the alt text

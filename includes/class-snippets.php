@@ -176,12 +176,44 @@ final class Keelhob_Snippets
         if ($type !== 'php' || trim($code) === '') {
             return '';
         }
-        $source = $location === 'page_template' ? $code : "<?php " . $code;
+        if ($location !== 'page_template') {
+            return self::lint_body($code);
+        }
+        // A page_template body is raw markup with <?php islands, so it already
+        // carries its own tags and must be linted as-is.
         try {
-            token_get_all($source, TOKEN_PARSE);
+            token_get_all($code, TOKEN_PARSE);
         } catch (\ParseError $e) {
             return $e->getMessage();
         }
+        return '';
+    }
+
+    /**
+     * Parse-check an arbitrary PHP fragment that already carries no opening tag.
+     *
+     * Split out of lint_php() so there is exactly ONE parser on this site for
+     * model-written PHP. Keelhob_Abilities::lint_code() wraps a proposed
+     * ability body in the closure it will eventually occupy and calls this; the
+     * snippets path keeps calling lint_php(), which is unchanged and now goes
+     * through here.
+     *
+     * token_get_all with TOKEN_PARSE runs the real compiler's parser and
+     * nothing else: no runtime, no declarations, no side effects, and — the
+     * reason it matters for abilities — no possibility of the fragment escaping
+     * into top-level code the way an eval'd string can. See the long note on
+     * Keelhob_Abilities::lint_code().
+     *
+     * @return string '' when it parses, otherwise the parse error message
+     */
+    public static function lint_body(string $source): string
+    {
+        try {
+            token_get_all('<?php ' . $source, TOKEN_PARSE);
+        } catch (\ParseError $e) {
+            return $e->getMessage();
+        }
+
         return '';
     }
 
