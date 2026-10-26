@@ -11,6 +11,18 @@ change.
 | `03-capabilities.png` | The Capabilities panel |
 | `04-built-site.png` | The front end of a site the agent built |
 
+**01, 02 and 03 are generated**, not taken by hand:
+
+```
+bash tests/rig/sync-plugin.sh /c/wp-rig/wordpress
+node tests/rig/ui/make-docs-shots.mjs
+```
+
+It shoots all three at 1440x900 against the kept rig, collapses the sidebar so another plugin's
+menu stays out of frame, seeds the snippet rows, and deletes everything it seeded in a `finally`.
+`04-built-site.png` and the video cannot be generated — they need a real built site and a person
+recording.
+
 ## Before you start — every shot
 
 Set up a throwaway site for this. Not your own site, not a client's.
@@ -24,9 +36,11 @@ Set up a throwaway site for this. Not your own site, not a client's.
 
 ### Must NOT be visible, in any shot or the video
 
-- **Any real token or key.** The Connect page shows a live bearer token; regenerate it immediately
-  after recording, and prefer a token you throw away. Same for Anthropic/OpenAI/Google keys,
-  Telegram bot tokens and the Telegram webhook secret.
+- **Any real token or key.** As of 2.0.0 the Connect page does NOT show the bearer token: it is
+  stored hashed, the field renders as dots and the copy command carries the literal
+  `YOUR_TOKEN_HERE`. So there is nothing to redact in `01-connect.png`. This still applies to
+  Anthropic/OpenAI/Google keys, Telegram bot tokens and the Telegram webhook secret, which the
+  Automation screen does show.
 - **Real customer data** — names, email addresses, order addresses, phone numbers. Use WooCommerce
   sample data or invented customers.
 - **Your personal email address**, in the admin bar, the profile menu, the "Howdy, …" greeting or a
@@ -45,13 +59,12 @@ and a screenshot is forever once it is in git history.
 
 **Screen:** Keelhob → Connect.
 
-**State:** a token generated, so the `claude mcp add …` command is fully filled in with a real URL
-and a real bearer token — then **regenerate that token straight after taking the shot**. Nothing
-expanded below the fold; the command block should be the visual centre.
+**State:** the command block as the visual centre. No token needs generating: the command shows
+`YOUR_TOKEN_HERE` whether or not one exists.
 
 **Must be visible:** the site URL in the command, the `--transport http` flag, the full endpoint
-path `/wp-json/keelhob/v1/mcp`, the copy button, and enough of the surrounding page that it
-reads as a WordPress admin screen.
+path, the copy button, and enough of the surrounding page that it reads as a WordPress admin
+screen.
 
 **Nice to have:** the "Other clients" JSON block partly visible below it, so people can see there
 is more than one way in.
@@ -62,13 +75,16 @@ is more than one way in.
 
 **Screen:** Keelhob → Snippets.
 
-**State:** at least five snippets the agent actually installed during a real build — not seeded
-dummies. A mix of types (PHP, CSS, a page template) and at least one **inactive** row, so the
-status column is doing visible work. One row expanded to show its purpose/impact panel: what the
-snippet exists for, what it changes, where and when it runs.
+**State:** at least five snippets, a mix of types, and at least one **inactive** row so the status
+column is doing visible work. Snippets from a real build are better than seeded ones; the shot in
+the repo today is seeded, and says so below.
 
-**Must be visible:** the Name / Description / Type / Status columns, per-row activate-deactivate
-controls, and the expanded panel.
+**Must be visible:** the Name / Description / Type / Status columns and the per-row
+activate-deactivate controls.
+
+**There is no expanded row.** An earlier version of this list asked for one showing the
+purpose/impact panel. That panel is on the Edit screen, not inline in the list, so the shot cannot
+show it. Do not go looking for a disclosure control that is not there.
 
 **Ideally:** one row carrying a real `last_error` from a snippet that crashed and auto-deactivated
 itself. That single row proves the crash guard is real and is worth more than a tidy list.
@@ -79,9 +95,13 @@ itself. That single row proves the crash guard is real and is worth more than a 
 
 **Screen:** the Capabilities panel.
 
-**State:** **defaults, untouched.** The whole point of this shot is showing the eight groups that
-ship off — `store_orders`, `payments`, `shipping`, `tax`, `users`, `updates`, `comms`, `deploy` —
-so do not switch anything on first.
+**State:** **defaults, untouched.** The whole point of this shot is showing the ten groups that
+ship off — `abilities`, `sitecare_fix`, `store_orders`, `payments`, `shipping`, `tax`, `users`,
+`updates`, `comms`, `deploy` — so do not switch anything on first.
+
+"Untouched" means the `keelhob_capabilities` option is **absent**, not that it holds the default
+values. Saving the form once writes an explicit value for every group, and the screen then looks
+identical while no longer being the default.
 
 **Must be visible:** enough rows that both on and off toggles are in frame, at least four of the
 eight off groups with their labels, and one of the hover/info descriptions open if the layout
