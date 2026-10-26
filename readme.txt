@@ -322,6 +322,26 @@ the exact model IDs to type for each one.
 * **You must reconnect your AI client.** The MCP address changed to
   /wp-json/keelhob/v1/mcp. An old configuration will fail with a 404. Copy the
   new command from the Connect screen.
+* **The admin screens have a look of their own.** Every Keelhob screen now sits
+  on one panel with the same type, spacing and colours, and a tab strip across
+  the top. It follows your WordPress admin colour scheme, so a dark scheme gets
+  a dark panel. Nothing moved and no form field was renamed.
+* **New: it can look after a site, not only build one.** Five read-only
+  reports — broken_links, speed_audit, db_cleanup_preview, plugin_conflicts
+  and plugin_security_check — and five tools that fix what those reports find:
+  image_compress, db_cleanup, link_fix, media_set_alt and plugin_install. The
+  five that write are in a new sitecare_fix group and ship switched OFF,
+  because they overwrite images, empty tables and install plugins.
+* **New: every tool can be rated from real use.** A run log records what each
+  tool did, how long it took and whether it worked, and a thumbs-down with a
+  note becomes a lesson that is added to that tool's description.
+* **New: an AI can write its own tools — switched OFF.** ability_create and
+  ability_improve let a model author PHP that then runs on your site. This is
+  the most dangerous thing in the plugin, so it is off by default and every
+  new ability must be approved by you before it can run once.
+* **Ten capability groups now ship switched off**, up from eight: abilities,
+  sitecare_fix, store_orders, payments, shipping, tax, users, updates, comms
+  and deploy.
 * Everything that was written for 1.2.0 ships here: Gemini tool-list fixes, the
   hourly-digest timezone fix, per-bot Telegram replay marks, the chat-style AI
   Compose screen, and counts on every list tool.
