@@ -288,6 +288,25 @@ final class Keelhob_Auth
         delete_transient(self::fail_key_global());  // and the global lock with it
     }
 
+    /**
+     * Rule 5: let the OAuth token endpoint feed the same lockout.
+     *
+     * A public wrapper rather than making record_failure() public, so the only
+     * thing another class can do is report a failure — it cannot read or reset
+     * the counters. Without this the token endpoint would be an unlimited
+     * guessing oracle for client secrets and authorization codes, sitting right
+     * next to an MCP route that is carefully rate-limited, which is the kind of
+     * asymmetry an attacker looks for first.
+     *
+     * Named for OAuth deliberately. A generic `note_failure()` would invite
+     * every future caller to share one counter without thinking about whether
+     * its failures are comparable to a bad bearer token's.
+     */
+    public static function note_oauth_failure(): void
+    {
+        self::record_failure();
+    }
+
     private static function record_failure(): void
     {
         // Per-IP: a plain counter, re-set with the full window so a sustained

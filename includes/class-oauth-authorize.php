@@ -189,7 +189,11 @@ final class Keelhob_OAuth_Authorize
      */
     public static function is_valid_challenge(string $challenge): bool
     {
-        return (bool) preg_match('/^[A-Za-z0-9_-]{43}$/', $challenge);
+        // Anchored with a literal backslash-z, not a dollar sign: in PCRE the
+        // dollar also matches immediately before a trailing newline, so the
+        // dollar spelling accepts 43 valid characters with a newline on the end.
+        // Same bug, same fix, as Keelhob_OAuth_Token::verifier_matches().
+        return (bool) preg_match('/^[A-Za-z0-9_-]{43}\z/', $challenge);
     }
 
     /* ------------------------------------------------------------- step 3 */

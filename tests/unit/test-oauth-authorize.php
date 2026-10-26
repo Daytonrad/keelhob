@@ -45,6 +45,14 @@ foreach (
         str_repeat('/', 43)                 => 'a slash, which is not base64url either',
         'short'                             => 'something that is not a digest at all',
         str_repeat('a', 42) . ' '           => 'a trailing space',
+        /*
+         * THE ONE THE DOLLAR SPELLING LET THROUGH. In PCRE the dollar also
+         * matches immediately before a trailing newline, so a pattern anchored
+         * with it accepted 43 valid characters with a newline on the end. Found
+         * by the matching case in test-oauth-token.php, fixed in both places.
+         */
+        str_repeat('a', 43) . chr(10)       => 'a trailing newline',
+        str_repeat('a', 43) . chr(13)       => 'a trailing carriage return',
     ] as $kh_bad => $kh_why
 ) {
     KH_Test::ok(!Keelhob_OAuth_Authorize::is_valid_challenge((string) $kh_bad), $kh_why . ' is refused');
