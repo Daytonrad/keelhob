@@ -1069,6 +1069,20 @@ body.rtl .kh-ui {
 .kh-ui input[type="checkbox"].kh-u-switch::before {
 	content: "";
 	position: absolute;
+	/*
+	 * `margin: 0` is load-bearing, and only in the :checked state.
+	 *
+	 * Core's forms.css sets `input[type=checkbox]:checked::before { content:
+	 * "147"; margin: -3px 0 0 -4px; }` to hang its dashicon tick over the
+	 * box. Specificity 0,2,1. We override `content`, `top`, `left`, `width`
+	 * and `height` — but nothing here used to set `margin`, so core's one
+	 * survived on the ON knob alone. Measured in the rig: ON carried
+	 * `margin: -3px 0px 0px -4px` while OFF carried `margin: 0px`, which
+	 * lifted the knob 1px above the top of its own track. OFF looked
+	 * centred, ON looked stuck to the top. Reported from a dark-mode
+	 * screenshot, and nothing in the stylesheet said why.
+	 */
+	margin: 0;
 	top: 2px;
 	left: 2px;
 	width: 16px;

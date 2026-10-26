@@ -961,6 +961,80 @@ async function checkScreen(page, screen) {
  * repeating the main pass. What is different about it is the surface the words
  * land on, and that is what gets measured.
  */
+/**
+ * The capability switch knob must sit in the same place in both states.
+ *
+ * WHY THIS IS A CHECK, AND WHY IT IS GEOMETRY RATHER THAN CSS.
+ *
+ * Core's forms.css sets `input[type=checkbox]:checked::before { content:
+ * "147"; margin: -3px 0 0 -4px; }` so its dashicon tick overhangs the box.
+ * Our rule overrode `content`, `top`, `left`, `width` and `height` but not
+ * `margin`, so core's margin survived on the CHECKED knob alone: measured in
+ * the rig, ON carried `margin: -3px 0px 0px -4px` while OFF carried
+ * `margin: 0px`. The knob was lifted 1px clear of the top of its own track and
+ * pulled 4px back from its travel. OFF looked centred, ON looked stuck to the
+ * top, and the owner found it in a screenshot.
+ *
+ * Nothing in our stylesheet said so, which is the point: the declaration that
+ * broke it is not in our file. Only the resolved box shows it, so this asserts
+ * the box. It compares ON against OFF rather than against fixed numbers, so
+ * resizing the switch cannot make the check lie.
+ */
+async function checkSwitchGeometry(page) {
+  await page.goto(`${WP}/wp-admin/admin.php?page=keelhob`, { waitUntil: 'load' });
+  await page.waitForTimeout(300);
+
+  const m = await page.evaluate(() => {
+    const sw = [...document.querySelectorAll('.kh-ui input.kh-u-switch')];
+    const on = sw.find((e) => e.checked), off = sw.find((e) => !e.checked);
+    if (!on || !off) return { total: sw.length };
+    const read = (el) => {
+      const b = getComputedStyle(el, '::before');
+      /* clientWidth/clientHeight, NOT getBoundingClientRect(). The knob is
+       * absolutely positioned, so its containing block is the switch's PADDING
+       * box — inside the 1px border. The bounding rect is the border box, and
+       * using it made this check report 2px against 4px on a correctly centred
+       * knob: a false failure on right code, which is worse than no check. */
+      const r = { width: el.clientWidth, height: el.clientHeight };
+      const px = (v) => parseFloat(v) || 0;
+      /* The travel is applied with a transform, so it is read off the matrix
+       * rather than guessed from the rule. */
+      const tx = new DOMMatrixReadOnly(b.transform === 'none' ? '' : b.transform).m41;
+      return {
+        trackH: r.height, trackW: r.width,
+        knobH: px(b.height), knobW: px(b.width),
+        top: px(b.top) + px(b.marginTop),
+        left: px(b.left) + px(b.marginLeft) + tx,
+      };
+    };
+    return { total: sw.length, on: read(on), off: read(off) };
+  });
+
+  const label = `Capabilities${MODE_SUFFIX} @${WIDTH}px · the switch knob`;
+  if (!m.on || !m.off) {
+    r.fail('keelhob', label, `needed one ON and one OFF switch; found ${m.total} switches`);
+    return;
+  }
+
+  /* Vertically centred, to the half pixel, in BOTH states. */
+  for (const [state, g] of [['ON', m.on], ['OFF', m.off]]) {
+    const gapTop = g.top;
+    const gapBottom = g.trackH - g.knobH - g.top;
+    r.check('keelhob', `${label} is vertically centred when ${state}`,
+      Math.abs(gapTop - gapBottom) <= 0.5,
+      `top ${gapTop}px vs bottom ${gapBottom}px of a ${g.trackH}px track`);
+  }
+
+  /* And the ON knob's gap at its own end matches the OFF knob's gap at hers,
+   * which is what "the same place, mirrored" actually means. */
+  const offGap = m.off.left;
+  const onGap  = m.on.trackW - m.on.knobW - m.on.left;
+  r.check('keelhob', `${label} travels to a matching inset`,
+    Math.abs(offGap - onGap) <= 0.5,
+    `OFF sits ${offGap}px from its end, ON sits ${onGap}px from hers`);
+}
+
+
 async function checkEmptyView(page, view) {
   const label = `${view.name}${MODE_SUFFIX} @${WIDTH}px`;
   const B = view.slug;
@@ -1363,6 +1437,10 @@ try {
     await checkEmptyView(page, view).catch((e) =>
       r.fail(view.slug, `${view.name}${MODE_SUFFIX} @${WIDTH}px · the checks themselves`, e.message));
   }
+
+  console.log('  ... switch geometry');
+  await checkSwitchGeometry(page).catch((e) =>
+    r.fail('keelhob', `the switch knob${MODE_SUFFIX} @${WIDTH}px · the checks themselves`, e.message));
 } catch (err) {
   r.fail('—', 'the run itself', err.message);
 } finally {
