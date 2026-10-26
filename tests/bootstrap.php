@@ -315,16 +315,42 @@ function is_wp_error($thing): bool
 
 class WP_Error
 {
+    private string $code;
     private string $message;
+    /** @var mixed */
+    private $data;
 
-    public function __construct(string $code = '', string $message = '')
+    /**
+     * Real WP_Error takes ($code, $message, $data) and exposes all three. This
+     * stub used to keep only the message, so a test asserting WHICH error came
+     * back fatalled on an undefined method — and a test that can only say "an
+     * error happened" cannot tell `invalid_redirect_uri` from
+     * `unsupported_response_type`, which on an auth endpoint is the difference
+     * that matters.
+     *
+     * @param mixed $data
+     */
+    public function __construct(string $code = '', string $message = '', $data = null)
     {
+        $this->code    = $code;
         $this->message = $message;
+        $this->data    = $data;
+    }
+
+    public function get_error_code(): string
+    {
+        return $this->code;
     }
 
     public function get_error_message(): string
     {
         return $this->message;
+    }
+
+    /** @return mixed */
+    public function get_error_data()
+    {
+        return $this->data;
     }
 }
 
@@ -864,6 +890,7 @@ require_once KEELHOB_DIR . 'includes/class-auth.php';
 require_once KEELHOB_DIR . 'includes/class-connect.php';
 require_once KEELHOB_DIR . 'includes/class-oauth.php';
 require_once KEELHOB_DIR . 'includes/class-oauth-clients.php';
+require_once KEELHOB_DIR . 'includes/class-oauth-authorize.php';
 require_once KEELHOB_DIR . 'includes/class-logger.php';
 require_once KEELHOB_DIR . 'includes/class-snippet-log.php';
 require_once KEELHOB_DIR . 'includes/class-feedback.php';
