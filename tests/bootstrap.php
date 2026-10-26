@@ -862,6 +862,7 @@ require_once KEELHOB_DIR . 'includes/class-legacy-adopt.php';
 require_once KEELHOB_DIR . 'includes/class-keelhob.php';
 require_once KEELHOB_DIR . 'includes/class-auth.php';
 require_once KEELHOB_DIR . 'includes/class-connect.php';
+require_once KEELHOB_DIR . 'includes/class-oauth.php';
 require_once KEELHOB_DIR . 'includes/class-logger.php';
 require_once KEELHOB_DIR . 'includes/class-snippet-log.php';
 require_once KEELHOB_DIR . 'includes/class-feedback.php';
