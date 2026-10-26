@@ -967,7 +967,7 @@ async function checkScreen(page, screen) {
  * WHY THIS IS A CHECK, AND WHY IT IS GEOMETRY RATHER THAN CSS.
  *
  * Core's forms.css sets `input[type=checkbox]:checked::before { content:
- * "147"; margin: -3px 0 0 -4px; }` so its dashicon tick overhangs the box.
+ * "\f147"; margin: -3px 0 0 -4px; }` so its dashicon tick overhangs the box.
  * Our rule overrode `content`, `top`, `left`, `width` and `height` but not
  * `margin`, so core's margin survived on the CHECKED knob alone: measured in
  * the rig, ON carried `margin: -3px 0px 0px -4px` while OFF carried

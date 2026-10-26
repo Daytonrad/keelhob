@@ -161,8 +161,47 @@ function proofFile() {
   return { path, exists: existsSync(path), body: existsSync(path) ? readFileSync(path, 'utf8') : null };
 }
 
+/*
+ * The four tables a tool run writes to besides its own.
+ *
+ * Calling an ability does not only touch keelhob_abilities. Running any tool
+ * writes a run-log row, and 2.0.0 made that log the home of ratings too, so a
+ * single probe leaves rows in the log, the per-tool stats, the lessons and the
+ * feedback queue. The first version of this teardown deleted the ability and
+ * nothing else, so every run left four kinds of row behind on the rig and the
+ * "no artifacts survive" assertion was true only of the row it looked at.
+ *
+ * Deleting by tool NAME would be wrong: `ability_create` is a real tool and a
+ * real run on this rig may have used it. So the run records the highest id in
+ * each table before it seeds anything and deletes only what came after. That
+ * cannot reach a pre-existing row, and it catches rows this run caused
+ * indirectly — which deleting by name would miss.
+ */
+const RUN_TABLES = ['keelhob_log', 'keelhob_tool_stats', 'keelhob_lessons', 'keelhob_feedback'];
+
+/** Highest id in each RUN_TABLES table, or 0 for a table that is not installed. */
+function watermarks() {
+  const php = RUN_TABLES.map(
+    (t) => `"${t}" => (int) $wpdb->get_var( "SELECT COALESCE(MAX(id),0) FROM {$wpdb->prefix}${t}" )`
+  ).join(', ');
+  return wpJson(`global $wpdb; echo wp_json_encode( array( ${php} ) );`, wpOpts);
+}
+
+/** How many rows each table has gained since the watermark. */
+function rowsSince(marks) {
+  const php = RUN_TABLES.map(
+    (t) => `"${t}" => (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}${t} WHERE id > ${Number(marks[t]) || 0}" )`
+  ).join(', ');
+  return wpJson(`global $wpdb; echo wp_json_encode( array( ${php} ) );`, wpOpts);
+}
+
 /** Everything this run created, gone. Safe to call twice. */
-function teardown() {
+function teardown(marks = null) {
+  const since = marks
+    ? RUN_TABLES.map(
+        (t) => `$wpdb->query( "DELETE FROM {$wpdb->prefix}${t} WHERE id > ${Number(marks[t]) || 0}" );`
+      ).join(String.fromCharCode(10) + '    ')
+    : '';
   wpEval(
     `global $wpdb;
     $wpdb->query( "DELETE FROM {$wpdb->prefix}keelhob_abilities WHERE name = '${phpEsc(ABILITY)}'" );
@@ -170,6 +209,7 @@ function teardown() {
     $dir = WP_CONTENT_DIR . '/${PROOF_DIR}';
     foreach ( ( glob( $dir . '/*' ) ?: array() ) as $f ) { @unlink( $f ); }
     @rmdir( $dir );
+    ${since}
     echo 'torn down';`,
     wpOpts
   );
@@ -179,6 +219,10 @@ function teardown() {
 
 let before = null;
 let browser = null;
+/* Set once the strays are gone, so teardown only ever deletes rows this run
+ * is responsible for. Null until then, which makes the stray sweep below a
+ * name-only delete on purpose. */
+let marks = null;
 
 async function main() {
   // Strays from a crashed run, removed BEFORE anything is seeded. A pending
@@ -190,6 +234,11 @@ async function main() {
     teardown();
   }
   report.ok(abilityRows().length === 0, 'the rig starts with no rows for this ability');
+
+  // Taken AFTER the stray sweep and BEFORE anything is seeded: everything past
+  // these ids is this run's doing.
+  marks = watermarks();
+  console.log(`  run-log watermark: ${RUN_TABLES.map((t) => `${t}=${marks[t]}`).join(' ')}`);
 
   // The rig's own settings, saved so they can be put back exactly.
   before = wpJson(
@@ -292,7 +341,36 @@ async function main() {
   await page.waitForLoadState('domcontentloaded');
   report.ok((await page.locator('#user_login').count()) === 0, 'signed in to wp-admin with no scripts running');
 
-  await page.goto(`${WP}/wp-admin/admin.php?page=keelhob`, { waitUntil: 'domcontentloaded' });
+  /*
+   * `load`, NOT `domcontentloaded`.
+   *
+   * This run measures the code block's resolved background, and
+   * domcontentloaded fires before the stylesheets have arrived. A <link> that
+   * has not loaded yet has no CSSStyleSheet attached, so it is absent from
+   * document.styleSheets and none of its rules apply. With
+   * javaScriptEnabled:false there is nothing on the page to delay the read
+   * either, so the measurement was simply racing the network: it reported
+   * `background: rgba(0,0,0,0)` and `color: rgb(0,0,0)` — the unstyled
+   * defaults — and read as a dark-mode bug in the panel. Diagnosed by dumping
+   * document.styleSheets from inside the failing run, which held six inline
+   * sheets and no admin.css at all.
+   */
+  await page.goto(`${WP}/wp-admin/admin.php?page=keelhob`, { waitUntil: 'load' });
+
+  /*
+   * And then say so out loud, because "the stylesheet is on this screen" is
+   * worth an assertion of its own: enqueue_ui() ships it on Keelhob screens
+   * and nowhere else, so a change to that allowlist is a real way for every
+   * measurement below to start reporting unstyled defaults.
+   */
+  const sheetOk = await page
+    .waitForFunction(
+      () => [...document.styleSheets].some((s) => (s.href || '').includes('/keelhob/assets/css/admin.css')),
+      null,
+      { timeout: 10_000 }
+    )
+    .then(() => true, () => false);
+  report.ok(sheetOk, 'admin.css is actually loaded on this screen, so the styles below are measurable');
 
   report.ok((await page.locator('#kh-abilities').count()) === 1, 'the Connect screen carries the abilities section');
   report.ok((await page.locator('#pending').count()) === 1, 'with a #pending anchor, which is where the model tells the owner to look');
@@ -572,11 +650,31 @@ try {
   } catch { /* nothing to do about a browser that will not close */ }
 
   try {
-    teardown();
+    teardown(marks);
     const left = abilityRows();
     report.ok(left.length === 0, 'teardown: no ability rows survive this run');
     report.ok(optionValue() === '', 'teardown: the option is gone');
     report.ok(proofFile().exists === false, 'teardown: the file is gone');
+
+    /*
+     * The run log, the per-tool stats, the lessons and the feedback queue.
+     * Every tool call writes to these, so a run that only deleted its ability
+     * row left four kinds of row behind and still reported a clean teardown.
+     * Asserted per table, so a failure names which one leaked.
+     */
+    if (marks) {
+      const over = rowsSince(marks);
+      for (const t of RUN_TABLES) {
+        report.ok(
+          over[t] === 0,
+          over[t] === 0
+            ? `teardown: ${t} is back to where it started`
+            : `teardown: ${t} kept ${over[t]} row(s) past id ${marks[t]}`
+        );
+      }
+    } else {
+      report.ok(false, 'teardown: no watermark was taken, so the run log cannot be checked');
+    }
   } catch (err) {
     report.ok(false, `teardown failed: ${err && err.message ? err.message : err}`);
   }

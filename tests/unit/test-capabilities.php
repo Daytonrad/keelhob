@@ -9,7 +9,9 @@ KH_Test::ok(Keelhob_Capabilities::is_group_enabled('content'), 'build groups def
 KH_Test::ok(Keelhob_Capabilities::tool_allowed('create_post'), 'a grouped tool is allowed by default');
 KH_Test::ok(Keelhob_Capabilities::tool_allowed('some_third_party_tool'), 'an ungrouped tool is allowed (plugins can add tools)');
 
-// The eight high-blast-radius groups ship OFF. They used to be unreachable
+// The high-blast-radius groups ship OFF. There were eight when this was
+// written and there are ten now, which is why the loop below reads the
+// constant instead of a number. They used to be unreachable
 // because they were behind a paywall, and that paywall was quietly doing the
 // job of a safety fence. Deleting it without replacing the fence would have
 // handed every install - and every site that merely upgraded - the ability to

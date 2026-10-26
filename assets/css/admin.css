@@ -1073,7 +1073,7 @@ body.rtl .kh-ui {
 	 * `margin: 0` is load-bearing, and only in the :checked state.
 	 *
 	 * Core's forms.css sets `input[type=checkbox]:checked::before { content:
-	 * "147"; margin: -3px 0 0 -4px; }` to hang its dashicon tick over the
+	 * "\f147"; margin: -3px 0 0 -4px; }` to hang its dashicon tick over the
 	 * box. Specificity 0,2,1. We override `content`, `top`, `left`, `width`
 	 * and `height` — but nothing here used to set `margin`, so core's one
 	 * survived on the ON knob alone. Measured in the rig: ON carried

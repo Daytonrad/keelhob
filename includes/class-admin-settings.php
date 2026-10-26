@@ -123,12 +123,32 @@ final class Keelhob_Admin_Settings
             Keelhob_Feedback::forget_remote();
             Keelhob_Feedback::clear();
         } elseif ($action === 'capabilities') {
-            $posted = isset($_POST['cap']) && is_array($_POST['cap']) ? array_map('sanitize_key', array_keys($_POST['cap'])) : [];
-            $caps = [];
-            foreach (array_keys(Keelhob_Capabilities::groups()) as $group) {
-                $caps[$group] = in_array($group, $posted, true);
-            }
-            Keelhob::instance()->update(['capabilities' => $caps]);
+            /*
+             * EVERY group gets an explicit value here, including the ones that
+             * already matched their default. That is deliberate, and it has
+             * been questioned twice, so the reasoning lives here now.
+             *
+             * The tempting change is to store only the groups that DIFFER from
+             * Keelhob_Capabilities::default_enabled(), so the defaults stay
+             * live. Do not make it. It destroys the only thing this array is
+             * for: telling "the owner chose this" apart from "nobody has said".
+             * A group the owner deliberately switched ON would become
+             * indistinguishable from one that is merely on by default, and the
+             * next time a default changed it would flip underneath them.
+             * tests/unit/test-capability-save.php pins both halves.
+             *
+             * What this does NOT break: a group added in a LATER version is
+             * absent from the stored array, so default_enabled() still decides
+             * it. New sensitive groups still arrive switched off.
+             *
+             * And a default change that MUST reach saved sites is not this
+             * array's job either. Keelhob::upgrade_from_paid_tier() is the
+             * pattern: force the value, guard on evidence rather than on a
+             * version number, and tell the owner in an admin notice. Its own
+             * comment says why "only if no value is stored" is exactly the
+             * version of that which does not work.
+             */
+            Keelhob::instance()->update(['capabilities' => self::caps_from_post()]);
         } elseif ($action === 'automation_settings') {
             Keelhob::instance()->update([
                 'agent_provider'        => sanitize_key($_POST['agent_provider'] ?? 'anthropic'),
@@ -362,6 +382,29 @@ final class Keelhob_Admin_Settings
      *
      * @return string[]
      */
+    /**
+     * The capability array the form means, as a value that can be tested.
+     *
+     * Extracted from handle_save() for exactly one reason: handle_save() checks
+     * a nonce and ends in a redirect, so the rule this method carries could not
+     * be asserted while it lived inside it. Same shape, and the same reason, as
+     * channels_from_post() above.
+     *
+     * @return array<string, bool>
+     */
+    private static function caps_from_post(): array
+    {
+        $posted = isset($_POST['cap']) && is_array($_POST['cap'])
+            ? array_map('sanitize_key', array_keys($_POST['cap']))
+            : [];
+
+        $caps = [];
+        foreach (array_keys(Keelhob_Capabilities::groups()) as $group) {
+            $caps[$group] = in_array($group, $posted, true);
+        }
+        return $caps;
+    }
+
     private static function channels_from_post(): array
     {
         $posted    = array_map('sanitize_key', (array) ($_POST['notify_channels'] ?? []));
