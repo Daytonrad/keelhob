@@ -6,7 +6,7 @@ enable_agentic: true
 enable_prompt: true
 role: procedure
 surface: interactive
-requires: build-standard
+requires: confirm-before-building, build-standard
 next_skills: website-building, web-design-master
 verified_by: launch-readiness-and-compliance
 ---
@@ -39,7 +39,9 @@ The very first move on a brand-new site request that arrives with no detailed br
 
 ## When NOT to use
 
-Not when a brief, a screenshot or a design already exists — go straight to `website-building`. Not for editing a site that is already up.
+Not for editing a site that is already up.
+
+**Careful with "a brief already exists".** A screenshot or a real design document does let you go straight to `website-building`. A long, detailed *prompt* does not — that is your reading of what they want, not their agreement with your reading, and treating the two as the same thing is how a whole site gets built against the wrong understanding. It has happened here twice. If what you have is prose rather than a design, run this intake anyway; it is short, and the questions you skip are the ones that cost the build. See `confirm-before-building` and protocol rule 7a.
 
 ## Step 0 — load the standard, then check memory
 Load `build-standard` first, before anything else — it is the Definition of Done every

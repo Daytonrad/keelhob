@@ -6,6 +6,7 @@ enable_agentic: true
 enable_prompt: true
 role: procedure
 surface: any
+requires: confirm-before-building
 next_skills: seo-optimization, web-design-master
 verified_by: seo-optimization
 ---
@@ -21,6 +22,8 @@ The task is to write, draft, schedule or publish a post or an article. Covers dr
 ## When NOT to use
 
 Not for a page that is part of the site's structure — a homepage, a service page, a landing page. Those are `website-building`. A post that exists only to rank for a phrase is still a post, but read `seo-optimization` before writing it, not after.
+
+**Before the first write.** `confirm-before-building` is required above. A post written for the wrong reader, or making a claim the owner cannot stand behind, is worse than no post — it is published under their name. Say back who you think this is for and what you will claim, and ask anything that would change either.
 
 ## Before writing
 - Check existing content: `list_posts search=<topic>` so you don't duplicate or cannibalize an existing post — link to it instead.

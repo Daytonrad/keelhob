@@ -6,7 +6,7 @@ enable_agentic: true
 enable_prompt: true
 role: procedure
 surface: any
-requires: web-design-master
+requires: confirm-before-building, web-design-master
 next_skills: motion-and-interaction, seo-optimization, elementor-page-building, solace-header-footer, code-snippets
 verified_by: pre-launch-audit, security-standard
 ---
@@ -30,7 +30,11 @@ verified_by: pre-launch-audit, security-standard
 - [Related skills](#related-skills)
 <!-- CONTENTS:END -->
 
-Turn a brief, screenshot, or design into a live WordPress page. First decide the **build mode** with the user (or from the `build.page_modes` memory):
+Turn a brief, screenshot, or design into a live WordPress page.
+
+**Before the first write, the gate.** `confirm-before-building` is required above, and it is required because this skill used to begin by writing the page. Say your reading of the request back in a few lines, ask the questions that would change what you build in one batch, and name the business risks in your own plan. If what you were handed is a long prompt rather than a screenshot or a design, you do **not** have an agreed brief yet — run `site-build-kickoff`'s intake first, even though you feel you already know enough. That feeling is the bug this gate exists for.
+
+Then decide the **build mode** with the user (or from the `build.page_modes` memory):
 
 ## When to use
 

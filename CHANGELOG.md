@@ -10,6 +10,81 @@ file is the one written for developers: it names files, says what broke and why,
 and keeps the pre-release history that `readme.txt` presents as if it were
 public. When the two disagree, this file is correct.
 
+## [Unreleased]
+
+### Added — the agent has to agree what it is building before it builds it
+
+The owner hit this twice on a real site. A long, detailed request arrived, the
+agent decided it understood everything, skipped the intake, and built a whole
+site against its own reading. Nothing errored. The work was simply not the work
+that was wanted, and all of it had to be read before any of it could be trusted.
+
+**The skills invited it, in writing.** `site-build-kickoff` — the skill that owns
+the intake questions — said in its own "When NOT to use": go straight to
+`website-building` when "a brief already exists". And `website-building` said it
+works "from a brief, screenshot, or design", then opened with *Write the full
+page*. A long prompt looks exactly like a brief, so the agent took the
+invitation every time. This was a routing bug, not a model mood.
+
+**Rule 7 existed and was not enough.** It said to NAME an ambiguity and "do the
+safe part", which is permission to build. The missing word was *stop*.
+
+- **Protocol rules 7a, 7b and 7c** in `class-mcp-server.php`. 7a: before
+  creating anything new, say your reading back, ask only the questions that
+  would change what you build, in ONE batch, and do not start until they
+  answer — and run the intake skill even when you believe you already have a
+  brief. 7b: then read your own plan back and name what is wrong for the
+  owner's BUSINESS rather than wrong technically, before the first write. 7c:
+  if nobody is answering — Telegram, Slack, a scheduled task — stop, and do not
+  build the smallest safe version either.
+
+  In the protocol rather than only in the skills for the same reason as rules
+  9–15, and more so here: the skills were what caused the mistake.
+
+- **A twenty-seventh skill, `confirm-before-building`, declared `role: gate`**,
+  holding the detail — how to say a reading back, which questions earn their
+  place, the business-risk list, and a finish checklist bounded at two rounds of
+  questions. Seven creation skills now declare it in `requires:`:
+  `website-building`, `site-build-kickoff`, `elementor-page-building`,
+  `solace-header-footer`, `blog-publishing`, `scroll-craft`, `site-clone`.
+
+  It is reached through `requires:` rather than by matching a request, exactly
+  as `site-safety` is. The linter refused the first draft for competing with
+  `site-build-kickoff` on "build me a website" — a gate that wins that race
+  sends the work to the wrong skill.
+
+- **The two loophole sentences are rewritten.** `site-build-kickoff` now
+  distinguishes a real design from prose: a screenshot or a design document lets
+  you skip the intake, a long prompt does not. `website-building` now gates
+  before its first step instead of after it.
+
+### Why it is scoped to creating, and not to every write
+
+A gate on every edit would turn a one-line fix into an interview —
+`site-build-kickoff` already warns against interrogating the owner, and an
+exhausting guard is one that gets switched off. So 7a covers work built from
+scratch and says so explicitly; edits, fixes, reports and audits are untouched
+and stay fast.
+
+### What this does NOT do
+
+Nothing here is mechanically enforced. These are rules the agent is told, in the
+strongest place available, and a model that ignores its instructions can still
+write. The hard version would be a tool-level lock — `create_post` and
+`snippet_save` refusing the first creation of a session until an agreement has
+been recorded — which is a real product decision and is deliberately not in this
+change.
+
+### Changed
+
+- The skill counts move from twenty-six to twenty-seven in `README.md`,
+  `ROADMAP.md`, `DOCUMENTATION.md`, `readme.txt` and `docs/features.md` — the
+  last of those guarded by the test added earlier today.
+- `tests/unit/test-skill-delivery.php` asserts the three rules by content rather
+  than by number, and asserts that each of the seven creation skills really
+  requires the gate. Watched failing with the gate removed from
+  `website-building` before being kept. Nothing had ever tested rule 7 at all.
+
 ## [2.1.0] - 2026-10-27
 
 An AI app can connect by signing in, instead of by being handed a token.
