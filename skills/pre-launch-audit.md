@@ -6,7 +6,7 @@ enable_agentic: true
 enable_prompt: true
 role: gate
 surface: any
-next_skills: launch-readiness-and-compliance, seo-audit-and-fix, security-standard
+next_skills: launch-readiness-and-compliance, seo-audit-and-fix, security-standard, auto-optimize
 ---
 
 # Pre-launch audit
@@ -398,6 +398,7 @@ reported as passing on no evidence is worse than one reported as unchecked.
 - **`build-standard`** — the definition of done this audit is scoring against.
 - **`web-design-master`**, **`motion-and-interaction`** — where the design findings get fixed.
 - **`security-standard`** — the hardening pass, which this does not replace.
+- **`auto-optimize`** — one job that fixes the speed, image, junk and broken-link findings and leaves a before-and-after report.
 
 ## Routing examples
 
