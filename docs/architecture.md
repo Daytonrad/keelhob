@@ -13,6 +13,10 @@ keelhob.php              bootstrap, constants, activation, require_once list
 includes/
   class-keelhob.php      orchestrator, settings, upgrade routines
   class-auth.php            bearer token + application password auth, rate limiting
+  class-oauth.php           OAuth 2.1 discovery, the switch, hashing (off by default)
+  class-oauth-clients.php   registered clients, and the redirect-URI rules
+  class-oauth-authorize.php the consent screen and the authorization code
+  class-oauth-token.php     /oauth/token, /oauth/register, token verification
   class-secrets.php         encryption for stored API keys and tokens
   class-mcp-server.php      JSON-RPC 2.0 MCP protocol (initialize/tools/prompts/resources)
   class-rest.php            /wp-json/keelhob/v1/mcp transport, /status, /import

@@ -46,6 +46,23 @@ final class Keelhob_Rest
             'permission_callback' => [$this, 'permission'],
         ]);
 
+        /*
+         * OAuth 2.1: the token, registration and metadata routes.
+         *
+         * Registered unconditionally and gated inside each handler, which is
+         * the same choice made for discovery and for the authorize action.
+         * Registering them only when the feature is on would mean the routes
+         * appear and disappear from /wp-json/keelhob/v1 as a setting changes,
+         * and a client that cached the route index would get a 404 it cannot
+         * explain instead of a 404 that says why.
+         *
+         * Every one of them has `permission_callback => __return_true`, which
+         * is correct and is worth stating: these endpoints ARE the
+         * authentication. What protects them is PKCE, single-use codes and the
+         * shared lockout in Keelhob_Auth, not a permission callback.
+         */
+        Keelhob_OAuth_Token::register_routes();
+
         // Telegram webhook: the bot's messages arrive here.
         //
         // The permission callback has to return true — Telegram cannot send a

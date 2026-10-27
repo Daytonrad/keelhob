@@ -10,9 +10,88 @@ file is the one written for developers: it names files, says what broke and why,
 and keeps the pre-release history that `readme.txt` presents as if it were
 public. When the two disagree, this file is correct.
 
-## [Unreleased]
+## [2.1.0] - 2026-10-27
 
-### Added
+An AI app can connect by signing in, instead of by being handed a token.
+
+It also carries a twenty-sixth skill, which is unrelated to the sign-in work
+and was developed on its own branch; both are described below.
+
+**Off by default.** A site that leaves the switch alone is byte-for-byte the
+site it was: the discovery paths 404, the 401 carries no extra header, and
+`authenticate()` reaches the same code in the same order it always did.
+
+### Added — OAuth 2.1 with dynamic client registration
+
+- **The whole point:** paste a site URL into an AI client, press Sign in, press
+  Allow. WordPress's own login screen does the authenticating and no secret is
+  copied by hand. Today that journey is: generate a token, copy it, paste it
+  into a JSON file, restart the client.
+- `/.well-known/oauth-protected-resource` and
+  `/.well-known/oauth-authorization-server`, plus `openid-configuration` served
+  from the same document because several clients probe that path first and give
+  up on a 404. Keelhob issues no ID tokens and claims no OpenID support.
+- `POST /oauth/register`, `POST /oauth/token`, `GET /oauth/metadata`, and a
+  consent screen on `admin-post.php`.
+- The Connect screen gained a switch and a list of connected apps with a Remove
+  button next to each.
+
+### The six rules, and where each one lives
+
+1. **PKCE required, never optional.** `S256` is the only challenge method the
+   discovery document advertises, because a client is entitled to use anything
+   listed there — the advertisement IS the policy. Enforced at the authorize
+   screen as well as at the token endpoint, so a flow that could not finish
+   never asks a human to approve it.
+2. **`redirect_uri` matches exactly.** `hash_equals` against the registration,
+   no prefix matching and no normalising, and the value sent to a browser is
+   always the REGISTERED spelling rather than the presented one.
+3. **Only hashes are stored.** Tokens, client secrets and authorization codes.
+   The transient NAME is the hash; nothing in the database is a credential.
+4. **`manage_options` at authorize and on every call after.** Re-checked at
+   each grant, each refresh and each MCP call — an account demoted on Monday
+   does not keep driving an AI on Tuesday.
+5. **The existing lockout covers the token endpoint.** `Keelhob_Auth` gained
+   `note_oauth_failure()`; `record_failure()` stays private so the endpoint
+   being attacked cannot clear its own counter.
+6. **Behind a setting, off by default, bearer untouched.**
+
+### Four places this deliberately differs from the reference implementation
+
+Each of these is a thing the plugin the design was studied from gets wrong.
+
+- **The authorization code is deleted BEFORE it is validated, not after.**
+  Validate first and a failed attempt leaves the code alive for the next one,
+  so whoever holds a stolen code can retry until something is right. Verified
+  by removing the delete and watching a replay return 200 and a working token.
+- **The code's hash is the transient name, not the code.** Putting the code in
+  the name writes the secret to `wp_options` in plaintext.
+- **A full client list refuses a new registration rather than evicting the
+  oldest.** Registration needs no credential, so "drop the oldest" means anyone
+  can register 100 clients and silently kill the owner's working connection.
+  A client that has held a token is never evicted.
+- **Errors are shown on screen, not redirected to the client.** The address you
+  would redirect to is the attacker-supplied one, and you would be redirecting
+  to it precisely when you have decided not to trust it.
+
+### A note on what the tests could not see, again
+
+`tests/rig/check-oauth.mjs` reported **"All 14 browser checks passed"** on a run
+whose consent screen never rendered and whose replay check never executed. The
+harness's `Report.ok()` takes `(baseline, label)` and records an unconditional
+pass; every assertion in the file had been written as `ok(condition, label)`,
+so the condition was being used as a label. `Report.check()` is the asserting
+one. The file now wraps it in a local `ok()` so the mistake cannot recur, and
+the fake run was hiding three real bugs: a `WWW-Authenticate` header sent three
+times because it was appended rather than replaced, a metadata probe using the
+wrong HTTP method, and a sign-in that raced its own navigation.
+
+Not built: refresh-token rotation. It is stronger on paper and it is also what
+locks people out on shared hosting when a request dies between storing the new
+token and delivering it. Reuse plus a ninety-day expiry plus immediate
+revocation by removing the client. `class-oauth-token.php` says what to build
+first if that is ever revisited.
+### Added — a twenty-sixth skill
 
 - **A twenty-sixth skill, `auto-optimize` ("Tune up this site").** One job that
   measures the site, fixes what is safe to fix, and leaves a before-and-after

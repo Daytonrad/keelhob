@@ -31,6 +31,7 @@ define('AUTH_SALT', 'kh-test-auth-salt-000000000000003');
 
 $GLOBALS['kh_test_options']  = [];
 $GLOBALS['kh_test_autoload']   = [];
+$GLOBALS['kh_test_users']      = [];
 $GLOBALS['kh_test_transients'] = [];
 
 function kh_test_reset_options(array $options = []): void
@@ -315,16 +316,42 @@ function is_wp_error($thing): bool
 
 class WP_Error
 {
+    private string $code;
     private string $message;
+    /** @var mixed */
+    private $data;
 
-    public function __construct(string $code = '', string $message = '')
+    /**
+     * Real WP_Error takes ($code, $message, $data) and exposes all three. This
+     * stub used to keep only the message, so a test asserting WHICH error came
+     * back fatalled on an undefined method — and a test that can only say "an
+     * error happened" cannot tell `invalid_redirect_uri` from
+     * `unsupported_response_type`, which on an auth endpoint is the difference
+     * that matters.
+     *
+     * @param mixed $data
+     */
+    public function __construct(string $code = '', string $message = '', $data = null)
     {
+        $this->code    = $code;
         $this->message = $message;
+        $this->data    = $data;
+    }
+
+    public function get_error_code(): string
+    {
+        return $this->code;
     }
 
     public function get_error_message(): string
     {
         return $this->message;
+    }
+
+    /** @return mixed */
+    public function get_error_data()
+    {
+        return $this->data;
     }
 }
 
@@ -666,7 +693,68 @@ function wp_trim_words($text, $num_words = 55, $more = null)
 
 function wp_set_current_user($id) { $GLOBALS['kh_test_current_user'] = (int) $id; return true; }
 function get_users($args = []) { return [1]; }
-function user_can($user, $cap) { return true; }
+/*
+ * Users, enough of them to test an authorization rule against.
+ *
+ * `user_can()` used to return true unconditionally, which is fine for the
+ * tests that only need SOME user to exist — and useless for a rule that says
+ * "this account must STILL be an administrator". Asserting rule 4 against a
+ * stub that cannot say no is asserting nothing.
+ *
+ * So: a registry a test can fill, consulted only for users it put there.
+ * Anything else keeps the old permissive behaviour, so no existing test
+ * changes meaning.
+ */
+class WP_User
+{
+    public int $ID = 0;
+    public string $user_login = '';
+    public string $display_name = '';
+    /** @var array<string, bool> */
+    public array $allcaps = [];
+
+    /** @param array<string, bool> $caps */
+    public function __construct(int $id = 0, array $caps = [], string $login = '')
+    {
+        $this->ID           = $id;
+        $this->allcaps      = $caps;
+        $this->user_login   = $login !== '' ? $login : ('user' . $id);
+        $this->display_name = $this->user_login;
+    }
+}
+
+/**
+ * Register test users. Pass [id => ['manage_options' => true], ...].
+ *
+ * @param array<int, array<string, bool>> $users
+ */
+function kh_test_set_users(array $users): void
+{
+    $GLOBALS['kh_test_users'] = [];
+    foreach ($users as $id => $caps) {
+        $GLOBALS['kh_test_users'][(int) $id] = new WP_User((int) $id, $caps);
+    }
+}
+
+function get_userdata($user_id)
+{
+    $id = (int) $user_id;
+    if ($id <= 0) {
+        return false;
+    }
+    // Only users a test registered exist. An unregistered id is a user that
+    // was deleted, which is a case rule 4 has to handle.
+    return $GLOBALS['kh_test_users'][$id] ?? false;
+}
+
+function user_can($user, $cap)
+{
+    if ($user instanceof WP_User && isset($GLOBALS['kh_test_users'][$user->ID])) {
+        return !empty($user->allcaps[$cap]);
+    }
+
+    return true;
+}
 function wp_authenticate_application_password($input, $username, $password) { return new WP_Error('bad', 'no'); }
 function is_ssl() { return false; }
 
@@ -862,6 +950,10 @@ require_once KEELHOB_DIR . 'includes/class-legacy-adopt.php';
 require_once KEELHOB_DIR . 'includes/class-keelhob.php';
 require_once KEELHOB_DIR . 'includes/class-auth.php';
 require_once KEELHOB_DIR . 'includes/class-connect.php';
+require_once KEELHOB_DIR . 'includes/class-oauth.php';
+require_once KEELHOB_DIR . 'includes/class-oauth-clients.php';
+require_once KEELHOB_DIR . 'includes/class-oauth-authorize.php';
+require_once KEELHOB_DIR . 'includes/class-oauth-token.php';
 require_once KEELHOB_DIR . 'includes/class-logger.php';
 require_once KEELHOB_DIR . 'includes/class-snippet-log.php';
 require_once KEELHOB_DIR . 'includes/class-feedback.php';

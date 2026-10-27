@@ -5,7 +5,7 @@ Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
 Donate link: https://ko-fi.com/keelhob
-Stable tag: 2.0.0
+Stable tag: 2.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -308,6 +308,28 @@ under Keelhob > Automation. Pick your provider there — the model guide next to
 the exact model IDs to type for each one.
 
 == Changelog ==
+
+= 2.1.0 =
+
+* **New: an app can connect by signing in.** Instead of generating a token and
+  pasting it into a file, you paste this site's address into your AI client,
+  press Sign in, and approve the app on a consent screen. WordPress's own login
+  does the checking, so no secret is ever copied by hand. Only administrators
+  can approve an app, and the approval stops working the moment that account
+  stops being an administrator.
+* **It is switched OFF until you switch it on.** Connect screen, under the
+  connection details. A site that leaves it alone behaves exactly as it did in
+  2.0.0 — nothing new is reachable and nothing new is advertised. The token you
+  already use keeps working either way.
+* **The consent screen tells you what you are agreeing to.** It names how many
+  areas are switched on, and if "Run code" is on it says plainly that the app
+  will be able to run any PHP or SQL and delete anything. It is worth reading.
+* **Removing an app cuts it off immediately.** The Connect screen lists every
+  app that has connected, with a Remove button. There is no waiting period.
+* **New skill: "Tune up this site".** One job that measures your site, fixes
+  what is safe to fix, and leaves you a private page with the before and after
+  numbers. It asks before it changes anything, asks separately before deleting
+  database junk, and never switches a plugin off on its own.
 
 = 2.0.0 =
 

@@ -513,6 +513,8 @@ final class Keelhob_Admin_Screens
                         </form>
 
                         <p class="kh-u-sub"><?php esc_html_e('Application Password instead of a token: send Authorization: Basic base64(username:app_password) to the same endpoint. Make one under Users → Profile.', 'keelhob'); ?></p>
+
+                        <?php self::oauth_block(); ?>
                     </div>
                 </div>
 
@@ -1461,6 +1463,91 @@ final class Keelhob_Admin_Screens
     }
 
     /** Plain English for the stored `source` of a logged call. */
+    /**
+     * Sign-in connecting: the switch, and the apps that have used it.
+     *
+     * Deliberately BELOW the bearer token and the Application Password note,
+     * not above them. Bearer is what works today on every install; this is the
+     * newer, more convenient and more dangerous path, and ordering a settings
+     * screen by convenience is how a reader ends up switching on an
+     * authorization server because it was the first thing they saw.
+     *
+     * The switch is a plain checkbox in its own form rather than a kh-u-switch
+     * inside the capability form. Two reasons: it is not a capability — it says
+     * how an agent may CONNECT, not what it may do — and a toggle that saves
+     * with twenty-four other toggles is a toggle somebody flips by accident
+     * while changing something else.
+     */
+    private static function oauth_block(): void
+    {
+        $on      = Keelhob_OAuth::enabled();
+        $clients = Keelhob_OAuth_Clients::all();
+        ?>
+        <hr class="kh-u-hr">
+
+        <h3><?php esc_html_e('Or let an app connect by signing in', 'keelhob'); ?></h3>
+
+        <p class="kh-u-sub">
+            <?php esc_html_e('With this on, an AI app can connect by sending you to your own WordPress login screen and asking you to approve it — no token to copy. Each app must prove it started the request, and you approve every one by hand.', 'keelhob'); ?>
+        </p>
+
+        <?php if ($on) : ?>
+            <div class="kh-u-note is-mid">
+                <?php esc_html_e('This site is running a sign-in server. Apps can register themselves, but none of them can do anything until you approve it on a consent screen. Switch this off and every app that connected this way stops working immediately.', 'keelhob'); ?>
+            </div>
+        <?php endif; ?>
+
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="kh-u-actions">
+            <?php wp_nonce_field('keelhob_save'); ?>
+            <input type="hidden" name="action" value="keelhob_save">
+            <input type="hidden" name="keelhob_action" value="oauth_toggle">
+            <input type="hidden" name="oauth_enabled" value="<?php echo $on ? '0' : '1'; ?>">
+            <button class="button<?php echo $on ? '' : ' button-primary'; ?>">
+                <?php echo $on
+                    ? esc_html__('Turn sign-in connecting off', 'keelhob')
+                    : esc_html__('Turn sign-in connecting on', 'keelhob'); ?>
+            </button>
+        </form>
+
+        <?php if ($clients === []) : ?>
+            <p class="kh-u-sub"><?php esc_html_e('No apps have connected this way yet.', 'keelhob'); ?></p>
+        <?php else : ?>
+            <h4><?php esc_html_e('Apps that have connected', 'keelhob'); ?></h4>
+            <p class="kh-u-sub">
+                <?php esc_html_e('Removing an app stops it working on its very next request. There is nothing to wait for and no token to expire.', 'keelhob'); ?>
+            </p>
+            <ul class="kh-u-apps">
+                <?php foreach ($clients as $client_id => $client) : ?>
+                    <li class="kh-u-app">
+                        <span>
+                            <strong><?php echo esc_html((string) ($client['client_name'] ?? '')); ?></strong>
+                            <span class="kh-u-sub">
+                                <?php
+                                $used = (int) ($client['last_used'] ?? 0);
+                                echo $used > 0
+                                    ? esc_html(sprintf(
+                                        /* translators: %s: human-readable time difference, e.g. "2 hours". */
+                                        __('last used %s ago', 'keelhob'),
+                                        human_time_diff($used, time())
+                                    ))
+                                    : esc_html__('registered, never used', 'keelhob');
+                                ?>
+                            </span>
+                        </span>
+                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                            <?php wp_nonce_field('keelhob_save'); ?>
+                            <input type="hidden" name="action" value="keelhob_save">
+                            <input type="hidden" name="keelhob_action" value="oauth_remove_client">
+                            <input type="hidden" name="client_id" value="<?php echo esc_attr((string) $client_id); ?>">
+                            <button class="button"><?php esc_html_e('Remove', 'keelhob'); ?></button>
+                        </form>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
+        <?php
+    }
+
     private static function source_label(string $source): string
     {
         switch ($source) {

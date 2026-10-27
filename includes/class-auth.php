@@ -49,6 +49,7 @@ final class Keelhob_Auth
 
         $header = self::auth_header();
         if ($header === '') {
+            self::challenge();
             return new WP_Error('keelhob_no_auth', 'Missing Authorization header.', ['status' => 401]);
         }
 
@@ -56,7 +57,27 @@ final class Keelhob_Auth
         if (stripos($header, 'Bearer ') === 0) {
             $presented = trim(substr($header, 7));
             if (!self::token_matches($presented, $settings)) {
+                /*
+                 * Not the Connect screen's token. It may still be an OAuth
+                 * access token, so that is tried BEFORE a failure is recorded —
+                 * otherwise every successful OAuth call would also log a failed
+                 * bearer attempt, and ten of them in fifteen minutes would lock
+                 * the site out of its own working connection.
+                 *
+                 * Tried second, not first, so that nothing about the existing
+                 * bearer path changes: a site with OAuth switched off reaches
+                 * exactly the same code it did before, in the same order.
+                 * user_for_access_token() returns 0 for anything without the
+                 * `kha_` prefix, so the cost here is one strpos().
+                 */
+                $oauth_user = Keelhob_OAuth_Token::user_for_access_token($presented);
+                if ($oauth_user > 0) {
+                    self::clear_failures();
+                    wp_set_current_user($oauth_user);
+                    return true;
+                }
                 self::record_failure();
+                self::challenge();
                 return new WP_Error('keelhob_bad_token', 'Invalid bearer token.', ['status' => 401]);
             }
             if (self::token_expired($settings)) {
@@ -104,6 +125,45 @@ final class Keelhob_Auth
         }
 
         return new WP_Error('keelhob_unsupported_auth', 'Unsupported Authorization scheme.', ['status' => 401]);
+    }
+
+    /**
+     * The 401 header that tells a client how to sign in.
+     *
+     * THIS IS THE LINE THAT MAKES "PASTE THE URL AND PRESS SIGN IN" WORK.
+     *
+     * An MCP client given nothing but a site URL has no idea this site has an
+     * authorization server. RFC 9728 says how it finds out: it makes an
+     * unauthenticated call, gets a 401, and reads `WWW-Authenticate` for a
+     * `resource_metadata` pointer. Without this header the client has no path
+     * from "a URL" to "a consent screen", and the whole feature is unreachable
+     * however correct the rest of it is.
+     *
+     * Only sent when OAuth is on. On a site with the switch off a 401 looks
+     * exactly as it did before, which is the same promise the discovery
+     * documents make.
+     *
+     * Written with header() rather than through the REST response because this
+     * runs in a permission callback, before a response object exists. Guarded
+     * on headers_sent() so it can never be the thing that breaks a response.
+     */
+    private static function challenge(): void
+    {
+        if (!Keelhob_OAuth::enabled() || headers_sent()) {
+            return;
+        }
+        header(sprintf(
+            'WWW-Authenticate: Bearer realm="%s", resource_metadata="%s"',
+            esc_attr(get_bloginfo('name')),
+            esc_url_raw(Keelhob_OAuth::issuer() . '/.well-known/oauth-protected-resource')
+        ));
+        /*
+         * No `false` third argument. `header($h, false)` APPENDS, and
+         * authenticate() runs more than once per request — a permission
+         * callback is consulted for each matching route — so appending sent
+         * the same challenge three times in one header. Harmless to a tolerant
+         * client and confusing to everything else. Replace, do not append.
+         */
     }
 
     private static function auth_header(): string
@@ -286,6 +346,25 @@ final class Keelhob_Auth
 
         delete_transient(self::fail_key_ip());      // the caller's own, in or out of the set
         delete_transient(self::fail_key_global());  // and the global lock with it
+    }
+
+    /**
+     * Rule 5: let the OAuth token endpoint feed the same lockout.
+     *
+     * A public wrapper rather than making record_failure() public, so the only
+     * thing another class can do is report a failure — it cannot read or reset
+     * the counters. Without this the token endpoint would be an unlimited
+     * guessing oracle for client secrets and authorization codes, sitting right
+     * next to an MCP route that is carefully rate-limited, which is the kind of
+     * asymmetry an attacker looks for first.
+     *
+     * Named for OAuth deliberately. A generic `note_failure()` would invite
+     * every future caller to share one counter without thinking about whether
+     * its failures are comparable to a bad bearer token's.
+     */
+    public static function note_oauth_failure(): void
+    {
+        self::record_failure();
     }
 
     private static function record_failure(): void

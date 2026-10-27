@@ -277,6 +277,20 @@ final class Keelhob
         // REST / MCP endpoint.
         (new Keelhob_Rest())->hooks();
 
+        // OAuth 2.1 discovery. Hooked unconditionally and gated INSIDE, on
+        // `init` priority 0, because /.well-known/ is not a WordPress route and
+        // by the time anything later runs the request is already a 404. The
+        // handler returns on one strpos() for every request that is not a
+        // discovery probe, and serves a 404 for every one that is while the
+        // feature is switched off. See Keelhob_OAuth::enabled().
+        Keelhob_OAuth::hooks();
+
+        // The authorize endpoint and consent screen. Registered unconditionally
+        // and gated inside each handler: admin-post.php actions must exist for
+        // admin-post.php to route them at all, and a missing action is a blank
+        // 400 with nothing on screen. See Keelhob_OAuth_Authorize.
+        Keelhob_OAuth_Authorize::hooks();
+
         // Crash-recovery sandbox loader (runs AI-written persistent PHP safely).
         Keelhob_Sandbox::init();
 
