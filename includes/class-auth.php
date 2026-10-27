@@ -156,7 +156,14 @@ final class Keelhob_Auth
             'WWW-Authenticate: Bearer realm="%s", resource_metadata="%s"',
             esc_attr(get_bloginfo('name')),
             esc_url_raw(Keelhob_OAuth::issuer() . '/.well-known/oauth-protected-resource')
-        ), false);
+        ));
+        /*
+         * No `false` third argument. `header($h, false)` APPENDS, and
+         * authenticate() runs more than once per request — a permission
+         * callback is consulted for each matching route — so appending sent
+         * the same challenge three times in one header. Harmless to a tolerant
+         * client and confusing to everything else. Replace, do not append.
+         */
     }
 
     private static function auth_header(): string

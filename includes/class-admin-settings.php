@@ -122,6 +122,33 @@ final class Keelhob_Admin_Settings
             // UUID, so it can ask.
             Keelhob_Feedback::forget_remote();
             Keelhob_Feedback::clear();
+        } elseif ($action === 'oauth_toggle') {
+            /*
+             * One switch, its own action, its own form.
+             *
+             * The posted value is the value to STORE, not a checkbox state, so
+             * there is no "unchecked sends nothing" trap here — the button says
+             * what it will do and the hidden field carries exactly that. A
+             * checkbox would have needed the same disabled-field reasoning as
+             * channels_from_post(), for a control that has two states and one
+             * button.
+             */
+            $on = isset($_POST['oauth_enabled']) && $_POST['oauth_enabled'] === '1';
+            Keelhob::instance()->update([Keelhob_OAuth::SETTING => $on]);
+            /*
+             * Switching it OFF does not delete the registered clients, and that
+             * is on purpose. Every token they hold stops working immediately
+             * anyway — user_for_access_token() refuses everything while the
+             * feature is off — so deleting the list would buy nothing and would
+             * mean an owner who switched it off to think about it had to
+             * re-approve every app afterwards. The Remove button is how a
+             * client is actually revoked.
+             */
+        } elseif ($action === 'oauth_remove_client') {
+            $client_id = isset($_POST['client_id']) ? sanitize_text_field(wp_unslash($_POST['client_id'])) : '';
+            if ($client_id !== '') {
+                Keelhob_OAuth_Clients::remove($client_id);
+            }
         } elseif ($action === 'capabilities') {
             /*
              * EVERY group gets an explicit value here, including the ones that

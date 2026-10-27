@@ -28,18 +28,21 @@ node tests/rig/ui/check-snippets.mjs --wp http://localhost:8899 --rig /c/wp-rig/
 node tests/rig/ui/check-compose.mjs  --wp http://localhost:8899 --rig /c/wp-rig/wordpress
 node tests/rig/ui/check-thumbs.mjs   # needs one row in the tool log first
 node tests/rig/check-abilities.mjs   --wp http://localhost:8899 --rig /c/wp-rig/wordpress --user admin --pass rigpass
+node tests/rig/check-oauth.mjs       --wp http://localhost:8899 --rig /c/wp-rig/wordpress --cli "php C:/wp-cli/wp-cli.phar"
 ```
 
 `check-thumbs.mjs` measures a real thumbs form, and the form only exists if the
 run log has a row in it, so drive one tool call through the MCP endpoint first —
-or run `check-abilities.mjs`, which leaves log rows behind. Those rows are
-residue, not fixtures: clear them when you are done.
+or run `check-abilities.mjs`. It cleans up after itself now — it records the
+highest id in the log, stats, lessons and feedback tables before it seeds and
+deletes only what came after — so if you want a row for `check-thumbs.mjs` to
+measure, drive one tool call through the MCP endpoint yourself.
 
-Five files, because they cover different screens and different claims. The
+Six files, because they cover different screens and different claims. The
 table at the bottom is the record; the notes below it say what each one is for.
 
-Every file in the table was last run green on **2026-10-25**, against a rig on
-Keelhob 2.0.0 — 162 + 54 + 26 + 11 + 79 = **332**.
+Every file in the table was last run green on **2026-10-27**, against a rig on
+Keelhob 2.1.0 — 162 + 54 + 26 + 11 + 84 + 42 = **379**.
 `tests/unit/test-doc-counts.php` reads the per-file numbers in this table and
 fails if ROADMAP.md stops agreeing with them, so **update this table in the same
 commit that adds or removes a check.**
@@ -53,7 +56,8 @@ every check here times out at login — see "Serving it" in `tests/rig/README.md
 | `check-snippets.mjs` | the snippet list and the editor | 54 |
 | `check-compose.mjs`  | AI Compose, which is a chat | 26 |
 | `check-thumbs.mjs`   | the thumbs control, and that it reverts rather than lying | 11 |
-| `check-abilities.mjs` | agent-written abilities, end to end | 79 |
+| `check-abilities.mjs` | agent-written abilities, end to end | 84 |
+| `check-oauth.mjs` | the OAuth flow, end to end | 42 |
 
 Two notes on that table, because two of its rows are not quite like the others.
 
@@ -63,7 +67,14 @@ here. Its flags add assertions rather than replacing them: `--dark` adds 6 and
 170, 176, 170 and 176 — **1,352 assertions in all**. Counting the default run is
 the convention that keeps one file to one number.
 
-`check-abilities.mjs` lives in **`tests/rig/`, not in this directory**, because
+`check-oauth.mjs` is the newest row and the one that nearly shipped as a lie:
+it reported "All 14 browser checks passed" on a run whose consent screen never
+rendered, because every assertion in it had been written as
+`report.ok(condition, label)` and **`Report.ok()` records an unconditional
+pass** — its first argument is a baseline tag, not a condition. `Report.check()`
+is the asserting one. If you add a file here, wrap it the way that one does.
+
+`check-abilities.mjs` and `check-oauth.mjs` live in **`tests/rig/`, not in this directory**, because
 it is not a screen check: it drives the real MCP endpoint, asserts against the
 database and the filesystem, and only then opens a browser to approve what it
 created. It is counted here anyway, because it opens a browser and because a

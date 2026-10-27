@@ -887,6 +887,60 @@ body.rtl .kh-ui {
  * shortened. They are restyled, never trimmed. Same construction as the flags:
  * tint, coloured border, ink words.
  */
+/* -------------------------------------------------------------------------- */
+/* Sign-in connecting: the rule, and the list of apps that have used it        */
+/*                                                                            */
+/* DELIBERATELY NOT `.kh-u-clients`. That name is already taken by the Connect
+   screen's app picker — the Claude Code / Claude Desktop / Cursor / VS Code
+   pill row — and it means something else entirely. Reusing it would be the
+   same collision the brief called out for `.kh-tabs`: two features sharing one
+   class name, each looking correct in its own file.                          */
+/* -------------------------------------------------------------------------- */
+
+.kh-u-hr {
+	margin: 20px 0;
+	border: 0;
+	border-top: 1px solid var(--kh-line);
+}
+
+.kh-u-apps {
+	margin: 0 0 14px;
+	padding: 0;
+	list-style: none;
+	border: 1px solid var(--kh-line);
+	border-radius: var(--kh-radius);
+	overflow: hidden;
+}
+
+.kh-u-app {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 0;
+	padding: 10px 14px;
+	background: var(--kh-card);
+}
+
+/* A hairline between rows and none under the last, rather than a border on
+   every row plus a negative margin to hide one. */
+.kh-u-app + .kh-u-app {
+	border-top: 1px solid var(--kh-line);
+}
+
+/* The name and its "last used" line stack on a phone; the button stays put. */
+.kh-u-app > span:first-child {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.kh-u-app form {
+	margin: 0;
+	flex: none;
+}
+
 .kh-u-note {
 	border: 1px solid var(--kh-line);
 	border-left: 4px solid var(--kh-muted);
