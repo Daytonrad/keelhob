@@ -6,6 +6,7 @@ enable_agentic: true
 enable_prompt: true
 role: procedure
 surface: any
+requires: confirm-before-building
 next_skills: launch-readiness-and-compliance, woocommerce-store-operations
 verified_by: pre-launch-audit, security-standard
 ---
@@ -31,6 +32,8 @@ Getting a WooCommerce store from empty to able to take a real order — payments
 ## When NOT to use
 
 Not the day-to-day running of a shop that already works. Products, stock, orders and coupons are `woocommerce-store-operations`.
+
+**Before the first write.** `confirm-before-building` is required above, and this is the skill where a wrong reading costs the most: payments, shipping and tax decide what a real customer is charged, and going live is hard to take back. Say back what you are about to switch on and what it will charge, and get a yes, before the store can take an order.
 
 ## Launch gates — not done until these pass
 

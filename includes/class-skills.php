@@ -276,6 +276,13 @@ final class Keelhob_Skills
                     'name'        => $s['name'],
                     'description' => $s['description'],
                     'role'        => Keelhob_Skill_Standard::role($s),
+                    // `requires` is the one rule 13 calls binding, so it has to
+                    // survive this whitelist. It did not, and the formatter printed
+                    // nothing for a field it was handed correctly - a bug no unit
+                    // test could see, because the fixture builds the array by hand
+                    // and so always has the key. Caught by reading what the rig
+                    // actually serves.
+                    'requires'    => Keelhob_Skill_Standard::slugs((string) ($s['requires'] ?? '')),
                     'surface'     => Keelhob_Skill_Standard::surface($s),
                     'next_skills' => Keelhob_Skill_Standard::slugs((string) ($s['next_skills'] ?? '')),
                     'verified_by' => Keelhob_Skill_Standard::slugs((string) ($s['verified_by'] ?? '')),

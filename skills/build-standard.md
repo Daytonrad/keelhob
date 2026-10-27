@@ -207,10 +207,10 @@ Do not edit the table by hand — change the skill file and regenerate.
 | `site-safety` | gate | any | — | `security-standard`, `code-snippets` | `pre-launch-audit` |
 | `skill-creator` | procedure | any | — | `build-standard` | — |
 | `solace-header-footer` | procedure | any | `confirm-before-building`, `web-design-master` | `website-building`, `motion-and-interaction` | `pre-launch-audit` |
-| `store-launch-and-deploy` | procedure | any | — | `launch-readiness-and-compliance`, `woocommerce-store-operations` | `pre-launch-audit`, `security-standard` |
+| `store-launch-and-deploy` | procedure | any | `confirm-before-building` | `launch-readiness-and-compliance`, `woocommerce-store-operations` | `pre-launch-audit`, `security-standard` |
 | `web-design-master` | reference | any | — | `motion-and-interaction`, `website-building`, `scroll-craft` | `pre-launch-audit` |
 | `website-building` | procedure | any | `confirm-before-building`, `web-design-master` | `motion-and-interaction`, `seo-optimization`, `elementor-page-building`, `solace-header-footer`, `code-snippets` | `pre-launch-audit`, `security-standard` |
-| `woocommerce-store-operations` | procedure | any | — | `store-launch-and-deploy`, `seo-optimization` | `site-safety` |
+| `woocommerce-store-operations` | procedure | any | `confirm-before-building` | `store-launch-and-deploy`, `seo-optimization` | `site-safety` |
 <!-- ROUTER:END -->
 
 ## Page-level vs site-level gates

@@ -150,7 +150,7 @@ KH_Test::contains(
     'and it is the build-confirmation gate, not something else numbered 7a'
 );
 KH_Test::contains(
-    'is NOT the same as understanding it',
+    'is not agreement',
     $protocol,
     'it names the actual failure: a detailed prompt mistaken for agreement'
 );
@@ -168,14 +168,14 @@ KH_Test::contains(
 /* Scoped to creating, deliberately. A gate on every edit would turn a one-line
    fix into an interview, which is its own failure mode. */
 KH_Test::contains(
-    'rather than an edit to something that already exists',
+    'not an edit to what exists',
     $protocol,
     'the gate is bounded to new work, so ordinary edits stay fast'
 );
 
 KH_Test::contains('7b.', $protocol, 'the protocol carries rule 7b');
 KH_Test::contains(
-    'wrong for their BUSINESS rather than wrong technically',
+    'wrong for their BUSINESS',
     $protocol,
     'and it asks for product risk, which is the half a technical review never covers'
 );
@@ -195,7 +195,7 @@ KH_Test::contains(
     'and unattended means stop'
 );
 KH_Test::contains(
-    'do NOT build the smallest safe version and do not guess',
+    'Do NOT build the smallest safe version',
     $protocol,
     'it rules out the tempting middle path explicitly, because that is what an agent would choose'
 );
@@ -220,11 +220,218 @@ foreach ([
     'blog-publishing',
     'scroll-craft',
     'site-clone',
+    // Added in wave 2. These two had no `requires:` line at all, and they
+    // create products, set prices and configure payments - the one area
+    // where a wrong reading of the request costs real money.
+    'woocommerce-store-operations',
+    'store-launch-and-deploy',
 ] as $kh_builder) {
     $kh_src = (string) file_get_contents(KEELHOB_DIR . 'skills/' . $kh_builder . '.md');
     KH_Test::ok(
         (bool) preg_match('/^requires:.*confirm-before-building/m', $kh_src),
         $kh_builder . ' requires the build-confirmation gate'
+    );
+}
+
+// --- rule 13's FIRST half: a requirement is binding, not advisory ------------
+//
+// Rule 13 used to cover only `verified_by`, which is the end of a job. Every
+// gate in the bundle is reached through `requires` - site-safety, and now
+// confirm-before-building - so a skill could declare that it must not be
+// started without its gate, and the agent decided whether to read it. That is
+// the bug 7a exists for, one level up.
+//
+// Two halves, and both are needed. The rule has to SAY requirements bind, and
+// the catalog has to PRINT them, or the rule points at a field the agent is
+// never shown.
+
+$protocol = Keelhob_MCP_Server::operating_protocol();
+
+KH_Test::contains(
+    'Load what a skill requires',
+    $protocol,
+    'rule 13 covers the start of a job, not only the end'
+);
+KH_Test::contains(
+    'Both bind',
+    $protocol,
+    'and says a requirement is as binding as a verifier'
+);
+KH_Test::contains(
+    'all the way down',
+    $protocol,
+    'and that the chain is followed, not just the first link'
+);
+KH_Test::contains(
+    'requirements included',
+    $protocol,
+    'and that skills loaded BECAUSE they were required still get named'
+);
+
+/* The catalog half. Asserted through the pure formatter rather than
+   skill_catalog_block(), which reads the live skills service - empty in this
+   fixture, so those assertions would have passed against an empty string
+   whatever the code did. One skill in, one line out. */
+$kh_cat = Keelhob_MCP_Server::format_skill_catalog([
+    [
+        'name'        => 'website-building',
+        'role'        => 'procedure',
+        'description' => 'Build a page.',
+        'requires'    => ['confirm-before-building', 'web-design-master'],
+        'next_skills' => ['seo-optimization'],
+        'verified_by' => ['pre-launch-audit'],
+    ],
+]);
+
+KH_Test::contains(
+    'first: ',
+    $kh_cat,
+    'the catalog prints what a skill requires, so rule 13 points at something readable'
+);
+KH_Test::contains(
+    'first: confirm-before-building, web-design-master',
+    $kh_cat,
+    'and prints every requirement, in order, not just the first'
+);
+KH_Test::contains(
+    'load x and do what it asks BEFORE starting',
+    $kh_cat,
+    'and the legend explains what "first" means, because the word alone does not'
+);
+
+/* Order matters in that line: what to load BEFORE, then what comes after. A
+   catalog printing them the other way round would read as a sequence that runs
+   backwards. */
+$kh_line = '';
+foreach (explode("\n", $kh_cat) as $kh_l) {
+    if (strpos($kh_l, '- website-building ') === 0) {
+        $kh_line = $kh_l;
+        break;
+    }
+}
+KH_Test::ok($kh_line !== '', 'the fixture produced a skill line (the premise of the next assertion)');
+KH_Test::ok(
+    strpos($kh_line, 'first:') !== false
+        && strpos($kh_line, 'then:') !== false
+        && strpos($kh_line, 'first:') < strpos($kh_line, 'then:'),
+    'and it lists "first" before "then", so the line reads in the order the work happens'
+);
+
+/* A skill with no requirements must not gain an empty "first:" - the same rule
+   the surface field follows, and for the same reason: a field printed on every
+   line to say nothing trains the reader to skip it on the lines that matter. */
+$kh_bare = '';
+foreach (explode("\n", Keelhob_MCP_Server::format_skill_catalog([
+    ['name' => 'web-design-master', 'role' => 'reference', 'description' => 'Taste.'],
+])) as $kh_l) {
+    if (strpos($kh_l, '- web-design-master ') === 0) {
+        $kh_bare = $kh_l;
+        break;
+    }
+}
+KH_Test::ok($kh_bare !== '', 'a skill with no edges still gets a catalog line');
+
+/* Checked on the LINE, not on the whole block. The legend explains what
+   "first" means, so the block always contains the word — searching the
+   block would have passed for a reason that had nothing to do with the
+   skill. */
+KH_Test::ok(
+    strpos($kh_bare, 'first:') === false,
+    'and a skill that requires nothing gets no empty "first:" on its line'
+);
+
+// --- the whitelist in the middle, which is where this wave actually broke ----
+//
+// agentic_catalog() does not pass a row through; it rebuilds each one as a
+// whitelist of named fields. It did not copy `requires`, so the rig served
+// sixteen skills with no "first:" on any line while the database held the
+// value and the formatter handled it correctly. Nothing was wrong at either
+// end. The field simply never crossed the middle.
+//
+// A fixture cannot catch that, because a fixture built by hand always has the
+// key. What CAN be checked without a database is that every field the
+// formatter reads is a field the whitelist copies — asserted against the
+// source of both, since there is no other honest way to compare the two.
+
+$kh_skills_src = (string) file_get_contents(KEELHOB_DIR . 'includes/class-skills.php');
+$kh_server_src = (string) file_get_contents(KEELHOB_DIR . 'includes/class-mcp-server.php');
+
+$kh_catalog_fn = '';
+if (preg_match('/function agentic_catalog\(\).*?\n    \}/s', $kh_skills_src, $m)) {
+    $kh_catalog_fn = $m[0];
+}
+KH_Test::ok($kh_catalog_fn !== '', 'agentic_catalog() was located (the premise of the next assertions)');
+
+$kh_format_fn = '';
+if (preg_match('/function format_skill_catalog\(.*?\n    \}/s', $kh_server_src, $m)) {
+    $kh_format_fn = $m[0];
+}
+KH_Test::ok($kh_format_fn !== '', 'format_skill_catalog() was located');
+
+/* Every field the formatter reads off a row has to be one the whitelist puts
+   there. `role` and `surface` get defaults in the formatter, so they are safe
+   either way; the edge fields are the ones that go quietly missing. */
+foreach (['name', 'description', 'role', 'surface', 'requires', 'next_skills', 'verified_by'] as $kh_field) {
+    KH_Test::ok(
+        strpos($kh_catalog_fn, "'" . $kh_field . "'") !== false,
+        'agentic_catalog() copies ' . $kh_field . ', so the formatter is given something to print'
+    );
+}
+
+/* And the reverse direction, for the field this wave added: the formatter must
+   actually read it. A whitelist that carries a value nothing prints is the
+   same bug facing the other way. */
+KH_Test::contains(
+    "\$s['requires']",
+    $kh_format_fn,
+    'and the formatter reads requires, so carrying it is not pointless'
+);
+
+// --- the chain, which is the whole point of "all the way down" ---------------
+//
+// site-clone-rebuild reaches the build gate through TWO intermediate skills:
+// rebuild -> capture -> site-clone -> confirm-before-building. I claimed those
+// sub-skills bypassed the gate and was wrong; they do not. What was true is
+// that nothing walked the chain. This asserts the chain exists, so the claim
+// can be checked instead of argued about.
+
+$kh_requires = static function (string $slug): array {
+    $src = (string) file_get_contents(KEELHOB_DIR . 'skills/' . $slug . '.md');
+    if (!preg_match('/^requires:(.*)$/m', $src, $m)) {
+        return [];
+    }
+    return array_values(array_filter(array_map('trim', explode(',', $m[1]))));
+};
+
+/** Follow `requires` transitively and report whether the gate is reachable. */
+$kh_reaches = static function (string $from) use ($kh_requires, &$kh_reaches): bool {
+    foreach ($kh_requires($from) as $req) {
+        if ($req === 'confirm-before-building' || $kh_reaches($req)) {
+            return true;
+        }
+    }
+    return false;
+};
+
+foreach ([
+    'site-clone-capture'       => 'one link away (site-clone)',
+    'site-clone-rebuild'       => 'two links away (capture, site-clone)',
+    'site-clone-design-system' => 'two links away (capture, site-clone)',
+] as $kh_sub => $kh_why) {
+    KH_Test::ok(
+        $kh_reaches($kh_sub),
+        $kh_sub . ' reaches the build gate through its requires chain — ' . $kh_why
+    );
+}
+
+/* And the gate is NOT reachable from a skill that only reads, or the gate has
+   spread into work it was deliberately kept out of. seo-optimization runs on
+   every page of every build; gating it would be the interrogation this whole
+   design avoids. */
+foreach (['seo-optimization', 'pre-launch-audit', 'auto-optimize'] as $kh_free) {
+    KH_Test::ok(
+        !$kh_reaches($kh_free),
+        $kh_free . ' is NOT gated — it reports or repeats, and gating it would make small work tiring'
     );
 }
 

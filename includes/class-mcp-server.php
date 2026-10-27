@@ -159,11 +159,11 @@ final class Keelhob_MCP_Server
             // Scoped to CREATING something new on purpose. Gating every edit would
             // turn a one-line fix into an interview, which is its own failure -
             // site-build-kickoff already warns against interrogating the owner.
-            '7a. Before you CREATE something new, agree what it is first. This covers a site, a page, a header or footer, a blog post, a cloned design, a design system - anything built from scratch rather than an edit to something that already exists. A long and detailed prompt is NOT the same as understanding it: a brief you were handed is still your reading of it until the owner agrees with the reading. So before the first write: say back, in a few lines, what you believe they want and what you are about to build; then ask - in ONE short batch, not one question at a time - only the questions whose answers would change what you build. Do not start until they answer, or until you would stake the whole job on your reading being right. If a skill for this work exists (site-build-kickoff for a new site), run its intake instead of inventing your own, and run it even when you think you already have a brief.',
+            '7a. Before you CREATE something new, agree what it is first. A site, a page, a header or footer, a blog post, a cloned design - anything built from scratch, not an edit to what exists. A long, detailed prompt is not agreement: it is your reading of what they want. So before the first write, say back in a few lines what you believe they want and what you will build, then ask - in ONE short batch - only the questions whose answers would change it. Do not start until they answer. If a skill owns this intake (site-build-kickoff for a new site), run it even when you think you already have a brief; that belief is the mistake this rule exists for. See confirm-before-building.',
 
-            '7b. Then check your own plan before you build it. Once the owner has agreed what to build, read your plan back against what they actually asked for and name anything that could be wrong for their BUSINESS rather than wrong technically - a page that sells the wrong thing, a tone that suits the wrong customer, a missing way to get in touch, a claim they cannot stand behind, a decision that is expensive to undo later. List those risks before the first write, not in the summary afterwards. A plan that is technically perfect and aimed at the wrong audience is still a wasted build.',
+            '7b. Then check your plan before you build it. Read it back against what they asked for and name what is wrong for their BUSINESS, not just technically: a page that sells the wrong thing, a tone aimed at the wrong customer, no way to get in touch, a claim they cannot stand behind, a choice that is expensive to undo. List those before the first write, not in the summary afterwards.',
 
-            '7c. If nobody is answering, stop. On Telegram or Slack, in a scheduled task, or running unattended, you cannot agree anything with anybody. If 7a applies and you are not confident, do NOT build the smallest safe version and do not guess: say which parts you do not know, say plainly that this connection cannot settle them, and leave the work undone. An unapproved site built while the owner was asleep is worse than no site, because they now have to read it before they can trust any of it.',
+            '7c. If nobody is answering, stop. On Telegram or Slack, in a scheduled task, or unattended, you cannot agree anything with anyone. Do NOT build the smallest safe version and do not guess: say what you do not know, say this connection cannot settle it, and leave the work undone.',
             '',
             '8. Report honestly. Say what you actually changed, what you skipped, and what failed — including partial failures. Never describe work you did not verify as done. If you could not finish, say so plainly and say why.',
             '',
@@ -189,7 +189,17 @@ final class Keelhob_MCP_Server
             // the file and is a no-op in practice. Naming the skills used also
             // makes a bad result diagnosable: the run record shows what was
             // loaded, so "why did this page ship with no meta" has an answer.
-            '13. Name the skills you used, and honour their verifiers. Before reporting any work as done, say which skills you loaded. If a skill you loaded declares a verifier ("not done until X" in the catalog), run X and report what it said. If you did not run it, say so plainly and say why - do not report the work as done and leave the verifier unmentioned.',
+            // The "first" half was added after the owner hit the gap it left.
+            // Rule 13 used to cover only `verified_by` - the end of a job -
+            // while every gate in the bundle is reached through `requires`:
+            // site-safety, and now confirm-before-building. So a skill could
+            // declare that it must not be started without its gate, and the
+            // agent decided whether to read it. That is the bug 7a exists for,
+            // moved one level up, and it is why the catalog now prints
+            // "first:" at all - a rule pointing at a field nobody is shown is
+            // a no-op. The chain matters too: site-clone-rebuild reaches
+            // confirm-before-building only through two intermediate skills.
+            '13. Load what a skill requires, and honour their verifiers. The catalog marks both: "first: x" is what to load and act on BEFORE starting, "not done until: y" is what must run before you report. Both bind. Follow "first" all the way down - what it names may have its own, and that chain is where the gates live. Before reporting work as done, say which skills you loaded, requirements included, and run any verifier and report what it said. If you skipped either, say so plainly and say why.',
             '',
             // A skill body reads identically whichever pipe the agent is on, so
             // without this an agent in a chat window starts a browser-driven
@@ -364,6 +374,14 @@ final class Keelhob_MCP_Server
             if ($surface !== Keelhob_Skill_Standard::SURFACE_DEFAULT) {
                 $tail[] = 'needs: ' . $surface;
             }
+            // Printed BEFORE "then", so the line reads in time order: what to
+            // load first, what follows after. Uncapped on purpose — the longest
+            // requires list in the bundle is three, and truncating the one
+            // field rule 13 calls binding would be the worst possible place to
+            // save bytes.
+            if (!empty($s['requires'])) {
+                $tail[] = 'first: ' . implode(', ', (array) $s['requires']);
+            }
             if (!empty($s['next_skills'])) {
                 // Capped, because build-standard names every other skill and
                 // that one line cost about 400 bytes of every session. The rest
@@ -390,6 +408,7 @@ final class Keelhob_MCP_Server
         // one names.
         $lines[] = 'Roles: gate = work is not finished until it passes; procedure = steps to follow; reference = knowledge to read for judgement.';
         $lines[] = '"needs: interactive" = a person must be answering while it runs, so not a scheduled task. "needs: workstation" = it uses tools on the caller\'s own machine (a browser, another MCP server), so Claude Code or an IDE only — over Telegram or Slack, say so and stop rather than starting it.';
+        $lines[] = '"first: x" = load x and do what it asks BEFORE starting this skill, and follow x\'s own "first" too. That chain is where the gates live, so a skill started without it is a skill started without its guard.';
         $lines[] = 'Skills reference each other. Follow "then" when a skill is done, and treat "not done until" as binding — build-standard carries the router table for every kind of build.';
 
         return implode("\n", $lines);

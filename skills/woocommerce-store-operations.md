@@ -6,6 +6,7 @@ enable_agentic: true
 enable_prompt: true
 role: procedure
 surface: any
+requires: confirm-before-building
 next_skills: store-launch-and-deploy, seo-optimization
 verified_by: site-safety
 ---
@@ -21,6 +22,8 @@ Running a shop that already works: adding or editing products, stock and pricing
 ## When NOT to use
 
 Not for first-time setup of payments, shipping or tax, and not for deploying to production — both are `store-launch-and-deploy`.
+
+**Before the first write.** `confirm-before-building` is required above. Adding products is creating something new, and a catalogue built against the wrong reading of the business is one the owner has to check product by product before trusting any of it. Prices and stock are worse: wrong there is money. Say back what you think they sell and to whom, and ask anything that would change the catalogue, before the first product.
 
 ## Orientation first
 Before acting, call `get_site_info` (confirms WooCommerce + currency) and, for anything financial, `wc_settings action=get`. Never assume currency, tax mode, or country.
