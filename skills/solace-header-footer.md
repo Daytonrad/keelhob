@@ -6,7 +6,7 @@ enable_agentic: true
 enable_prompt: true
 role: procedure
 surface: any
-requires: web-design-master
+requires: confirm-before-building, web-design-master
 next_skills: website-building, motion-and-interaction
 verified_by: pre-launch-audit
 ---
@@ -25,6 +25,8 @@ The active theme is Solace or Solace Extra and the task touches the header, foot
 ## When NOT to use
 
 Not on any other theme. On Elementor the same job is `elementor-page-building`; elsewhere it is `website-building`.
+
+**Before the first write.** `confirm-before-building` is required above. A header and footer are on every page, so a wrong reading here is wrong site-wide. Say your reading back and ask what would change it before you touch either.
 
 ## Step 0 — detect which one is live (every time, before touching anything)
 1. Query `solace-sitebuilder` posts (`list_posts post_type=solace-sitebuilder`) and check each one's `_solace_template` (header/footer), `_solace_{header|footer}_status` (enabled?), and `_solace_{header|footer}_conditions` (which pages it targets).

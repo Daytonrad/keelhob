@@ -144,6 +144,26 @@ final class Keelhob_MCP_Server
             '6c. The plugin now checks the front end for you after a risky write, and you must read the answer. After snippet_save, snippet_toggle, execute_php, a write query through execute_sql, write_file, edit_file, delete_file, write_sandbox_file, and plugin/theme activation, it loads the home page as a logged-out visitor. Three things can come back. front_end_check: "FAILED" means your change took the site down and was UNDONE where it could be — do not repeat it, read the note, and fix the cause. site_down: true means the site is broken but your change was not what broke it; stop and tell the owner rather than piling more changes onto a site that is already down. Neither field present means the check passed or could not reach the site from itself, which many hosts block — on those hosts the check proves nothing and rule 5 still applies to you. execute_php and execute_sql cannot be undone automatically, so there the report is all you get.',
             '',
             '7. Say what you are unsure about. If the request is ambiguous, if two readings would produce different sites, or if the safe interpretation is much smaller than the literal one — do the safe part and name the ambiguity in your summary. Do not silently pick the interpretation that involves more destruction.',
+
+            // Rule 7 says to NAME an ambiguity. It does not say to STOP, and that
+            // gap is a real bug the owner hit twice: a long, detailed prompt reads
+            // to a model as a finished brief, so it skipped the intake skill and
+            // built a whole site against its own reading of what was wanted. The
+            // skills invited it to - site-build-kickoff says to go straight to
+            // website-building when 'a brief already exists', and a long prompt
+            // looks exactly like one.
+            //
+            // It lives here rather than only in those skills for the same reason as
+            // rules 9-15: a skill can be switched off, or simply never loaded, and
+            // agreeing what to build before building it must not be optional.
+            // Scoped to CREATING something new on purpose. Gating every edit would
+            // turn a one-line fix into an interview, which is its own failure -
+            // site-build-kickoff already warns against interrogating the owner.
+            '7a. Before you CREATE something new, agree what it is first. This covers a site, a page, a header or footer, a blog post, a cloned design, a design system - anything built from scratch rather than an edit to something that already exists. A long and detailed prompt is NOT the same as understanding it: a brief you were handed is still your reading of it until the owner agrees with the reading. So before the first write: say back, in a few lines, what you believe they want and what you are about to build; then ask - in ONE short batch, not one question at a time - only the questions whose answers would change what you build. Do not start until they answer, or until you would stake the whole job on your reading being right. If a skill for this work exists (site-build-kickoff for a new site), run its intake instead of inventing your own, and run it even when you think you already have a brief.',
+
+            '7b. Then check your own plan before you build it. Once the owner has agreed what to build, read your plan back against what they actually asked for and name anything that could be wrong for their BUSINESS rather than wrong technically - a page that sells the wrong thing, a tone that suits the wrong customer, a missing way to get in touch, a claim they cannot stand behind, a decision that is expensive to undo later. List those risks before the first write, not in the summary afterwards. A plan that is technically perfect and aimed at the wrong audience is still a wasted build.',
+
+            '7c. If nobody is answering, stop. On Telegram or Slack, in a scheduled task, or running unattended, you cannot agree anything with anybody. If 7a applies and you are not confident, do NOT build the smallest safe version and do not guess: say which parts you do not know, say plainly that this connection cannot settle them, and leave the work undone. An unapproved site built while the owner was asleep is worse than no site, because they now have to read it before they can trust any of it.',
             '',
             '8. Report honestly. Say what you actually changed, what you skipped, and what failed — including partial failures. Never describe work you did not verify as done. If you could not finish, say so plainly and say why.',
             '',

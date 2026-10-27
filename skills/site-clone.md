@@ -6,6 +6,7 @@ enable_agentic: true
 enable_prompt: true
 role: gate
 surface: workstation
+requires: confirm-before-building
 next_skills: site-clone-capture, site-clone-design-system, site-clone-rebuild, site-clone-verify
 verified_by: site-clone-verify
 ---
@@ -51,6 +52,8 @@ You do no copying here. You ask, you check the tools exist, you route.
   the source content, not a clone pipeline).
 - Only one specific component is wanted — a header, a pricing table — and the
   owner can describe it. Describing it is cheaper than measuring it.
+
+**Before the first write.** `confirm-before-building` is required above. Copying a site commits the owner to somebody else's structure and tone, which is a decision about their business and not only about layout. Confirm they want this site copied, and what they want left behind, before anything is captured or rebuilt.
 
 ## Step 1 — Permission. Ask, and stop if the answer is no.
 

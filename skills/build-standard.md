@@ -6,7 +6,7 @@ enable_agentic: true
 enable_prompt: true
 role: gate
 surface: any
-next_skills: site-build-kickoff, site-clone, contribute-feedback, website-building, blog-publishing, seo-optimization, code-snippets, woocommerce-store-operations, launch-readiness-and-compliance, skill-creator, site-safety, security-standard, web-design-master, motion-and-interaction, seo-audit-and-fix, elementor-page-building, solace-header-footer, store-launch-and-deploy
+next_skills: confirm-before-building, site-build-kickoff, site-clone, contribute-feedback, website-building, blog-publishing, seo-optimization, code-snippets, woocommerce-store-operations, launch-readiness-and-compliance, skill-creator, site-safety, security-standard, web-design-master, motion-and-interaction, seo-audit-and-fix, elementor-page-building, solace-header-footer, store-launch-and-deploy
 verified_by: pre-launch-audit
 ---
 
@@ -185,30 +185,31 @@ Do not edit the table by hand — change the skill file and regenerate.
 | Skill | Role | Runs on | Requires first | Then consider | Not done until |
 |---|---|---|---|---|---|
 | `auto-optimize` | procedure | any | `site-safety` | `seo-audit-and-fix`, `security-standard` | `build-standard` |
-| `blog-publishing` | procedure | any | — | `seo-optimization`, `web-design-master` | `seo-optimization` |
-| `build-standard` | gate | any | — | `site-build-kickoff`, `site-clone`, `contribute-feedback`, `website-building`, `blog-publishing`, `seo-optimization`, `code-snippets`, `woocommerce-store-operations`, `launch-readiness-and-compliance`, `skill-creator`, `site-safety`, `security-standard`, `web-design-master`, `motion-and-interaction`, `seo-audit-and-fix`, `elementor-page-building`, `solace-header-footer`, `store-launch-and-deploy` | `pre-launch-audit` |
+| `blog-publishing` | procedure | any | `confirm-before-building` | `seo-optimization`, `web-design-master` | `seo-optimization` |
+| `build-standard` | gate | any | — | `confirm-before-building`, `site-build-kickoff`, `site-clone`, `contribute-feedback`, `website-building`, `blog-publishing`, `seo-optimization`, `code-snippets`, `woocommerce-store-operations`, `launch-readiness-and-compliance`, `skill-creator`, `site-safety`, `security-standard`, `web-design-master`, `motion-and-interaction`, `seo-audit-and-fix`, `elementor-page-building`, `solace-header-footer`, `store-launch-and-deploy` | `pre-launch-audit` |
 | `code-snippets` | procedure | any | `site-safety` | `motion-and-interaction` | `security-standard` |
+| `confirm-before-building` | gate | any | — | `site-build-kickoff`, `website-building`, `blog-publishing` | `build-standard` |
 | `contribute-feedback` | procedure | any | `site-safety` | `skill-creator` | `pre-launch-audit` |
-| `elementor-page-building` | procedure | any | `web-design-master` | `motion-and-interaction`, `seo-optimization` | `pre-launch-audit` |
+| `elementor-page-building` | procedure | any | `confirm-before-building`, `web-design-master` | `motion-and-interaction`, `seo-optimization` | `pre-launch-audit` |
 | `launch-readiness-and-compliance` | gate | any | — | `store-launch-and-deploy`, `security-standard` | `pre-launch-audit` |
 | `motion-and-interaction` | reference | any | — | `web-design-master`, `seo-audit-and-fix` | `pre-launch-audit` |
 | `pre-launch-audit` | gate | any | — | `launch-readiness-and-compliance`, `seo-audit-and-fix`, `security-standard`, `auto-optimize` | — |
-| `scroll-craft` | procedure | workstation | `web-design-master`, `code-snippets` | `pre-launch-audit` | `pre-launch-audit` |
+| `scroll-craft` | procedure | workstation | `confirm-before-building`, `web-design-master`, `code-snippets` | `pre-launch-audit` | `pre-launch-audit` |
 | `security-standard` | reference | any | — | `site-safety`, `pre-launch-audit` | — |
 | `seo-audit-and-fix` | procedure | any | — | `seo-optimization`, `motion-and-interaction` | `pre-launch-audit` |
 | `seo-optimization` | gate | any | — | `seo-audit-and-fix` | `pre-launch-audit` |
-| `site-build-kickoff` | procedure | interactive | `build-standard` | `website-building`, `web-design-master` | `launch-readiness-and-compliance` |
+| `site-build-kickoff` | procedure | interactive | `confirm-before-building`, `build-standard` | `website-building`, `web-design-master` | `launch-readiness-and-compliance` |
 | `site-clone-capture` | procedure | workstation | `site-clone` | `site-clone-rebuild`, `site-clone-design-system` | — |
 | `site-clone-design-system` | procedure | workstation | `site-clone-capture` | `web-design-master`, `elementor-page-building`, `motion-and-interaction` | — |
 | `site-clone-rebuild` | procedure | workstation | `site-clone-capture` | `elementor-page-building`, `motion-and-interaction`, `code-snippets`, `site-clone-verify` | `site-clone-verify` |
 | `site-clone-verify` | gate | workstation | `site-clone-capture` | `pre-launch-audit`, `site-clone-rebuild` | — |
-| `site-clone` | gate | workstation | — | `site-clone-capture`, `site-clone-design-system`, `site-clone-rebuild`, `site-clone-verify` | `site-clone-verify` |
+| `site-clone` | gate | workstation | `confirm-before-building` | `site-clone-capture`, `site-clone-design-system`, `site-clone-rebuild`, `site-clone-verify` | `site-clone-verify` |
 | `site-safety` | gate | any | — | `security-standard`, `code-snippets` | `pre-launch-audit` |
 | `skill-creator` | procedure | any | — | `build-standard` | — |
-| `solace-header-footer` | procedure | any | `web-design-master` | `website-building`, `motion-and-interaction` | `pre-launch-audit` |
+| `solace-header-footer` | procedure | any | `confirm-before-building`, `web-design-master` | `website-building`, `motion-and-interaction` | `pre-launch-audit` |
 | `store-launch-and-deploy` | procedure | any | — | `launch-readiness-and-compliance`, `woocommerce-store-operations` | `pre-launch-audit`, `security-standard` |
 | `web-design-master` | reference | any | — | `motion-and-interaction`, `website-building`, `scroll-craft` | `pre-launch-audit` |
-| `website-building` | procedure | any | `web-design-master` | `motion-and-interaction`, `seo-optimization`, `elementor-page-building`, `solace-header-footer`, `code-snippets` | `pre-launch-audit`, `security-standard` |
+| `website-building` | procedure | any | `confirm-before-building`, `web-design-master` | `motion-and-interaction`, `seo-optimization`, `elementor-page-building`, `solace-header-footer`, `code-snippets` | `pre-launch-audit`, `security-standard` |
 | `woocommerce-store-operations` | procedure | any | — | `store-launch-and-deploy`, `seo-optimization` | `site-safety` |
 <!-- ROUTER:END -->
 

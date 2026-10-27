@@ -44,6 +44,10 @@ final class Keelhob_Skill_Catalog
                 'title'       => 'Code snippets',
                 'description' => 'Add custom functionality or behavior to the site by writing live code snippets (PHP, CSS, JS, HTML) — hooks, filters, shortcodes, tracking pixels, tweaks, fixes.',
             ],
+            'confirm-before-building' => [
+                'title'       => 'Agree it before you build it',
+                'description' => 'The gate in front of every build.',
+            ],
             'contribute-feedback' => [
                 'title'       => 'Write a friction note',
                 'description' => 'How to word a note for the Keelhob feedback report, and what must never go in one.',

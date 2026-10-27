@@ -128,6 +128,106 @@ foreach (['scheduled' => $scheduled, 'Telegram' => $interactive] as $label => $t
 unset($GLOBALS['kh_test_db_results']);
 Keelhob::instance()->skills = $saved;
 
+// --- rules 7a/7b/7c: agree what to build before building it -------------------
+//
+// The owner hit this twice on a real site: a long, detailed prompt reads to a
+// model as a finished brief, so it skipped the intake and built a whole site
+// against its own reading of the request. Nothing errored; the work was simply
+// not the work that was wanted.
+//
+// Rule 7 already existed and was not enough. It says to NAME an ambiguity and
+// "do the safe part" — which is permission to build. These three say stop.
+// They live in the protocol rather than only in the build skills for the usual
+// reason: a skill can be switched off, or simply never loaded, and the skills
+// were what invited the mistake in the first place.
+
+$protocol = Keelhob_MCP_Server::operating_protocol();
+
+KH_Test::contains('7a.', $protocol, 'the protocol carries rule 7a');
+KH_Test::contains(
+    'agree what it is first',
+    $protocol,
+    'and it is the build-confirmation gate, not something else numbered 7a'
+);
+KH_Test::contains(
+    'is NOT the same as understanding it',
+    $protocol,
+    'it names the actual failure: a detailed prompt mistaken for agreement'
+);
+KH_Test::contains(
+    'ONE short batch',
+    $protocol,
+    'and it bounds the questioning, so the gate does not become an interrogation'
+);
+KH_Test::contains(
+    'even when you think you already have a brief',
+    $protocol,
+    'and it closes the exact excuse the skills used to offer'
+);
+
+/* Scoped to creating, deliberately. A gate on every edit would turn a one-line
+   fix into an interview, which is its own failure mode. */
+KH_Test::contains(
+    'rather than an edit to something that already exists',
+    $protocol,
+    'the gate is bounded to new work, so ordinary edits stay fast'
+);
+
+KH_Test::contains('7b.', $protocol, 'the protocol carries rule 7b');
+KH_Test::contains(
+    'wrong for their BUSINESS rather than wrong technically',
+    $protocol,
+    'and it asks for product risk, which is the half a technical review never covers'
+);
+KH_Test::contains(
+    'before the first write, not in the summary afterwards',
+    $protocol,
+    'and it demands the risks up front, where they can still change the build'
+);
+
+/* 7c is the one that matters on a pipe with nobody on the other end. The owner
+   chose "stop and report" over "build the smallest safe version": a site built
+   unattended still has to be read before any of it can be trusted. */
+KH_Test::contains('7c.', $protocol, 'the protocol carries rule 7c');
+KH_Test::contains(
+    'If nobody is answering, stop',
+    $protocol,
+    'and unattended means stop'
+);
+KH_Test::contains(
+    'do NOT build the smallest safe version and do not guess',
+    $protocol,
+    'it rules out the tempting middle path explicitly, because that is what an agent would choose'
+);
+
+/* And the gate skill the rules point at has to exist, or 7a names a dead end. */
+KH_Test::ok(
+    file_exists(KEELHOB_DIR . 'skills/confirm-before-building.md'),
+    'the gate skill the rules send the agent to is really bundled'
+);
+
+$kh_gate = (string) file_get_contents(KEELHOB_DIR . 'skills/confirm-before-building.md');
+KH_Test::contains('role: gate', $kh_gate, 'and it is declared a gate, so the linter demands its checklist');
+
+/* Every skill that CREATES something has to require it. A gate nothing requires
+   is a file, not a guard — and website-building is the one that used to open by
+   writing the page. */
+foreach ([
+    'website-building',
+    'site-build-kickoff',
+    'elementor-page-building',
+    'solace-header-footer',
+    'blog-publishing',
+    'scroll-craft',
+    'site-clone',
+] as $kh_builder) {
+    $kh_src = (string) file_get_contents(KEELHOB_DIR . 'skills/' . $kh_builder . '.md');
+    KH_Test::ok(
+        (bool) preg_match('/^requires:.*confirm-before-building/m', $kh_src),
+        $kh_builder . ' requires the build-confirmation gate'
+    );
+}
+
 // --- rule 12: ask before spending the owner's money --------------------------
 //
 // In the protocol rather than in a skill, because a skill can be switched off

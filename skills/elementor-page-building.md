@@ -6,7 +6,7 @@ enable_agentic: true
 enable_prompt: true
 role: procedure
 surface: any
-requires: web-design-master
+requires: confirm-before-building, web-design-master
 next_skills: motion-and-interaction, seo-optimization
 verified_by: pre-launch-audit
 ---
@@ -22,6 +22,8 @@ The builder is Elementor and the task touches an Elementor page, header, footer 
 ## When NOT to use
 
 Not when the site's builder is something else. On a Solace theme the chrome belongs to `solace-header-footer`; a page built in code belongs to `website-building`.
+
+**Before the first write.** `confirm-before-building` is required above. An Elementor layout built against the wrong reading of the request is a layout the owner has to read section by section before trusting any of it. Say your reading back, ask what would change the build in one batch, and name the business risks in your plan.
 
 ## One-time prep (do this first)
 1. Confirm Elementor is active (`get_site_info`). If not: `manage_plugin action=install plugin=elementor` then `action=activate plugin=elementor/elementor.php`.

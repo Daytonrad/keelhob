@@ -6,7 +6,7 @@ enable_agentic: true
 enable_prompt: true
 role: procedure
 surface: workstation
-requires: web-design-master, code-snippets
+requires: confirm-before-building, web-design-master, code-snippets
 next_skills: pre-launch-audit
 verified_by: pre-launch-audit
 ---
@@ -55,6 +55,8 @@ That is `motion-and-interaction`, it works everywhere including Elementor, and
 it is the right answer for nine pages in ten. Not for the page's typography,
 palette or layout, which is `web-design-master`. And not at all on a page the
 owner needs to keep editing in Elementor: see §1.
+
+**Before the first write.** `confirm-before-building` is required above. A scroll-driven page is expensive to build and expensive to redo, so agreeing the idea first saves the most here of anywhere. Say your reading back and name the business risks in the plan.
 
 ## 1. Ask the branch question first
 
