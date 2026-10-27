@@ -12,6 +12,79 @@ public. When the two disagree, this file is correct.
 
 ## [Unreleased]
 
+### Added — a requirement is now binding, and store work is gated too
+
+Wave 1 hung off one frontmatter line, `requires: confirm-before-building`, and
+nothing enforced it. The word `requires` appeared in the operating protocol
+once, in rule 11, about something else. Rule 13 made the agent honour
+`verified_by` — the thing at the *end* of a job — and said nothing about the
+thing at the *start*. So a skill could declare that it must not be started
+without its gate, and the agent decided whether to read it. **That is the bug
+7a exists for, moved one level up.**
+
+- **Rule 13 now covers both ends.** "Load what a skill requires, and honour
+  their verifiers." The catalog marks both — `first: x` is what to load and act
+  on before starting, `not done until: y` is what must run before reporting —
+  and both bind. It says to follow `first` *all the way down*, because what a
+  skill requires may have its own requirement, and that chain is where the
+  gates live. Skills loaded *because* they were required still have to be named
+  in the write-up.
+
+- **The catalog prints `first:`.** It printed `needs:`, `then:` and
+  `not done until:` and left `requires` out entirely, so the rule would have
+  pointed at a field the agent is never shown. Printed before `then:` so the
+  line reads in the order the work happens, uncapped (the longest list in the
+  bundle is three), and omitted entirely when a skill requires nothing — the
+  same rule `surface` follows, for the same reason.
+
+- **`woocommerce-store-operations` and `store-launch-and-deploy` now require the
+  gate.** Neither had a `requires:` line at all. They create products, set
+  prices and configure payments; rules 4 and 12 cover destruction and spending,
+  and neither asks whether the agent understood what the shop sells. A wrong
+  catalogue is as wasteful as a wrong website and it touches real orders. The
+  wiring test's list goes from seven skills to nine.
+
+  `seo-optimization` is deliberately left alone: it is a per-page pass that runs
+  constantly during a build, and gating it would be the interrogation this whole
+  design avoids. There is now an assertion that it, `pre-launch-audit` and
+  `auto-optimize` are **not** gated, so the gate cannot creep into small work.
+
+### Fixed — the field was dropped in the middle, and only the rig could see it
+
+`agentic_catalog()` does not pass a row through; it rebuilds each one as a
+whitelist of named fields, and it did not copy `requires`. So the database held
+the value, the formatter handled it correctly, and the rig served sixteen skills
+with **no `first:` on a single line**. Nothing was wrong at either end — the
+field simply never crossed the middle.
+
+No unit test could catch it. The formatter's fixture is built by hand, so the
+key is always present there; the assertions passed and the feature did nothing.
+It was found by reading what the rig actually serves an MCP client.
+
+The new assertion compares the whitelist against the fields the formatter reads,
+in both directions, because a field added to one and forgotten in the other is
+the entire failure mode.
+
+### Changed
+
+- The four rules 7a, 7b, 7c and 13 are **tighter than they were written**. The
+  protocol has a hard 12 KB budget — every session pays for it — and the first
+  draft went 365 bytes over. The depth belongs in `confirm-before-building`,
+  which loads only when needed; the protocol carries only what must never be
+  optional. Now 11,472 bytes, with 528 to spare.
+- The 7a/7b/7c assertions match on the phrase that carries the meaning rather
+  than on a whole sentence, so trimming for length does not break them again.
+  They caught the rewording, which is them working.
+- A new assertion follows `requires` transitively and proves the clone
+  sub-skills reach the gate: `site-clone-rebuild` → `site-clone-capture` →
+  `site-clone` → `confirm-before-building`. I had claimed those bypassed the
+  gate and was wrong; they did not. What was true is that nothing walked the
+  chain, which is what rule 13's "all the way down" now addresses.
+
+Every new assertion was watched failing on a deliberate regression before being
+kept: the catalog line removed, a store skill's `requires` stripped, the clone
+chain broken at `site-clone`, and the whitelist entry deleted.
+
 ### Added — the agent has to agree what it is building before it builds it
 
 The owner hit this twice on a real site. A long, detailed request arrived, the
