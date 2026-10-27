@@ -192,7 +192,7 @@ is the kill switch that stops every one of them at once.
 ## Skills and memory
 
 **Skills** are markdown playbooks stored in WordPress that the agent loads when a task matches their
-description; twenty-five ship with the plugin, and you can write your own from the agent — *"create a
+description; twenty-six ship with the plugin, and you can write your own from the agent — *"create a
 skill that…"* — with no PHP. **Memory** is per-site key/value knowledge every connected agent shares
 (*"remember: primary color is #f8ca50"*).
 

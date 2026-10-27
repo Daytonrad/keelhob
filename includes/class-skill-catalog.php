@@ -28,6 +28,10 @@ final class Keelhob_Skill_Catalog
     public static function all(): array
     {
         return [
+            'auto-optimize' => [
+                'title'       => 'Tune up this site',
+                'description' => 'One job that measures the site, fixes what is safe to fix, and leaves a before-and-after report the owner can read — speed score, oversized images, database junk, missing image alt text, vulnerable plugins, plugin conflicts and broken links.',
+            ],
             'blog-publishing' => [
                 'title'       => 'Blog publishing',
                 'description' => 'Write and publish blog posts and articles end to end — draft the content, structure it with headings, add images, set categories and tags, and optimize it for search before publishing.',
