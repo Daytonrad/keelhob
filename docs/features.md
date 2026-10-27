@@ -259,10 +259,11 @@ and a test asserts the option whitelist stays clean.
 ## Skills
 
 Skills are Markdown playbooks stored in WordPress that the agent loads automatically when a task
-matches their description. Fifteen ship with the plugin, covering the whole journey: kicking off a
-build, web design, page building, SEO and GEO, blog publishing, safety, security hardening, the
-definition of done, a pre-launch audit, launching and running a WooCommerce store, and a
-`skill-creator` for writing your own.
+matches their description. Twenty-six ship with the plugin, covering the whole journey: kicking off a
+build, web design, page building, scroll-driven pages, motion, SEO and GEO, blog publishing, safety,
+security hardening, the definition of done, a pre-launch audit, launch readiness and compliance,
+copying an existing site into WordPress, looking after a site once it is live, launching and running
+a WooCommerce store, and a `skill-creator` for writing your own.
 
 Bundled skills update when the plugin does, and skills you have edited are never overwritten;
 `skill_refresh` reinstalls them on demand and names anything it kept. Optional skill updates

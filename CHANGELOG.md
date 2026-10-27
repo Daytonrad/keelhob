@@ -10,6 +10,50 @@ file is the one written for developers: it names files, says what broke and why,
 and keeps the pre-release history that `readme.txt` presents as if it were
 public. When the two disagree, this file is correct.
 
+## [Unreleased]
+
+### Added
+
+- **A twenty-sixth skill, `auto-optimize` ("Tune up this site").** One job that
+  measures the site, fixes what is safe to fix, and leaves a before-and-after
+  report the owner can open. It wires together the ten site-care tools that
+  shipped in 2.0.0 and nothing else: five read-only reports first
+  (`speed_audit`, `db_cleanup_preview`, `plugin_security_check`,
+  `plugin_conflicts`, `broken_links`), then the writes in increasing order of
+  risk (`media_set_alt`, `image_compress`, `link_fix`, `db_cleanup`), then a
+  second `speed_audit` and a private report page.
+
+  **Why a skill and not a tool.** Every capability it needs already existed;
+  what did not exist was the ORDER. The order is the whole value: measure before
+  you touch anything, or "I made your site faster" is a claim with no evidence,
+  and run the irreversible step last, so that a failure earlier means it never
+  ran at all.
+
+  **The one thing it is strict about.** `db_cleanup` deletes rows and nothing in
+  this plugin can put them back. The skill refuses to treat a yes to "optimize
+  my site" as a yes to deletion; the owner has to say yes to the deletion by
+  name, after seeing the counts, with a host backup confirmed. That is written
+  as a do-not-deviate step because a general yes is what an agent will reach for
+  otherwise.
+
+  **What it deliberately does NOT do.** It never deactivates a plugin. A
+  vulnerable or conflicting plugin is reported and left alone — on a live site
+  the plugin you switch off may be the one taking the payments.
+
+  **Where the report goes.** There is no report store in the plugin, so the
+  skill makes one the owner can actually open: a private page plus a
+  `notify_owner` line carrying the before and after score. Adding a real report
+  store is a separate decision and is not in this change.
+
+### Changed
+
+- The skill counts in `README.md`, `ROADMAP.md`, `DOCUMENTATION.md` and
+  `readme.txt` move from twenty-five to twenty-six, and `pre-launch-audit` now
+  names the new skill in its `next_skills` so it can be reached. A skill nothing
+  points at is only ever found when the user's wording happens to match it —
+  `bin/lint-skills.php` refuses the skill without that link, which is how this
+  one was caught.
+
 ## [2.0.0] - 2026-10-26
 
 The plugin is renamed to Keelhob, the admin screens get a design system, and it

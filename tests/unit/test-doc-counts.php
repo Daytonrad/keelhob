@@ -103,6 +103,22 @@ if (preg_match('/(\d+) expert skills/i', $roadmap, $m)) {
 KH_Test::ok($claimed_roadmap_skills !== null, 'ROADMAP states how many skills ship');
 KH_Test::same($real_skills, $claimed_roadmap_skills, 'and it agrees with README and with the folder');
 
+// docs/features.md states it too, and was the one copy nothing was checking.
+// It sat at "Fifteen ship with the plugin" through eleven more skills, which is
+// a long way past a rounding error — a reader who starts there is told the
+// plugin is less than two thirds of what it is. Guarded here now, by the same
+// phrase the README and the manual use, because the fix for a number nobody
+// checks is never "remember next time".
+$features = (string) file_get_contents(KEELHOB_DIR . 'docs/features.md');
+
+$claimed_features_skills = null;
+if (preg_match('/([a-z-]+|\d+) ship with the plugin/i', $features, $m)) {
+    $raw                     = strtolower($m[1]);
+    $claimed_features_skills = ctype_digit($raw) ? (int) $raw : ($WORDS[$raw] ?? null);
+}
+KH_Test::ok($claimed_features_skills !== null, 'docs/features.md states how many skills ship');
+KH_Test::same($real_skills, $claimed_features_skills, 'and it agrees with the skills/ folder too');
+
 // --------------------------------------------- assertion counts stay approximate
 
 // The docstring above explains why the SIZE of the suite is not asserted: a test

@@ -184,6 +184,7 @@ Do not edit the table by hand — change the skill file and regenerate.
 <!-- ROUTER:START -->
 | Skill | Role | Runs on | Requires first | Then consider | Not done until |
 |---|---|---|---|---|---|
+| `auto-optimize` | procedure | any | `site-safety` | `seo-audit-and-fix`, `security-standard` | `build-standard` |
 | `blog-publishing` | procedure | any | — | `seo-optimization`, `web-design-master` | `seo-optimization` |
 | `build-standard` | gate | any | — | `site-build-kickoff`, `site-clone`, `contribute-feedback`, `website-building`, `blog-publishing`, `seo-optimization`, `code-snippets`, `woocommerce-store-operations`, `launch-readiness-and-compliance`, `skill-creator`, `site-safety`, `security-standard`, `web-design-master`, `motion-and-interaction`, `seo-audit-and-fix`, `elementor-page-building`, `solace-header-footer`, `store-launch-and-deploy` | `pre-launch-audit` |
 | `code-snippets` | procedure | any | `site-safety` | `motion-and-interaction` | `security-standard` |
@@ -191,7 +192,7 @@ Do not edit the table by hand — change the skill file and regenerate.
 | `elementor-page-building` | procedure | any | `web-design-master` | `motion-and-interaction`, `seo-optimization` | `pre-launch-audit` |
 | `launch-readiness-and-compliance` | gate | any | — | `store-launch-and-deploy`, `security-standard` | `pre-launch-audit` |
 | `motion-and-interaction` | reference | any | — | `web-design-master`, `seo-audit-and-fix` | `pre-launch-audit` |
-| `pre-launch-audit` | gate | any | — | `launch-readiness-and-compliance`, `seo-audit-and-fix`, `security-standard` | — |
+| `pre-launch-audit` | gate | any | — | `launch-readiness-and-compliance`, `seo-audit-and-fix`, `security-standard`, `auto-optimize` | — |
 | `scroll-craft` | procedure | workstation | `web-design-master`, `code-snippets` | `pre-launch-audit` | `pre-launch-audit` |
 | `security-standard` | reference | any | — | `site-safety`, `pre-launch-audit` | — |
 | `seo-audit-and-fix` | procedure | any | — | `seo-optimization`, `motion-and-interaction` | `pre-launch-audit` |

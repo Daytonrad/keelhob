@@ -670,7 +670,7 @@ look.
 A **skill** is a written procedure the agent loads when the job calls for it.
 Not a prompt you retype — a document that lives on the site.
 
-Twenty-five ship with the plugin, covering things like building a site from
+Twenty-six ship with the plugin, covering things like building a site from
 scratch, Elementor page building, SEO, WooCommerce operations, security
 hardening, a pre-launch audit, and cloning an existing site into WordPress.
 
