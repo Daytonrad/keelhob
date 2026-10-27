@@ -42,7 +42,7 @@ Six files, because they cover different screens and different claims. The
 table at the bottom is the record; the notes below it say what each one is for.
 
 Every file in the table was last run green on **2026-10-27**, against a rig on
-Keelhob 2.1.0 — 162 + 54 + 26 + 11 + 84 + 42 = **379**.
+Keelhob 2.1.0 — 165 + 54 + 26 + 11 + 84 + 42 = **382**.
 `tests/unit/test-doc-counts.php` reads the per-file numbers in this table and
 fails if ROADMAP.md stops agreeing with them, so **update this table in the same
 commit that adds or removes a check.**
@@ -52,7 +52,7 @@ every check here times out at login — see "Serving it" in `tests/rig/README.md
 
 | File | Screen | Checks |
 |---|---|---|
-| `check-admin.mjs` | all seven Keelhob screens, tokens and contrast | 162 |
+| `check-admin.mjs` | all seven Keelhob screens, tokens and contrast | 165 |
 | `check-snippets.mjs` | the snippet list and the editor | 54 |
 | `check-compose.mjs`  | AI Compose, which is a chat | 26 |
 | `check-thumbs.mjs`   | the thumbs control, and that it reverts rather than lying | 11 |
@@ -61,10 +61,13 @@ every check here times out at login — see "Serving it" in `tests/rig/README.md
 
 Two notes on that table, because two of its rows are not quite like the others.
 
-`check-admin.mjs` is **162 on its default run**, and that is the number counted
+`check-admin.mjs` is **165 on its default run**, and that is the number counted
 here. Its flags add assertions rather than replacing them: `--dark` adds 6 and
-`--rtl` adds 8, so the eight cells of the full matrix run 162, 168, 162, 168,
-170, 176, 170 and 176 — **1,352 assertions in all**. Counting the default run is
+`--rtl` adds 8, so the eight cells of the full matrix run 165, 171, 165, 171,
+173, 179, 173 and 179 — **1,376 assertions in all**. Those four figures are
+measured, not derived: the base sat at 162 for three releases after three
+switch-geometry checks were added, because the only test on these numbers
+compares the table to ROADMAP.md and both were wrong by the same three. Counting the default run is
 the convention that keeps one file to one number.
 
 `check-oauth.mjs` is the newest row and the one that nearly shipped as a lie:
