@@ -699,7 +699,7 @@ try {
   const probe = await fetch(`${WP}/wp-login.php`).catch(() => null);
   if (!probe || !probe.ok) {
     console.error(`Cannot reach ${WP}. Start the rig first:`);
-    console.error(`  cd ${RIG} && PHP_CLI_SERVER_WORKERS=4 php -S localhost:8899`);
+    console.error(`  cd ${RIG} && PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8899`);
     process.exit(2);
   }
 

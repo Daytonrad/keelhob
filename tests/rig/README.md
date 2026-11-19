@@ -159,12 +159,22 @@ It covers the things stubs cannot honestly answer:
 ## Serving it
 
 ```bash
-cd <RIG>/wordpress && PHP_CLI_SERVER_WORKERS=4 php -S localhost:8899
+cd <RIG>/wordpress && PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8899
 ```
 
 The extra workers matter: WordPress makes loopback requests to itself, and a
 single-worker built-in server deadlocks waiting for a response it is not free to
 serve.
+
+**Bind to `127.0.0.1`, never `localhost`.** This cost a whole session. On
+Windows `localhost` resolves to the IPv6 loopback `::1` first, so
+`php -S localhost:8899` binds `::1` ONLY. The server starts, prints its banner
+and logs nothing wrong — but `curl http://127.0.0.1:8899/` is refused outright,
+because nothing is listening on IPv4. The server looked dead from the outside
+while serving perfectly on the inside, and `server.log` showed healthy `[200]`
+responses from `[::1]` the entire time. `127.0.0.1:8899` binds IPv4, and
+`localhost` then still works in a browser, so there is no reason to use the
+name.
 
 **On Windows `PHP_CLI_SERVER_WORKERS` does nothing.** The server prints
 `forking is not supported on this platform` and serves one request at a time,
@@ -175,7 +185,7 @@ several instances to share a port, and that is what gives you concurrency:
 ```bash
 # Windows: three instances, not one. Each is a separate process.
 for i in 1 2 3; do
-  powershell -Command "Start-Process C:\PHP\php.exe -ArgumentList '-S','localhost:8899','-t','<RIG>/wordpress' -WindowStyle Hidden"
+  powershell -Command "Start-Process C:\PHP\php.exe -ArgumentList '-S','127.0.0.1:8899','-t','<RIG>/wordpress' -WindowStyle Hidden"
 done
 ```
 

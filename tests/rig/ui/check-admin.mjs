@@ -1344,7 +1344,7 @@ try {
   const ping = await fetch(`${WP}/wp-login.php`).then((x) => x.ok).catch(() => false);
   if (!ping) {
     console.error(`Cannot reach ${WP}. Start the rig first:`);
-    console.error(`  cd ${RIG} && PHP_CLI_SERVER_WORKERS=4 php -S localhost:8899`);
+    console.error(`  cd ${RIG} && PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8899`);
     console.error('  (on Windows: start that command three times — see tests/rig/README.md)');
     process.exit(2);
   }

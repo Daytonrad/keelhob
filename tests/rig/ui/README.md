@@ -20,7 +20,7 @@ Grep could not see it. The PHP rig checks could not see it. It shipped.
 
 ```bash
 # Serve the rig first.
-cd /c/wp-rig/wordpress && PHP_CLI_SERVER_WORKERS=4 php -S localhost:8899 &
+cd /c/wp-rig/wordpress && PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8899 &
 
 npm install                 # once: playwright-core, nothing else
 node tests/rig/ui/check-admin.mjs    --wp http://localhost:8899 --rig /c/wp-rig/wordpress --cli "php C:/wp-cli/wp-cli.phar"

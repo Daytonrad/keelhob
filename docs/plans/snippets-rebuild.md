@@ -584,7 +584,7 @@ bash tests/rig/sync-plugin.sh /c/wp-rig/wordpress
 Then, with the rig served at `http://localhost:8899`:
 
 ```bash
-cd /c/wp-rig/wordpress && PHP_CLI_SERVER_WORKERS=4 php -S localhost:8899 &
+cd /c/wp-rig/wordpress && PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8899 &
 bash tests/rig/run-all.sh /c/wp-rig/wordpress     # existing checks still pass
 node tests/rig/ui/check-snippets.mjs --wp http://localhost:8899
 ```
