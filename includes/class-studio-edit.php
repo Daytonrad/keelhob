@@ -166,6 +166,29 @@ final class Keelhob_Studio_Edit
                     <textarea name="description" id="kh-desc" rows="2" class="widefat"
                               placeholder="<?php esc_attr_e('What does this snippet do? Write it for whoever finds this in six months. (optional)', 'keelhob'); ?>"><?php echo esc_textarea((string) $s['description']); ?></textarea>
 
+                    <?php
+                    /*
+                     * These two were REQUIRED by Keelhob_Snippets::save() on every
+                     * create, and this form never had a field for either — so the
+                     * form could not create a snippet at all. Not sometimes: never.
+                     * The handler did not check success either, so it reported
+                     * "saved" or blamed the PHP, and nothing was written.
+                     *
+                     * Optional here, still required for an agent. The owner typing
+                     * into this box already knows what they are installing; the
+                     * rule exists so that work arriving from somewhere else can be
+                     * judged. Making a human write two paragraphs to change a line
+                     * of CSS is the kind of guard that gets switched off.
+                     */
+                    ?>
+                    <label class="kh-field-label" for="kh-purpose"><?php esc_html_e('Purpose', 'keelhob'); ?></label>
+                    <textarea name="purpose" id="kh-purpose" rows="2" class="widefat"
+                              placeholder="<?php esc_attr_e('Why does this exist? (optional — an AI agent must fill this in, you do not have to)', 'keelhob'); ?>"><?php echo esc_textarea((string) ($s['purpose'] ?? '')); ?></textarea>
+
+                    <label class="kh-field-label" for="kh-impact"><?php esc_html_e('Impact', 'keelhob'); ?></label>
+                    <textarea name="impact" id="kh-impact" rows="2" class="widefat"
+                              placeholder="<?php esc_attr_e('What changes on the site, and what breaks if you switch it off? (optional)', 'keelhob'); ?>"><?php echo esc_textarea((string) ($s['impact'] ?? '')); ?></textarea>
+
                     <?php self::conditions_block($cond); ?>
                 </div>
 

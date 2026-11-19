@@ -681,9 +681,23 @@ final class Keelhob_Snippets
         // a working edit into an error, and fixing a typo never costs a
         // paragraph. It is an error rather than a warning because a warning in
         // a response is a thing an agent may read; a refusal is a thing it must.
+        /*
+         * Who is typing decides whether the notes are compulsory.
+         *
+         * The point of purpose/impact is that the OWNER can judge code they did
+         * not write. When the owner is the one at the keyboard that is already
+         * satisfied, so the Studio form passes owner_authored and supplies what
+         * it likes. Every other caller — the MCP tool, AI Compose, an import —
+         * omits the key and stays bound, because the default is false.
+         *
+         * `name` is never optional for anyone: a row with no name cannot be
+         * found again on the list.
+         */
+        $owner_authored = !empty($a['owner_authored']);
         if (!$existing) {
-            $missing = [];
-            foreach (['name', 'purpose', 'impact'] as $field) {
+            $missing  = [];
+            $required = $owner_authored ? ['name'] : ['name', 'purpose', 'impact'];
+            foreach ($required as $field) {
                 if (trim((string) ($a[$field] ?? '')) === '') {
                     $missing[] = $field;
                 }

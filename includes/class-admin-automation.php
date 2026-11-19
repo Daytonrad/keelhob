@@ -709,7 +709,8 @@ final class Keelhob_Admin_Automation
                     </span>
                     <?php if (empty($allowed)) : ?>
                         <?php /* --kh-ink on --kh-bad-soft: 16.76:1 light, 15.25:1 dark. Not shortened: it says the bot will refuse the owner. */ ?>
-                        <br><span style="margin:10px 0;max-width:720px;background:var(--kh-bad-soft);border-left:3px solid var(--kh-bad);border-radius:8px;padding:10px 14px;color:var(--kh-ink);"><?php esc_html_e('No chat is allowlisted yet, so the bot will refuse everyone — including you.', 'keelhob'); ?></span>
+                        <?php /* display:block, or this sits on the text around it - see the voice warning below. */ ?>
+                        <br><span style="display:block;margin:10px 0;max-width:720px;background:var(--kh-bad-soft);border-left:3px solid var(--kh-bad);border-radius:8px;padding:10px 14px;color:var(--kh-ink);"><?php esc_html_e('No chat is on the list yet, so the bot will refuse everyone — including you.', 'keelhob'); ?></span>
                     <?php endif; ?>
                 </p>
 
@@ -782,7 +783,20 @@ final class Keelhob_Admin_Automation
                     </label>
                     <br><span style="color:var(--kh-muted);"><?php esc_html_e('Transcribed first, and the transcript is shown to you before the agent acts — so a mis-hearing is visible, not silently acted on.', 'keelhob'); ?></span>
                     <?php if (!empty($s['telegram_voice']) && $voice_key === '') : ?>
-                        <br><span style="margin:10px 0;max-width:720px;background:var(--kh-bad-soft);border-left:3px solid var(--kh-bad);border-radius:8px;padding:10px 14px;color:var(--kh-ink);"><?php esc_html_e('Voice is on but there is no transcription key, so voice notes will be refused.', 'keelhob'); ?></span>
+                        <?php
+                        /*
+                         * display:block is load-bearing on both of these warnings.
+                         *
+                         * A span is display:inline. An inline box ignores vertical
+                         * margin entirely, and its vertical padding is PAINTED but
+                         * does not push the surrounding lines apart - so the red
+                         * panel was drawn over the help text above and below it,
+                         * and max-width did nothing either. The owner reported it
+                         * as the warning covering the text behind it, which is
+                         * exactly what an inline box with 10px padding does.
+                         */
+                        ?>
+                        <br><span style="display:block;margin:10px 0;max-width:720px;background:var(--kh-bad-soft);border-left:3px solid var(--kh-bad);border-radius:8px;padding:10px 14px;color:var(--kh-ink);"><?php esc_html_e('Voice is on but there is no transcription key, so voice notes will be refused.', 'keelhob'); ?></span>
                     <?php endif; ?>
                 </p>
 

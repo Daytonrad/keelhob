@@ -124,3 +124,85 @@ KH_Test::same(
     'the old name appears nowhere outside the ' . count($allowed) . ' allowed files'
         . ($hits ? ' — ' . count($hits) . ' occurrence(s) left' : '')
 );
+
+KH_Test::group('No legacy brand - the cp- prefix the name search cannot see');
+
+/*
+ * THE BLIND SPOT IN THE TEST ABOVE.
+ *
+ * It searches for the old product NAME. The old CSS/JS prefix was `cp-`, which
+ * is not that word, so every `cp-` leftover sailed through a green run.
+ *
+ * Two survived the rename, and one was a real bug the owner reported:
+ *
+ *   assets/js/studio-edit.js stripped `cp-lang-` and added `kh-lang-`. The
+ *   strip matched nothing, so switching the snippet type APPENDED a language
+ *   class instead of replacing it. Two kh-lang-* classes hit the dot rule at
+ *   equal specificity, so CSS source order won and the language dot froze on
+ *   one colour for the rest of the page's life. The dropdown and the dot
+ *   disagreed, which is a label that lies.
+ *
+ *   class-studio-list.php emitted data-cp-toggle, which no script read.
+ *
+ * Checked against the SHIPPED paths only - the ones bin/build-zip.sh stages -
+ * because that is what a user installs. A `cp-` in a test fixture harms nobody.
+ */
+
+$kh_shipped = [];
+foreach (['includes', 'assets'] as $kh_dir) {
+    $kh_it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(KEELHOB_DIR . $kh_dir));
+    foreach ($kh_it as $kh_file) {
+        if ($kh_file->isFile() && preg_match('/\.(php|js|css)$/', $kh_file->getFilename())) {
+            $kh_shipped[] = $kh_file->getPathname();
+        }
+    }
+}
+KH_Test::ok(count($kh_shipped) > 50, 'the shipped file sweep actually found files (the premise of the next check)');
+
+// `cps_` is the portable snippet uid prefix and is DATA, not a class name: it
+// is stored in rows on live sites, so renaming it would orphan every uid.
+$kh_offenders = [];
+foreach ($kh_shipped as $kh_path) {
+    $kh_body = (string) file_get_contents($kh_path);
+    if (preg_match_all('/\bcp-[a-z]/', $kh_body, $kh_m)) {
+        $kh_offenders[] = basename($kh_path) . ' (' . count($kh_m[0]) . ')';
+    }
+}
+KH_Test::same([], $kh_offenders, 'no shipped file still uses the old cp- prefix');
+
+KH_Test::group('Admin markup - a padded warning must not sit on the text around it');
+
+/*
+ * A span is display:inline. An inline box IGNORES vertical margin, and its
+ * vertical padding is painted without pushing the neighbouring lines apart - so
+ * a coloured warning panel built from a span overlaps the help text above and
+ * below it, and its max-width does nothing either.
+ *
+ * Two of these shipped on the Automation screen. The owner reported the Telegram
+ * allowlist one as "that caution is blocking the text behind it", which is
+ * precisely what the box model does here. The voice-key warning had the same
+ * fault and had simply not been triggered yet - which is why this is a sweep
+ * over every admin file rather than two fixed assertions.
+ *
+ * class-studio.php already got this right with display:inline-block, so the
+ * codebase knew the pattern; these two just missed it.
+ */
+
+$kh_bad_spans = [];
+foreach (glob(KEELHOB_DIR . 'includes/*.php') as $kh_path) {
+    foreach (file($kh_path) as $kh_no => $kh_line) {
+        if (!preg_match('/<span style="([^"]*)"/', $kh_line, $kh_m)) {
+            continue;
+        }
+        $kh_style = $kh_m[1];
+        // Only the ones drawn as a panel: padding AND a background. A plain
+        // coloured span is inline on purpose and must stay that way.
+        if (strpos($kh_style, 'padding') === false || strpos($kh_style, 'background') === false) {
+            continue;
+        }
+        if (strpos($kh_style, 'display:') === false) {
+            $kh_bad_spans[] = basename($kh_path) . ':' . ($kh_no + 1);
+        }
+    }
+}
+KH_Test::same([], $kh_bad_spans, 'every padded, coloured span sets display, so it cannot overlap its neighbours');

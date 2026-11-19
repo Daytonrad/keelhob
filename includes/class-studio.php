@@ -222,12 +222,31 @@ final class Keelhob_Studio
             'deleted'    => ['success', __('Snippet deleted.', 'keelhob')],
             'lint'       => ['error', __('That code does not parse, so it was saved switched OFF. The error is shown on the snippet.', 'keelhob')],
             'moved'      => ['warning', __('Saved, but moved to a location that can run it. CSS, JS and HTML are only output in the header, the footer, before or after content, or from a shortcode — at "everywhere", "admin only", "front end only" or "page template" nothing would have printed them.', 'keelhob')],
+            // Nothing was written. The specific reason comes from save() and is
+            // picked up below; this text is only the fallback.
+            'failed'     => ['error', __('That snippet was not saved, and nothing was stored.', 'keelhob')],
         ];
         $key = isset($_GET['kh_msg']) ? sanitize_key(wp_unslash($_GET['kh_msg'])) : '';
         if ($key === '' || !isset($map[$key])) {
             return;
         }
         [$type, $text] = $map[$key];
+
+        /*
+         * The one case that cannot be a fixed string. A refusal has a reason -
+         * which field is missing, which location cannot run that type - and
+         * "it was not saved" without the reason leaves the owner guessing at
+         * the exact moment they need telling. Parked by save's caller for 60
+         * seconds, read once, deleted. The tab-leak argument above does not
+         * apply: it is consumed by the very next page load.
+         */
+        if ($key === 'failed') {
+            $why = get_transient('keelhob_studio_error_' . get_current_user_id());
+            if (is_string($why) && $why !== '') {
+                delete_transient('keelhob_studio_error_' . get_current_user_id());
+                $text = $why;
+            }
+        }
         printf(
             '<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
             esc_attr($type),

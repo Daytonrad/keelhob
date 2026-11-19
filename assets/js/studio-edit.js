@@ -89,7 +89,16 @@
 	 */
 	function syncChrome(type) {
 		if (barEl) {
-			barEl.className = barEl.className.replace(/\bcp-lang-\S+/g, '').trim();
+			// Strips `kh-lang-`. The rename to Keelhob renamed the class this
+			// line ADDS and missed the one it REMOVED: the regex still hunted
+			// for the old prefix, matched nothing, and so every type switch
+			// APPENDED another language class instead of replacing it.
+			// Two `kh-lang-*` classes match the dot rule at equal specificity,
+			// so source order decided — `.kh-lang-html` is last in studio.css,
+			// which is why the dot froze on the first colour it was given and
+			// never moved again. test-no-legacy-brand.php could not see it: it
+			// searches for the old PRODUCT NAME, and `cp-` is not that word.
+			barEl.className = barEl.className.replace(/\bkh-lang-\S+/g, '').trim();
 			barEl.className += ' kh-lang-' + type;
 		}
 		if (nameEl) {
