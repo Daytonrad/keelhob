@@ -62,7 +62,7 @@ final class Keelhob_Notifier
         return [
             'email'    => __('Email', 'keelhob'),
             'telegram' => __('Telegram', 'keelhob'),
-            'webhook'  => __('Webhook / Slack', 'keelhob'),
+            'webhook'  => __('Webhook / Slack (send only)', 'keelhob'),
         ];
     }
 

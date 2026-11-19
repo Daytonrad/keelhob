@@ -49,9 +49,9 @@ result. Both are worse than refusing at step zero and naming the client that can
 
 | Surface | Meaning |
 |---|---|
-| `any` | Runs anywhere: Claude Code, an IDE, Telegram, Slack, or an unattended task. The default. |
+| `any` | Runs anywhere: Claude Code, an IDE, Telegram, or an unattended task. The default. |
 | `interactive` | Needs a person answering questions while it runs. Not an unattended scheduled task. |
-| `workstation` | Needs Claude Code or an IDE — it uses tools that live on the caller's machine (a browser, another MCP server). Cannot be completed over Telegram or Slack. |
+| `workstation` | Needs Claude Code or an IDE — it uses tools that live on the caller's machine (a browser, another MCP server). Cannot be completed over Telegram. |
 
 A skill may not `requires`, or be `verified_by`, a skill with a stricter surface than
 its own: that is a promise it cannot keep, and the linter refuses it. `next_skills` is

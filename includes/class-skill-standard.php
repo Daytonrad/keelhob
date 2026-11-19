@@ -59,7 +59,7 @@ final class Keelhob_Skill_Standard
      * The same agent reaches this site down three very different pipes. Claude
      * Code and the IDE clients are a workstation: a human is present, and the
      * client has local tools of its own — a browser, a filesystem, other MCP
-     * servers. Telegram and Slack are a chat window: a human is present but the
+     * servers. Telegram is a chat window: a human is present but the
      * agent has nothing except this site's tools. A scheduled task is neither;
      * nobody is there at all.
      *
@@ -92,9 +92,9 @@ final class Keelhob_Skill_Standard
      * rather than reinvented at each of the three places that need it.
      */
     const SURFACE_NOTES = [
-        'any'         => 'Runs anywhere: Claude Code, an IDE, Telegram, Slack, or an unattended task.',
+        'any'         => 'Runs anywhere: Claude Code, an IDE, Telegram, or an unattended task.',
         'interactive' => 'Needs a person answering questions while it runs. Not an unattended scheduled task.',
-        'workstation' => 'Needs Claude Code or an IDE — it uses tools that live on the caller\'s machine (a browser, another MCP server). Cannot be completed over Telegram or Slack.',
+        'workstation' => 'Needs Claude Code or an IDE — it uses tools that live on the caller\'s machine (a browser, another MCP server). Cannot be completed over Telegram.',
     ];
 
     /**

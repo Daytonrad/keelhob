@@ -411,7 +411,8 @@ final class Keelhob_Admin_Automation
 
                             <h3><?php esc_html_e('Notifications', 'keelhob'); ?></h3>
                             <p><label><?php esc_html_e('Email(s), comma-separated (blank = admin email):', 'keelhob'); ?> <input type="text" name="notify_email" value="<?php echo esc_attr($s['notify_email'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;"></label></p>
-                            <p><label><?php esc_html_e('Webhook URL (Slack/generic, optional):', 'keelhob'); ?> <input type="text" name="notify_webhook_url" value="<?php echo esc_attr($s['notify_webhook_url'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;"></label></p>
+                            <p><label><?php esc_html_e('Webhook URL (Slack / generic — send only, optional):', 'keelhob'); ?> <input type="text" name="notify_webhook_url" value="<?php echo esc_attr($s['notify_webhook_url'] ?? ''); ?>" class="regular-text" style="width:100%;max-width:520px;"></label></p>
+                            <p class="description" style="margin-top:-6px;"><?php esc_html_e('Keelhob can SEND messages to Slack through an Incoming Webhook. Two-way Slack chat — talking back to the site, the way Telegram works — is not available yet.', 'keelhob'); ?></p>
                             <p><label><?php esc_html_e('Telegram bot token:', 'keelhob'); ?> <input type="text" name="notify_telegram_token" value="<?php echo esc_attr(Keelhob_Secrets::mask((string) ($s['notify_telegram_token'] ?? ''))); ?>" class="regular-text" style="max-width:340px;"></label>
                                <label style="margin-left:8px;"><?php esc_html_e('chat id:', 'keelhob'); ?> <input type="text" name="notify_telegram_chat" value="<?php echo esc_attr($s['notify_telegram_chat'] ?? ''); ?>" style="max-width:160px;"></label></p>
 

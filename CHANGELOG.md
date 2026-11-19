@@ -12,6 +12,35 @@ public. When the two disagree, this file is correct.
 
 ## [Unreleased]
 
+### Changed — Slack no longer implies a chat it cannot hold
+
+Keelhob can SEND to Slack. It has never been able to listen. Nothing on screen
+claimed otherwise, but the agent's own operating protocol did: six lines in
+`includes/class-mcp-server.php` and `includes/class-skill-standard.php` read
+"if you are on Telegram or Slack", which tells the model Slack is a surface it
+can be reached on. An agent reading that can promise a user something the
+plugin cannot do, and the user has no way to know it is wrong. **The false
+promise was in the brain, not in the UI.**
+
+- **Every "Telegram or Slack" is now "Telegram".** `class-mcp-server.php` lines
+  166, 227 and 428, `class-skill-standard.php` lines 62, 95 and 97. The
+  `surface` vocabulary keeps its meaning: `interactive` and `workstation` still
+  describe what a connection can finish. Slack is simply not one of the
+  connections yet. `docs/SKILL-STANDARD.md` is regenerated, because the
+  surface text is generated from these strings.
+- **The webhook field says what it does.** `class-admin-automation.php` now
+  labels it "Webhook URL (Slack / generic — send only, optional)" and adds a
+  line under it: two-way Slack chat, the way Telegram works, is not available
+  yet. The field is NOT disabled and gets no "coming soon" badge — it is a
+  finished feature that works, and hiding it would delete something real.
+- **The channel reads "Webhook / Slack (send only)"** in `class-notifier.php`,
+  so the tick box on Connect carries the same limit as the field that feeds it.
+
+Proven end to end on the rig against a real Slack workspace: the tick box is
+disabled until a URL is saved, enabled after, and the test notification
+arrived in the channel.
+
+
 ### Fixed — the Add Snippet form could never create a snippet
 
 `Keelhob_Snippets::save()` requires `name`, `purpose` and `impact` on create.

@@ -163,7 +163,7 @@ final class Keelhob_MCP_Server
 
             '7b. Then check your plan before you build it. Read it back against what they asked for and name what is wrong for their BUSINESS, not just technically: a page that sells the wrong thing, a tone aimed at the wrong customer, no way to get in touch, a claim they cannot stand behind, a choice that is expensive to undo. List those before the first write, not in the summary afterwards.',
 
-            '7c. If nobody is answering, stop. On Telegram or Slack, in a scheduled task, or unattended, you cannot agree anything with anyone. Do NOT build the smallest safe version and do not guess: say what you do not know, say this connection cannot settle it, and leave the work undone.',
+            '7c. If nobody is answering, stop. On Telegram, in a scheduled task, or unattended, you cannot agree anything with anyone. Do NOT build the smallest safe version and do not guess: say what you do not know, say this connection cannot settle it, and leave the work undone.',
             '',
             '8. Report honestly. Say what you actually changed, what you skipped, and what failed — including partial failures. Never describe work you did not verify as done. If you could not finish, say so plainly and say why.',
             '',
@@ -224,7 +224,7 @@ final class Keelhob_MCP_Server
             // skill, gets several steps in, and then either stalls or invents
             // the result it cannot measure. Refusing at step zero and naming
             // the client that CAN do it is the only outcome that helps anyone.
-            '14. Check a skill can be finished here before you start it. The catalog marks any skill that needs more than this connection: "needs: interactive" means a person has to be answering while it runs, so it cannot be a scheduled task; "needs: workstation" means it uses tools on the caller\'s own machine - a browser, another MCP server - so it can only be completed from Claude Code or an IDE. If you are on Telegram or Slack, or running unattended, and the task needs such a skill: say which skill it is, say plainly that this connection cannot finish it, and tell the owner to run it from Claude Code or an IDE connected to this site. Do not start it and improvise around the missing tool, and never report a result you could not measure.',
+            '14. Check a skill can be finished here before you start it. The catalog marks any skill that needs more than this connection: "needs: interactive" means a person has to be answering while it runs, so it cannot be a scheduled task; "needs: workstation" means it uses tools on the caller\'s own machine - a browser, another MCP server - so it can only be completed from Claude Code or an IDE. If you are on Telegram, or running unattended, and the task needs such a skill: say which skill it is, say plainly that this connection cannot finish it, and tell the owner to run it from Claude Code or an IDE connected to this site. Do not start it and improvise around the missing tool, and never report a result you could not measure.',
             '',
             // In PHP for the same reason as rules 9-14: a skill can be switched
             // off, and consent is the one thing that must never be optional.
@@ -425,7 +425,7 @@ final class Keelhob_MCP_Server
         // check — every one of which lives in a different skill that the first
         // one names.
         $lines[] = 'Roles: gate = work is not finished until it passes; procedure = steps to follow; reference = knowledge to read for judgement.';
-        $lines[] = '"needs: interactive" = a person must be answering while it runs, so not a scheduled task. "needs: workstation" = it uses tools on the caller\'s own machine (a browser, another MCP server), so Claude Code or an IDE only — over Telegram or Slack, say so and stop rather than starting it.';
+        $lines[] = '"needs: interactive" = a person must be answering while it runs, so not a scheduled task. "needs: workstation" = it uses tools on the caller\'s own machine (a browser, another MCP server), so Claude Code or an IDE only — over Telegram, say so and stop rather than starting it.';
         $lines[] = '"first: x" = load x and do what it asks BEFORE starting this skill, and follow x\'s own "first" too. That chain is where the gates live, so a skill started without it is a skill started without its guard.';
         $lines[] = 'Skills reference each other. Follow "then" when a skill is done, and treat "not done until" as binding — build-standard carries the router table for every kind of build.';
 
