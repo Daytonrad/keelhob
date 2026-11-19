@@ -541,3 +541,55 @@ $res = Keelhob_Snippets::save([
 KH_Test::ok(!array_key_exists('replaced_bytes', $res), 'and creating reports no replacement either');
 
 $GLOBALS['wpdb'] = $real_wpdb;
+
+KH_Test::group('Snippets - who must supply purpose and impact');
+
+/*
+ * THE BUG: the Add Snippet form could never create a snippet. Not sometimes -
+ * never, on any site, since the notes rule was added.
+ *
+ * save() required name, purpose and impact on every create. The Studio form has
+ * fields for name, description and tags, and sends no purpose and no impact. So
+ * every create from the form was refused, and because the handler never checked
+ * success it then either blamed the owner's PHP ("that code does not parse", of
+ * code that parsed) or said "Snippet saved." and sent them to a list their
+ * snippet was not on.
+ *
+ * Nothing covered the form's payload. The existing tests all call save() by
+ * hand WITH purpose and impact - a fixture that supplies the field can never
+ * catch a caller that does not, which is the same shape as the catalog
+ * whitelist bug: both ends correct, the middle never carrying the value.
+ */
+
+$guard2->existing = null;
+
+// The form's payload, field for field, as class-studio-actions.php sends it.
+$form = Keelhob_Snippets::save([
+    'name'           => 'From the form',
+    'description'    => 'notes',
+    'snippet_type'   => 'php',
+    'location'       => 'everywhere',
+    'code'           => 'echo 1;',
+    'owner_authored' => true,
+]);
+KH_Test::ok(!empty($form['success']), 'the owner can create a snippet without writing purpose or impact');
+
+// And the rule still binds everyone else, which is the whole point of it.
+$agent = Keelhob_Snippets::save([
+    'name'         => 'From an agent',
+    'snippet_type' => 'php',
+    'code'         => 'echo 1;',
+]);
+KH_Test::ok(empty($agent['success']), 'an agent still cannot create one without them');
+KH_Test::same(['purpose', 'impact'], $agent['missing'] ?? null, 'and is told exactly which two are missing');
+
+// A name is not negotiable for anybody: a row with no name cannot be found
+// again on the list, whoever typed it.
+$unnamed = Keelhob_Snippets::save([
+    'snippet_type'   => 'php',
+    'code'           => 'echo 1;',
+    'owner_authored' => true,
+]);
+KH_Test::ok(empty($unnamed['success']), 'but a name is still required even from the owner');
+
+$GLOBALS['wpdb'] = $real_wpdb;

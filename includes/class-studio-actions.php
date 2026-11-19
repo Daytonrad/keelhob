@@ -101,6 +101,11 @@ final class Keelhob_Studio_Actions
             'id'           => $id ?: null,
             'name'         => sanitize_text_field(wp_unslash($_POST['name'] ?? '')),
             'description'  => sanitize_textarea_field(wp_unslash($_POST['description'] ?? '')),
+            'purpose'      => sanitize_textarea_field(wp_unslash($_POST['purpose'] ?? '')),
+            'impact'       => sanitize_textarea_field(wp_unslash($_POST['impact'] ?? '')),
+            // The owner is at the keyboard, so save() does not demand the notes.
+            // Every other caller omits this and stays bound. See save().
+            'owner_authored' => true,
             'snippet_type' => $type,
             'location'     => $location,
             'priority'     => (int) ($_POST['priority'] ?? 10),
@@ -125,6 +130,29 @@ final class Keelhob_Studio_Actions
              */
             'conditions'   => Keelhob_Snippet_Conditions::from_form(wp_unslash($_POST)),
         ]);
+
+        /*
+         * A refusal is not a save, and must never be reported as one.
+         *
+         * This used to go straight to the $blocked test below. save() can refuse
+         * outright and return success:false with no id, and in that case
+         * `empty($result['active'])` is true for the same reason an unparseable
+         * snippet is inactive — so a refusal was announced as "that code does
+         * not parse", about code that parsed perfectly. Worse, without
+         * "switch on" ticked it fell through to "Snippet saved." and sent the
+         * owner to a list their snippet was not on. The form could not create
+         * anything at all, and said so in two different wrong ways.
+         */
+        if (empty($result['success'])) {
+            // The reason is too long for a URL and too specific to hard-code as
+            // a notice, so it is parked for one page load, for this user only.
+            set_transient(
+                'keelhob_studio_error_' . get_current_user_id(),
+                (string) ($result['error'] ?? __('The snippet could not be saved.', 'keelhob')),
+                60
+            );
+            Keelhob_Studio::redirect('edit', 'failed', $id ? ['snippet' => $id] : []);
+        }
 
         $id = (int) ($result['id'] ?? $id);
 

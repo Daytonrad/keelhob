@@ -416,7 +416,8 @@ final class Keelhob_Studio_List
             <input type="hidden" name="action" value="keelhob_studio">
             <input type="hidden" name="studio_action" value="<?php echo $active ? 'deactivate' : 'activate'; ?>">
             <input type="hidden" name="snippet_id" value="<?php echo esc_attr((string) $id); ?>">
-            <button type="submit" data-cp-toggle="<?php echo esc_attr((string) $id); ?>"
+            <?php /* Carried the old prefix until now: a rename leftover no script ever read. The toggle is a real form submit and never needed it. */ ?>
+            <button type="submit" data-kh-toggle="<?php echo esc_attr((string) $id); ?>"
                     class="kh-switch <?php echo $active ? 'kh-switch-on' : 'kh-switch-off'; ?>"
                     aria-pressed="<?php echo $active ? 'true' : 'false'; ?>">
                 <span class="kh-switch-track" aria-hidden="true"><span class="kh-switch-knob"></span></span>
