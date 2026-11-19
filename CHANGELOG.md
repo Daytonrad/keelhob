@@ -12,6 +12,58 @@ public. When the two disagree, this file is correct.
 
 ## [Unreleased]
 
+### Fixed — the Add Snippet form could never create a snippet
+
+`Keelhob_Snippets::save()` requires `name`, `purpose` and `impact` on create.
+The Studio form sent only `name`. Every hand-written snippet was therefore
+refused, and the refusal was invisible: `class-studio-actions.php` never read
+`$result['success']`, so a valid PHP snippet came back as *"That code does not
+parse"* — about code that parses — and an invalid one came back as *"Snippet
+saved."* with nothing stored. Proven live before the fix: `rows_before: 4`,
+`rows_after_save: 4`, `missing_fields: ["purpose","impact"]`.
+
+- **Purpose** and **Impact** fields added to the form. `owner_authored` marks a
+  human submission, which makes both optional; an agent calling `save()` still
+  has to supply them. The notes exist so the owner can find out *why* code is
+  running on their site — an owner typing it in is the one person who already
+  knows.
+- The handler now redirects with `kh_msg=failed` and parks the real reason in a
+  60-second transient, read once. A write that did not happen never again
+  reports as one that did.
+
+Three assertions in `tests/unit/test-snippets.php`. A fixture that supplies a
+field can never catch a caller that omits it, so the agent payload is asserted
+to *fail*.
+
+### Fixed — the language dot froze on its first colour
+
+The rename to Keelhob renamed the class `assets/js/studio-edit.js:92` **adds**
+and missed the one it **removes**. The regex still hunted the old prefix,
+matched nothing, and every type switch appended another `kh-lang-*` class
+instead of replacing it. Two classes then matched the dot at equal specificity,
+so source order decided — `.kh-lang-html` is last in `studio.css` — and the
+colour never moved again.
+
+### Fixed — two Automation warnings sat on top of the text below them
+
+Both were `<span>` elements with vertical padding and a background. A span is
+`display:inline`: the padding paints without pushing neighbouring lines apart.
+The allowlist one the owner hit; the "voice is on with no transcription key"
+one has the identical fault and had simply not been triggered yet. Both are
+`display:block` now, and the allowlist wording matches the field above it.
+
+### Fixed — guards for the class, not the instance
+
+Three of these four were one fault: **something renamed, its other half
+missed.** `test-no-legacy-brand.php` hunts the old product *name*, and the old
+css/js prefix is not that word, so every leftover passed a green run.
+
+- A sweep for that prefix across all shipped `includes/` and `assets/` files.
+  **It caught a third leftover immediately** — in a comment of this very fix.
+- A sweep refusing any padded, coloured `<span>` that does not set `display`.
+
+Both were watched failing on a deliberate regression before being kept.
+
 ### Added — rule 11a: this site's skills outrank the caller's own
 
 Rules 11, 13 and 14 all tell the agent to load skills. **Not one of them said
