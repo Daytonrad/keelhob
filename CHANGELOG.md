@@ -12,6 +12,50 @@ public. When the two disagree, this file is correct.
 
 ## [Unreleased]
 
+### Added — rule 11a: this site's skills outrank the caller's own
+
+Rules 11, 13 and 14 all tell the agent to load skills. **Not one of them said
+whose win**, and that silence was not neutral.
+
+An agent reaches this site with skills already in its prompt from its own
+machine, and many of those are written to claim a job on sight — *"use this
+whenever you build, design, redesign or review a landing page"*, *"read FIRST,
+before you answer"*. This bundle's catalog, by contrast, was introduced with
+`when a task matches` and nothing more. So on exactly the work this plugin
+exists for, the caller's own skills were shouting and `website-building` was
+whispering, and there was no reason for the agent to read it at all.
+
+This is the **second cause of the rogue builds** that rule 7a was written for.
+The owner hit it twice: an agent decided it understood a long prompt and built a
+whole site its own way. 7a makes it ask first. 11a makes it ask *having read the
+right instructions*. Neither alone was enough, and only 7a had been written.
+
+- **Rule 11a**, next to rule 11 because that is the first rule telling the agent
+  to load a skill at all. It names the mechanism rather than just asserting
+  precedence — a local skill *worded* to grab the work — because an agent that
+  cannot see why a rule exists applies it narrowly.
+- **Deliberately not absolute.** 27 skills do not cover every job, so the rule
+  allows the caller's own for "a gap no skill here covers". *"Never use your own
+  skills"* is a rule nobody can follow, and those get ignored wholesale rather
+  than narrowly. There is an assertion for this half too.
+- It reaches **both** surfaces: the MCP server instructions an external client
+  is served, and the plugin's own agent runtime. One string, three consumers, no
+  truncation on any path.
+
+Six assertions in `tests/unit/test-skill-delivery.php`, matched on the
+meaning-bearing phrase rather than whole sentences, the way the 7a/7b/7c
+assertions are, so trimming for length cannot break them for no reason. **All
+six were watched failing before the rule was written.**
+
+The protocol is now **11,773 bytes of its 12,000 budget — 227 spare.** The next
+rule does not fit. Depth belongs in a skill, which loads only when needed; the
+protocol carries only what must never be optional.
+
+**The honest limit:** this is an instruction, not a lock. A model that ignores
+its instructions can still reach for its own skill first. It is in the one place
+a site owner cannot switch off, which is the strongest available — not the same
+as enforcement.
+
 ### Added — a requirement is now binding, and store work is gated too
 
 Wave 1 hung off one frontmatter line, `requires: confirm-before-building`, and
