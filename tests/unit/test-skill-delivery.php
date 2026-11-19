@@ -233,6 +233,56 @@ foreach ([
     );
 }
 
+// --- rule 11a: this site's skills outrank the caller's own -------------------
+//
+// THE WHISPER-VERSUS-SHOUT PROBLEM, and the second cause of the rogue builds
+// that 7a was written for.
+//
+// An agent reaches this site with skills already loaded from its own machine,
+// and many of those are written to claim a job on sight - "use this whenever
+// you build, design, redesign or review a landing page", "read FIRST, before
+// you answer". This bundle's catalog, by contrast, was introduced with
+// "when a task matches" and nothing more. So on exactly the work this plugin
+// exists for, the caller's own skills were shouting and `website-building` was
+// whispering, and the agent never read it. Rules 11, 13 and 14 all tell the
+// agent to load skills; not one of them said WHOSE win.
+//
+// Asserted on the phrase that carries the meaning rather than a whole
+// sentence, the same way the 7a/7b/7c assertions are, so trimming the rule for
+// the 12 KB budget does not break the test for no reason.
+
+$protocol = Keelhob_MCP_Server::operating_protocol();
+
+KH_Test::contains('11a.', $protocol, 'the protocol carries rule 11a');
+KH_Test::contains(
+    'outrank your own',
+    $protocol,
+    'rule 11a settles whose skills win, which nothing did before'
+);
+KH_Test::contains(
+    'claim a job on sight',
+    $protocol,
+    'and names the actual mechanism: a local skill worded to grab the work'
+);
+KH_Test::contains(
+    'read the matching skill here first',
+    $protocol,
+    'and says to read this site\'s skill BEFORE acting, not instead of reporting'
+);
+KH_Test::contains(
+    'follow this one',
+    $protocol,
+    'and says which side wins on a conflict'
+);
+// Without this half the rule reads as "never use your own skills", which is
+// wrong and would get ignored wholesale: the bundle has no skill for every
+// job, and an absolute rule nobody can follow is a rule nobody follows.
+KH_Test::contains(
+    'a gap no skill here covers',
+    $protocol,
+    'while still allowing the caller\'s own skills where this bundle has none'
+);
+
 // --- rule 13's FIRST half: a requirement is binding, not advisory ------------
 //
 // Rule 13 used to cover only `verified_by`, which is the end of a job. Every

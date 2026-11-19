@@ -173,6 +173,24 @@ final class Keelhob_MCP_Server
             '',
             '11. Load the build-standard skill before building anything. It lists what "done" requires and which skill to use for each part of the job.',
             '',
+            // THE WHISPER-VERSUS-SHOUT PROBLEM. Rules 11, 13 and 14 all tell
+            // the agent to load skills. Not one of them said WHOSE win, and
+            // that silence is not neutral: the caller arrives with skills
+            // already in its prompt, many written to grab a job on sight
+            // ("use this whenever you build, design or review a landing
+            // page"), while this bundle's catalog only ever said "when a task
+            // matches". So on exactly the work this plugin exists for, the
+            // caller's own skills were shouting and website-building was
+            // whispering. The owner hit this twice: an agent built a whole
+            // site its own way, and 7a - agree before you create - was only
+            // half the cause. 7a makes it ask; this makes it ask having read
+            // the right instructions.
+            //
+            // Not absolute, on purpose. 27 skills do not cover every job, and
+            // "never use your own" is a rule nobody can follow, so it would be
+            // ignored wholesale rather than narrowly.
+            '11a. This site\'s skills outrank your own. You may arrive with skills for design, SEO or writing, some worded to claim a job on sight. On THIS site they do not win: read the matching skill here first, and where the two differ follow this one. Use your own only for a gap no skill here covers, and say which you used.',
+            '',
             // Lives here rather than in a skill for the same reason as the rest
             // of this protocol: a skill can be switched off, and the one thing
             // that must never be optional is asking before spending someone
