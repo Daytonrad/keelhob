@@ -65,15 +65,10 @@ Already know what this is, and want the tool-by-tool detail? That is
 
 ## Screenshots
 
-<!-- TODO(owner): one shot left — 04-built-site.png, the front end of a store the
-     agent built from one prompt. It is the only one that needs a real build with
-     real API keys, so it could not be captured with the others. docs/img/SHOT-LIST.md
-     has the exact state it needs to be in. Add it as a fourth cell below. -->
-
 | | |
 |---|---|
 | ![The Connect page, showing the generated MCP command](docs/img/01-connect.png)<br>**Connect** — the ready-to-paste command, with this site's URL already in it. The token is stored hashed and shown once. | ![The Snippets Studio listing installed snippets](docs/img/02-studio.png)<br>**Snippets Studio** — every piece of code the agent installed, why it exists, and its off switch. The top row switched itself off after taking the site down. |
-| ![The capability toggles panel](docs/img/03-capabilities.png)<br>**Capabilities** — twenty-four groups, ten of them off out of the box, each saying what it unlocks. | |
+| ![The capability toggles panel](docs/img/03-capabilities.png)<br>**Capabilities** — twenty-four groups, ten of them off out of the box, each saying what it unlocks. | ![The front end of a store the agent built](docs/img/04-built-site.png)<br>**The output** — the front end of a real store Keelhob built: theme, pages, products, and the live preview that puts your words on the mug. Nothing here was hand-coded. |
 
 ## Why it is free
 

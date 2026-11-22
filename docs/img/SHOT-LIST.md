@@ -20,8 +20,19 @@ node tests/rig/ui/make-docs-shots.mjs
 
 It shoots all three at 1440x900 against the kept rig, collapses the sidebar so another plugin's
 menu stays out of frame, seeds the snippet rows, and deletes everything it seeded in a `finally`.
-`04-built-site.png` and the video cannot be generated — they need a real built site and a person
-recording.
+`04-built-site.png` is shot the same way, but against the live demo store instead of the rig, and
+**logged out** so no admin bar is in frame:
+
+```
+node tests/rig/ui/make-built-site-shot.mjs      # https://test.keelhob.com, 1440x900, viewport only
+```
+
+It asserts there is no `#wpadminbar` and no `logged-in` body class before it saves, because a shot
+with the admin bar in it is the one mistake that is invisible until the README is public. The hero
+is the frame to use: the page is a scroll-driven build, so scrolling to the product row catches a
+pinned section mid-animation and the shot comes out with a black band across the top.
+
+The video cannot be generated — it needs a person recording.
 
 ## Before you start — every shot
 
