@@ -19,12 +19,12 @@ middle name was missing from both.
 
 ### Why this is a release and not an asset swap
 
-The name landed in `d077f0a`, one commit after `v2.1.0` was tagged at `26339d7`.
+The name landed in `d077f0a`, one commit after `v2.1.0` was tagged at `c906c31`.
 The zip attached to that release was built from the tag, so it carries the old
 name, and it had already been downloaded.
 
 Rebuilding that zip and replacing the file on the v2.1.0 release would have been
-one command. It was rejected: the tag would still point at `26339d7`, so reading
+one command. It was rejected: the tag would still point at `c906c31`, so reading
 the source at `v2.1.0` and installing the zip from `v2.1.0` would show two
 different authors under one version number. A tag's whole value is that it means
 exactly one thing.
