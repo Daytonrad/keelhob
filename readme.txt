@@ -311,6 +311,32 @@ the exact model IDs to type for each one.
 
 = 2.1.0 =
 
+* **Fixed: adding a snippet by hand never worked.** The Add Snippet form
+  refused every snippet, and it told you the wrong reason while doing it. Code
+  that was perfectly valid came back as "That code does not parse". Code that
+  was broken came back as "Snippet saved." with nothing saved. Both the saving
+  and the message are fixed.
+* **Fixed: the coloured dot beside a snippet's type stopped moving.** Switch a
+  snippet from PHP to CSS and the dot kept whichever colour it was given first.
+* **Fixed: two warnings on the Automation screen printed on top of the text
+  underneath them.** One of those you had already run into; the other had the
+  same fault and had simply not been triggered yet.
+* **Changed: Slack can receive messages, not hold a conversation — and it now
+  says so.** Keelhob has always been able to send you a message in Slack
+  through an Incoming Webhook, and that still works exactly as before. What it
+  cannot do is talk back and forth in Slack the way it does in Telegram. The
+  setting is relabelled to say "send only", and the agent is no longer told
+  that Slack is a place it can answer you.
+* **Changed: the agent has to agree what it is building before it builds it.**
+  Given a long, detailed request, an agent could decide it understood
+  everything, skip the questions, and build a whole site against its own
+  reading of it. Nothing failed — the work was just not the work that was
+  wanted. Creating a site, a page or a product now passes through a short
+  agreement step first. Editing something that already exists is untouched.
+* **Changed: this site's instructions now outrank the ones your AI client
+  brings with it.** An agent arrives carrying skills from its own machine, and
+  some of those are written to claim a job the moment they see it. On work for
+  this site, this site wins.
 * **New: an app can connect by signing in.** Instead of generating a token and
   pasting it into a file, you paste this site's address into your AI client,
   press Sign in, and approve the app on a consent screen. WordPress's own login

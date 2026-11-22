@@ -10,7 +10,13 @@ file is the one written for developers: it names files, says what broke and why,
 and keeps the pre-release history that `readme.txt` presents as if it were
 public. When the two disagree, this file is correct.
 
-## [Unreleased]
+## [2.1.0] - 2026-11-22
+
+The sign-in work below was written on 2026-10-27 and was never tagged. Everything
+above it was written after that date and had no version to belong to. Shipping a
+2.1.0 whose notes described a third of its own contents was the worse of the two
+options, so both halves carry this one tag, in the order they were written: the
+newer work first, the sign-in work after the rule.
 
 ### Changed — Slack no longer implies a chat it cannot hold
 
@@ -283,7 +289,9 @@ change.
   requires the gate. Watched failing with the gate removed from
   `website-building` before being kept. Nothing had ever tested rule 7 at all.
 
-## [2.1.0] - 2026-10-27
+---
+
+**Written 2026-10-27, tagged here.**
 
 An AI app can connect by signing in, instead of by being handed a token.
 
