@@ -5,7 +5,7 @@ Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
 Donate link: https://ko-fi.com/keelhob
-Stable tag: 2.1.0
+Stable tag: 2.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -308,6 +308,13 @@ under Keelhob > Automation. Pick your provider there — the model guide next to
 the exact model IDs to type for each one.
 
 == Changelog ==
+
+= 2.1.1 =
+
+* **The plugin author's full name is now shown.** The Plugins screen was
+  missing a middle name. Nothing else changed — 2.1.1 behaves exactly like
+  2.1.0. If you are on 2.1.0 you do not need this update, and taking it costs
+  you nothing.
 
 = 2.1.0 =
 

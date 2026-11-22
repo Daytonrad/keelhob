@@ -10,6 +10,37 @@ file is the one written for developers: it names files, says what broke and why,
 and keeps the pre-release history that `readme.txt` presents as if it were
 public. When the two disagree, this file is correct.
 
+## [2.1.1] - 2026-11-22
+
+### Changed — the author's full name
+
+`keelhob.php` and `composer.json` now name **Caleb Sammy Arthur-Flints**. The
+middle name was missing from both.
+
+### Why this is a release and not an asset swap
+
+The name landed in `d077f0a`, one commit after `v2.1.0` was tagged at `26339d7`.
+The zip attached to that release was built from the tag, so it carries the old
+name, and it had already been downloaded.
+
+Rebuilding that zip and replacing the file on the v2.1.0 release would have been
+one command. It was rejected: the tag would still point at `26339d7`, so reading
+the source at `v2.1.0` and installing the zip from `v2.1.0` would show two
+different authors under one version number. A tag's whole value is that it means
+exactly one thing.
+
+A patch release costs a version number and keeps that guarantee. Nothing about
+the plugin's behaviour changed between 2.1.0 and 2.1.1.
+
+### Not changed, on purpose
+
+- `readme.txt`'s `Contributors: calflint` is a WordPress.org username slug, not
+  a display name. It has to stay lowercase and space-free.
+- `tests/unit/test-security-baseline.php:72` holds
+  `[{"id":1,"name":"Caleb","slug":"calflint"}]` — a fake REST `/users/` response
+  that proves the readiness check spots user enumeration. Test data that shares
+  a first name, not a credit.
+
 ## [2.1.0] - 2026-11-22
 
 The sign-in work below was written on 2026-10-27 and was never tagged. Everything
