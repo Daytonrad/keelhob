@@ -12,10 +12,13 @@
 
 </div>
 
-<!-- TODO(owner): record — three-minute unedited demo, then replace this block with the embed. Recipe: docs/img/SHOT-LIST.md -->
-> **Demo video — not recorded yet.** Three minutes, one take, no cuts: a fresh WordPress, the zip
-> installed, an agent connected, one prompt, a finished site. Recipe in
-> [docs/img/SHOT-LIST.md](docs/img/SHOT-LIST.md).
+https://github.com/user-attachments/assets/e4c0be23-7aea-4dac-adaf-e1725a499c6e
+
+**One sitting, 69 minutes, cut to three and a half.** Eight chapters — install, connect Claude, one
+prompt, store setup, products, pages, redesign, result. Nothing is staged and nothing is re-shot:
+it is one recording, and the parts where the screen sat still were dropped. Where it is sped up,
+the speed is on screen the whole time, so you can see what was skipped. Keys, tokens and local
+paths are blurred.
 
 WordPress shipped a famous five-minute install, back when standing up a database-driven site took
 days. It kept that promise. Then the hard part moved: installing is trivial now, and building is
