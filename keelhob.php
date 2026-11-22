@@ -6,7 +6,7 @@
  * Version:           2.1.0
  * Requires at least: 6.3
  * Requires PHP:      8.0
- * Author:            Caleb Arthur-Flints
+ * Author:            Caleb Sammy Arthur-Flints
  * Author URI:        https://github.com/calflint
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
