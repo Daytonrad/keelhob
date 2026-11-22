@@ -281,14 +281,20 @@ final class Keelhob_Updater
             return $transient;
         }
         $latest = self::latest();
-        if (!$latest || version_compare($latest['version'], KEELHOB_VERSION, '<=')) {
+
+        // Unreachable is not the same as up to date. A site with no network
+        // knows nothing about its update state and must be told nothing, in
+        // either direction.
+        if (!$latest) {
             return $transient;
         }
 
-        $transient->response[KEELHOB_BASENAME] = (object) [
+        $newer = version_compare($latest['version'], KEELHOB_VERSION, '>');
+
+        $row = (object) [
             'slug'        => self::SLUG,
             'plugin'      => KEELHOB_BASENAME,
-            'new_version' => $latest['version'],
+            'new_version' => $newer ? $latest['version'] : KEELHOB_VERSION,
             'url'         => $latest['url'],
             'package'     => $latest['package'],
             // Without these the Updates screen shows the grey puzzle-piece
@@ -296,6 +302,30 @@ final class Keelhob_Updater
             // rather than wordpress.org reads as "source unknown".
             'icons'       => Keelhob_Brand::icons(),
         ];
+
+        if ($newer) {
+            $transient->response[KEELHOB_BASENAME] = $row;
+            return $transient;
+        }
+
+        // Nothing to install — and core needs to hear that out loud.
+        //
+        // Returning the transient untouched here looks like the harmless
+        // choice and is not. class-wp-plugins-list-table.php sets
+        // 'update-supported' => true only for plugins found in response[] or
+        // no_update[], false otherwise, and gates the "Enable auto-updates"
+        // link on it. A plugin in neither list is read as one that cannot be
+        // updated at all, so the toggle is never drawn.
+        //
+        // Found on keelhob.com running 2.1.1 with 2.1.1 available: Keelhob was
+        // the only plugin on the site without that toggle while two others had
+        // it. Updates were never broken, because a newer version still filled
+        // response[]. What was impossible was UNATTENDED updating, on a plugin
+        // whose whole job is handing an AI full control of a site.
+        if (!isset($transient->no_update) || !is_array($transient->no_update)) {
+            $transient->no_update = [];
+        }
+        $transient->no_update[KEELHOB_BASENAME] = $row;
         return $transient;
     }
 

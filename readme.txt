@@ -5,7 +5,7 @@ Requires at least: 6.3
 Tested up to: 6.9
 Requires PHP: 8.0
 Donate link: https://ko-fi.com/keelhob
-Stable tag: 2.1.1
+Stable tag: 2.1.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -308,6 +308,15 @@ under Keelhob > Automation. Pick your provider there — the model guide next to
 the exact model IDs to type for each one.
 
 == Changelog ==
+
+= 2.1.2 =
+
+* **Fixed: you can now switch on automatic updates for Keelhob.** The
+  "Enable auto-updates" link was missing from Keelhob's row on the Plugins
+  screen, while other plugins had it. Keelhob was not telling WordPress that it
+  supports updating when there was nothing to install, and WordPress read that
+  silence as "this plugin cannot be updated". Manual updates always worked, and
+  still do. Nothing else changed.
 
 = 2.1.1 =
 

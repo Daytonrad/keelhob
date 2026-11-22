@@ -226,3 +226,74 @@ $GLOBALS['kh_test_http'] = [
 ];
 Keelhob_Updater::latest(true);
 KH_Test::same(1, count($GLOBALS['kh_test_http']), 'only one request was made, so an opted-out site is never sent to the counter');
+
+KH_Test::group('Updater — a current site still tells WordPress it supports updates');
+
+// The bug this guards against was found on keelhob.com, which had Keelhob 2.1.1
+// installed and 2.1.1 available. inject() returned the transient untouched, and
+// that silence has a meaning in core that is not "nothing to do":
+//
+//   class-wp-plugins-list-table.php:215  update-supported => true   if in response[]
+//   class-wp-plugins-list-table.php:217  update-supported => true   if in no_update[]
+//   class-wp-plugins-list-table.php:219  update-supported => false  otherwise
+//   class-wp-plugins-list-table.php:294  $enabled = ... && $plugin_data['update-supported']
+//
+// A plugin in neither list is read as one that cannot be updated at all, so the
+// "Enable auto-updates" link is not rendered for it. On the live site Keelhob
+// was the ONLY plugin without that toggle while two others had it.
+//
+// Updates themselves were never broken: a newer version still populated
+// response[]. What was impossible was UNATTENDED updating, on a plugin whose
+// whole job is handing an AI full control of a site. That is the wrong thing to
+// make people remember to do by hand.
+
+kh_test_reset_options();
+delete_transient(Keelhob_Updater::TRANSIENT);
+// Exactly the installed version: the "nothing to do" case.
+$GLOBALS['kh_test_http'] = [
+    ['code' => 200, 'body' => '{"version":"' . KEELHOB_VERSION . '","package":"https://example.test/same.zip","url":"https://example.test/rel"}', 'headers' => []],
+];
+Keelhob_Updater::latest(true);
+$out = Keelhob_Updater::inject((object) ['response' => [], 'no_update' => []]);
+
+KH_Test::same([], (array) $out->response, 'an identical version is not offered as an update');
+KH_Test::ok(
+    isset($out->no_update[KEELHOB_BASENAME]),
+    'but the plugin IS listed in no_update, which is what keeps the auto-update toggle on screen'
+);
+KH_Test::same(
+    KEELHOB_VERSION,
+    $out->no_update[KEELHOB_BASENAME]->new_version ?? '',
+    'and it reports the version it actually has'
+);
+KH_Test::same(
+    KEELHOB_BASENAME,
+    $out->no_update[KEELHOB_BASENAME]->plugin ?? '',
+    'keyed and labelled by basename, because core looks it up by that'
+);
+
+// An older release is the same situation from core's point of view: there is
+// nothing to install, and the plugin still supports updating.
+kh_test_reset_options();
+delete_transient(Keelhob_Updater::TRANSIENT);
+$GLOBALS['kh_test_http'] = [
+    ['code' => 200, 'body' => '{"version":"0.0.1","package":"https://example.test/old.zip"}', 'headers' => []],
+];
+Keelhob_Updater::latest(true);
+$out = Keelhob_Updater::inject((object) ['response' => [], 'no_update' => []]);
+KH_Test::ok(
+    isset($out->no_update[KEELHOB_BASENAME]),
+    'an older release upstream also leaves the plugin marked as update-supported'
+);
+
+// Unreachable is different and must stay silent. A site with no network must
+// not be told anything about its update state, in either direction.
+kh_test_reset_options();
+delete_transient(Keelhob_Updater::TRANSIENT);
+$GLOBALS['kh_test_http'] = [
+    ['code' => 503, 'body' => 'down', 'headers' => []],
+    ['code' => 503, 'body' => 'down', 'headers' => []],
+];
+$out = Keelhob_Updater::inject((object) ['response' => [], 'no_update' => []]);
+KH_Test::same([], (array) $out->response, 'two dead endpoints offer no update');
+KH_Test::same([], (array) $out->no_update, 'and claim nothing about no_update either, because nothing is known');

@@ -10,6 +10,56 @@ file is the one written for developers: it names files, says what broke and why,
 and keeps the pre-release history that `readme.txt` presents as if it were
 public. When the two disagree, this file is correct.
 
+## [2.1.2] - 2026-11-22
+
+### Fixed — Keelhob could not be set to auto-update
+
+Found on keelhob.com the day the repository went public. The site had 2.1.1
+installed with 2.1.1 available, and Keelhob was the **only** plugin on it
+without an "Enable auto-updates" link. Two other plugins had one.
+
+`inject()` returned the transient untouched whenever there was nothing to
+install. That looks like the harmless branch and is not, because the silence
+has a meaning in core:
+
+```
+class-wp-plugins-list-table.php:215   'update-supported' => true    if in response[]
+class-wp-plugins-list-table.php:217   'update-supported' => true    if in no_update[]
+class-wp-plugins-list-table.php:219   'update-supported' => false   otherwise
+class-wp-plugins-list-table.php:294   $enabled = ... && $plugin_data['update-supported']
+```
+
+A plugin in neither list is read as one that **cannot be updated at all**, so
+the toggle is never drawn. Those four lines were read off the live server rather
+than recalled.
+
+`includes/class-updater.php` now fills `no_update` when the site is current, and
+still fills `response` when it is not.
+
+**Updating was never broken.** A newer version always populated `response[]`,
+which was verified end to end on the live site: it resolved 2.1.1, fetched its
+own zip over HTTP 200 at 849,879 bytes, and compared correctly against 2.0.0.
+What was impossible was *unattended* updating — on a plugin whose whole job is
+handing an AI full control of a site, which is the worst possible thing to make
+someone remember to do by hand.
+
+### Unreachable still says nothing
+
+The no-network case is deliberately left alone, and there is an assertion for it
+in both directions. A site that cannot reach either endpoint knows nothing about
+its update state, so it is told nothing — not "up to date", not "update
+available". Claiming "up to date" because a request timed out is how a site sits
+on a security fix believing it already has it.
+
+### Six assertions, all four watched failing first
+
+`tests/unit/test-updater.php` gained a group that runs `inject()` three ways:
+same version, older upstream, and both endpoints dead. **Four of the six
+assertions were watched failing** against the old code (4 of 4266) before the
+fix was written; the two covering the offline case passed from the start,
+because that behaviour was already right and is now pinned so it cannot be
+broken by a future fix to this one.
+
 ## [2.1.1] - 2026-11-22
 
 ### Changed — the author's full name
