@@ -165,6 +165,50 @@ KH_Test::same($header[1] ?? 'a', $constant[1] ?? 'b', 'the plugin header and KEE
 KH_Test::same($header[1] ?? 'a', $stable[1] ?? 'b', 'readme.txt Stable tag matches the plugin version');
 KH_Test::contains('= ' . ($header[1] ?? '?'), $readme, 'readme.txt has a changelog entry for this version');
 
+// ROADMAP.md is mirrored onto keelhob.com/roadmap, so a stale file is a stale
+// public page. It went stale for seventeen commits and four releases: the page
+// kept telling strangers that 1.1.0 was the newest version while 2.1.2 was on
+// GitHub, and that the demo video was the one thing blocking a release, after
+// it had been recorded. The mirror was working perfectly. Nobody had edited the
+// file, and nothing could tell.
+//
+// So the version lives in a marker instead of in prose, and this test fails the
+// moment a release is cut without the roadmap being brought with it. There is
+// nothing to remember.
+$roadmap = (string) file_get_contents($root . '/ROADMAP.md');
+preg_match('/<!--\s*keelhob:latest-release\s+(\S+)\s*-->/', $roadmap, $marker);
+KH_Test::ok(!empty($marker[1]), 'ROADMAP.md carries a keelhob:latest-release marker');
+KH_Test::same(
+    $header[1] ?? 'a',
+    $marker[1] ?? 'b',
+    'ROADMAP.md names the current version as the latest release'
+);
+KH_Test::contains(
+    '**' . ($header[1] ?? '?') . ' is the latest published release.**',
+    $roadmap,
+    'the sentence a reader sees matches the marker a machine reads'
+);
+
+// A version that already shipped cannot still be planned. This catches the
+// other half of the drift: headings like "## Now (1.3)" left behind after 2.x
+// shipped, which is what actually made the old file read as abandoned.
+$planned = [];
+if (preg_match('/^## Now \((\d+\.\d+)\)/m', $roadmap, $now)) {
+    $planned[] = $now[1];
+}
+preg_match_all('/^### (\d+\.\d+) /m', $roadmap, $next);
+foreach ($next[1] as $v) {
+    $planned[] = $v;
+}
+KH_Test::ok($planned !== [], 'ROADMAP.md still plans at least one future version');
+$shipped = [];
+foreach ($planned as $v) {
+    if (version_compare($v, (string) ($header[1] ?? '0'), '<=')) {
+        $shipped[] = $v;
+    }
+}
+KH_Test::same([], $shipped, 'ROADMAP.md does not plan a version that already shipped');
+
 KH_Test::group('Integrity — readme.txt has not drifted from README.md');
 
 // Three sections say the same thing in both files: what this plugin can do to a

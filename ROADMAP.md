@@ -25,20 +25,24 @@ live MCP endpoint, and a rig running real WordPress.
 
 ---
 
-## Shipped (1.1.0) and built, awaiting release (1.2.0)
+## Shipped
 
-1.1.0 is the latest published release. Everything below is written and on `main`;
-the 1.2.0 items are not downloadable until that tag is cut.
+<!-- keelhob:latest-release 2.1.2 -->
+**2.1.2 is the latest published release.** That line is not written by hand: a
+test reads the marker above it and fails the build if it stops matching the
+version in `keelhob.php`, which is how this file went eight months out of date
+once and will not again.
 
-One thing still blocks that tag, and it is not code: **a three-minute video** of a
-site being built from one prompt, start to finish, no cuts. Not recorded yet.
+Everything in this section is downloadable today. The full detail is in
+[CHANGELOG.md](CHANGELOG.md); this is the shape of it.
 
-- **The one-prompt store, polished end to end.** Say "build me a shop selling
-  handmade candles in the UK", answer a few questions, and get pages, products,
-  images, payment, shipping, tax, legal pages and SEO — *verified* done by the
-  readiness checker before it says so.
-- **Installation docs with screenshots**, written for people who have never
-  touched MCP.
+- **The one-prompt store, end to end.** Say "build me a shop selling handmade
+  candles in the UK", answer a few questions, and get pages, products, images,
+  payment, shipping, tax, legal pages and SEO — *verified* done by the readiness
+  checker before it says so.
+- **The manual**, written for someone who has never touched MCP, at
+  [keelhob.com/docs](https://keelhob.com/docs) and in the zip as
+  [DOCUMENTATION.md](DOCUMENTATION.md).
 - **The site-clone skill family** — copy a site built on Wix, Shopify or React
   into WordPress and Elementor, with a permission gate that stops the run if the
   answer is no.
@@ -46,23 +50,31 @@ site being built from one prompt, start to finish, no cuts. Not recorded yet.
   conditional logic with ALL/ANY rules, and revisions with one-click restore.
 - **Feedback you can send from inside the plugin**, and a private summary the
   maintainer can read.
+- **Agent-written abilities, site care, ratings and a run log** (2.0.0), plus a
+  rebuilt admin on its own design system.
+- **OAuth 2.1 with dynamic client registration** (2.1.0), off by default.
+- **Signed releases.** The zip is built from a clean checkout of the tagged
+  commit, and the two skill-feed assets carry detached Ed25519 signatures that
+  every installed site verifies before it trusts a skill update.
+- **The demo.** One sitting, 69 minutes, cut to three and a half, on
+  [keelhob.com](https://keelhob.com) and at the top of the README. This used to
+  be the one thing blocking a release. It is recorded.
 
-## Now (1.3)
+## Now (2.2)
 
 Being built.
 
 - **Onboarding wizard.** Activation to a connected agent without reading
   anything first.
 
-## Next (1.4, 1.5)
+## Next (2.3, 2.4)
 
 Planned and ordered.
 
-### 1.4 — trust
+### 2.3 — trust
 
 - **An independent security review** of `execute_php`, the filesystem tools and
   the snippet engine, published in full including whatever it finds.
-- **Signed releases**, with the signing process documented and reproducible.
 - **A permission model finer than capability groups**: per-tool approval, and an
   audit-and-approve queue for destructive actions.
 - **Automatic rollback.** A full site snapshot before any agent run, one click
@@ -72,7 +84,7 @@ Planned and ordered.
 - **A skill gallery** — browse and install community skills from the admin.
 - **Proper i18n, and the first translations.**
 
-### 1.5 — depth
+### 2.4 — depth
 
 Keelhob stops being a tool that builds sites and becomes one that builds
 tools.
