@@ -53,6 +53,10 @@ Everything in this section is downloadable today. The full detail is in
 - **Agent-written abilities, site care, ratings and a run log** (2.0.0), plus a
   rebuilt admin on its own design system.
 - **OAuth 2.1 with dynamic client registration** (2.1.0), off by default.
+- **Provider choice.** Anthropic, OpenAI and Google, for text, images and
+  speech-to-text alike — `class-provider-*.php`, `class-image-provider-*.php`
+  and `class-transcribe-provider-*.php`. Bring your own key. Local models
+  through Ollama are the one piece still outstanding, and they are in 2.4.
 - **Signed releases.** The zip is built from a clean checkout of the tagged
   commit, and the two skill-feed assets carry detached Ed25519 signatures that
   every installed site verifies before it trusts a skill update.
@@ -60,14 +64,31 @@ Everything in this section is downloadable today. The full detail is in
   [keelhob.com](https://keelhob.com) and at the top of the README. This used to
   be the one thing blocking a release. It is recorded.
 
-## Now (2.2)
+## Now (2.2) — the holes in the product
 
-Being built.
+Being built. These are not new ideas; each one is a gap somebody can hit today.
 
 - **Onboarding wizard.** Activation to a connected agent without reading
   anything first.
+- **Give the owner eyes on Telegram.** There is no screenshot ability anywhere
+  in the plugin today, and `class-telegram-api.php` has no `sendPhoto` —
+  pictures go in and never come out. So an agent building a site from a Telegram
+  chat sends words about a page nobody can see, and the result is structurally
+  correct and visually unproven. The standing rule in this project is *never
+  claim a page works from reading its HTML*, and over Telegram reading the HTML
+  is all the agent has. Fix: `sendPhoto`, plus a hosted screenshot service —
+  hosted rather than headless Chrome, because the people who most need to build
+  from a phone are on shared hosting that will not run a browser.
+- **`elementor_page` has no partial update.** Changing one section means
+  sending the whole page back, so a long page is rewritten to edit a heading.
+- **The Snippets admin form fails silently if the row has gone.** The window is
+  small — the row has to be deleted between the page rendering and the save —
+  but a save that reports nothing is the wrong failure.
+- **An unknown `source` is silently relabelled "Hand-written".** A snippet whose
+  origin the plugin does not recognise should say so, not claim a human wrote
+  it.
 
-## Next (2.3, 2.4)
+## Next (2.3, 2.4, 2.5)
 
 Planned and ordered.
 
@@ -75,16 +96,39 @@ Planned and ordered.
 
 - **An independent security review** of `execute_php`, the filesystem tools and
   the snippet engine, published in full including whatever it finds.
+- **The tool-level build lock.** Today "agree what you are building before you
+  build it" is an *instruction*, written in the strongest place available — and
+  a model that ignores its instructions can still write. The hard version gives
+  the plugin a session, a recorded agreement, and a `create_post` and
+  `snippet_save` that refuse the first creation of a session until that
+  agreement exists. It cannot be talked past. It is days of work and it changes
+  how the plugin feels for everyone, which is why it waits for a version of its
+  own rather than being bolted on.
 - **A permission model finer than capability groups**: per-tool approval, and an
   audit-and-approve queue for destructive actions.
 - **Automatic rollback.** A full site snapshot before any agent run, one click
   back.
 - **A hardening guide** for people running this on production anyway. They
   exist. Better they do it well.
-- **A skill gallery** — browse and install community skills from the admin.
-- **Proper i18n, and the first translations.**
 
-### 2.4 — depth
+### 2.4 — reach
+
+- **Local models through Ollama.** The rest of provider choice shipped; this is
+  the part that matters to people who will not send their site to anyone's
+  cloud, and it is the only piece left.
+- **Real translations.** `load_plugin_textdomain()` has been called since 1.0
+  and `languages/` is empty, so nothing is actually translatable. A `.pot` file
+  first, then the first language.
+- **A skill gallery** — browse and install community skills from the admin.
+- **Two-way Slack chat, if people ask for it.** The design is finished and the
+  decisions are made: shipped to everyone but **off by default**, beside
+  Telegram rather than instead of it, Block Kit buttons for approve and cancel,
+  text only in v1. It is not waiting on a plan. It is waiting on evidence that
+  anyone wants it, because a second chat surface is a second public door to
+  maintain forever. **If you want this, say so in an issue** — that is the
+  whole gate, and one real request moves it.
+
+### 2.5 — depth
 
 Keelhob stops being a tool that builds sites and becomes one that builds
 tools.
@@ -109,8 +153,6 @@ some will be dropped.
 - **Migrate in**: Shopify, Wix, Squarespace, static sites.
 - **Vertical store skills** — dropshipping, digital goods, bookings,
   subscriptions — each one an expert rather than a generalist.
-- **Provider choice everywhere**: OpenAI, Gemini, and local models through
-  Ollama, for people who will not send their site to anyone's cloud.
 - **Agency mode**: one agent, many sites, shared skills and brand memory.
 - **A visual builder loop**: the agent looks at what it made, in a browser, and
   fixes what looks wrong.
