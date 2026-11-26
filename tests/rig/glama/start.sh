@@ -49,5 +49,5 @@ if [ "$ready" != "1" ]; then
 fi
 echo "kh: WordPress is up, handing over to the bridge" >&2
 
-exec php /usr/local/bin/kh-bridge.php \
+exec php /usr/local/lib/kh-glama/stdio-bridge.php \
   "http://127.0.0.1:8899/wp-json/keelhob/v1/mcp" "$TOKEN"
