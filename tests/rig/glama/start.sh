@@ -49,5 +49,10 @@ if [ "$ready" != "1" ]; then
 fi
 echo "kh: WordPress is up, handing over to the bridge" >&2
 
+# ?rest_route= rather than the pretty /wp-json/ path. PHP's built-in server
+# has no rewrite rules and WordPress ships with plain permalinks, so
+# /wp-json/keelhob/v1/mcp never reaches the REST API: index.php renders the
+# home page instead, and the harness sees a block-editor stylesheet where it
+# expected JSON-RPC.
 exec php /usr/local/lib/kh-glama/stdio-bridge.php \
-  "http://127.0.0.1:8899/wp-json/keelhob/v1/mcp" "$TOKEN"
+  "http://127.0.0.1:8899/index.php?rest_route=/keelhob/v1/mcp" "$TOKEN"
