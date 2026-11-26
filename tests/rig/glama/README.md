@@ -27,7 +27,15 @@ So the container carries its own throwaway WordPress — the same recipe as
 **The token is written as a hash, not minted.** Keelhob stores only
 `sha256(token)`. Calling `Keelhob::set_token()` would mint a *new* token and
 Glama would be left holding the wrong one, authenticating against nothing. So
-`start.sh` writes the hash of the token Glama passed in.
+`start.sh` writes the hash of the token Glama passed in, mirroring
+`set_token()` field for field — clearing the legacy plaintext `token` and
+resetting `token_last_used` as well.
+
+**The setter is `update()`, not `set()`.** `Keelhob` has no `set()`; `update()`
+takes a patch, merges it over the current settings and re-encrypts the secret
+fields. The first build failed on exactly this, and the only thing WordPress
+printed was *"There has been a critical error on this website"*, which names
+neither the method nor the line.
 
 **Nothing may print to stdout except JSON-RPC.** One stray PHP notice in the
 middle of the stream corrupts it, and the failure looks like a protocol bug
